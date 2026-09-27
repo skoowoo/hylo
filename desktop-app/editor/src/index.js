@@ -25,4 +25,12 @@ export {
   codeHighlightStyle,
   listIndentExtension,
   readingExtensions,
+  toggleBold,
+  toggleItalic,
+  toggleStrikethrough,
+  toggleBulletList,
+  toggleOrderedList,
+  toggleTaskList,
+  toggleBlockquote,
+  selectionFormatMenu,
 } from './cm-live/index.js';

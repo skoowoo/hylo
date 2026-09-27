@@ -1,7 +1,7 @@
 import { EditorView, keymap } from '@codemirror/view';
 import { EditorState } from '@codemirror/state';
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
-import { livePreviewExtensions, listIndentExtension, allowFrontmatterEdit } from '../src/cm-live/index.js';
+import { livePreviewExtensions, listIndentExtension, allowFrontmatterEdit, selectionFormatMenu } from '../src/cm-live/index.js';
 
 const sample = `---
 title: Live Preview POC
@@ -97,6 +97,7 @@ const view = new EditorView({
     extensions: [
       history(),
       listIndentExtension,
+      selectionFormatMenu(), // right-click a selection for bold/italic/strike/list
       keymap.of([...defaultKeymap, ...historyKeymap]),
       EditorView.lineWrapping,
       livePreviewExtensions({

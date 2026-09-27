@@ -29,6 +29,10 @@ export { frontmatterReadOnly, allowFrontmatterEdit } from './frontmatter-readonl
 export { linkClickHandler } from './link-click.js';
 export { livePreviewTheme, codeHighlightStyle } from './theme.js';
 export { listIndentExtension } from './list-indent.js';
+export { toggleBold, toggleItalic, toggleStrikethrough } from './inline-format.js';
+export { toggleBulletList, toggleOrderedList, toggleTaskList } from './list-format.js';
+export { toggleBlockquote } from './quote-format.js';
+export { selectionFormatMenu } from './format-menu.js';
 export {
   WikiLinkWidget,
   WikiImageWidget,

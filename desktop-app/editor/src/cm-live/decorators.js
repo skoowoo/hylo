@@ -264,7 +264,11 @@ function decorateListMark(node, view, decos) {
   // hairline way frontmatter/table rows already do (checked from the item
   // above only, so a blank line between two items isn't decorated twice).
   if (isBlankLine(doc, line.number + 1) && lineIsListItemLine(node, doc, line.number + 2)) {
-    decos.push(Decoration.line({ class: 'cm-lp-list-gap' }).range(doc.line(line.number + 1).from));
+    const gap = doc.line(line.number + 1);
+    decos.push(Decoration.line({ class: 'cm-lp-list-gap' }).range(gap.from));
+    // 1px line class would leave a short ASCII run for CM's text-size probe.
+    // textHeight 1 makes vertical motion's step (>> 1) zero, so the scan never ends.
+    hideRange(gap.from, gap.to, decos);
   }
 }
 

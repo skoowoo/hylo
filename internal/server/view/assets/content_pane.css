@@ -313,24 +313,24 @@
     /* The tool bar has no divider, so scrolled text dissolves into --bg
        just under it rather than being cut off. Eased (smoothstep) stops keep
        both ends of the ramp soft, so no edge reads as a gradient boundary;
-       it's 32px tall, which the scroller's top padding (and reading mode's,
+       it's 20px tall, which the scroller's top padding (and reading mode's,
        below) fully clears at rest. right: 14px clears the scrollbar, which
        is 11px wide under scrollbar-width: thin (the standard property beats
        the 5px ::-webkit-scrollbar rule below); text never reaches there,
        its horizontal padding is at least 20px. */
     #content-pane-edit-area::before {
-      content: ""; position: absolute; z-index: 10; top: 0; left: 0; right: 14px; height: 32px;
+      content: ""; position: absolute; z-index: 10; top: 0; left: 0; right: 14px; height: 20px;
       pointer-events: none; border-radius: 0;
       background: linear-gradient(to bottom,
         var(--bg) 0,
-        color-mix(in srgb, var(--bg) 96%, transparent) 4px,
-        color-mix(in srgb, var(--bg) 84%, transparent) 8px,
-        color-mix(in srgb, var(--bg) 68%, transparent) 12px,
-        color-mix(in srgb, var(--bg) 50%, transparent) 16px,
-        color-mix(in srgb, var(--bg) 32%, transparent) 20px,
-        color-mix(in srgb, var(--bg) 16%, transparent) 24px,
-        color-mix(in srgb, var(--bg) 4%, transparent) 28px,
-        transparent 32px);
+        color-mix(in srgb, var(--bg) 96%, transparent) 2.5px,
+        color-mix(in srgb, var(--bg) 84%, transparent) 5px,
+        color-mix(in srgb, var(--bg) 68%, transparent) 7.5px,
+        color-mix(in srgb, var(--bg) 50%, transparent) 10px,
+        color-mix(in srgb, var(--bg) 32%, transparent) 12.5px,
+        color-mix(in srgb, var(--bg) 16%, transparent) 15px,
+        color-mix(in srgb, var(--bg) 4%, transparent) 17.5px,
+        transparent 20px);
     }
     #content-pane-edit-area .cm-editor.cm-reading .cm-scroller { padding-top: 2rem; }
     #content-pane-edit-area .cm-content { padding: 0; }

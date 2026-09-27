@@ -372,6 +372,10 @@
       s.keymap = mod.keymap;
       s.defaultKeymap = mod.defaultKeymap; s.historyKeymap = mod.historyKeymap; s.history = mod.history;
       s.listIndentExtension = mod.listIndentExtension;
+      s.toggleBold = mod.toggleBold; s.toggleItalic = mod.toggleItalic; s.toggleStrikethrough = mod.toggleStrikethrough;
+      s.toggleBulletList = mod.toggleBulletList; s.toggleOrderedList = mod.toggleOrderedList; s.toggleTaskList = mod.toggleTaskList;
+      s.toggleBlockquote = mod.toggleBlockquote;
+      s.selectionFormatMenu = mod.selectionFormatMenu;
       s.readingExtensions = mod.readingExtensions;
       s.markdown = mod.markdown; s.HighlightStyle = mod.HighlightStyle;
       s.syntaxHighlighting = mod.syntaxHighlighting; s.tags = mod.tags;
@@ -504,6 +508,13 @@
           // with the marker left dangling instead); a non-empty item's
           // Enter isn't handled here and falls through to defaultKeymap.
           s.listIndentExtension,
+          // Right-click selection formatting (bold/italic/strikethrough/list) —
+          // see cm-live/format-menu.js. Outside the mode compartments like
+          // listIndentExtension above, so it works in both live-preview and
+          // source mode; not merged into the paste domEventHandlers block
+          // below since CM6 composes multiple domEventHandlers extensions
+          // independently and format-menu.js owns its own contextmenu handler.
+          s.selectionFormatMenu(),
           s.keymap.of([...s.defaultKeymap, ...s.historyKeymap]),
           s.cmSearch({ top: true, createPanel: __vaultrCreateSearchPanel }),
           s.EditorView.lineWrapping, cmTheme,

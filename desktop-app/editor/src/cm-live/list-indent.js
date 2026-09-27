@@ -1,7 +1,9 @@
 import { indentMore, indentLess } from '@codemirror/commands';
+import { insertNewlineContinueMarkup } from '@codemirror/lang-markdown';
 import { syntaxTree } from '@codemirror/language';
 import { keymap } from '@codemirror/view';
 import { Prec } from '@codemirror/state';
+import { lineInsideCodeBlock } from './format-guards.js';
 
 // Tab/Shift-Tab nest/un-nest a list item. Two things the generic
 // indentMore/indentLess (CM6's default "smart tab") get wrong for markdown
@@ -235,9 +237,13 @@ function emptyItemEnter(view) {
     const changes = [];
     setLineIndent(state, item, target, changes);
     dispatchWithRenumber(view, changes);
+  } else if (neighborIsListItem(state.doc, line, 1)) {
+    // Next line is another item. Leaving a blank here splits the list, and
+    // live preview hides that blank, so the source grows a gap the user
+    // never sees. Drop the empty item instead.
+    deleteLine(view, line);
   } else {
-    // Nothing to outdent to — exit the list, stripping the whole marker
-    // (and "[ ] "/"[x] " for a task) down to a blank paragraph line.
+    // End of the list (or prose follows) — exit to an empty paragraph.
     const task = item.getChild('Task');
     const taskMarker = task && task.getChild('TaskMarker');
     const doc = state.doc;
@@ -248,16 +254,115 @@ function emptyItemEnter(view) {
   return true;
 }
 
+const LIST_LINE = /^[ \t]*(?:[-+*]|\d+[.)]) /;
+
+// lang-markdown repeats a loose list's blank line on every Enter, and its
+// ordered-list continuation regex drops a task checkbox ("1. [ ] a" becomes
+// "2. "). Both apply at every nesting depth. Fold the repairs into the
+// continuation transaction so one undo removes the whole keystroke.
+function listEnter(view) {
+  if (emptyItemEnter(view)) return true;
+  const origin = view.state.doc.lineAt(view.state.selection.main.head).text;
+  const orderedTask = /^\s*\d+[.)][ \t]+\[[ xX]\]/.test(origin);
+  let tr = null;
+  const ok = insertNewlineContinueMarkup({
+    state: view.state,
+    dispatch(next) { tr = next; },
+  });
+  if (!ok || !tr) return false;
+
+  let state = view.state.update(tr).state;
+  let changes = tr.changes;
+  const line = state.doc.lineAt(state.selection.main.head);
+  if (line.number > 1 && LIST_LINE.test(line.text)) {
+    const prev = state.doc.line(line.number - 1);
+    if (prev.text.trim() === '') {
+      const from = prev.from > 0 ? prev.from - 1 : prev.from;
+      const to = prev.from > 0 ? prev.to : Math.min(state.doc.length, prev.to + 1);
+      const removal = state.changes({ from, to, insert: '' });
+      changes = changes.compose(removal);
+      state = state.update({ changes: removal }).state;
+    }
+  }
+  if (orderedTask) {
+    const cur = state.doc.lineAt(state.selection.main.head);
+    if (/^\s*\d+[.)]\s*$/.test(cur.text) && !cur.text.includes('[')) {
+      const insert = /\s$/.test(cur.text) ? '[ ] ' : ' [ ] ';
+      const add = state.changes({ from: cur.to, to: cur.to, insert });
+      changes = changes.compose(add);
+      state = state.update({ changes: add, selection: { anchor: cur.to + insert.length } }).state;
+    }
+  }
+  view.dispatch({ changes, selection: state.selection, scrollIntoView: true, userEvent: 'input' });
+  return true;
+}
+
+// Drop a whole source line, including the newline that separates it from
+// its sibling, so removing an empty item doesn't leave a blank line behind.
+function deleteLine(view, line) {
+  const doc = view.state.doc;
+  const from = line.number > 1 ? line.from - 1 : line.from;
+  const to = line.number > 1 ? line.to : (line.number < doc.lines ? line.to + 1 : line.to);
+  dispatchWithRenumber(view, [{ from, to, insert: '' }]);
+  return true;
+}
+
+function neighborIsListItem(doc, line, dir) {
+  const n = line.number + dir;
+  if (n < 1 || n > doc.lines) return false;
+  return /^[ \t]*(?:[-+*]|\d+[.)]) /.test(doc.line(n).text);
+}
+
+// Backspace on an empty item. lang-markdown's deleteMarkupBackward replaces
+// the marker with the same number of spaces ("keep the indent") — right for
+// an item that still has text, but an empty todo has nothing to keep, so
+// each such keystroke leaves a whitespace line. Live preview then collapses
+// that line, and the blanks pile up in the source. Obsidian / Logseq /
+// Typora remove one nesting level instead: nested items outdent, a top-level
+// empty item disappears. A leftover whitespace-only line between items is
+// the same junk and goes away in one keystroke.
+function emptyItemBackspace(view) {
+  const state = view.state;
+  const sel = state.selection.main;
+  if (!sel.empty) return false;
+  const line = state.doc.lineAt(sel.head);
+  if (lineInsideCodeBlock(state, line)) return false;
+
+  const item = findListItemAt(state, sel.head);
+  if (item && isItemEmpty(state, item) && state.doc.lineAt(listMarkOf(item).from).number === line.number) {
+    const parentItem = parentItemOf(item);
+    if (parentItem) {
+      const target = markColumn(state, parentItem);
+      const changes = [];
+      setLineIndent(state, item, target, changes);
+      dispatchWithRenumber(view, changes);
+      return true;
+    }
+    return deleteLine(view, line);
+  }
+
+  if (line.text.length > 0 && line.text.trim() === '' &&
+      (neighborIsListItem(state.doc, line, -1) || neighborIsListItem(state.doc, line, 1))) {
+    return deleteLine(view, line);
+  }
+  return false;
+}
+
 // Prec.highest: @codemirror/lang-markdown's own language support registers
-// a high-precedence Enter binding for "continue list markup" — the exact
-// thing emptyItemEnter above is replacing for the empty-item case — so a
-// normal-precedence keymap.of(...) here would lose to it regardless of
-// where it sits in the extensions array. Wrapping in Prec.highest is what
-// actually lets emptyItemEnter (and Tab/Shift-Tab, for consistency) win.
+// a high-precedence Enter/Backspace binding for list markup — the exact
+// thing emptyItemEnter/emptyItemBackspace are replacing for the empty-item
+// case — so a normal-precedence keymap.of(...) here would lose to it
+// regardless of where it sits in the extensions array.
 export const listIndentExtension = Prec.highest(
   keymap.of([
-    { key: 'Enter', run: emptyItemEnter },
+    { key: 'Enter', run: listEnter },
+    { key: 'Backspace', run: emptyItemBackspace },
     { key: 'Tab', run: smartIndentMore },
     { key: 'Shift-Tab', run: smartIndentLess },
   ])
 );
+
+// Reused by cm-live/list-format.js (right-click "list" toggles) so it shares
+// this file's syntax-tree list-item lookup and renumber-in-one-transaction
+// logic instead of re-deriving it.
+export { findListItemAt, listMarkOf, markColumn, contentColumn, dispatchWithRenumber };
