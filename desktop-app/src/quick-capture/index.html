@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <title>Quick Capture</title>
+  <style>
+    /* Same design tokens as the main Vaultr window (internal/server/view/shared_tokens.go),
+     trimmed to what this page actually uses — kept in sync by hand since this is a
+     standalone local page, not one rendered through the Go server's template pipeline. */
+    :root {
+      --ink-rgb: 238, 240, 244;
+      --accent-rgb: 94, 106, 210;
+      --bg: #18191e;
+      --fg: #eef0f4;
+      --muted: #8d92a0;
+      --muted-soft: #656a78;
+      --surface-soft: #212229;
+      --border: #35363f;
+      --border-strong: #44454f;
+      --accent: #5e6ad2;
+      --accent-fg: #ffffff;
+      --accent-hov: #7b86e8;
+      --btn-bg: rgba(var(--ink-rgb), 0.06);
+      --btn-bg-hov: rgba(var(--ink-rgb), 0.10);
+      --icon-hov: rgba(var(--accent-rgb), 0.10);
+      --hairline: rgba(var(--ink-rgb), 0.13);
+      --cnt-bg: rgba(var(--ink-rgb), 0.07);
+      --shadow-md: 0 5px 14px;
+      --shadow-color: rgba(0, 0, 0, 0.55);
+      --r-sm: 6px;
+      --r-md: 8px;
+      --r-lg: 12px;
+      --r-xl: 16px;
+      --r-full: 999px;
+      --bd-w: 1px;
+      --btn-h: 32px;
+      --font-ui: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --font-mono: ui-monospace, monospace;
+      --text-2xs: 0.6875rem;
+      --text-xs: 0.75rem;
+      --text-sm: 0.8125rem;
+      --text-base: 0.875rem;
+      --fw-medium: 500;
+      --ls-cap: 0.08em;
+      --motion-fast: 100ms;
+    }
+
+    @media (prefers-color-scheme: light) {
+      :root {
+        --ink-rgb: 24, 24, 27;
+        --bg: #f9f9fb;
+        --fg: #18181b;
+        --muted: #6d7080;
+        --muted-soft: #9b9eac;
+        --surface-soft: #f5f5f7;
+        --border: #d2d2d9;
+        --border-strong: #bcbcc5;
+        --accent-hov: #4c56c8;
+        --shadow-color: rgba(15, 15, 25, 0.10);
+      }
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background: transparent;
+      font-family: var(--font-ui);
+      -webkit-user-select: none;
+      user-select: none;
+      overflow: hidden;
+    }
+
+    /* No -webkit-app-region: drag anywhere in this page (there used to be one
+     on #panel, with no-drag carve-outs on #header/#composer) — a plain
+     click on a drag region is treated like a title-bar click, which
+     activates the owning app on macOS regardless of the window's
+     type:"panel", so it was quietly stealing focus whenever the click
+     landed on the padding/gaps between elements instead of on a control.
+     This panel auto-centers itself and is meant to be used and dismissed,
+     not repositioned, so it just isn't draggable at all now. */
+    #panel {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      /* No background/border/box-shadow here on purpose: the window itself
+       supplies a native vibrancy fill (quick-capture.js — "sidebar"
+       material, same as the main Vaultr window) plus a native drop shadow
+       (hasShadow:true) and native rounded corners (frameless windows
+       default to roundedCorners:true on macOS) — this container just
+       needs to stay fully transparent so all of that shows through,
+       exactly like home.css's html.macos sidebar rule does for the main
+       window. "sidebar" does draw its own faint edge stroke — that's a
+       still-open problem, not something CSS controls; "popover" (the
+       material semantically meant for a floating panel) was tried to get
+       rid of it but rendered flat/opaque instead of translucent, a worse
+       regression, so this reverted back. */
+      border-radius: var(--r-lg);
+      padding: 20px;
+    }
+
+    #header {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 24px;
+      margin-bottom: 10px;
+    }
+
+    #header-label {
+      font-size: var(--text-2xs);
+      font-weight: var(--fw-medium);
+      letter-spacing: var(--ls-cap);
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    #close-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      border-radius: var(--r-sm);
+      cursor: pointer;
+      padding: 0;
+    }
+
+    #close-btn:hover {
+      color: var(--fg);
+      background: var(--icon-hov);
+    }
+
+    #close-btn svg {
+      width: 13px;
+      height: 13px;
+    }
+
+    #img-wrap {
+      flex-shrink: 0;
+      /* Sized by quick-capture.js (boxW/boxH) to already be IMG_INSET bigger
+       than the <img> itself (imgW/imgH) on every side — this centering is
+       what turns that reserved space into visible breathing room, no CSS
+       padding needed here (padding on top of that would double the inset). */
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: var(--r-md);
+      background: var(--cnt-bg);
+      overflow: hidden;
+      margin: 0 auto 16px;
+    }
+
+    #img {
+      display: block;
+    }
+
+    /* Just the textarea pill now — Save/Send moved out into their own
+     labeled buttons below (#actions). Two peer actions (save vs. send to
+     the agent bot) read better as two real buttons than as one button
+     plus a second one implied by context. */
+    #composer {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      height: 76px;
+      border: var(--bd-w) solid var(--border-strong);
+      border-radius: var(--r-xl);
+      /* --surface-soft, not --bg: --bg is the app's darkest/base canvas
+       token — fine as an opaque window background, but reads as a heavy
+       "hole" now that #panel's own background is the translucent vibrancy
+       fill rather than solid --bg. --surface-soft is what the main
+       window's own cards/menus use as a lighter surface sitting on top of
+       a background (see home.css's inbox cards, content_pane.css's
+       tabs/more menus). */
+      background: var(--surface-soft);
+      padding: 10px 14px;
+    }
+
+    #composer:focus-within {
+      border-color: var(--accent);
+    }
+
+    #message {
+      -webkit-user-select: text;
+      user-select: text;
+      flex: 1;
+      min-width: 0;
+      height: 100%;
+      resize: none;
+      border: none;
+      outline: none;
+      background: transparent;
+      color: var(--fg);
+      font-family: inherit;
+      font-size: var(--text-base);
+      line-height: 1.4;
+      padding: 8px 0;
+      overflow-y: auto;
+      scrollbar-width: none;
+      /* Firefox-syntax standard property; Chromium 121+ also honors it */
+    }
+
+    #message::-webkit-scrollbar {
+      display: none;
+    }
+
+    /* Chromium/WebKit — still scrolls, just no visible track/thumb */
+    #message::placeholder {
+      color: var(--muted-soft);
+    }
+
+    /* Two peer actions, save (secondary) vs. send to the agent bot (primary)
+     — the same .btn-outline/.btn-solid pairing base.css uses app-wide for
+     "every rectangular labeled button is one of exactly two kinds, both
+     borderless". base.css gets its buttons' rounded corners from a
+     page-wide `*, *::before, *::after { border-radius: var(--r-md) }`
+     default (a legacy carryover there, not something to copy here) — this
+     page has no such global default, so .btn declares its own radius
+     directly instead. */
+    #actions {
+      flex-shrink: 0;
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.35rem;
+      height: var(--btn-h);
+      padding: 0 0.875rem;
+      border: none;
+      border-radius: var(--r-md);
+      cursor: pointer;
+      font-family: inherit;
+      font-size: var(--text-base);
+      font-weight: var(--fw-medium);
+      transition: background-color var(--motion-fast);
+    }
+
+    .btn svg {
+      width: 13px;
+      height: 13px;
+      flex-shrink: 0;
+    }
+
+    .btn-outline {
+      background: var(--btn-bg);
+      color: var(--fg);
+    }
+
+    .btn-outline:hover {
+      background: var(--btn-bg-hov);
+    }
+
+    .btn-solid {
+      background: var(--accent);
+      color: var(--accent-fg);
+    }
+
+    .btn-solid:hover {
+      background: var(--accent-hov);
+    }
+  </style>
+</head>
+
+<body>
+  <div id="panel">
+    <div id="header">
+      <span id="header-label">Screenshot</span>
+      <button id="close-btn" title="Cancel (Esc)">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+          <path d="M3 3l10 10M13 3L3 13" />
+        </svg>
+      </button>
+    </div>
+    <div id="img-wrap"><img id="img" alt=""></div>
+    <div id="composer">
+      <textarea id="message" placeholder="Message for the agent bot… (optional)"></textarea>
+    </div>
+    <div id="actions">
+      <button id="save-btn" class="btn btn-outline" title="Save to Images (⌘S)">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"
+          stroke-linejoin="round">
+          <path d="M8 2v7.5M4.5 6.5L8 10l3.5-3.5" />
+          <path d="M3 12.5h10" />
+        </svg>
+        Save
+      </button>
+      <button id="send-btn" class="btn btn-solid" title="Send to agent bot (⌘⏎)">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"
+          stroke-linejoin="round">
+          <path d="M8 13V3M3.5 7.5L8 3l4.5 4.5" />
+        </svg>
+        Send
+      </button>
+    </div>
+  </div>
+  <script src="./index.js"></script>
+</body>
+
+</html>

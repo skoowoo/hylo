@@ -266,18 +266,18 @@ Dark is the shipped default (bare `:root`). Light is Vaultr's own from-scratch a
 
 ### Hierarchy
 
-| Token | Size | Weight | Line Height | Use |
-|---|---|---|---|---|
-| `{typography.title-lg}` | 22px | 600 | 1.3 | Search overlay title, modal titles |
-| `{typography.title-sm}` | 16px | 600 | 1.4 | List item titles, card titles |
-| `{typography.body}` | 14px | 400 | 1.5 | Default UI text, buttons at 600 |
-| `{typography.small}` | 13px | 400 | 1.5 | Secondary UI text, dialog messages |
-| `{typography.caption}` | 12px | 400 | 1.4 | Captions, badge labels, section labels — practical minimum for most UI |
-| `{typography.micro}` | 11px | 400 | 1.4 | Search kbd hints, dense meta rows |
-| `{typography.nano}` | 10px | 400 | 1.4 | Rare micro-labels only |
-| `{typography.button}` | 14px | 600 | 1.0 | All button labels |
-| `{typography.code}` | 14px | 400 | 1.5 | JetBrains Mono, code blocks and inline code |
-| `{typography.prose-body}` | 16px | 400 | 1.75 | Note editor / reading-mode running prose — the one place line-height opens up for readability |
+| Token                     | Size | Weight | Line Height | Use                                                                                           |
+| ------------------------- | ---- | ------ | ----------- | --------------------------------------------------------------------------------------------- |
+| `{typography.title-lg}`   | 22px | 600    | 1.3         | Search overlay title, modal titles                                                            |
+| `{typography.title-sm}`   | 16px | 600    | 1.4         | List item titles, card titles                                                                 |
+| `{typography.body}`       | 14px | 400    | 1.5         | Default UI text, buttons at 600                                                               |
+| `{typography.small}`      | 13px | 400    | 1.5         | Secondary UI text, dialog messages                                                            |
+| `{typography.caption}`    | 12px | 400    | 1.4         | Captions, badge labels, section labels — practical minimum for most UI                        |
+| `{typography.micro}`      | 11px | 400    | 1.4         | Search kbd hints, dense meta rows                                                             |
+| `{typography.nano}`       | 10px | 400    | 1.4         | Rare micro-labels only                                                                        |
+| `{typography.button}`     | 14px | 600    | 1.0         | All button labels                                                                             |
+| `{typography.code}`       | 14px | 400    | 1.5         | JetBrains Mono, code blocks and inline code                                                   |
+| `{typography.prose-body}` | 16px | 400    | 1.75        | Note editor / reading-mode running prose — the one place line-height opens up for readability |
 
 ### Principles
 - **One family, every weight.** Inter at 400/500/600 covers the whole app; there's no separate display cut.
@@ -306,13 +306,13 @@ The dark canvas IS the whitespace — sections separate by lifting onto `--surfa
 
 ## Elevation & Depth
 
-| Level | Treatment | Use |
-|---|---|---|
-| 0 (flat) | No shadow, no border | Default for body text, list rows, chrome strips |
-| 1 (soft lift) | `--surface-soft` background | Sidebars, dropdowns, floating toolbars, cleared-inbox cards |
-| 2 (surface-2 lift) | `--surface-2` background | Selected tabs/rows, active states |
-| 3 (hairline) | 1px `--border` / `--border-strong` | Card outlines, dividers, input outlines |
-| 4 (focus ring) | 2px `--accent-focus` outline at 50% opacity, 1px offset | Focused input, focused button — the only glow-like effect in the system |
+| Level                    | Treatment                                                  | Use                                                                                                     |
+| ------------------------ | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| 0 (flat)                 | No shadow, no border                                       | Default for body text, list rows, chrome strips                                                         |
+| 1 (soft lift)            | `--surface-soft` background                                | Sidebars, dropdowns, floating toolbars, cleared-inbox cards                                             |
+| 2 (surface-2 lift)       | `--surface-2` background                                   | Selected tabs/rows, active states                                                                       |
+| 3 (hairline)             | 1px `--border` / `--border-strong`                         | Card outlines, dividers, input outlines                                                                 |
+| 4 (focus ring)           | 2px `--accent-focus` outline at 50% opacity, 1px offset    | Focused input, focused button — the only glow-like effect in the system                                 |
 | 5 (float shadow, opt-in) | `box-shadow: var(--shadow-{sm,md,lg}) var(--shadow-color)` | Confirm/info dialogs (`lg`), settings modal (`lg`), search overlay panel (`md`), drawer popovers (`sm`) |
 
 Everything that doesn't explicitly opt into level 5 stays flat, matching the surface-ladder-only depth model. `--shadow-color` is the one actual shadow color per theme (`rgba(0,0,0,0.55)` dark, `rgba(15,15,25,0.10)` light); `--shadow-xs/sm/md/lg` only ever supply offset/blur shape.
@@ -326,14 +326,14 @@ Everything that doesn't explicitly opt into level 5 stays flat, matching the sur
 
 ### Border Radius Scale
 
-| Token | Value | Use |
-|---|---|---|
-| `{rounded.xs}` | 4px | Chips, status badges, small icon buttons |
-| `{rounded.sm}` | 6px | Inline tags, inline code, prose images |
-| `{rounded.md}` | 8px | Default for buttons and form inputs — and the baseline every element gets unless overridden |
-| `{rounded.lg}` | 12px | List cards, image grid tiles |
-| `{rounded.xl}` | 16px | Dialogs, modals, the search overlay panel, image lightbox tiles |
-| `{rounded.full}` | 999px | Pills, avatars, unread dots, agent-bot-color swatches |
+| Token            | Value | Use                                                                                         |
+| ---------------- | ----- | ------------------------------------------------------------------------------------------- |
+| `{rounded.xs}`   | 4px   | Chips, status badges, small icon buttons                                                    |
+| `{rounded.sm}`   | 6px   | Inline tags, inline code, prose images                                                      |
+| `{rounded.md}`   | 8px   | Default for buttons and form inputs — and the baseline every element gets unless overridden |
+| `{rounded.lg}`   | 12px  | List cards, image grid tiles                                                                |
+| `{rounded.xl}`   | 16px  | Dialogs, modals, the search overlay panel, image lightbox tiles                             |
+| `{rounded.full}` | 999px | Pills, avatars, unread dots, agent-bot-color swatches                                       |
 
 Full-viewport or edge-docked chrome (drawer panel and its tab bar, scrims, `<html>`/`<body>`, SVG icons, and replaced elements like the graph's canvas) explicitly resets to 0 — these are structural surfaces flush to real viewport edges, never a "card" shape.
 
@@ -415,21 +415,21 @@ Restrained by default: an animation exists to confirm a user-triggered action, e
 
 Four durations, chosen by what's moving, not per-component ad hoc values:
 
-| Token | Duration | Use |
-|---|---|---|
-| `--motion-fast` | 100ms | Hover/press feedback — background, color, opacity tweaks. No easing curve; too short to perceive one. |
-| `--motion-base` | 160ms | Small reveal/toggle transforms — chevron rotate, disclosure arrows, drag-state feedback. |
-| `--motion-slow` | 220ms | Panel/overlay-scrim fades (drawer, inbox sheet, lightbox) — gives a spatial change room to read as motion. |
-| `--motion-view` | 320ms | Reserved for a bigger spatial change — a view switch or shared-element transition. Nothing uses it yet. |
+| Token           | Duration | Use                                                                                                        |
+| --------------- | -------- | ---------------------------------------------------------------------------------------------------------- |
+| `--motion-fast` | 100ms    | Hover/press feedback — background, color, opacity tweaks. No easing curve; too short to perceive one.      |
+| `--motion-base` | 160ms    | Small reveal/toggle transforms — chevron rotate, disclosure arrows, drag-state feedback.                   |
+| `--motion-slow` | 220ms    | Panel/overlay-scrim fades (drawer, inbox sheet, lightbox) — gives a spatial change room to read as motion. |
+| `--motion-view` | 320ms    | Reserved for a bigger spatial change — a view switch or shared-element transition. Nothing uses it yet.    |
 
 Four named curves pair with the durations above:
 
-| Token | Curve | Use |
-|---|---|---|
-| `--ease-standard` | `ease` | The default for everything above — this app's plain, un-opinionated fallback. |
-| `--ease-out` | `cubic-bezier(0,0,.2,1)` | Entering/arriving/expanding — the same curve Tailwind's `ease-out` gives the menu/dialog `x-transition`s, so a hand-rolled `transition`/`@keyframes` and an Alpine transition read as the same motion. |
-| `--ease-in` | `cubic-bezier(.4,0,1,1)` | Leaving/collapsing/dismissing — the `ease-in` counterpart to the one above. |
-| `--ease-spring` | `cubic-bezier(.34,1.56,.64,1)` | The one deliberate overshoot in the system. Reserved for a receipt/confirmation instant (a drop landing, a toggle settling) — never for ambient motion, an ordinary enter/exit, or a loop. |
+| Token             | Curve                          | Use                                                                                                                                                                                                    |
+| ----------------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `--ease-standard` | `ease`                         | The default for everything above — this app's plain, un-opinionated fallback.                                                                                                                          |
+| `--ease-out`      | `cubic-bezier(0,0,.2,1)`       | Entering/arriving/expanding — the same curve Tailwind's `ease-out` gives the menu/dialog `x-transition`s, so a hand-rolled `transition`/`@keyframes` and an Alpine transition read as the same motion. |
+| `--ease-in`       | `cubic-bezier(.4,0,1,1)`       | Leaving/collapsing/dismissing — the `ease-in` counterpart to the one above.                                                                                                                            |
+| `--ease-spring`   | `cubic-bezier(.34,1.56,.64,1)` | The one deliberate overshoot in the system. Reserved for a receipt/confirmation instant (a drop landing, a toggle settling) — never for ambient motion, an ordinary enter/exit, or a loop.             |
 
 A bespoke `@keyframes` animation (a shake, a fly-to-target) should still borrow its *duration* from `--motion-*` as a multiple (e.g. `calc(var(--motion-base) * 2)`) even when its own keyframe curve is too specific to generalize into `--ease-*` — durations drift into inconsistency far more easily than one-off curves do, since every new feature reinvents "how long," but rarely needs a genuinely new easing shape. Older bespoke multi-property choreography that predates this rule (the drawer's slide-in transform+opacity, zen-mode fades) still keeps its own hand-tuned durations outside the scale; it hasn't been retrofitted, not exempted.
 

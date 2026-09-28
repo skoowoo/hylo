@@ -21,7 +21,8 @@
     "files": [
       "src/**/*",
       "assets/**/*",
-      "package.json"
+      "package.json",
+      "node_modules/**/*"
     ],
     "mac": {
       "icon": "assets/icon.icns",
@@ -66,5 +67,8 @@
   "devDependencies": {
     "electron": "^41.3.0",
     "electron-builder": "^26.0.12"
+  },
+  "dependencies": {
+    "active-win": "^8.2.1"
   }
 }

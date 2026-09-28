@@ -30,6 +30,38 @@ window.handleSearchResultSelection = function (el) {
   return false;
 };
 
+// ── Agent bot avatar color ──────────────────────────────────────────────────
+// Global (not a homeCtrl method) because the settings modal's agent-bots list
+// renders in its own Alpine scope (settingsCtrl(), shared_settings_modal.go)
+// which doesn't inherit homeCtrl's methods — both call this directly instead.
+function _agentBotHash(name) {
+  var h = 0;
+  name = name || '';
+  for (var i = 0; i < name.length; i++) h = (Math.imul(31, h) + name.charCodeAt(i)) | 0;
+  return Math.abs(h);
+}
+// Hashing each name straight into a bucket collides often at small n (birthday
+// paradox: 8 buckets, a handful of bots) even with a good hash. Fed the full
+// current list, resolve that by giving every bot its hashed first choice, then
+// bumping collisions to the next free bucket — deterministic and collision-free
+// as long as the list is no longer than the 8-color palette.
+window.agentBotColorFor = function(name, bots) {
+  var palette = ['var(--bot0)', 'var(--bot1)', 'var(--bot2)', 'var(--bot3)', 'var(--bot4)', 'var(--bot5)', 'var(--bot6)', 'var(--bot7)'];
+  var n = palette.length;
+  if (!bots || !bots.length) return palette[_agentBotHash(name) % n];
+  var used = new Array(n).fill(false);
+  var mine = -1;
+  for (var i = 0; i < bots.length; i++) {
+    var bn = bots[i].name || '';
+    var idx = _agentBotHash(bn) % n;
+    var tries = 0;
+    while (used[idx] && tries < n) { idx = (idx + 1) % n; tries++; }
+    used[idx] = true;
+    if (mine === -1 && bn === name) mine = idx;
+  }
+  return palette[mine === -1 ? _agentBotHash(name) % n : mine];
+};
+
 // ── Per-section list/grid layout preference ────────────────────────────────
 // Knowledge/Memory/Pinned/Folders/Tags each get their own list-vs-grid choice
 // (all folders share the single 'folder' bucket, all of Knowledge's
@@ -868,7 +900,7 @@ function homeCtrl() {
       return fetch('/api/inbox').then(function (r) { return r.json(); }).then((data) => {
         this.inboxMessages = data.messages || [];
         this.inboxHasMore = this.inboxMessages.length >= INBOX_PAGE_SIZE;
-      }).catch(function () {}).then(() => {
+      }).catch(function () { }).then(() => {
         this.inboxLoading = false;
         this.refreshUnreadCount();
         this.maybeFillInboxList();
@@ -883,7 +915,7 @@ function homeCtrl() {
         var seen = new Set(this.inboxMessages.map((m) => m.id));
         page.forEach((m) => { if (!seen.has(m.id)) this.inboxMessages.push(m); });
         this.inboxHasMore = page.length >= INBOX_PAGE_SIZE;
-      }).catch(function () {}).then(() => {
+      }).catch(function () { }).then(() => {
         this.inboxLoadingMore = false;
       });
     },
@@ -904,7 +936,7 @@ function homeCtrl() {
     refreshUnreadCount() {
       return fetch('/api/inbox/unread-count').then(function (r) { return r.json(); }).then((data) => {
         this.unreadCount = data.count || 0;
-      }).catch(function () {});
+      }).catch(function () { });
     },
     selectInboxMessage(m) {
       this.inboxSelected = m;
@@ -960,7 +992,7 @@ function homeCtrl() {
         if (typeof DOMPurify !== 'undefined') {
           html = DOMPurify.sanitize(html, {
             ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 's', 'del', 'code', 'pre', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
-                           'ul', 'ol', 'li', 'blockquote', 'a', 'hr', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'img'],
+              'ul', 'ol', 'li', 'blockquote', 'a', 'hr', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'img'],
             ALLOWED_ATTR: ['href', 'title', 'src', 'alt'],
           });
         }
@@ -1552,9 +1584,13 @@ function homeCtrl() {
       return m ? m.name : (msg.agentId || 'Agent');
     },
 
+    agentBotColor(name) {
+      return window.agentBotColorFor(name, this.agentBots);
+    },
+
     getAgentBotColor(agentBotId) {
       var m = this.agentBots.find((m2) => m2.id === agentBotId);
-      return (m && m.color) ? m.color : '';
+      return this.agentBotColor(m ? m.name : (agentBotId || ''));
     },
 
     agentBotInitials(name) {

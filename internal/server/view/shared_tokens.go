@@ -51,6 +51,15 @@ const appTokensShared = `
       /* Content-identity chips — theme-invariant. */
       --p0:#22d3ee; --p1:#f472b6; --p2:#a78bfa; --p3:#34d399;
       --entity-type-bg:var(--p2);
+      /* Agent-bot avatar palette — theme-invariant, own token set (not --accent,
+         not --p0..--p3) so retuning it never moves other surfaces. home.js
+         hashes a bot's name into --bot0..--bot7. Each is the matching
+         accentPresets hue (shared_accent.go: indigo/blue/teal/green/amber/
+         coral/rose/violet, in that order) lifted to a fixed 82% sat / 78%
+         light so a bot's initial (rendered in --inverse-ink, i.e. always
+         black) stays readable — Accent itself is too dark for that. */
+      --bot0:#99a2f5; --bot1:#99c1f5; --bot2:#99f5f1; --bot3:#99f5c6;
+      --bot4:#f5d099; --bot5:#f5a999; --bot6:#f599bc; --bot7:#c199f5;
 
       /* ═══ Layer 3: visual-regime ═══ */
       --shadow-xs:0 1px 2px; --shadow-sm:0 2px 5px; --shadow-md:0 5px 14px; --shadow-lg:0 14px 34px;

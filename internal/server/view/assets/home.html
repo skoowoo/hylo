@@ -67,7 +67,7 @@
               <template x-for="m in agentBots" :key="m.id">
                 <button type="button" class="side-nav-item home-side-child" :class="{'is-active': activeKey === 'chat:' + m.id}"
                         @click="selectChatAgentBot(m.id)">
-                  <span class="avatar avatar--sm avatar--accent home-side-child-avatar" :style="m.color ? 'background:' + m.color + ';color:var(--inverse-ink)' : ''"
+                  <span class="avatar avatar--sm avatar--accent home-side-child-avatar" :style="'background:' + agentBotColor(m.name) + ';color:var(--inverse-ink)'"
                         x-text="agentBotInitials(m.name)"></span>
                   <span class="home-side-child-name" x-text="m.name"></span>
                 </button>

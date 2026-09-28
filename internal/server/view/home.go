@@ -1121,7 +1121,7 @@ const homeChatSectionHTML = `<div class="chat-main">
           <div class="msg-assistant-wrap">
             <div class="msg-agent-header">
               <div class="avatar avatar--md avatar--accent msg-agent-avatar"
-                :style="getAgentBotColor(msg.agentBotId) ? 'background:' + getAgentBotColor(msg.agentBotId) + ';color:var(--inverse-ink)' : ''"
+                :style="'background:' + getAgentBotColor(msg.agentBotId) + ';color:var(--inverse-ink)'"
                 x-text="agentBotInitials(getAgentBotNameForMsg(msg))"></div>
               <div class="msg-agent-name" x-text="getAgentBotNameForMsg(msg)"></div>
               <template x-if="msg.triggerEvent">

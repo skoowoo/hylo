@@ -496,13 +496,6 @@ const settingsModalCSS = `
     .agent-bot-weekday-toggles { align-items: center; margin-bottom: 0.4rem; }
     .agent-bot-schedule-kind-seg { margin-bottom: 0.85rem; }
     .agent-bot-schedule-kind-body { margin-bottom: 0.85rem; }
-    .agent-bot-color-palette { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.35rem; }
-    .agent-bot-color-swatch {
-      width: 26px; height: 26px; cursor: pointer; flex-shrink: 0;
-      border: none;
-      box-shadow: 0 0 0 2px transparent, 0 0 0 4px transparent;
-    }
-    .agent-bot-color-swatch.active { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--border-strong); }
     .agent-bot-form-footer {
       display: flex; align-items: center; gap: 0.5rem;
       margin-top: 0.25rem; padding-top: 1.1rem; border-top: var(--bd-w) solid var(--hairline); border-radius: 0;
@@ -1056,7 +1049,7 @@ func settingsModalHTML() string {
                   <template x-for="(m, mi) in agentBotsList" :key="m.id">
                     <div class="list-card list-card--hover agent-bot-card" :class="m.enabled ? '' : 'disabled-card'">
                       <div class="avatar avatar--lg avatar--neutral agent-bot-avatar"
-                           :style="m.color ? 'background:' + m.color : ''">
+                           :style="'background:' + agentBotColor(m.name)">
                         <span x-text="m.name ? m.name.charAt(0).toUpperCase() : '?'"></span>
                       </div>
                       <div class="agent-bot-card-body">
@@ -1107,18 +1100,6 @@ func settingsModalHTML() string {
                           <button type="button" class="seg-btn" :class="{active: !agentBotDraft.enabled}" @click="agentBotDraft.enabled = false">Off</button>
                           <button type="button" class="seg-btn" :class="{active: agentBotDraft.enabled}" @click="agentBotDraft.enabled = true">On</button>
                         </div>
-                      </div>
-                    </div>
-                    <div>
-                      <label class="agent-bot-form-label">Color</label>
-                      <div class="agent-bot-color-palette">
-                        <template x-for="c in agentBotColors" :key="c">
-                          <button type="button" class="agent-bot-color-swatch"
-                                  :class="agentBotDraft.color === c ? 'active' : ''"
-                                  :style="'background:' + c"
-                                  @click="agentBotDraft = Object.assign({}, agentBotDraft, {color: c})"
-                                  :title="c"></button>
-                        </template>
                       </div>
                     </div>
                     <div>
@@ -1523,8 +1504,6 @@ const settingsCtrlJS = `
         { abbr: 'sat', label: 'Sat' },
         { abbr: 'sun', label: 'Sun' },
       ],
-      agentBotColors: ['var(--p0)','var(--p1)','var(--p2)','var(--p3)'],
-
       skillsList: [],
       skillsLoading: false,
       skillsError: '',
@@ -1805,10 +1784,14 @@ const settingsCtrlJS = `
         } catch(_) {}
       },
 
+      agentBotColor(name) {
+        return window.agentBotColorFor(name, this.agentBotsList);
+      },
+
       newAgentBot() {
         const first = this.agents.find(function(a){ return a.available; });
         const firstModel = (first && first.models && first.models.length) ? first.models[0].id : '';
-        this.agentBotDraft = { name: '', description: '', agentId: first ? first.id : '', model: firstModel, color: this.agentBotColors[0], cwd: '', systemPrompt: '', enabled: true };
+        this.agentBotDraft = { name: '', description: '', agentId: first ? first.id : '', model: firstModel, cwd: '', systemPrompt: '', enabled: true };
         this.agentBotTriggers = [];
         this.agentBotEditId = '';
         this.agentBotSaveError = '';
@@ -1824,13 +1807,12 @@ const settingsCtrlJS = `
           if (!r.ok) throw new Error('HTTP ' + r.status);
           const d = await r.json();
           const m = d.mate;
-          const validColor = this.agentBotColors.includes(m.color) ? m.color : this.agentBotColors[0];
           const savedModel = m.model || '';
           const knownModels = this.agentBotModelsForAgent(m.agentId);
           const modelValid = !savedModel || savedModel === 'default' ||
             knownModels.length === 0 ||
             knownModels.some(function(x) { return x.id === savedModel; });
-          this.agentBotDraft = { name: m.name, description: m.description || '', agentId: m.agentId, model: modelValid ? savedModel : '', color: validColor, cwd: m.cwd || '', systemPrompt: m.systemPrompt || '', enabled: m.enabled };
+          this.agentBotDraft = { name: m.name, description: m.description || '', agentId: m.agentId, model: modelValid ? savedModel : '', cwd: m.cwd || '', systemPrompt: m.systemPrompt || '', enabled: m.enabled };
           this.agentBotTriggers = (m.triggers || []).map(function(t) {
             return Object.assign({}, t, {
               eventTypes: (t.eventTypes || []).map(function(et) {

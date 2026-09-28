@@ -2,12 +2,34 @@ const { app, BaseWindow, WebContentsView, shell, ipcMain, nativeImage, nativeThe
 
 app.setName("Vaultr");
 
+// Single-instance guard. Without this, anything that asks macOS to
+// (re)launch this exact app — a stray `open -b <bundleId>` (this is what a
+// dev-mode `electron .` run resolves to: the generic "com.github.Electron"
+// bundle id, not something unique per project), the user double-clicking
+// the Dock icon while already running, etc. — spins up a second, fully
+// independent process that fights the first one over the same server port
+// and userData directory instead of just switching to the window that's
+// already open.
+const gotSingleInstanceLock = app.requestSingleInstanceLock();
+if (!gotSingleInstanceLock) {
+  app.quit();
+} else {
+  app.on("second-instance", () => {
+    if (win) {
+      if (win.isMinimized()) win.restore();
+      win.show();
+      win.focus();
+    }
+  });
+}
+
 const path = require("node:path");
 const fs = require("node:fs");
 const http = require("node:http");
 const https = require("node:https");
 const { getAutoStart, setAutoStart, setServerUrl, getInboxNotifySettings, registerConfigIpcHandlers } = require("./config");
 const { installCli } = require("./cli-installer");
+const { registerQuickCapture, isCapturePanelOpen } = require("./quick-capture");
 
 const serverManager = require("./server-manager");
 serverManager.register({
@@ -641,6 +663,7 @@ app.whenReady().then(() => {
   }
 
   createWindow();
+  registerQuickCapture(ipcMain, { getMainWindow: () => win, getServerUrl: () => serverUrl });
 
   // Install bundled CLI to system PATH in the background — does not block window startup.
   // On a real upgrade (not skipped), kill the old running server so the start screen's
@@ -655,6 +678,27 @@ app.whenReady().then(() => {
   app.on("activate", () => {
     if (!win || win.isDestroyed()) {
       createWindow();
+    } else if (!win.isVisible()) {
+      // win.hide() (quick-capture.js re-hides the main window after a
+      // screenshot taken while ⌘H-hidden) is a per-window orderOut:, not
+      // the same thing as ⌘H's app-level hide — the OS only auto-restores
+      // the latter on a Dock-icon click, so a plain per-window hide needs
+      // this explicit show() or there's no way back in at all.
+      win.show();
+    }
+  });
+
+  // 'activate' only fires for a Dock-icon click / relaunch. Switching to
+  // Vaultr via ⌘-Tab (or any other way of activating the app) doesn't go
+  // through that at all — it needs this separate, broader event instead.
+  // Guarded on !isCapturePanelOpen(): the capture panel intentionally hides
+  // this window while it's open (see quick-capture.js), and an activation
+  // blip caused by the panel itself is still a possibility even after the
+  // webContents.focus()/mousedown fixes there — this stops that from
+  // undoing the hide mid-capture.
+  app.on("did-become-active", () => {
+    if (win && !win.isDestroyed() && !win.isVisible() && !isCapturePanelOpen()) {
+      win.show();
     }
   });
 });
