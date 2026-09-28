@@ -139,10 +139,49 @@ function doHomeRefresh() {
 // needs to know a full page was returned to decide whether more exist.
 var INBOX_PAGE_SIZE = 50;
 
-// ── Chat path autocomplete (mirrors agent_chat.js's module-level helpers
-// for the standalone /agent page) ──────────────────────────────────────────
-// parseCtx for the chat textarea: trigger when the cursor is inside a
-// slash-prefixed token that follows whitespace (or is at start of input).
+// ── Chat autocomplete (mirrors agent_chat.js's module-level helpers for the
+// standalone /agent page) ───────────────────────────────────────────────────
+// Squashes a "/"-joined vault directory path down to the exact form
+// /api/vault/list-dirs expects: collapses any doubled slashes, guarantees
+// exactly one leading slash, no trailing one (root is the sole exception,
+// staying "/"). Building a dirPath by concatenating pieces that may or may
+// not already carry their own slash (see __vaultrChatAcParseCtx) is far
+// more error-prone than joining loosely and normalizing once at the end.
+function __vaultrNormalizeVaultDir(raw) {
+  var s = (raw || '').replace(/\/+/g, '/');
+  if (!s.startsWith('/')) s = '/' + s;
+  if (s.length > 1 && s.endsWith('/')) s = s.slice(0, -1);
+  return s || '/';
+}
+
+// parseCtx for the chat textarea: everything vault-reference related lives
+// under a single "@" trigger now — "/" is deliberately left alone (no
+// special meaning here at all) so it's free for a future slash-command
+// trigger without colliding with this. "@" must follow whitespace/start of
+// input (so an email's "@" — foo@bar — never fires), same as before.
+//
+// Within the "@…" token, whether "/" has been typed yet decides the mode:
+//   no "/" yet → kind: 'mention' — live note-filename search; closes if the
+//                query contains "]" (hand-typing a wiki-link).
+//   has a "/"  → kind: 'path'    — lists the folder named by whatever comes
+//                before the last "/"; closes as soon as the segment after
+//                it contains a "." (typing a filename by hand).
+// Path selection has two outcomes, both handled in path_ac.js:
+//   Tab   → keep browsing: appends "name/" after the "@" (which stays put)
+//           and reopens for the next level — exactly like a plain directory
+//           browser, any number of levels deep.
+//   Enter/click → finalize: rewrites the *whole* "@…" token (dirPath already
+//           has every earlier "/"-segment folded into it) into a clean
+//           vault path with no "@" left in it ("/journal/2026/").
+// So the "@" is allowed to sit around, visible, for as long as you're
+// actively Tab-ing through levels — path_ac.js cleans it up on its own the
+// moment that session actually ends (Enter/click, Escape, blur, or just
+// typing past it), not just on an explicit finalize. That's also why "@"
+// stays a valid trigger immediately after an already-*finished* path's
+// trailing "/" (no whitespace needed, just not preceded by anything other
+// than "/" or token-start) — typing "@" right after a clean "/journal/
+// 2026/" re-opens browsing from there for one more round of Tab-driven
+// drilling.
 function __vaultrChatAcParseCtx(val, caret) {
   val = typeof val === 'string' ? val : '';
   if (caret == null || caret > val.length) caret = val.length;
@@ -152,15 +191,115 @@ function __vaultrChatAcParseCtx(val, caret) {
     if (/[\s]/.test(left[i])) { tokenStart = i + 1; break; }
   }
   var token = left.slice(tokenStart);
-  if (!token.startsWith('/')) return null;
-  var slash = token.lastIndexOf('/');
-  var partial = token.slice(slash + 1);
+  var atIdx = token.indexOf('@');
+  if (atIdx === -1) return null;
+  if (atIdx > 0 && token[atIdx - 1] !== '/') return null;
+  var atPos = tokenStart + atIdx;
+  var pathPrefix = token.slice(0, atIdx); // '' normally, or an already-clean "/journal/2026/" from a prior finalize
+  var body = token.slice(atIdx + 1);
+  if (body.indexOf(']') !== -1) return null;
+  var lastSlash = body.lastIndexOf('/');
+  if (lastSlash === -1) {
+    return { kind: 'mention', partial: body, replaceStart: atPos };
+  }
+  var partial = body.slice(lastSlash + 1);
   if (partial.indexOf('.') !== -1) return null;
-  var dirPath = slash === 0 ? '/' : token.slice(0, slash);
-  return { dirPath: dirPath, partial: partial, replaceStart: tokenStart + slash + 1 };
+  var dirSeg = body.slice(0, lastSlash);
+  // Joining pathPrefix and dirSeg with a naive "+ '/' +" breaks when either
+  // side already carries its own slash — most commonly dirSeg itself
+  // starting with "/" right after browsing from the vault root ("@/"),
+  // which produced a "//name" double-slash dirPath that /api/vault/list-
+  // dirs doesn't recognize as any real directory. Normalizing after the
+  // fact (collapse repeats, guarantee exactly one leading slash, no
+  // trailing one) sidesteps getting every combination of prefix/segment
+  // slash-or-no-slash right by construction.
+  var dirPath = __vaultrNormalizeVaultDir((pathPrefix || '') + '/' + dirSeg);
+  // replaceStart: right after the last "/" — what Tab replaces (just the
+  // partial segment). tokenStart: the whole token's start (including any
+  // pathPrefix) — what Enter/click replaces (the full rebuild). atPos:
+  // where this session's own "@" lives — what gets silently removed if the
+  // session ends without an explicit finalize.
+  return {
+    kind: 'path', dirPath: dirPath, partial: partial,
+    tokenStart: tokenStart, atPos: atPos, replaceStart: tokenStart + atIdx + lastSlash + 2,
+  };
+}
+
+// @ mention search — hits the same JSON search API the rest of the app
+// already uses (internal/plugins/search), scoped to filename-only matches
+// (type: 'name'; bleve's name query is match+prefix+fuzzy under the hood,
+// so small typos still hit). Maps each result to path_ac.js's generic
+// {label, value, sub} shape: value (the bare stem, no .md) is what actually
+// gets wrapped in [[...]] on selection — sub (the note's folder) is
+// display-only, shown purely so same-named notes in different folders can
+// be told apart in the list; [[stem]] itself always resolves by basename
+// wherever it's rendered (mdhtml.go and friends), matching how the agent's
+// own system prompt already writes note references.
+async function __vaultrChatMentionSearch(query, signal) {
+  var resp = await fetch('/api/search', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ q: query, type: 'name', limit: 8 }), signal: signal,
+  });
+  if (!resp.ok) return [];
+  var data = await resp.json();
+  var results = Array.isArray(data.results) ? data.results : [];
+  return results.map(function (r) {
+    var stem = (typeof r.name === 'string' ? r.name : '').replace(/\.md$/i, '');
+    var dir = (r.dir || '').replace(/^\/+/, '');
+    return { label: stem, value: stem, sub: dir || '/' };
+  });
 }
 
 var __vaultrChatPathAc = null;
+var __vaultrChatComposerRO = null;
+
+// Keeps two #chat-scroll custom properties in sync with real, measured DOM
+// metrics instead of guessed constants (agent_chat.css consumes both):
+//  --chat-composer-h: the floating #chat-input-outer panel's rendered
+//    height (position: absolute — see agent_chat.css), so .chat-scroll's
+//    spacer reserves exactly enough room for a message to clear the panel,
+//    whether the composer is a single-line pill or has grown tall with
+//    multi-line text.
+//  --chat-scrollbar-w: .chat-scroll's actual reserved scrollbar-gutter
+//    width. A hardcoded "5px" (the ::-webkit-scrollbar width base.css
+//    declares) turned out not to match what scrollbar-gutter: stable
+//    actually reserves in practice, which left the composer panel's right
+//    inset covering part of the real scrollbar instead of stopping exactly
+//    at its edge — measuring it directly sidesteps guessing at Blink's
+//    scrollbar metrics. scrollbar-gutter: stable keeps this constant
+//    whether or not the conversation currently overflows, so one read at
+//    mount is enough — no ResizeObserver needed for this one.
+// Re-run every time the chat section mounts since both elements are fresh
+// (see initChatSection() below); the composer-height ResizeObserver itself
+// then keeps tracking without needing to be re-armed on every keystroke.
+function __vaultrSyncChatComposerHeight() {
+  var panel = document.getElementById('chat-input-outer');
+  var scroll = document.getElementById('chat-scroll');
+  if (__vaultrChatComposerRO) { __vaultrChatComposerRO.disconnect(); __vaultrChatComposerRO = null; }
+  if (!panel || !scroll) return;
+  // offsetWidth/clientWidth can be fractional (subpixel layout), and the
+  // measured gutter still left a sliver of the real scrollbar covered in
+  // practice — round up and pad by a few px so the panel's right edge always
+  // clears the scrollbar with room to spare rather than landing exactly on
+  // (or just short of) it.
+  var sbw = scroll.offsetWidth - scroll.clientWidth;
+  scroll.style.setProperty('--chat-scrollbar-w', (Math.ceil(sbw) + 4) + 'px');
+  if (typeof ResizeObserver === 'undefined') return;
+  // The composer growing (e.g. textarea wrapping to a second line) doesn't
+  // fire #chat-scroll's own 'scroll' event, so without this a message that
+  // was pinned to the bottom would visually drift up as the reserved spacer
+  // grows underneath it — reuse the same stick-to-bottom state the scroll
+  // listener maintains (home.js's homeCtrl) rather than forcing a jump.
+  var apply = function () {
+    scroll.style.setProperty('--chat-composer-h', panel.offsetHeight + 'px');
+    if (window._homeData && typeof window._homeData.maybeScrollToBottom === 'function') {
+      window._homeData.maybeScrollToBottom();
+    }
+  };
+  __vaultrChatComposerRO = new ResizeObserver(apply);
+  __vaultrChatComposerRO.observe(panel);
+  apply();
+}
 
 // Rebinds the autocomplete + its DOM listeners to whatever #chat-textarea/
 // #chat-path-ac currently exist — must be re-run every time the chat section
@@ -171,6 +310,7 @@ function __vaultrSetupChatAc() {
     getInput: function () { return document.getElementById('chat-textarea'); },
     getList: function () { return document.getElementById('chat-path-ac'); },
     parseCtx: __vaultrChatAcParseCtx,
+    search: __vaultrChatMentionSearch,
     onApply: function (input, newVal, caretPos) {
       input.value = newVal;
       input.dispatchEvent(new Event('input', { bubbles: true }));
@@ -238,6 +378,12 @@ function homeCtrl() {
     inputText: '',
     isRunning: false,
     currentRunId: null,
+    _stoppingRunId: null,
+    // Whether the scroll view should auto-follow new content. True until the
+    // user scrolls away from the bottom themselves; see maybeScrollToBottom/
+    // jumpToBottom/_onChatScroll.
+    _stickToBottom: true,
+    _chatScrollRaf: null,
     timeTick: 0,
     isMac: /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent),
     _chatBootstrapped: false,
@@ -1022,6 +1168,7 @@ function homeCtrl() {
     // time: #chat-textarea/#chat-scroll are fresh elements after each swap.
     initChatSection() {
       __vaultrSetupChatAc();
+      __vaultrSyncChatComposerHeight();
       var chatScroll = document.getElementById('chat-scroll');
       if (chatScroll) {
         chatScroll.addEventListener('click', (e) => {
@@ -1037,6 +1184,7 @@ function homeCtrl() {
             }
           } catch (_) { /* ignore */ }
         });
+        chatScroll.addEventListener('scroll', () => { this._onChatScroll(); }, { passive: true });
       }
       // Arriving via the parent "Chats" button (not a specific agent bot's child
       // row) lands here with activeKey === 'chat'. Unlike Knowledge's "All" child,
@@ -1151,7 +1299,7 @@ function homeCtrl() {
         var msgs = (await resp.json()).messages || [];
         this.messages = this.formatStoredMessages(msgs);
         this._refreshTimes();
-        this.$nextTick(() => { this.scrollToBottom(); });
+        this.$nextTick(() => { this.jumpToBottom(); });
         var lastMs = 0;
         for (var i = 0; i < msgs.length; i++) {
           var t = msgs[i].updatedAt ? new Date(msgs[i].updatedAt).getTime() : 0;
@@ -1243,33 +1391,72 @@ function homeCtrl() {
         var card = ta.closest('.chat-input-card');
         if (card) card.classList.remove('is-multiline');
       }
-      this.isRunning = true;
 
-      var _genId = function () {
-        return (typeof crypto !== 'undefined' && crypto.randomUUID)
-          ? crypto.randomUUID()
-          : (Date.now().toString(36) + Math.random().toString(36).slice(2));
-      };
-      var _userMsgId = _genId();
-      var _assistantMsgId = _genId();
-
+      var _userMsgId = this._genId();
       var _userTs = Date.now();
       this.messages.push({ id: _userMsgId, role: 'user', content: text, createdAt: _userTs, _fmtTime: this.formatTime(_userTs) });
+      await this._runTurn(text, _userMsgId);
+    },
+
+    // retryMessage re-runs a failed/canceled assistant turn with the same
+    // prompt text. /api/chat always inserts a fresh user-message row server
+    // side (it has no "regenerate without a new user turn" mode), so a
+    // reload always shows the retried question as its own bubble right
+    // after the failed one. This pushes that same bubble locally up front —
+    // an earlier version left it implicit (reusing the original bubble) to
+    // avoid the visual duplicate, but that meant the only thing that could
+    // ever add the retry's user row to view was the background sync poller
+    // picking up its DB row by id-miss and push()-ing it to the *end* of the
+    // array once streaming finished, landing it after the new assistant
+    // reply instead of before it. Showing it immediately, in the right slot,
+    // makes the live view match a reload from the first frame — and once
+    // the poller does see this id, it now matches an existing message and
+    // just updates it in place instead of appending a duplicate.
+    async retryMessage(msgIdx) {
+      if (this.isRunning) return;
+      var msg = this.messages[msgIdx];
+      if (!msg || msg.role !== 'assistant' || (msg.status !== 'failed' && msg.status !== 'canceled')) return;
+      var text = '';
+      for (var i = msgIdx - 1; i >= 0; i--) {
+        if (this.messages[i].role === 'user') { text = this.messages[i].content; break; }
+      }
+      if (!text) return;
+      this.messages.splice(msgIdx, 1);
+      var _userMsgId = this._genId();
+      var _userTs = Date.now();
+      this.messages.push({ id: _userMsgId, role: 'user', content: text, createdAt: _userTs, _fmtTime: this.formatTime(_userTs) });
+      await this._runTurn(text, _userMsgId);
+    },
+
+    _genId() {
+      return (typeof crypto !== 'undefined' && crypto.randomUUID)
+        ? crypto.randomUUID()
+        : (Date.now().toString(36) + Math.random().toString(36).slice(2));
+    },
+
+    // _runTurn posts one prompt to /api/chat and streams the reply into a new
+    // assistant message. Shared by send() (fresh user turn) and retryMessage().
+    async _runTurn(text, userMsgId) {
+      var agentBot = this.selectedAgentBot;
+      if (!agentBot) return;
+      this.isRunning = true;
+
+      var _assistantMsgId = this._genId();
       this.messages.push({
         id: _assistantMsgId,
         role: 'assistant', agentId: agentBot.agentId, agentBotId: agentBot.id,
-        segments: [], status: 'running',
+        segments: [], status: 'running', stopping: false,
         startTime: Date.now(), duration: 0, completedAt: 0, copied: false,
       });
       var msgIdx = this.messages.length - 1;
-      this.$nextTick(() => { this.scrollToBottom(); });
+      this.$nextTick(() => { this.jumpToBottom(); });
 
       var sseGotEnd = true;
       try {
         var resp = await fetch('/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ mateId: agentBot.id, message: text, conversationId: this.conversationId, userMessageId: _userMsgId, assistantMessageId: _assistantMsgId }),
+          body: JSON.stringify({ mateId: agentBot.id, message: text, conversationId: this.conversationId, userMessageId: userMsgId, assistantMessageId: _assistantMsgId }),
         });
         if (!resp.ok) {
           var errText = await resp.text();
@@ -1293,8 +1480,9 @@ function homeCtrl() {
         // SSE dropped without an end event — agent is still running on server; poll for completion.
         if (!sseGotEnd && this.currentRunId) this.spawnRunPoller(this.currentRunId, msgIdx);
         this.isRunning = false;
+        this._stoppingRunId = null;
         this.currentRunId = null;
-        this.scrollToBottom();
+        this.maybeScrollToBottom();
       }
     },
 
@@ -1341,7 +1529,7 @@ function homeCtrl() {
               else if (line.startsWith('data: ')) rawData = line.slice(6);
             }
             if (event === 'end') gotEnd = true;
-            if (event && rawData) { this.handleSSEEvent(event, rawData, msgIdx); this.scrollToBottom(); }
+            if (event && rawData) { this.handleSSEEvent(event, rawData, msgIdx); this.maybeScrollToBottom(); }
           }
         }
       } finally {
@@ -1460,11 +1648,51 @@ function homeCtrl() {
 
     async cancel() {
       var id = this.currentRunId;
-      if (!id) return;
+      if (!id || this._stoppingRunId === id) return;
+      this._stoppingRunId = id;
+      for (var i = this.messages.length - 1; i >= 0; i--) {
+        if (this.messages[i].role === 'assistant' && this.messages[i].status === 'running') {
+          this.messages[i].stopping = true;
+          break;
+        }
+      }
       try { await fetch('/api/runs/' + id + '/cancel', { method: 'POST' }); } catch (_) { /* ignore */ }
     },
 
+    // Unconditional primitive — most call sites should go through
+    // maybeScrollToBottom() (respects the user's scroll position) or
+    // jumpToBottom() (forces + re-arms follow) instead of calling this
+    // directly; see those for why.
     scrollToBottom() { var el = document.getElementById('chat-scroll'); if (el) el.scrollTop = el.scrollHeight; },
+
+    // For passive updates (streaming deltas, background sync, run polling) —
+    // only follows if the user was already at (or near) the bottom. This is
+    // what keeps a long streaming reply from yanking the view back down
+    // every time the user scrolls up mid-stream to reread something.
+    maybeScrollToBottom() { if (this._stickToBottom) this.scrollToBottom(); },
+
+    // For user-initiated moments (sending/retrying a message, opening a
+    // conversation, clicking the "scroll to bottom" button) — these should
+    // always jump to the new content AND re-arm auto-follow, even if the
+    // user had scrolled away from the bottom before taking the action.
+    jumpToBottom() { this._stickToBottom = true; this.scrollToBottom(); },
+
+    // Bound to #chat-scroll's native 'scroll' event (initChatSection()).
+    // rAF-throttled since scroll fires far more often than a layout read is
+    // worth doing. Deliberately doesn't try to tell "user scrolled" apart
+    // from "our own scrollToBottom() moved it" — a self-triggered scroll
+    // always lands within the threshold anyway, so it's a no-op either way.
+    _onChatScroll() {
+      if (this._chatScrollRaf) return;
+      var self = this;
+      this._chatScrollRaf = requestAnimationFrame(function () {
+        self._chatScrollRaf = null;
+        var el = document.getElementById('chat-scroll');
+        if (!el) return;
+        var dist = el.scrollHeight - el.scrollTop - el.clientHeight;
+        self._stickToBottom = dist <= 64;
+      });
+    },
 
     handleKeydown(e) {
       if (__vaultrChatPathAc && __vaultrChatPathAc.handleKeydown(e)) return;
@@ -1621,7 +1849,8 @@ function homeCtrl() {
     },
 
     showCompletionToast(status, agentBotName) {
-      this.showToast((agentBotName || 'Agent') + (status === 'succeeded' ? ' finished' : ' failed'), status === 'succeeded' ? 'ok' : 'err');
+      var label = status === 'succeeded' ? ' finished' : (status === 'canceled' ? ' stopped' : ' failed');
+      this.showToast((agentBotName || 'Agent') + label, status === 'failed' ? 'err' : 'ok');
     },
 
     // Generic version of the above — same .run-toast element (home.go), any
@@ -1719,7 +1948,7 @@ function homeCtrl() {
                   if (lastTs > self._lastMsgMs) self._lastMsgMs = lastTs;
                   if (changed) {
                     self._refreshTimes();
-                    self.$nextTick(() => { self.scrollToBottom(); });
+                    self.$nextTick(() => { self.maybeScrollToBottom(); });
                   }
                 }
                 self._syncTimer = setTimeout(poll, 5000);
@@ -1753,13 +1982,13 @@ function homeCtrl() {
             var s = run.status;
             if (s === 'succeeded' || s === 'failed' || s === 'canceled') {
               self._runPollerTimer = null;
-              var st = s === 'succeeded' ? 'succeeded' : 'failed';
+              var st = s;
               var msg = msgIdx < self.messages.length ? self.messages[msgIdx] : null;
               if (msg && msg.status === 'running') {
                 msg.status = st;
                 msg.completedAt = run.updatedAt || Date.now();
                 msg._fmtTime = self.formatTime(msg.completedAt);
-                self.scrollToBottom();
+                self.maybeScrollToBottom();
               }
               self.showCompletionToast(st, msg ? self.getAgentBotNameForMsg(msg) : null);
             } else {

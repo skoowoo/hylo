@@ -25,9 +25,10 @@ type AgentAPI struct {
 	cfg        *config.Config
 	vault      *storage.Vault
 	hub        *agent.Hub
-	store      *mate.Store  // nil when store is unavailable; handles both mate config and chat history
+	store      *mate.Store // nil when store is unavailable; handles both mate config and chat history
 	agentCache *agent.AgentCache
 	active     sync.Map // runID -> *agent.ChatProcess
+	canceled   sync.Map // runID -> true; set by RunCancelPOST so executeChat can report "canceled" instead of "failed" for a user-initiated stop
 	pathRuns   sync.Map // vault path -> runID; set by FireTriggerRun for path-bearing events
 }
 
@@ -196,6 +197,10 @@ func (a *AgentAPI) RunCancelPOST(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "not found", http.StatusNotFound)
 		return
 	}
+	// Marked before the kill so executeChat's post-exit status check
+	// (a.canceled.LoadAndDelete) can tell a user-initiated stop apart from a
+	// genuine crash and report "canceled" instead of "failed".
+	a.canceled.Store(id, true)
 	if v, ok := a.active.Load(id); ok {
 		if cp, ok := v.(*agent.ChatProcess); ok && cp.Cmd != nil && cp.Cmd.Process != nil {
 			_ = cp.Cmd.Process.Kill()
@@ -509,6 +514,7 @@ func (a *AgentAPI) executeChat(ctx context.Context, run *agent.Run, body chatBod
 		if errors.As(err, &ee) {
 			code = ee.ExitCode()
 		} else {
+			a.canceled.Delete(run.ID)
 			a.logger.Warn("agent exec failed",
 				slog.String("runId", run.ID),
 				slog.String("agentId", def.ID),
@@ -523,7 +529,11 @@ func (a *AgentAPI) executeChat(ctx context.Context, run *agent.Run, body chatBod
 		}
 	}
 	st := "succeeded"
-	if code != 0 || (cp.ACP != nil && cp.ACP.HasFatalError()) {
+	if _, wasCanceled := a.canceled.LoadAndDelete(run.ID); wasCanceled {
+		// A killed process surfaces as a non-zero/-1 exit code indistinguishable
+		// from a real crash, so RunCancelPOST's flag is what tells them apart.
+		st = "canceled"
+	} else if code != 0 || (cp.ACP != nil && cp.ACP.HasFatalError()) {
 		st = "failed"
 	}
 	if assistantMsgID != "" && a.store != nil {

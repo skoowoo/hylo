@@ -26,11 +26,11 @@ type Mate struct {
 type MateTrigger struct {
 	ID           string    `json:"id"`
 	MateID       string    `json:"mateId"`
-	EventTypes   []string  `json:"eventTypes"`            // MateEventType values e.g. ["note_created", "note_updated"]
+	EventTypes   []string  `json:"eventTypes"`             // MateEventType values e.g. ["note_created", "note_updated"]
 	PathPrefixes []string  `json:"pathPrefixes,omitempty"` // directory whitelist; empty = no filter (ignored for scheduled/wechat)
-	Prompt       string    `json:"prompt"`                // template: {{.Path}} {{.Name}} {{.Now}}
-	Schedule     string    `json:"schedule,omitempty"`    // "every 1h", "daily 09:00", or "weekly mon,wed 09:00" when eventTypes includes scheduled
-	LastFiredAt  time.Time `json:"lastFiredAt,omitempty"` // set by runner; read-only for clients
+	Prompt       string    `json:"prompt"`                 // template: {{.Path}} {{.Name}} {{.Now}}
+	Schedule     string    `json:"schedule,omitempty"`     // "every 1h", "daily 09:00", or "weekly mon,wed 09:00" when eventTypes includes scheduled
+	LastFiredAt  time.Time `json:"lastFiredAt,omitempty"`  // set by runner; read-only for clients
 	Enabled      bool      `json:"enabled"`
 	CreatedAt    time.Time `json:"createdAt"`
 }
@@ -49,7 +49,7 @@ type Conversation struct {
 	ID                  string    `json:"id"`
 	MateID              string    `json:"mateId"`
 	Title               string    `json:"title"`
-	Type                string    `json:"type"` // ConvTypeChat | ConvTypeTrigger | ConvTypeTriggerReply
+	Type                string    `json:"type"`              // ConvTypeChat | ConvTypeTrigger | ConvTypeTriggerReply
 	UserKey             string    `json:"userKey,omitempty"` // external user id for trigger_reply (e.g. wechat user id)
 	AgentSessionID      string    `json:"agentSessionId,omitempty"`
 	AgentSessionAgentID string    `json:"agentSessionAgentId,omitempty"`
@@ -67,7 +67,7 @@ type Message struct {
 	MateID         string    `json:"mateId"`
 	ModelID        string    `json:"modelId"`
 	RunID          string    `json:"runId"`
-	Status         string    `json:"status"` // "running" | "succeeded" | "failed" | ""
+	Status         string    `json:"status"`                 // "running" | "succeeded" | "failed" | "canceled" | ""
 	TriggerEvent   string    `json:"triggerEvent,omitempty"` // mate event type when fired by trigger (assistant only)
 	CreatedAt      time.Time `json:"createdAt"`
 	UpdatedAt      time.Time `json:"updatedAt"`

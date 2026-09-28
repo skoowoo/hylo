@@ -46,6 +46,10 @@
       overflow: hidden;
       background: var(--bg);
       border-radius: 0;
+      /* Positioning context for .chat-input-outer, which floats over the
+         bottom of .chat-scroll instead of sharing flex space with it — see
+         .chat-input-outer for why. */
+      position: relative;
     }
 
     /* Agent bot bar now uses the shared .home-list-head (home.css) instead of
@@ -182,12 +186,74 @@
       flex: 1;
       overflow-y: auto;
       overflow-x: hidden;
-      padding: 1.5rem 1.5rem 1.5rem;
+      /* Reserve the scrollbar's 5px gutter unconditionally (not just once
+         content overflows), so the column doesn't shift sideways the moment
+         a streaming reply grows tall enough to start scrolling. */
+      scrollbar-gutter: stable;
+      /* Plain, uniform padding — bottom breathing room does NOT live here.
+         padding-bottom on this flex column + overflow-y:auto combination is
+         not reliably scrollable in practice (that's exactly why the
+         composer's own clearance below is a real spacer element and not
+         padding on this rule); trying to lean on it again for the trigger
+         tab reproduced the same "still flush at the true bottom" bug. */
+      padding: 1.5rem;
       display: flex;
       flex-direction: column;
       align-items: center;
       contain: layout style;
     }
+
+    /* .chat-input-outer floats over this pane's bottom edge (position:
+       absolute) rather than sharing flex space with it, so scrolled content
+       needs to clear the panel itself, not just the last message. This is
+       real block content at the end of the scrollable column, not
+       .chat-scroll's own padding-bottom (an earlier version reserved the
+       clearance that way; in practice the last message still ended up
+       covered even scrolled to the true bottom) — a spacer that's an actual
+       flex child is unambiguous, its height is just as real as any message
+       row's. Height tracks the panel's real rendered height via a ResizeObserver
+       (__vaultrSyncChatComposerHeight in home.js); the fallback covers the
+       first paint before that observer fires. .chat-scroll-inner's own gap
+       supplies the breathing room between the last message and this spacer,
+       same as between any two messages. The trigger tab has no composer to
+       clear, so home.go pins this to a flat 2rem there instead of the
+       composer height (:style overrides the var-driven height below — see
+       home.go) — same "real flex child" technique, just a fixed floor
+       instead of a measured one, since padding alone already proved
+       unreliable for this. */
+    .chat-scroll-spacer {
+      flex-shrink: 0;
+      width: 100%;
+      height: var(--chat-composer-h, 88px);
+    }
+
+    /* Floating "jump to latest" — same measured --chat-composer-h as the
+       spacer above, so it always rests a fixed gap above the composer
+       regardless of whether it's a single-line pill or has grown tall with
+       multi-line text. .chat-main's position: relative (set for
+       .chat-input-outer) is what it's positioned against. */
+    .chat-scroll-bottom-btn {
+      position: absolute;
+      left: 50%;
+      bottom: calc(var(--chat-composer-h, 88px) + 1.75rem);
+      transform: translateX(-50%);
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: none;
+      border-radius: var(--r-full);
+      background: var(--surface-soft);
+      color: var(--fg);
+      box-shadow: var(--shadow-sm) var(--shadow-color);
+      cursor: pointer;
+      z-index: 150;
+      transition: background var(--motion-fast) ease, transform var(--motion-fast) ease;
+    }
+    .chat-scroll-bottom-btn:hover { background: var(--card-hov); }
+    .chat-scroll-bottom-btn:active { transform: translateX(-50%) scale(0.9); }
+    .chat-scroll-bottom-btn svg { width: 15px; height: 15px; flex-shrink: 0; }
 
     .chat-scroll-inner {
       flex: 1;
@@ -197,7 +263,7 @@
       display: flex;
       flex-direction: column;
       align-items: stretch;
-      gap: 1.25rem;
+      gap: 1.5rem;
     }
 
     .chat-empty {
@@ -309,20 +375,30 @@
       gap: 0.25rem;
     }
 
-    .msg-user-bubble {
+    /* .msg-user-bubble.prose (compound selector, not just .msg-user-bubble)
+       — needed to out-specificity .prose's own base rules (note_shared_
+       prose.css's color/font-size), the same trick .msg-body .prose below
+       already relies on: two classes beats .prose's one regardless of which
+       stylesheet loads later in the concatenated <style> block. Rendered
+       through renderMarkdown() (same as assistant replies) so [[wiki-links]]
+       — including the ones @ mention inserts — actually turn into links
+       instead of showing as literal bracket text; marked's breaks:true
+       (set globally) reproduces the old plain-text white-space:pre-wrap
+       line-break behavior via real <br>s, so that property is dropped. */
+    .msg-user-bubble.prose {
       max-width: 100%;
       padding: 0.6rem 0.875rem;
       background: var(--surface-soft);
-      border-radius: var(--r-md);
+      border-radius: var(--r-lg);
       color: var(--fg);
       /* Chat is a stream of short exchanges, not long-form prose, so it
          reads one tier down from editor/reader-scale type. Matches
          .msg-body .prose below. */
       font-size: var(--text-base);
       line-height: 1.6;
-      white-space: pre-wrap;
       word-break: break-word;
     }
+    .msg-user-bubble.prose > :last-child { margin-bottom: 0; }
 
     .msg-assistant-wrap {
       max-width: 100%;
@@ -358,6 +434,12 @@
       display: flex;
       flex-direction: column;
       gap: 0.35rem;
+      /* A slight inset from the avatar's left edge (well under half its
+         28px width) — reads as "belonging to" the header above it rather
+         than being flush with the avatar, without looking like a reply
+         thread. .msg-footer picks up the same inset so the copy button/
+         timestamp/retry row stays aligned under the text. */
+      padding-left: 0.625rem;
     }
 
     /* Assistant markdown — reuse .prose from noteSharedCSS (same tokens as
@@ -533,17 +615,68 @@
       line-height: 1.5;
     }
 
-    /* Message footer */
+    /* Message footer — same left inset as .msg-body, see there. */
     .msg-footer {
       display: flex;
       align-items: center;
       gap: 0.5rem;
       min-height: 16px;
+      padding-left: 0.625rem;
     }
 
-    .msg-failed {
+    .msg-status-banner {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 0.3rem 0.35rem 0.3rem 0.65rem;
+      border-radius: var(--r-sm);
       font-size: var(--text-xs);
+      line-height: 1.4;
+    }
+
+    .msg-status-banner.is-failed {
+      background: var(--s-err-bg);
+      border: var(--bd-w) solid var(--s-err-bd);
       color: var(--s-err);
+    }
+
+    .msg-status-banner.is-stopped {
+      background: var(--btn-bg);
+      border: var(--bd-w) solid var(--border-strong);
+      color: var(--muted);
+    }
+
+    .msg-retry-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      padding: 0.15rem 0.5rem;
+      border: none;
+      border-radius: var(--r-full);
+      background: transparent;
+      color: inherit;
+      font-size: var(--text-xs);
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      opacity: 0.85;
+      transition: opacity var(--motion-fast), background var(--motion-fast);
+    }
+
+    .msg-retry-btn:hover:not(:disabled) {
+      opacity: 1;
+      background: var(--btn-bg-hov);
+    }
+
+    .msg-retry-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .msg-retry-btn svg {
+      width: 11px;
+      height: 11px;
+      flex-shrink: 0;
     }
 
     .msg-thinking-label {
@@ -565,13 +698,9 @@
       background: transparent;
       color: var(--muted);
       cursor: pointer;
-      opacity: 0;
+      opacity: 0.5;
       transition: opacity var(--motion-fast), color var(--motion-fast), background var(--motion-fast);
       padding: 0;
-    }
-
-    .msg-assistant-wrap:hover .msg-copy-btn {
-      opacity: 0.4;
     }
 
     .msg-copy-btn:hover {
@@ -592,20 +721,64 @@
     }
 
     /* ── Input area ──────────────────────────────────────────────── */
+    /* Floats over .chat-scroll's bottom edge (position: absolute) instead of
+       sharing flex space with it, so scrolled messages pass behind the panel
+       and fade out rather than stopping dead at a hard line. --composer-fade-h
+       does double duty: it's the gap between the panel's top edge and the
+       composer card, AND the gradient's fade distance, so a message is fully
+       hidden by the time it reaches the card's top edge. .chat-scroll's
+       padding-bottom (kept in sync with this panel's real height via a
+       ResizeObserver — see initChatSection() in home.js) is what actually
+       lets a message scroll up far enough to clear it. */
     .chat-input-outer {
-      flex-shrink: 0;
-      padding: 0 1.5rem 1.25rem;
+      --composer-fade-h: 1.5rem;
+      position: absolute;
+      left: 0;
+      /* Stops short of the true right edge by .chat-scroll's real
+         scrollbar-gutter width, measured in JS with a few px of safety
+         margin added (__vaultrSyncChatComposerHeight in home.js) rather
+         than guessed as a flat constant — the gutter scrollbar-gutter:
+         stable actually reserves doesn't line up with the "5px" base.css
+         declares for the custom ::-webkit-scrollbar skin, which left a
+         sliver of the real thumb still covered. That gutter is where
+         .chat-scroll's own scrollbar lives, and this panel would otherwise
+         sit on top of it, covering the thumb right where it's needed most
+         (scrolled to the bottom). The box being narrower here is also why
+         its own right padding doesn't need any extra fudge the way a
+         full-width box would — the centering math still lands .chat-ac-wrap
+         in the same spot either way. */
+      right: var(--chat-scrollbar-w, 10px);
+      bottom: 0;
+      padding: var(--composer-fade-h) 1.5rem 1.25rem 1.5rem;
       display: flex;
       justify-content: center;
-      background: var(--bg);
+      background: linear-gradient(to bottom, transparent, var(--bg) var(--composer-fade-h));
+      /* The panel's own box (fade zone, opaque padding, side gutters beyond
+         .chat-ac-wrap's max-width) must not swallow clicks/wheel-scroll meant
+         for the messages underneath — only the actual composer should. */
+      pointer-events: none;
     }
 
     .chat-ac-wrap {
       position: relative;
       width: 100%;
       max-width: 48rem; /* matches .chat-scroll-inner so composer lines up with the messages above it */
+      pointer-events: auto;
     }
 
+    /* Same background as the composer it hangs off of (.chat-input-card),
+       so the two read as one connected surface, plus enough radius + shadow
+       to read as genuinely floating above the messages behind it. --btn-bg
+       is a translucent ink wash by design — fine on .chat-input-card, which
+       sits on the composer panel's own opaque backdrop, but this panel
+       floats directly over scrolled message text, so used raw it let that
+       text show through. background-color + a flattened background-image
+       pre-composites the same tint onto an opaque base, so it reads
+       identically to .chat-input-card while staying fully opaque regardless
+       of what's scrolled underneath. Border-radius relies on overflow-y:
+       auto clipping descendant content to the curve (standard Chromium
+       behavior), so option-row hover highlights don't square off past the
+       rounded corners. */
     .chat-path-ac {
       display: none;
       position: absolute;
@@ -617,8 +790,11 @@
       margin: 0;
       padding: 4px 0;
       list-style: none;
-      background: var(--surface-soft);
+      background-color: var(--bg);
+      background-image: linear-gradient(var(--btn-bg), var(--btn-bg));
       border: var(--bd-w) solid var(--border-strong);
+      border-radius: var(--r-xl);
+      box-shadow: var(--shadow-sm) var(--shadow-color);
       z-index: 200;
     }
     .chat-path-ac.open { display: block; }
@@ -634,6 +810,20 @@
     .chat-path-ac li[aria-selected="true"] { background: var(--card-hov); }
     .chat-path-ac li.path-ac-muted { color: var(--muted); cursor: default; font-style: italic; }
     .chat-path-ac li.path-ac-muted:hover { background: transparent; }
+    /* @ mention rows only (path/dir rows stay plain single-line text, sub
+       is never set for those) — note name on top, its folder underneath in
+       a smaller muted line, both keeping the row's inherited mono font so
+       the two trigger kinds read as one consistent list. */
+    .chat-path-ac li .path-ac-main { display: block; }
+    .chat-path-ac li .path-ac-sub {
+      display: block;
+      margin-top: 0.1rem;
+      font-size: var(--text-2xs);
+      color: var(--muted-soft);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
 
     /* Single-row capsule composer — was textarea-on-top + a separate fixed
        bar underneath (shortcut hint + send button on their own strip),
@@ -648,14 +838,19 @@
        imperatively in JS), so an animated radius alone would visibly
        "melt" the corners against an already-resized box instead of
        reading as one clean shape change. */
+    /* Same tinted-wash background as the shared .field-input (base.css), but
+       unlike it, stays borderless even on focus — no accent outline here,
+       by design. Border is still declared (transparent) rather than
+       dropped, purely so the box model never has to change if that ever
+       changes, not because anything currently swaps its color. */
     .chat-input-card {
       position: relative;
       width: 100%;
       display: flex;
       align-items: center;
       gap: 0.5rem;
-      background: var(--bg);
-      border: var(--bd-w) solid var(--border-strong);
+      background: var(--btn-bg);
+      border: var(--bd-w) solid transparent;
       border-radius: var(--r-full);
       padding: 0.3rem 0.3rem 0.3rem 1.1rem;
       overflow: hidden;
@@ -693,9 +888,6 @@
       text-overflow: ellipsis;
     }
 
-    .chat-input-card:focus-within {
-      border-color: var(--accent);
-    }
 
     .chat-textarea {
       flex: 1;
@@ -791,8 +983,13 @@
       opacity: 0.85;
     }
 
-    .chat-stop-circle:active {
+    .chat-stop-circle:active:not(:disabled) {
       opacity: 0.7;
+    }
+
+    .chat-stop-circle:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
     }
 
     .chat-stop-circle svg {
