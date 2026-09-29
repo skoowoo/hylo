@@ -46,6 +46,18 @@ var contentPaneHTML string
 //go:embed assets/path_ac.js
 var pathAcScript string
 
+//go:embed assets/chat_reduce.js
+var chatReduceJS string
+
+//go:embed assets/chat_text.js
+var chatTextJS string
+
+//go:embed assets/chat_kernel.js
+var chatKernelJS string
+
+//go:embed assets/chat_view.js
+var chatViewJS string
+
 //go:embed assets/content_pane.js
 var contentPaneScript string
 

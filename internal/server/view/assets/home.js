@@ -139,203 +139,6 @@ function doHomeRefresh() {
 // needs to know a full page was returned to decide whether more exist.
 var INBOX_PAGE_SIZE = 50;
 
-// ── Chat autocomplete (mirrors agent_chat.js's module-level helpers for the
-// standalone /agent page) ───────────────────────────────────────────────────
-// Squashes a "/"-joined vault directory path down to the exact form
-// /api/vault/list-dirs expects: collapses any doubled slashes, guarantees
-// exactly one leading slash, no trailing one (root is the sole exception,
-// staying "/"). Building a dirPath by concatenating pieces that may or may
-// not already carry their own slash (see __vaultrChatAcParseCtx) is far
-// more error-prone than joining loosely and normalizing once at the end.
-function __vaultrNormalizeVaultDir(raw) {
-  var s = (raw || '').replace(/\/+/g, '/');
-  if (!s.startsWith('/')) s = '/' + s;
-  if (s.length > 1 && s.endsWith('/')) s = s.slice(0, -1);
-  return s || '/';
-}
-
-// parseCtx for the chat textarea: everything vault-reference related lives
-// under a single "@" trigger now — "/" is deliberately left alone (no
-// special meaning here at all) so it's free for a future slash-command
-// trigger without colliding with this. "@" must follow whitespace/start of
-// input (so an email's "@" — foo@bar — never fires), same as before.
-//
-// Within the "@…" token, whether "/" has been typed yet decides the mode:
-//   no "/" yet → kind: 'mention' — live note-filename search; closes if the
-//                query contains "]" (hand-typing a wiki-link).
-//   has a "/"  → kind: 'path'    — lists the folder named by whatever comes
-//                before the last "/"; closes as soon as the segment after
-//                it contains a "." (typing a filename by hand).
-// Path selection has two outcomes, both handled in path_ac.js:
-//   Tab   → keep browsing: appends "name/" after the "@" (which stays put)
-//           and reopens for the next level — exactly like a plain directory
-//           browser, any number of levels deep.
-//   Enter/click → finalize: rewrites the *whole* "@…" token (dirPath already
-//           has every earlier "/"-segment folded into it) into a clean
-//           vault path with no "@" left in it ("/journal/2026/").
-// So the "@" is allowed to sit around, visible, for as long as you're
-// actively Tab-ing through levels — path_ac.js cleans it up on its own the
-// moment that session actually ends (Enter/click, Escape, blur, or just
-// typing past it), not just on an explicit finalize. That's also why "@"
-// stays a valid trigger immediately after an already-*finished* path's
-// trailing "/" (no whitespace needed, just not preceded by anything other
-// than "/" or token-start) — typing "@" right after a clean "/journal/
-// 2026/" re-opens browsing from there for one more round of Tab-driven
-// drilling.
-function __vaultrChatAcParseCtx(val, caret) {
-  val = typeof val === 'string' ? val : '';
-  if (caret == null || caret > val.length) caret = val.length;
-  var left = val.slice(0, caret);
-  var tokenStart = 0;
-  for (var i = left.length - 1; i >= 0; i--) {
-    if (/[\s]/.test(left[i])) { tokenStart = i + 1; break; }
-  }
-  var token = left.slice(tokenStart);
-  var atIdx = token.indexOf('@');
-  if (atIdx === -1) return null;
-  if (atIdx > 0 && token[atIdx - 1] !== '/') return null;
-  var atPos = tokenStart + atIdx;
-  var pathPrefix = token.slice(0, atIdx); // '' normally, or an already-clean "/journal/2026/" from a prior finalize
-  var body = token.slice(atIdx + 1);
-  if (body.indexOf(']') !== -1) return null;
-  var lastSlash = body.lastIndexOf('/');
-  if (lastSlash === -1) {
-    return { kind: 'mention', partial: body, replaceStart: atPos };
-  }
-  var partial = body.slice(lastSlash + 1);
-  if (partial.indexOf('.') !== -1) return null;
-  var dirSeg = body.slice(0, lastSlash);
-  // Joining pathPrefix and dirSeg with a naive "+ '/' +" breaks when either
-  // side already carries its own slash — most commonly dirSeg itself
-  // starting with "/" right after browsing from the vault root ("@/"),
-  // which produced a "//name" double-slash dirPath that /api/vault/list-
-  // dirs doesn't recognize as any real directory. Normalizing after the
-  // fact (collapse repeats, guarantee exactly one leading slash, no
-  // trailing one) sidesteps getting every combination of prefix/segment
-  // slash-or-no-slash right by construction.
-  var dirPath = __vaultrNormalizeVaultDir((pathPrefix || '') + '/' + dirSeg);
-  // replaceStart: right after the last "/" — what Tab replaces (just the
-  // partial segment). tokenStart: the whole token's start (including any
-  // pathPrefix) — what Enter/click replaces (the full rebuild). atPos:
-  // where this session's own "@" lives — what gets silently removed if the
-  // session ends without an explicit finalize.
-  return {
-    kind: 'path', dirPath: dirPath, partial: partial,
-    tokenStart: tokenStart, atPos: atPos, replaceStart: tokenStart + atIdx + lastSlash + 2,
-  };
-}
-
-// @ mention search — hits the same JSON search API the rest of the app
-// already uses (internal/plugins/search), scoped to filename-only matches
-// (type: 'name'; bleve's name query is match+prefix+fuzzy under the hood,
-// so small typos still hit). Maps each result to path_ac.js's generic
-// {label, value, sub} shape: value (the bare stem, no .md) is what actually
-// gets wrapped in [[...]] on selection — sub (the note's folder) is
-// display-only, shown purely so same-named notes in different folders can
-// be told apart in the list; [[stem]] itself always resolves by basename
-// wherever it's rendered (mdhtml.go and friends), matching how the agent's
-// own system prompt already writes note references.
-async function __vaultrChatMentionSearch(query, signal) {
-  var resp = await fetch('/api/search', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ q: query, type: 'name', limit: 8 }), signal: signal,
-  });
-  if (!resp.ok) return [];
-  var data = await resp.json();
-  var results = Array.isArray(data.results) ? data.results : [];
-  return results.map(function (r) {
-    var stem = (typeof r.name === 'string' ? r.name : '').replace(/\.md$/i, '');
-    var dir = (r.dir || '').replace(/^\/+/, '');
-    return { label: stem, value: stem, sub: dir || '/' };
-  });
-}
-
-var __vaultrChatPathAc = null;
-var __vaultrChatComposerRO = null;
-
-// Keeps two #chat-scroll custom properties in sync with real, measured DOM
-// metrics instead of guessed constants (agent_chat.css consumes both):
-//  --chat-composer-h: the floating #chat-input-outer panel's rendered
-//    height (position: absolute — see agent_chat.css), so .chat-scroll's
-//    spacer reserves exactly enough room for a message to clear the panel,
-//    whether the composer is a single-line pill or has grown tall with
-//    multi-line text.
-//  --chat-scrollbar-w: .chat-scroll's actual reserved scrollbar-gutter
-//    width. A hardcoded "5px" (the ::-webkit-scrollbar width base.css
-//    declares) turned out not to match what scrollbar-gutter: stable
-//    actually reserves in practice, which left the composer panel's right
-//    inset covering part of the real scrollbar instead of stopping exactly
-//    at its edge — measuring it directly sidesteps guessing at Blink's
-//    scrollbar metrics. scrollbar-gutter: stable keeps this constant
-//    whether or not the conversation currently overflows, so one read at
-//    mount is enough — no ResizeObserver needed for this one.
-// Re-run every time the chat section mounts since both elements are fresh
-// (see initChatSection() below); the composer-height ResizeObserver itself
-// then keeps tracking without needing to be re-armed on every keystroke.
-function __vaultrSyncChatComposerHeight() {
-  var panel = document.getElementById('chat-input-outer');
-  var scroll = document.getElementById('chat-scroll');
-  if (__vaultrChatComposerRO) { __vaultrChatComposerRO.disconnect(); __vaultrChatComposerRO = null; }
-  if (!panel || !scroll) return;
-  // offsetWidth/clientWidth can be fractional (subpixel layout), and the
-  // measured gutter still left a sliver of the real scrollbar covered in
-  // practice — round up and pad by a few px so the panel's right edge always
-  // clears the scrollbar with room to spare rather than landing exactly on
-  // (or just short of) it.
-  var sbw = scroll.offsetWidth - scroll.clientWidth;
-  scroll.style.setProperty('--chat-scrollbar-w', (Math.ceil(sbw) + 4) + 'px');
-  if (typeof ResizeObserver === 'undefined') return;
-  // The composer growing (e.g. textarea wrapping to a second line) doesn't
-  // fire #chat-scroll's own 'scroll' event, so without this a message that
-  // was pinned to the bottom would visually drift up as the reserved spacer
-  // grows underneath it — reuse the same stick-to-bottom state the scroll
-  // listener maintains (home.js's homeCtrl) rather than forcing a jump.
-  var apply = function () {
-    scroll.style.setProperty('--chat-composer-h', panel.offsetHeight + 'px');
-    if (window._homeData && typeof window._homeData.maybeScrollToBottom === 'function') {
-      window._homeData.maybeScrollToBottom();
-    }
-  };
-  __vaultrChatComposerRO = new ResizeObserver(apply);
-  __vaultrChatComposerRO.observe(panel);
-  apply();
-}
-
-// Rebinds the autocomplete + its DOM listeners to whatever #chat-textarea/
-// #chat-path-ac currently exist — must be re-run every time the chat section
-// is swapped back into #home-list-pane, since those are fresh elements each
-// time (see initChatSection() below).
-function __vaultrSetupChatAc() {
-  __vaultrChatPathAc = __vaultrPathAcCreate({
-    getInput: function () { return document.getElementById('chat-textarea'); },
-    getList: function () { return document.getElementById('chat-path-ac'); },
-    parseCtx: __vaultrChatAcParseCtx,
-    search: __vaultrChatMentionSearch,
-    onApply: function (input, newVal, caretPos) {
-      input.value = newVal;
-      input.dispatchEvent(new Event('input', { bubbles: true }));
-      input.setSelectionRange(caretPos, caretPos);
-      input.focus();
-    },
-    escKey: 'chat-ac',
-  });
-
-  var ta = document.getElementById('chat-textarea');
-  if (!ta) return;
-  ta.addEventListener('input', function () { __vaultrChatPathAc.refresh(); });
-  ta.addEventListener('click', function () { __vaultrChatPathAc.refresh(); });
-  ta.addEventListener('keyup', function (ev) {
-    if (ev.key === 'ArrowLeft' || ev.key === 'ArrowRight' || ev.key === 'Home' || ev.key === 'End')
-      __vaultrChatPathAc.refresh();
-  });
-  ta.addEventListener('blur', function () {
-    setTimeout(function () {
-      var list = document.getElementById('chat-path-ac');
-      if (list && !list.contains(document.activeElement)) __vaultrChatPathAc.close();
-    }, 180);
-  });
-}
-
 // ── Home Alpine controller ────────────────────────────────────────────────
 function homeCtrl() {
   var ctrl = Object.assign(contentPaneCtrl(), {
@@ -369,40 +172,15 @@ function homeCtrl() {
     inboxSelected: null,
     inboxSheetOpen: false,
     unreadCount: 0,
-    // ── Chat (mirrors agent_chat.js's agentChatCtrl for the standalone /agent page) ──
+    // Chat transcript lives on this._chat (chat_kernel.js). These fields are
+    // what the sidebar and the run-completion toast still bind to.
     agentBots: [],
     selectedAgentBotId: '',
-    conversationId: '',
-    messages: [],
-    agentBotEventDefs: [],
-    inputText: '',
-    isRunning: false,
-    currentRunId: null,
-    _stoppingRunId: null,
-    // Whether the scroll view should auto-follow new content. True until the
-    // user scrolls away from the bottom themselves; see maybeScrollToBottom/
-    // jumpToBottom/_onChatScroll.
-    _stickToBottom: true,
-    _chatScrollRaf: null,
-    timeTick: 0,
     isMac: /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent),
-    _chatBootstrapped: false,
-    _timeTicker: null,
     toastText: '',
     toastKind: 'ok',
     toastVisible: false,
     _toastTimer: null,
-    _runPollerTimer: null,
-    _runPollerSeq: 0,
-    _syncTimer: null,
-    _syncSeq: 0,
-    _lastMsgMs: 0,
-    _mdCache: new Map(),
-    convType: 'chat',
-    convTypes: [
-      { value: 'chat', label: 'Chat' },
-      { value: 'trigger', label: 'Trigger' },
-    ],
     // ── Shorts: inline composer (replaces the old short_dialog.js overlay) ──
     shortComposeText: '',
     shortComposeSaving: false,
@@ -488,18 +266,23 @@ function homeCtrl() {
       // live SSE subscription start unconditionally here.
       this.refreshUnreadCount();
       this.initInboxStream();
-      // Relative message timestamps ("2m ago") in the chat panel must keep
-      // advancing even while a different sidebar section is showing, so this
-      // also starts unconditionally rather than waiting for the first visit
-      // to Chats (mirrors agent_chat.js's own init()-time ticker).
-      this.timeTick = Date.now();
-      this._timeTicker = setInterval(() => { this.timeTick = Date.now(); }, 30000);
-      this.$watch('timeTick', () => this._refreshTimes());
-      // The agent bots list now lives in the sidebar's Chats group (home.html),
-      // so it has to be populated regardless of whether Chats has ever been
-      // opened — initChatSection() awaits this same promise before restoring
-      // the last-selected agent bot the first time the section itself is opened.
-      this._agentBotsLoadPromise = Promise.all([this.loadAgentBots(), this.loadAgentBotEvents()]);
+      // Bot list lives in the sidebar, so it loads even when Chats is closed.
+      // The kernel keeps a run alive if the pane is swapped away.
+      var self = this;
+      this._chat = window.__vaultrChatCreate({
+        onMates: function (mates) { self.agentBots = mates; },
+        onMate: function (id) {
+          self.selectedAgentBotId = id;
+          // Highlight the bot whenever the chat pane is up, including a direct
+          // /home?type=chat load whose sidebar key is still the default.
+          var inChat = !!document.getElementById('chat-root') ||
+            self.activeKey === 'chat' || String(self.activeKey).indexOf('chat:') === 0;
+          if (inChat) self.activeKey = id ? ('chat:' + id) : 'chat';
+        },
+        onToast: function (text, kind) { self.showToast(text, kind); },
+      });
+      this._chat.start();
+      if (document.getElementById('chat-root')) this.initChatSection();
       // Home is always safe: partial HTMX refresh is non-destructive.
       window.__vaultrShellSafeForBackgroundReload = function () { return true; };
       // Electron main calls this instead of wc.reload() when syncing sections.
@@ -1113,600 +896,45 @@ function homeCtrl() {
     fullTime(iso) {
       try { return new Date(iso).toLocaleString(); } catch (e) { return iso; }
     },
-    // Same wiki-link handling and sanitize allowlist for the inbox sheet and
-    // assistant chat replies. Caches settled text (skipped while a chat
-    // reply is still streaming, since content changes every delta).
     renderMarkdown(text) {
-      if (!text || typeof text !== 'string') return '';
-      var useCache = !this.isRunning;
-      if (useCache) {
-        var cached = this._mdCache.get(text);
-        if (cached !== undefined) return cached;
-      }
-      var processed = text.replace(/\[\[([^\]\[|]+?)(?:\|([^\]\[]+?))?\]\]/g, function (_, target, display) {
-        target = target.trim();
-        display = (display || target).trim();
-        var name = target.endsWith('.md') ? target : target + '.md';
-        return '[' + display + '](/notes?name=' + encodeURIComponent(name) + ')';
-      });
-      processed = processed.replace(/(?<!~)~(?!~)/g, '\\~');
-      var html;
-      if (typeof marked === 'undefined') {
-        html = processed.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-      } else {
-        html = marked.parse(processed);
-        if (typeof DOMPurify !== 'undefined') {
-          html = DOMPurify.sanitize(html, {
-            ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 's', 'del', 'code', 'pre', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
-              'ul', 'ol', 'li', 'blockquote', 'a', 'hr', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'img'],
-            ALLOWED_ATTR: ['href', 'title', 'src', 'alt'],
-          });
-        }
-      }
-      if (useCache) {
-        if (this._mdCache.size >= 300) {
-          // Evict oldest 50 entries (Map preserves insertion order) instead of
-          // clearing all at once to avoid re-rendering every visible message.
-          var iter = this._mdCache.keys();
-          for (var ei = 0; ei < 50; ei++) {
-            var nxt = iter.next();
-            if (nxt.done) break;
-            this._mdCache.delete(nxt.value);
-          }
-        }
-        this._mdCache.set(text, html);
-      }
-      return html;
+      return window.__vaultrRenderMarkdown(text);
     },
 
-    // ── Chat: agent bots, conversations, streaming replies (mirrors agent_chat.js's
-    // agentChatCtrl for the standalone /agent page) ────────────────────────
-    // Runs the network bootstrap (agent bots, last-selected agent bot, its conversation)
-    // exactly once — re-running it every time the user switches back to the
-    // Chats sidebar item would clobber an in-progress streaming reply. The
-    // autocomplete/wiki-link DOM listeners, though, must be rebound every
-    // time: #chat-textarea/#chat-scroll are fresh elements after each swap.
-    initChatSection() {
-      __vaultrSetupChatAc();
-      __vaultrSyncChatComposerHeight();
-      var chatScroll = document.getElementById('chat-scroll');
-      if (chatScroll) {
-        chatScroll.addEventListener('click', (e) => {
-          var a = e.target.closest('a');
-          if (!a) return;
-          var href = a.getAttribute('href') || '';
-          if (!href.startsWith('/notes?')) return;
-          e.preventDefault();
-          try {
-            var name = new URLSearchParams(href.split('?')[1] || '').get('name') || '';
-            if (name && typeof __vaultrContentPaneOpenWikiLink === 'function') {
-              void __vaultrContentPaneOpenWikiLink(name.replace(/\.md$/, ''));
-            }
-          } catch (_) { /* ignore */ }
-        });
-        chatScroll.addEventListener('scroll', () => { this._onChatScroll(); }, { passive: true });
-      }
-      // Arriving via the parent "Chats" button (not a specific agent bot's child
-      // row) lands here with activeKey === 'chat'. Unlike Knowledge's "All" child,
-      // chat has no distinct all-agent-bots view — whatever agent bot ends up
-      // showing should always be the one highlighted in the sidebar.
-      if (this.activeKey === 'chat' && this.selectedAgentBotId) {
-        this.activeKey = 'chat:' + this.selectedAgentBotId;
-      }
-      if (this._chatBootstrapped) return;
-      this._chatBootstrapped = true;
-      (async () => {
-        await this._agentBotsLoadPromise;
-        var lastAgentBotId = sessionStorage.getItem('vaultr_agent_bot_id');
-        var target = lastAgentBotId ? this.agentBots.find((m) => m.id === lastAgentBotId) : null;
-        this.selectedAgentBotId = (target || this.agentBots[0] || {}).id || '';
-        if (this.selectedAgentBotId) {
-          this.activeKey = 'chat:' + this.selectedAgentBotId;
-          void this.refreshAgentBotConversation(this.selectedAgentBotId);
-        }
-      })();
-    },
+    autoResize(el) { window.__vaultrAutoResize(el); },
 
     toggleChats() { this.chatsOpen = !this.chatsOpen; },
 
-    // Selecting an agent bot from the sidebar's Chats children. Works whether or
-    // not the chat pane is currently mounted: selectAgentBot() only touches JS
-    // state + fetches (scrollToBottom() no-ops without #chat-scroll), so
-    // picking an agent bot from, say, Pinned just pre-loads its conversation; if
-    // the chat section isn't showing yet, this also navigates to it.
     selectChatAgentBot(agentBotId) {
-      this.activeKey = 'chat:' + agentBotId;
-      // We're handling agent bot selection ourselves here — mark bootstrap done
-      // so initChatSection() (triggered by the _load() below) doesn't also
-      // restore-and-refetch the same agent bot a second time.
-      this._chatBootstrapped = true;
-      this.selectAgentBot(agentBotId);
-      if (document.getElementById('chat-scroll')) {
-        this._lastURL = '/home/section?type=chat';
-      } else {
-        this._load('/home/section?type=chat');
+      if (!this._chat) return;
+      var opened = this._chat.tryOpen(agentBotId);
+      if (opened) this.activeKey = 'chat:' + agentBotId;
+      else if (this.selectedAgentBotId) this.activeKey = 'chat:' + this.selectedAgentBotId;
+      if (document.getElementById('chat-root')) this._lastURL = '/home/section?type=chat';
+      else this._load('/home/section?type=chat');
+    },
+
+    initChatSection() {
+      if (!this._chat) return;
+      var root = document.getElementById('chat-root');
+      if (root) this._chat.attach(root);
+      if ((this.activeKey === 'chat' || String(this.activeKey).indexOf('chat:') === 0) && this.selectedAgentBotId) {
+        this.activeKey = 'chat:' + this.selectedAgentBotId;
       }
+      void this._chat.bootstrap();
     },
 
-    async loadAgentBots() {
-      try {
-        var resp = await fetch('/api/mates');
-        if (!resp.ok) return;
-        this.agentBots = ((await resp.json()).mates || []).filter((m) => m.enabled);
-      } catch (_) { /* ignore */ }
+    agentBotColor(name) {
+      return window.agentBotColorFor(name, this.agentBots);
     },
 
-    async loadAgentBotEvents() {
-      try {
-        var resp = await fetch('/api/mate-events');
-        if (!resp.ok) return;
-        this.agentBotEventDefs = (await resp.json()).events || [];
-      } catch (_) { /* ignore */ }
+    agentBotInitials(name) {
+      if (!name) return '?';
+      return name.trim().slice(0, 1).toUpperCase();
     },
 
-    triggerEventLabel(type) {
-      var d = this.agentBotEventDefs.find((e) => e.type === type);
-      return d ? d.label : type;
-    },
-
-    async refreshAgentBotConversation(agentBotId) {
-      if (this.isRunning || !agentBotId) return;
-      try {
-        var resp = await fetch('/api/conversations?mateId=' + encodeURIComponent(agentBotId) + '&type=' + encodeURIComponent(this.convType), { cache: 'no-store' });
-        if (!resp.ok) return;
-        var convs = (await resp.json()).conversations || [];
-        this.conversationId = convs.length > 0 ? convs[0].id : '';
-        if (this.conversationId) {
-          await this.loadMessages(this.conversationId);
-        } else {
-          this.messages = [];
-        }
-      } catch (_) { /* ignore */ }
-    },
-
-    formatStoredMessages(msgs) {
-      var out = [];
-      for (var i = 0; i < msgs.length; i++) {
-        var m = msgs[i];
-        if (m.role === 'user') {
-          out.push({
-            id: m.id,
-            role: 'user', content: m.content,
-            createdAt: m.createdAt ? new Date(m.createdAt).getTime() : 0,
-          });
-        } else {
-          var at = m.updatedAt ? new Date(m.updatedAt).getTime() : (m.createdAt ? new Date(m.createdAt).getTime() : 0);
-          out.push({
-            id: m.id,
-            role: 'assistant', agentId: m.agentId, agentBotId: m.mateId,
-            triggerEvent: m.triggerEvent || '',
-            segments: m.content ? [{ type: 'text', content: m.content }] : [],
-            status: m.status || 'succeeded',
-            startTime: 0, duration: 0,
-            createdAt: m.createdAt ? new Date(m.createdAt).getTime() : 0,
-            completedAt: at,
-            copied: false,
-          });
-        }
-      }
-      return out;
-    },
-
-    async loadMessages(convId) {
-      try {
-        var resp = await fetch('/api/conversations/' + convId, { cache: 'no-store' });
-        if (!resp.ok) return;
-        var msgs = (await resp.json()).messages || [];
-        this.messages = this.formatStoredMessages(msgs);
-        this._refreshTimes();
-        this.$nextTick(() => { this.jumpToBottom(); });
-        var lastMs = 0;
-        for (var i = 0; i < msgs.length; i++) {
-          var t = msgs[i].updatedAt ? new Date(msgs[i].updatedAt).getTime() : 0;
-          if (t > lastMs) lastMs = t;
-        }
-        this._lastMsgMs = lastMs;
-        this._startSyncPoller(convId);
-      } catch (_) { /* ignore */ }
-    },
-
-    selectAgentBot(id) {
-      if (this.isRunning) return;
-      if (id !== this.selectedAgentBotId) {
-        this._cancelPoller();
-        this.conversationId = '';
-        this.messages = [];
-      }
-      this.selectedAgentBotId = id;
-      sessionStorage.setItem('vaultr_agent_bot_id', id);
-      void this.refreshAgentBotConversation(id);
-    },
-
-    async newChat() {
-      if (this.isRunning || !this.selectedAgentBotId) return;
-      // Don't create a new conversation when the current one is already empty.
-      if (this.messages.length === 0) return;
-      this._cancelPoller();
-      var d = new Date();
-      var title = d.getFullYear() + '-' +
-        String(d.getMonth() + 1).padStart(2, '0') + '-' +
-        String(d.getDate()).padStart(2, '0') + ' ' +
-        String(d.getHours()).padStart(2, '0') + ':' +
-        String(d.getMinutes()).padStart(2, '0');
-      try {
-        var resp = await fetch('/api/conversations', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ mateId: this.selectedAgentBotId, title: title }),
-        });
-        if (resp.ok) {
-          var data = await resp.json();
-          this.conversationId = data.conversation.id;
-          this.messages = [];
-        }
-      } catch (_) { /* ignore */ }
-      var ta = document.getElementById('chat-textarea');
-      if (ta) { ta.style.height = ''; ta.focus(); }
-    },
-
-    convTypeLabel(t) {
-      var found = this.convTypes.find((c) => c.value === t);
-      return found ? found.label : t;
-    },
-
-    setConvType(t) {
-      if (t === this.convType) return;
-      this._cancelPoller();
-      this.convType = t;
-      this.conversationId = '';
-      this.messages = [];
-      if (this.selectedAgentBotId) void this.refreshAgentBotConversation(this.selectedAgentBotId);
-    },
-
-    async send() {
-      var text = this.inputText.trim();
-      if (!text || this.isRunning || !this.selectedAgentBotId) return;
-      var agentBot = this.selectedAgentBot;
-      if (!agentBot) return;
-
-      // Lazy-create conversation on first message.
-      if (!this.conversationId) {
-        try {
-          var cresp = await fetch('/api/conversations', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ mateId: agentBot.id, title: '' }),
-          });
-          if (cresp.ok) {
-            this.conversationId = (await cresp.json()).conversation.id;
-          }
-        } catch (_) { /* ignore */ }
-        if (!this.conversationId) return;
-      }
-
-      this.inputText = '';
-      var ta = document.getElementById('chat-textarea');
-      if (ta) {
-        ta.style.height = '';
-        var card = ta.closest('.chat-input-card');
-        if (card) card.classList.remove('is-multiline');
-      }
-
-      var _userMsgId = this._genId();
-      var _userTs = Date.now();
-      this.messages.push({ id: _userMsgId, role: 'user', content: text, createdAt: _userTs, _fmtTime: this.formatTime(_userTs) });
-      await this._runTurn(text, _userMsgId);
-    },
-
-    // retryMessage re-runs a failed/canceled assistant turn with the same
-    // prompt text. /api/chat always inserts a fresh user-message row server
-    // side (it has no "regenerate without a new user turn" mode), so a
-    // reload always shows the retried question as its own bubble right
-    // after the failed one. This pushes that same bubble locally up front —
-    // an earlier version left it implicit (reusing the original bubble) to
-    // avoid the visual duplicate, but that meant the only thing that could
-    // ever add the retry's user row to view was the background sync poller
-    // picking up its DB row by id-miss and push()-ing it to the *end* of the
-    // array once streaming finished, landing it after the new assistant
-    // reply instead of before it. Showing it immediately, in the right slot,
-    // makes the live view match a reload from the first frame — and once
-    // the poller does see this id, it now matches an existing message and
-    // just updates it in place instead of appending a duplicate.
-    async retryMessage(msgIdx) {
-      if (this.isRunning) return;
-      var msg = this.messages[msgIdx];
-      if (!msg || msg.role !== 'assistant' || (msg.status !== 'failed' && msg.status !== 'canceled')) return;
-      var text = '';
-      for (var i = msgIdx - 1; i >= 0; i--) {
-        if (this.messages[i].role === 'user') { text = this.messages[i].content; break; }
-      }
-      if (!text) return;
-      this.messages.splice(msgIdx, 1);
-      var _userMsgId = this._genId();
-      var _userTs = Date.now();
-      this.messages.push({ id: _userMsgId, role: 'user', content: text, createdAt: _userTs, _fmtTime: this.formatTime(_userTs) });
-      await this._runTurn(text, _userMsgId);
-    },
-
-    _genId() {
-      return (typeof crypto !== 'undefined' && crypto.randomUUID)
-        ? crypto.randomUUID()
-        : (Date.now().toString(36) + Math.random().toString(36).slice(2));
-    },
-
-    // _runTurn posts one prompt to /api/chat and streams the reply into a new
-    // assistant message. Shared by send() (fresh user turn) and retryMessage().
-    async _runTurn(text, userMsgId) {
-      var agentBot = this.selectedAgentBot;
-      if (!agentBot) return;
-      this.isRunning = true;
-
-      var _assistantMsgId = this._genId();
-      this.messages.push({
-        id: _assistantMsgId,
-        role: 'assistant', agentId: agentBot.agentId, agentBotId: agentBot.id,
-        segments: [], status: 'running', stopping: false,
-        startTime: Date.now(), duration: 0, completedAt: 0, copied: false,
-      });
-      var msgIdx = this.messages.length - 1;
-      this.$nextTick(() => { this.jumpToBottom(); });
-
-      var sseGotEnd = true;
-      try {
-        var resp = await fetch('/api/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ mateId: agentBot.id, message: text, conversationId: this.conversationId, userMessageId: userMsgId, assistantMessageId: _assistantMsgId }),
-        });
-        if (!resp.ok) {
-          var errText = await resp.text();
-          this.messages[msgIdx].segments.push({ type: 'error', message: errText || 'Request failed' });
-          this.messages[msgIdx].status = 'failed';
-          return;
-        }
-        sseGotEnd = await this.consumeSSE(resp, msgIdx);
-        // For cursor-agent: reload from DB after streaming ends to guarantee the
-        // displayed text matches the authoritative DB content (text_snapshot), catching
-        // any remaining divergence edge cases not handled during streaming.
-        if (sseGotEnd && this.conversationId && agentBot.agentId === 'cursor-agent') {
-          await this.syncLastMsgFromDB(this.conversationId, msgIdx);
-        }
-      } catch (e) {
-        if (msgIdx < this.messages.length) {
-          this.messages[msgIdx].segments.push({ type: 'error', message: e.message || 'Connection error' });
-          this.messages[msgIdx].status = 'failed';
-        }
-      } finally {
-        // SSE dropped without an end event — agent is still running on server; poll for completion.
-        if (!sseGotEnd && this.currentRunId) this.spawnRunPoller(this.currentRunId, msgIdx);
-        this.isRunning = false;
-        this._stoppingRunId = null;
-        this.currentRunId = null;
-        this.maybeScrollToBottom();
-      }
-    },
-
-    // syncLastMsgFromDB replaces the streamed text segments of the assistant message at
-    // msgIdx with the authoritative text from the DB, correcting any streaming artifacts.
-    // Non-text segments (tool_use, thinking) are preserved in place.
-    async syncLastMsgFromDB(convId, msgIdx) {
-      try {
-        var resp = await fetch('/api/conversations/' + convId, { cache: 'no-store' });
-        if (!resp.ok) return;
-        var dbMsgs = (await resp.json()).messages || [];
-        var dbMsg = null;
-        for (var i = dbMsgs.length - 1; i >= 0; i--) {
-          if (dbMsgs[i].role === 'assistant' && dbMsgs[i].content) { dbMsg = dbMsgs[i]; break; }
-        }
-        if (!dbMsg) return;
-        var cur = this.messages[msgIdx];
-        if (!cur || cur.role !== 'assistant') return;
-        var nonText = (cur.segments || []).filter((s) => s.type !== 'text');
-        cur.segments = nonText.concat([{ type: 'text', content: dbMsg.content }]);
-      } catch (_) { /* ignore */ }
-    },
-
-    async consumeSSE(resp, msgIdx) {
-      var reader = resp.body.getReader();
-      var decoder = new TextDecoder();
-      var buf = '';
-      var gotEnd = false;
-      try {
-        while (true) {
-          var chunk = await reader.read();
-          if (chunk.done) break;
-          buf += decoder.decode(chunk.value, { stream: true });
-          var blocks = buf.split('\n\n');
-          buf = blocks.pop();
-          for (var bi = 0; bi < blocks.length; bi++) {
-            var block = blocks[bi];
-            if (!block.trim()) continue;
-            var event = '', rawData = '';
-            var lines = block.split('\n');
-            for (var li = 0; li < lines.length; li++) {
-              var line = lines[li];
-              if (line.startsWith('event: ')) event = line.slice(7).trim();
-              else if (line.startsWith('data: ')) rawData = line.slice(6);
-            }
-            if (event === 'end') gotEnd = true;
-            if (event && rawData) { this.handleSSEEvent(event, rawData, msgIdx); this.maybeScrollToBottom(); }
-          }
-        }
-      } finally {
-        try { reader.releaseLock(); } catch (_) { /* ignore */ }
-      }
-      return gotEnd;
-    },
-
-    handleSSEEvent(event, rawData, msgIdx) {
-      var data;
-      try { data = JSON.parse(rawData); } catch (_) { return; }
-      var msg = this.messages[msgIdx];
-      if (!msg) return;
-      switch (event) {
-        case 'start': if (data.runId) this.currentRunId = data.runId; break;
-        case 'heartbeat': break;
-        case 'agent': this.handleAgentSegment(data, msgIdx); break;
-        case 'stdout': case 'stderr': {
-          var chunk = (data.chunk || '').replace(/\n$/, '');
-          if (!chunk) break;
-          var segs = msg.segments, last = segs.length ? segs[segs.length - 1] : null;
-          if (last && last.type === 'console') { last.content += '\n' + chunk; }
-          else { segs.push({ type: 'console', content: chunk }); }
-          break;
-        }
-        case 'error': msg.segments.push({ type: 'error', message: data.message || 'Error' }); break;
-        case 'end':
-          msg.status = data.status || 'succeeded';
-          msg.duration = Date.now() - msg.startTime;
-          msg.completedAt = Date.now();
-          msg._fmtTime = this.formatTime(msg.completedAt);
-          if (document.hidden) this.showCompletionToast(msg.status, this.getAgentBotNameForMsg(msg));
-          break;
-      }
-    },
-
-    handleAgentSegment(data, msgIdx) {
-      var segs = this.messages[msgIdx].segments;
-      var last = segs.length ? segs[segs.length - 1] : null;
-      switch (data.type) {
-        case 'text_delta': {
-          var d = data.delta || ''; if (!d) break;
-          if (last && last.type === 'text') { last.content += d; }
-          else { segs.push({ type: 'text', content: d }); }
-          break;
-        }
-        case 'text_replace': {
-          // cursor-agent reformatted mid-stream: update last text segment in-place
-          // (avoids a DOM remove+create flash) and remove any earlier text segments.
-          var newText = data.text || '';
-          var lastTi = -1;
-          for (var rti = segs.length - 1; rti >= 0; rti--) {
-            if (segs[rti].type === 'text') { lastTi = rti; break; }
-          }
-          if (lastTi >= 0) {
-            for (var rti2 = lastTi - 1; rti2 >= 0; rti2--) {
-              if (segs[rti2].type === 'text') { segs.splice(rti2, 1); lastTi--; }
-            }
-            segs[lastTi].content = newText;
-          } else if (newText) {
-            segs.push({ type: 'text', content: newText });
-          }
-          break;
-        }
-        case 'thinking_start': {
-          if (!last || last.type !== 'thinking') {
-            segs.push({ type: 'thinking', content: '', open: false });
-          }
-          break;
-        }
-        case 'thinking_delta': {
-          var td = data.delta || ''; if (!td) break;
-          if (last && last.type === 'thinking') { last.content += td; }
-          else { segs.push({ type: 'thinking', content: td, open: false }); }
-          break;
-        }
-        case 'tool_use': {
-          var toolName = data.name || 'tool', mergeTarget = null;
-          for (var k = segs.length - 1; k >= 0; k--) {
-            var sk = segs[k];
-            if (sk.type === 'status') continue;
-            if (sk.type === 'tool_use' && sk.name === toolName && sk.results.length >= sk.count) mergeTarget = sk;
-            break;
-          }
-          if (mergeTarget) { mergeTarget.count++; }
-          else { segs.push({ type: 'tool_use', name: toolName, count: 1, results: [], open: false }); }
-          break;
-        }
-        case 'tool_result': {
-          var trContent = data.content || '';
-          if (typeof trContent !== 'string') trContent = JSON.stringify(trContent);
-          var pending = null;
-          for (var ti = segs.length - 1; ti >= 0; ti--) {
-            if (segs[ti].type === 'tool_use' && segs[ti].results.length < segs[ti].count) { pending = segs[ti]; break; }
-            if (segs[ti].type === 'text' || segs[ti].type === 'error') break;
-          }
-          if (pending) { pending.results.push(trContent); }
-          else { segs.push({ type: 'tool_result', content: trContent, open: false }); }
-          break;
-        }
-        case 'status': {
-          var label = (data.label || '').trim(); if (!label || label === 'running' || label === 'requesting') break;
-          if (last && last.type === 'status') { last.label = label; }
-          else { segs.push({ type: 'status', label: label }); }
-          break;
-        }
-        case 'error': segs.push({ type: 'error', message: data.message || 'Agent error' }); break;
-        case 'raw': {
-          var rawLine = (data.line || '').replace(/\n$/, ''); if (!rawLine) break;
-          if (last && last.type === 'console') { last.content += '\n' + rawLine; }
-          else { segs.push({ type: 'console', content: rawLine }); }
-          break;
-        }
-      }
-    },
-
-    async cancel() {
-      var id = this.currentRunId;
-      if (!id || this._stoppingRunId === id) return;
-      this._stoppingRunId = id;
-      for (var i = this.messages.length - 1; i >= 0; i--) {
-        if (this.messages[i].role === 'assistant' && this.messages[i].status === 'running') {
-          this.messages[i].stopping = true;
-          break;
-        }
-      }
-      try { await fetch('/api/runs/' + id + '/cancel', { method: 'POST' }); } catch (_) { /* ignore */ }
-    },
-
-    // Unconditional primitive — most call sites should go through
-    // maybeScrollToBottom() (respects the user's scroll position) or
-    // jumpToBottom() (forces + re-arms follow) instead of calling this
-    // directly; see those for why.
-    scrollToBottom() { var el = document.getElementById('chat-scroll'); if (el) el.scrollTop = el.scrollHeight; },
-
-    // For passive updates (streaming deltas, background sync, run polling) —
-    // only follows if the user was already at (or near) the bottom. This is
-    // what keeps a long streaming reply from yanking the view back down
-    // every time the user scrolls up mid-stream to reread something.
-    maybeScrollToBottom() { if (this._stickToBottom) this.scrollToBottom(); },
-
-    // For user-initiated moments (sending/retrying a message, opening a
-    // conversation, clicking the "scroll to bottom" button) — these should
-    // always jump to the new content AND re-arm auto-follow, even if the
-    // user had scrolled away from the bottom before taking the action.
-    jumpToBottom() { this._stickToBottom = true; this.scrollToBottom(); },
-
-    // Bound to #chat-scroll's native 'scroll' event (initChatSection()).
-    // rAF-throttled since scroll fires far more often than a layout read is
-    // worth doing. Deliberately doesn't try to tell "user scrolled" apart
-    // from "our own scrollToBottom() moved it" — a self-triggered scroll
-    // always lands within the threshold anyway, so it's a no-op either way.
-    _onChatScroll() {
-      if (this._chatScrollRaf) return;
-      var self = this;
-      this._chatScrollRaf = requestAnimationFrame(function () {
-        self._chatScrollRaf = null;
-        var el = document.getElementById('chat-scroll');
-        if (!el) return;
-        var dist = el.scrollHeight - el.scrollTop - el.clientHeight;
-        self._stickToBottom = dist <= 64;
-      });
-    },
-
-    handleKeydown(e) {
-      if (__vaultrChatPathAc && __vaultrChatPathAc.handleKeydown(e)) return;
-      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); void this.send(); }
-    },
-
-    autoResize(el) {
-      el.style.height = 'auto';
-      el.style.height = Math.min(el.scrollHeight, 140) + 'px';
-      var card = el.closest('.chat-input-card, .shorts-compose-card');
-      if (!card) return;
-      var cs = getComputedStyle(el);
-      var singleLineH = (parseFloat(cs.lineHeight) || 20) + parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
-      card.classList.toggle('is-multiline', el.scrollHeight > singleLineH + 1);
+    insertPath(e) {
+      var path = (e && e.detail && e.detail.path) || '';
+      if (this._chat) this._chat.insertPath(path);
     },
 
     // ── Shorts: inline composer ─────────────────────────────────────────
@@ -1739,120 +967,6 @@ function homeCtrl() {
       }
     },
 
-    formatDuration(ms) {
-      if (!ms) return '';
-      return ms < 1000 ? ms + 'ms' : (ms / 1000).toFixed(1) + 's';
-    },
-
-    msgAt(msg) {
-      return msg.completedAt || msg.createdAt || 0;
-    },
-
-    _refreshTimes() {
-      for (var i = 0; i < this.messages.length; i++) {
-        var m = this.messages[i];
-        var ts = this.msgAt(m);
-        if (ts) m._fmtTime = this.formatTime(ts);
-      }
-    },
-
-    formatTime(ts) {
-      if (!ts) return '';
-      var now = Date.now();
-      var diff = now - ts;
-      if (diff < 0) diff = 0;
-      var sec = Math.floor(diff / 1000);
-      if (sec < 45) return 'now';
-      var min = Math.floor(sec / 60);
-      if (min < 60) return min + 'm ago';
-      var hr = Math.floor(min / 60);
-      if (hr < 24) return hr + 'h ago';
-
-      var d = new Date(ts);
-      var clock = this.formatClock(d);
-      var today = new Date(now);
-      var yesterday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);
-      if (this.sameCalendarDay(d, yesterday)) return 'Yesterday, ' + clock;
-
-      var months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      var datePart = months[d.getMonth()] + ' ' + d.getDate();
-      if (d.getFullYear() !== today.getFullYear()) datePart += ', ' + d.getFullYear();
-      return datePart + ', ' + clock;
-    },
-
-    formatClock(d) {
-      var h = d.getHours(), m = d.getMinutes();
-      var ap = h >= 12 ? 'PM' : 'AM';
-      h = h % 12;
-      if (h === 0) h = 12;
-      return h + ':' + String(m).padStart(2, '0') + ' ' + ap;
-    },
-
-    sameCalendarDay(a, b) {
-      return a.getFullYear() === b.getFullYear() &&
-        a.getMonth() === b.getMonth() &&
-        a.getDate() === b.getDate();
-    },
-
-    async copyAgentBotText(msg) {
-      var text = (msg.segments || [])
-        .filter((s) => s.type === 'text')
-        .map((s) => s.content || '')
-        .join('').trim();
-      if (!text) return;
-      try {
-        await navigator.clipboard.writeText(text);
-        msg.copied = true;
-        setTimeout(() => { msg.copied = false; }, 2000);
-      } catch (_) { /* ignore */ }
-    },
-
-    getAgentBotNameForMsg(msg) {
-      var m = this.agentBots.find((m2) => m2.id === msg.agentBotId);
-      return m ? m.name : (msg.agentId || 'Agent');
-    },
-
-    agentBotColor(name) {
-      return window.agentBotColorFor(name, this.agentBots);
-    },
-
-    getAgentBotColor(agentBotId) {
-      var m = this.agentBots.find((m2) => m2.id === agentBotId);
-      return this.agentBotColor(m ? m.name : (agentBotId || ''));
-    },
-
-    agentBotInitials(name) {
-      if (!name) return '?';
-      return name.trim().slice(0, 1).toUpperCase();
-    },
-
-    insertPath(e) {
-      var path = (e && e.detail && e.detail.path) || '';
-      if (!path) return;
-      var ta = document.getElementById('chat-textarea');
-      var start = ta ? ta.selectionStart : this.inputText.length;
-      var end = ta ? ta.selectionEnd : start;
-      var bt = String.fromCharCode(96);
-      var before = this.inputText.slice(0, start);
-      var after = this.inputText.slice(end);
-      var leadSp = before.length > 0 && before[before.length - 1] !== ' ' ? ' ' : '';
-      var tailSp = after.length > 0 && after[0] !== ' ' ? ' ' : '';
-      var insert = leadSp + bt + path + bt + tailSp;
-      this.inputText = this.inputText.slice(0, start) + insert + this.inputText.slice(end);
-      this.$nextTick(() => {
-        if (ta) {
-          ta.selectionStart = ta.selectionEnd = start + insert.length;
-          ta.focus();
-          this.autoResize(ta);
-        }
-      });
-    },
-
-    showCompletionToast(status, agentBotName) {
-      var label = status === 'succeeded' ? ' finished' : (status === 'canceled' ? ' stopped' : ' failed');
-      this.showToast((agentBotName || 'Agent') + label, status === 'failed' ? 'err' : 'ok');
-    },
-
     // Generic version of the above — same .run-toast element (home.go), any
     // caller (e.g. home.js's drag-to-move flow) can use it, not just agent
     // run completions.
@@ -1864,168 +978,8 @@ function homeCtrl() {
       this._toastTimer = setTimeout(() => { this.toastVisible = false; }, 6000);
     },
 
-    _cancelPoller() {
-      if (this._runPollerTimer) { clearTimeout(this._runPollerTimer); this._runPollerTimer = null; }
-      this._runPollerSeq++;
-    },
-
-    _cancelSyncPoller() {
-      if (this._syncTimer) { clearTimeout(this._syncTimer); this._syncTimer = null; }
-      this._syncSeq++;
-    },
-
-    _startSyncPoller(convId) {
-      this._cancelSyncPoller();
-      var self = this;
-      var mySeq = self._syncSeq;
-      function poll() {
-        if (self._syncSeq !== mySeq) return;
-        if (self.isRunning || !convId || document.visibilityState !== 'visible') {
-          self._syncTimer = setTimeout(poll, 5000);
-          return;
-        }
-        var agentBotId = self.selectedAgentBotId;
-        var convType = self.convType;
-        // Check if a newer conversation was created (e.g. WeChat /new)
-        fetch('/api/conversations?mateId=' + encodeURIComponent(agentBotId) + '&type=' + encodeURIComponent(convType), { cache: 'no-store' })
-          .then((r) => r.ok ? r.json() : null)
-          .then((data) => {
-            if (self._syncSeq !== mySeq) return;
-            var convs = (data && data.conversations) || [];
-            if (convs.length > 0 && convs[0].id !== convId) {
-              // Active conversation switched; refreshAgentBotConversation will restart the poller
-              void self.refreshAgentBotConversation(agentBotId);
-              return;
-            }
-            // Same conversation — fetch new messages only
-            fetch('/api/conversations/' + convId + '?since=' + self._lastMsgMs, { cache: 'no-store' })
-              .then((r2) => r2.ok ? r2.json() : null)
-              .then((data2) => {
-                if (self._syncSeq !== mySeq) return;
-                var msgs = (data2 && data2.messages) || [];
-                if (msgs.length > 0) {
-                  var newMsgs = self.formatStoredMessages(msgs);
-                  var changed = false;
-                  for (var i = 0; i < newMsgs.length; i++) {
-                    var nm = newMsgs[i];
-                    var existingIdx = -1;
-                    if (nm.id) {
-                      for (var k = 0; k < self.messages.length; k++) {
-                        if (self.messages[k].id === nm.id) { existingIdx = k; break; }
-                      }
-                    }
-                    if (existingIdx >= 0) {
-                      var ex = self.messages[existingIdx];
-                      var prevStatus = ex.status;
-                      ex.content = nm.content;
-                      ex.status = nm.status;
-                      // If the message was already terminal in memory with rich live-streamed
-                      // segments (thinking, tool_use, etc.), preserve them — DB only stores
-                      // final text, so blindly replacing would wipe all streaming artifacts.
-                      // Only replace segments when the message was still running (just completed)
-                      // or when there are no rich segments to preserve.
-                      var hasRichSegs = (ex.segments || []).some((s) => s.type !== 'text');
-                      if (prevStatus !== 'running' && hasRichSegs) {
-                        var richSegs = (ex.segments || []).filter((s) => s.type !== 'text');
-                        var dbTextSegs = (nm.segments || []).filter((s) => s.type === 'text');
-                        ex.segments = richSegs.concat(dbTextSegs);
-                      } else {
-                        ex.segments = nm.segments;
-                      }
-                      ex.completedAt = nm.completedAt;
-                      ex._fmtTime = nm._fmtTime;
-                      if (nm.triggerEvent) ex.triggerEvent = nm.triggerEvent;
-                    } else {
-                      self.messages.push(nm);
-                    }
-                    changed = true;
-                  }
-                  var lastTs = 0;
-                  for (var j = 0; j < msgs.length; j++) {
-                    var t = msgs[j].updatedAt ? new Date(msgs[j].updatedAt).getTime() : 0;
-                    if (t > lastTs) lastTs = t;
-                  }
-                  if (lastTs > self._lastMsgMs) self._lastMsgMs = lastTs;
-                  if (changed) {
-                    self._refreshTimes();
-                    self.$nextTick(() => { self.maybeScrollToBottom(); });
-                  }
-                }
-                self._syncTimer = setTimeout(poll, 5000);
-              })
-              .catch(() => {
-                if (self._syncSeq !== mySeq) return;
-                self._syncTimer = setTimeout(poll, 5000);
-              });
-          })
-          .catch(() => {
-            if (self._syncSeq !== mySeq) return;
-            self._syncTimer = setTimeout(poll, 5000);
-          });
-      }
-      self._syncTimer = setTimeout(poll, 5000);
-    },
-
-    spawnRunPoller(runId, msgIdx) {
-      this._cancelPoller();
-      var self = this;
-      var mySeq = self._runPollerSeq;
-      var n = 0;
-      function poll() {
-        if (self._runPollerSeq !== mySeq) return;
-        if (n++ > 720) return; // 1 h at 5 s intervals
-        fetch('/api/runs/' + runId, { cache: 'no-store' })
-          .then((r) => r.ok ? r.json() : null)
-          .then((run) => {
-            if (self._runPollerSeq !== mySeq) return;
-            if (!run) { self._runPollerTimer = setTimeout(poll, 5000); return; }
-            var s = run.status;
-            if (s === 'succeeded' || s === 'failed' || s === 'canceled') {
-              self._runPollerTimer = null;
-              var st = s;
-              var msg = msgIdx < self.messages.length ? self.messages[msgIdx] : null;
-              if (msg && msg.status === 'running') {
-                msg.status = st;
-                msg.completedAt = run.updatedAt || Date.now();
-                msg._fmtTime = self.formatTime(msg.completedAt);
-                self.maybeScrollToBottom();
-              }
-              self.showCompletionToast(st, msg ? self.getAgentBotNameForMsg(msg) : null);
-            } else {
-              self._runPollerTimer = setTimeout(poll, 5000);
-            }
-          })
-          .catch(() => {
-            if (self._runPollerSeq !== mySeq) return;
-            self._runPollerTimer = setTimeout(poll, 5000);
-          });
-      }
-      self._runPollerTimer = setTimeout(poll, 3000);
-    },
-
-    isLastThinkingInMsg(msg, j) {
-      var segs = msg.segments || [];
-      for (var k = segs.length - 1; k >= 0; k--) {
-        if (segs[k].type === 'thinking') return k === j;
-      }
-      return false;
-    },
-
-    destroyChat() {
-      if (this._timeTicker) { clearInterval(this._timeTicker); this._timeTicker = null; }
-      if (this._toastTimer) { clearTimeout(this._toastTimer); this._toastTimer = null; }
-      this._cancelPoller();
-      this._cancelSyncPoller();
-    },
   });
 
-  // Object.assign flattens getters — define computed props properly so Alpine tracks them.
-  Object.defineProperties(ctrl, {
-    selectedAgentBot: {
-      get() { var id = this.selectedAgentBotId; return this.agentBots.find((m) => m.id === id) || null; },
-      configurable: true, enumerable: true,
-    },
-  });
   return ctrl;
 }
 
@@ -2038,6 +992,12 @@ function homeCtrl() {
 // what actually kicks off the client-side fetch + render — mirrors graph.js's
 // init()-time loadGraph() call, which has no equivalent trigger here since
 // Alpine doesn't re-run init() on swap.
+document.body.addEventListener('htmx:beforeSwap', function (e) {
+  var target = e.detail && e.detail.target;
+  if (!target || target.id !== 'home-list-pane' || !window._homeData || !window._homeData._chat) return;
+  if (target.querySelector('#chat-root')) window._homeData._chat.detach();
+});
+
 document.body.addEventListener('htmx:afterSwap', function (e) {
   var target = e.detail && e.detail.target;
   if (!target || target.id !== 'home-list-pane' || !window._homeData) return;
@@ -2054,7 +1014,7 @@ document.body.addEventListener('htmx:afterSwap', function (e) {
     if (document.getElementById('home-inbox-list')) {
       window._homeData.loadInbox();
     }
-    if (document.getElementById('chat-scroll')) {
+    if (document.getElementById('chat-root')) {
       window._homeData.initChatSection();
     }
     if (document.getElementById('tag-cloud')) {

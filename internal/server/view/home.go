@@ -251,10 +251,8 @@ func (vh *ViewHandler) renderHomeSectionHTML(r *http.Request) (template.HTML, er
 		// varies with the request.
 		return template.HTML(homeInboxSectionHTML), nil //nolint:gosec // static markup, not user HTML
 	case "chat":
-		// Same story again: agent bots/conversation state lives entirely in
-		// homeCtrl (home.js fetches /api/mates, /api/conversations, etc.
-		// once #chat-scroll lands in the DOM — see the htmx:afterSwap
-		// listener), so this markup never varies with the request.
+		// Static shell. home.js attaches the chat kernel once #chat-root
+		// lands in the DOM (htmx:afterSwap); the markup itself never varies.
 		return template.HTML(homeChatSectionHTML), nil //nolint:gosec // static markup, not user HTML
 	}
 	data, err := vh.homeSectionData(r, false)
@@ -1043,267 +1041,56 @@ const homeInboxSectionHTML = `<div class="home-inbox-section">
   </div>
 </div>`
 
-// homeChatSectionHTML mirrors agent_chat.html's .chat-main block (agent bot
-// chips, message thread, composer) verbatim — everything except the
-// standalone page's own nav rail, which home's sidebar already replaces.
-// Entirely client-rendered: home.js fetches /api/mates, /api/conversations,
-// etc. once this markup lands in the DOM (see the htmx:afterSwap listener)
-// and drives the agent bots/messages state that's now merged into homeCtrl.
-const homeChatSectionHTML = `<div class="chat-main">
+// homeChatSectionHTML is the chat pane shell. Messages, empty state, and
+// composer chrome are filled by chat_view.js; the kernel in chat_kernel.js
+// owns the transcript and keeps a run alive across HTMX swaps.
+const homeChatSectionHTML = `<div class="chat-main" id="chat-root">
 
-  <!-- ── Agent bot bar (agent bot selection itself now lives in the sidebar's
-       Chats group — see home.html — this keeps only the description,
-       conv-type toggle, and new-chat button) ────────────────────────────── -->
   <div class="home-list-head">
-    <span class="agent-bot-bar-desc" x-show="selectedAgentBot && selectedAgentBot.description"
-      x-text="selectedAgentBot ? selectedAgentBot.description : ''"></span>
+    <span class="agent-bot-bar-desc" id="chat-bot-desc" style="display:none"></span>
     <div class="home-list-head-spacer"></div>
-
-    <!-- ── Conv type segmented control ───────────────────── -->
-    <div class="seg" x-show="selectedAgentBotId">
-      <template x-for="t in convTypes" :key="t.value">
-        <button class="seg-btn" :class="convType === t.value ? 'active' : ''" @click="setConvType(t.value)"
-          type="button" x-text="t.label"></button>
-      </template>
+    <div class="seg" id="chat-conv-seg" style="display:none">
+      <button class="seg-btn" type="button" data-conv="chat">Chat</button>
+      <button class="seg-btn" type="button" data-conv="trigger">Trigger</button>
     </div>
-
-    <button class="new-chat-btn" type="button" title="New chat"
-      :disabled="isRunning || !selectedAgentBotId || messages.length === 0 || convType !== 'chat'" @click="newChat()">
+    <button class="new-chat-btn" id="chat-new-btn" type="button" title="New chat" disabled>
       <svg fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" d="M12 5v14M5 12h14" />
       </svg>
     </button>
   </div>
 
-  <!-- ── Messages ─────────────────────────────────────────────── -->
   <div class="chat-scroll" id="chat-scroll">
-   <div class="chat-scroll-inner">
+    <div class="chat-scroll-inner" id="chat-thread"></div>
+  </div>
 
-    <template x-if="messages.length === 0">
-      <div class="chat-empty">
-        <template x-if="!selectedAgentBot">
-          <div class="chat-empty-text">Select an agent bot from the sidebar to start</div>
-        </template>
-        <template x-if="selectedAgentBot">
-          <div class="chat-empty-card">
-            <div class="chat-empty-name" x-text="selectedAgentBot.name"></div>
-            <div class="chat-empty-desc">Ask anything or assign a task</div>
-            <div class="chat-empty-hints">
-              <span class="chat-empty-hint-key">Insert file</span>
-              <div class="chat-empty-hint-val">
-                <kbd x-text="isMac ? '⌘' : 'Ctrl'"></kbd><kbd>K</kbd>
-                <span>search</span>
-                <span class="chat-empty-hint-arrow">→</span>
-                <kbd x-text="isMac ? '⌘' : 'Ctrl'"></kbd><kbd>↵</kbd>
-                <span>insert path</span>
-              </div>
-              <span class="chat-empty-hint-key">Reference note</span>
-              <div class="chat-empty-hint-val">
-                <kbd>@</kbd>
-                <span>search, or "/" to browse folders</span>
-              </div>
-            </div>
-          </div>
-        </template>
-      </div>
-    </template>
-
-    <template x-for="(msg, i) in messages" :key="i">
-      <div :class="'msg-row msg-row-' + msg.role">
-
-        <template x-if="msg.role === 'user'">
-          <div class="msg-user-wrap">
-            <div class="msg-user-bubble prose" x-html="renderMarkdown(msg.content)"></div>
-          </div>
-        </template>
-
-        <template x-if="msg.role === 'assistant'">
-          <div class="msg-assistant-wrap">
-            <div class="msg-agent-header">
-              <div class="avatar avatar--md avatar--accent msg-agent-avatar"
-                :style="'background:' + getAgentBotColor(msg.agentBotId) + ';color:var(--inverse-ink)'"
-                x-text="agentBotInitials(getAgentBotNameForMsg(msg))"></div>
-              <div class="msg-agent-name" x-text="getAgentBotNameForMsg(msg)"></div>
-              <template x-if="msg.triggerEvent">
-                <span class="badge badge--accent" x-text="triggerEventLabel(msg.triggerEvent)"></span>
-              </template>
-            </div>
-            <div class="msg-body">
-              <template x-for="(seg, j) in msg.segments" :key="j">
-                <div>
-                  <template x-if="seg.type === 'text'">
-                    <div class="prose" x-html="renderMarkdown(seg.content)"></div>
-                  </template>
-                  <template x-if="seg.type === 'thinking' && seg.content">
-                    <div class="seg-thinking">
-                      <button class="seg-thinking-toggle"
-                        :class="{'open': seg.open, 'is-streaming': msg.status === 'running' && isLastThinkingInMsg(msg, j)}"
-                        @click="seg.open = !seg.open" type="button">
-                        <svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" d="M9 18l6-6-6-6" />
-                        </svg>
-                        Thinking
-                      </button>
-                      <div class="seg-thinking-content" x-show="seg.open" x-text="seg.content"></div>
-                    </div>
-                  </template>
-                  <template x-if="seg.type === 'tool_use'">
-                    <div>
-                      <template x-if="seg.results.length === 0">
-                        <div class="badge seg-tool-use">
-                          <span :class="msg.status === 'running' ? 'seg-tool-spinner' : 'seg-tool-icon-done'"></span>
-                          <span x-text="seg.name"></span>
-                        </div>
-                      </template>
-                      <template x-if="seg.results.length > 0">
-                        <div class="seg-tool-result">
-                          <button class="seg-tool-result-toggle" :class="seg.open ? 'open' : ''"
-                            @click="seg.open = !seg.open" type="button">
-                            <svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
-                              <path stroke-linecap="round" stroke-linejoin="round" d="M9 18l6-6-6-6" />
-                            </svg>
-                            <span x-text="seg.count > 1 ? seg.name + ' ×' + seg.count : seg.name"></span>
-                          </button>
-                          <template x-if="seg.open">
-                            <div>
-                              <template x-for="(r, ri) in seg.results" :key="ri">
-                                <pre class="seg-tool-result-content"
-                                  :style="seg.results.length > 1 ? 'margin-top:0.25rem' : ''"
-                                  x-text="seg.results.length > 1 ? '[' + (ri + 1) + '] ' + r : r"></pre>
-                              </template>
-                            </div>
-                          </template>
-                        </div>
-                      </template>
-                    </div>
-                  </template>
-                  <template x-if="seg.type === 'tool_result'">
-                    <div class="seg-tool-result">
-                      <button class="seg-tool-result-toggle" :class="seg.open ? 'open' : ''"
-                        @click="seg.open = !seg.open" type="button">
-                        <svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" d="M9 18l6-6-6-6" />
-                        </svg>
-                        Result
-                      </button>
-                      <pre class="seg-tool-result-content" x-show="seg.open" x-text="seg.content"></pre>
-                    </div>
-                  </template>
-                  <template x-if="seg.type === 'status' && msg.status === 'running'">
-                    <div class="seg-status is-running" x-text="seg.label"></div>
-                  </template>
-                  <template x-if="seg.type === 'console'">
-                    <pre class="seg-console" x-text="seg.content"></pre>
-                  </template>
-                  <template x-if="seg.type === 'error'">
-                    <div class="seg-error" x-text="seg.message"></div>
-                  </template>
-                </div>
-              </template>
-            </div>
-            <div class="msg-footer">
-              <template x-if="msg.status === 'running' && msg.stopping">
-                <span class="msg-thinking-label">Stopping<span
-                    class="thinking-dots"><span></span><span></span><span></span></span></span>
-              </template>
-              <template
-                x-if="msg.status === 'running' && !msg.stopping && !msg.segments.some(function(s){ return (s.type==='text' && s.content) || s.type==='status'; })">
-                <span class="msg-thinking-label">Thinking<span
-                    class="thinking-dots"><span></span><span></span><span></span></span></span>
-              </template>
-              <template x-if="msg.status !== 'running' && msg._fmtTime">
-                <span class="msg-agent-time" x-text="msg._fmtTime"></span>
-              </template>
-              <template
-                x-if="msg.status !== 'running' && msg.segments.some(function(s){ return s.type==='text' && s.content; })">
-                <button class="msg-copy-btn" type="button" title="Copy reply" :class="msg.copied ? 'copied' : ''"
-                  @click="copyAgentBotText(msg)">
-                  <template x-if="!msg.copied">
-                    <svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
-                      <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
-                      <path stroke-linecap="round" stroke-linejoin="round"
-                        d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
-                    </svg>
-                  </template>
-                  <template x-if="msg.copied">
-                    <svg fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="M20 6L9 17l-5-5" />
-                    </svg>
-                  </template>
-                </button>
-              </template>
-              <template x-if="msg.status === 'failed' || msg.status === 'canceled'">
-                <div class="msg-status-banner" :class="msg.status === 'failed' ? 'is-failed' : 'is-stopped'">
-                  <span x-text="msg.status === 'failed' ? 'Failed to respond' : 'Stopped'"></span>
-                  <button class="msg-retry-btn" type="button" title="Retry" :disabled="isRunning"
-                    @click="retryMessage(i)">
-                    <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 1 1-3-6.7" />
-                      <path stroke-linecap="round" stroke-linejoin="round" d="M21 3v6h-6" />
-                    </svg>
-                    Retry
-                  </button>
-                </div>
-              </template>
-            </div>
-          </div>
-        </template>
-
-      </div>
-    </template>
-
-    <!-- Bottom breathing room as real content inside the scrollable column,
-         not container padding — padding-bottom on .chat-scroll is not
-         reliably scrollable in practice (see agent_chat.css), so this is
-         the only thing standing between the last message and the window
-         edge. In the chat tab it reserves room for the floating composer
-         panel, height tracking the panel's actual rendered size via a
-         ResizeObserver (__vaultrSyncChatComposerHeight in home.js); the
-         trigger tab has no composer, so it gets a flat floor instead. -->
-    <div class="chat-scroll-spacer" id="chat-scroll-spacer" aria-hidden="true"
-      :style="convType !== 'chat' ? 'height:2rem' : ''"></div>
-
-   </div><!-- .chat-scroll-inner -->
-  </div><!-- .chat-scroll -->
-
-  <!-- Floating "jump to latest" — only when the user has scrolled away from
-       the bottom (see _stickToBottom/jumpToBottom in home.js). Positioned
-       off .chat-main (position:relative) same as .chat-input-outer, resting
-       just above it via the same measured --chat-composer-h. -->
-  <button type="button" class="chat-scroll-bottom-btn" title="Scroll to latest"
-    x-show="!_stickToBottom && messages.length > 0" @click="jumpToBottom()">
+  <button type="button" class="chat-scroll-bottom-btn" id="chat-jump" title="Scroll to latest" style="display:none">
     <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
       <path stroke-linecap="round" stroke-linejoin="round" d="M12 5v14M5 12l7 7 7-7" />
     </svg>
   </button>
 
-  <!-- ── Input (chat only) ────────────────────────────────────── -->
-  <div class="chat-input-outer" id="chat-input-outer" x-show="convType === 'chat'">
+  <div class="chat-input-outer" id="chat-input-outer">
     <div class="chat-ac-wrap">
       <ul class="chat-path-ac" id="chat-path-ac" role="listbox" aria-expanded="false" hidden></ul>
-      <div class="chat-input-card">
-        <div class="chat-input-hint" x-show="!inputText" aria-hidden="true">
-          <span class="chat-hint-name"
-            x-text="selectedAgentBot ? 'Ask ' + selectedAgentBot.name + '…' : 'Select an agent bot from the sidebar'"></span>
+      <div class="chat-input-card" id="chat-input-card">
+        <div class="chat-input-hint" id="chat-input-hint" aria-hidden="true">
+          <span class="chat-hint-name" id="chat-hint-name"></span>
         </div>
-        <textarea class="chat-textarea" id="chat-textarea" rows="1" placeholder="" x-model="inputText"
-          :disabled="isRunning || !selectedAgentBotId" @keydown="handleKeydown($event)"
-          @input="autoResize($event.target)"></textarea>
-        <span class="chat-shortcut-hint" x-text="isMac ? '⌘↵' : 'Ctrl+↵'"></span>
-        <button x-show="!isRunning" type="button" class="chat-send-circle"
-          :disabled="!inputText.trim() || !selectedAgentBotId" @click="send()">
+        <textarea class="chat-textarea" id="chat-textarea" rows="1" placeholder=""></textarea>
+        <span class="chat-shortcut-hint" id="chat-shortcut-hint"></span>
+        <button type="button" class="chat-send-circle" id="chat-send" disabled>
           <svg fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" d="M12 19V5M5 12l7-7 7 7" />
           </svg>
         </button>
-        <button x-show="isRunning" type="button" class="chat-stop-circle"
-          :disabled="_stoppingRunId === currentRunId" @click="cancel()">
+        <button type="button" class="chat-stop-circle" id="chat-stop" style="display:none">
           <svg fill="currentColor" viewBox="0 0 24 24">
             <rect x="5" y="5" width="14" height="14" rx="2" />
           </svg>
         </button>
       </div>
-    </div><!-- .chat-ac-wrap -->
+    </div>
   </div>
 
 </div>`
@@ -1367,7 +1154,7 @@ var homePageHTML = `<!DOCTYPE html>
 ` + alpineStoresScript + `
   });
 
-` + keysJS + pathAcScript + contentPaneScript + searchOverlayScript + confirmDialogJS + infoDialogJS + frontmatterDialogJS + settingsCtrlJS + homeJS + `
+` + keysJS + pathAcScript + chatReduceJS + chatTextJS + chatKernelJS + chatViewJS + contentPaneScript + searchOverlayScript + confirmDialogJS + infoDialogJS + frontmatterDialogJS + settingsCtrlJS + homeJS + `
   </script>
 ` + noteSharedJS + `
 </body>
