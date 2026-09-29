@@ -77,28 +77,32 @@ export function wikiMarkdownLanguage() {
  *   frontmatter-collapse.js. Frontmatter is read-only in this view
  *   (frontmatter-readonly.js) otherwise, so this is the only edit path.
  */
-export function livePreviewExtensions(options) {
+// Torn down when the host switches to source mode. The shared language, the
+// collapse flag, and link clicks stay outside this list: a mode toggle must
+// not reparse the doc or drop a flag the header still reads.
+//
+// The "Metadata" header is its own StateField. decorateFrontmatter only
+// hairlines each YAML line; a block:true row is refused from a ViewPlugin,
+// and an earlier multi-line replace crashed CM6's height-map on a full-doc
+// replace after an edit.
+export function liveDecorations(options) {
   return [
-    wikiMarkdownLanguage(),
     livePreviewPlugin.of(options),
     livePreviewAtomicRanges(),
-    // decorateFrontmatter (decorators.js, run from livePreviewPlugin above)
-    // never collapses multiple lines into one block — it prettifies each
-    // YAML line in place and, even for the whole-block collapse toggle,
-    // hairlines every line individually (the earlier multi-line-replace
-    // design crashed CM6's height-map under a realistic transaction
-    // sequence — edit the card, then a full-document replace, i.e. every
-    // mode toggle/note switch). The "Metadata" header row is block:true
-    // though, which CM6 refuses from a ViewPlugin, so it — like
-    // horizontalRuleField below — gets its own StateField instead;
-    // frontmatterCollapseField is the plain boolean both that field and
-    // decorateFrontmatter read.
-    frontmatterCollapseField,
-    frontmatterHeaderField(options),
-    frontmatterReadOnly(),
     horizontalRuleField(),
-    linkClickHandler(),
+    frontmatterReadOnly(),
+    frontmatterHeaderField(options),
     livePreviewTheme,
     syntaxHighlighting(codeHighlightStyle),
   ];
+}
+
+// Single-mode bundle used by the live-preview demo. The app mounts
+// liveDecorations() inside a compartment instead of calling this.
+export function livePreviewExtensions(options) {
+  return [
+    wikiMarkdownLanguage(),
+    frontmatterCollapseField,
+    linkClickHandler(),
+  ].concat(liveDecorations(options));
 }

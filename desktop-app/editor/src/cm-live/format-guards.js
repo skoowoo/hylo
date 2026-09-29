@@ -1,4 +1,5 @@
 import { syntaxTree } from '@codemirror/language';
+import { resolveAncestor, nameIs } from './tree-utils.js';
 
 // Shared sanity checks the right-click format menu's commands run before
 // touching a selection — catches the ways "wrap/prefix whatever's selected"
@@ -31,10 +32,7 @@ export function rangeTouchesCode(state, from, to) {
 // characters into the code, but a line with an inline code span in the
 // middle of a sentence is still a perfectly normal line to listify/quote.
 export function lineInsideCodeBlock(state, line) {
-  for (let n = syntaxTree(state).resolveInner(line.from, 1); n; n = n.parent) {
-    if (n.name === 'CodeBlock' || n.name === 'FencedCode') return true;
-  }
-  return false;
+  return !!resolveAncestor(state, line.from, nameIs(['CodeBlock', 'FencedCode']), 1);
 }
 
 // True when a non-empty [from, to) spans more than one paragraph/block — a

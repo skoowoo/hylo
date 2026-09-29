@@ -11,6 +11,7 @@ export { defaultKeymap, history, historyKeymap, undo as cmUndo, redo as cmRedo }
 export { search, openSearchPanel, closeSearchPanel, findNext, findPrevious, replaceNext, replaceAll as cmReplaceAll, SearchQuery, getSearchQuery, setSearchQuery } from '@codemirror/search';
 export {
   livePreviewExtensions,
+  liveDecorations,
   wikiMarkdownLanguage,
   livePreviewPlugin,
   livePreviewAtomicRanges,

@@ -415,22 +415,24 @@
       copy.addEventListener('click', function () { copyReply(msg, copy); });
       foot.appendChild(copy);
     }
-    if (msg.status === 'failed' || msg.status === 'canceled') {
-      var banner = el('div', 'msg-status-banner ' + (msg.status === 'failed' ? 'is-failed' : 'is-stopped'));
-      var span = el('span');
-      span.textContent = msg.status === 'failed' ? 'Failed to respond' : 'Stopped';
-      banner.appendChild(span);
-      var retry = el('button', 'msg-retry-btn');
-      retry.type = 'button';
-      retry.title = 'Retry';
-      retry.disabled = !!snap.busy;
-      retry.appendChild(svg(RETRY_SVG));
-      retry.appendChild(document.createTextNode('Retry'));
-      retry.addEventListener('click', function () { api.retry(msg.id); });
-      banner.appendChild(retry);
-      foot.appendChild(banner);
-    }
     return foot;
+  }
+
+  function statusBanner(msg, snap, api) {
+    if (msg.status !== 'failed' && msg.status !== 'canceled') return null;
+    var banner = el('div', 'msg-status-banner ' + (msg.status === 'failed' ? 'is-failed' : 'is-stopped'));
+    var span = el('span');
+    span.textContent = msg.status === 'failed' ? 'Failed to respond' : 'Stopped';
+    banner.appendChild(span);
+    var retry = el('button', 'msg-retry-btn');
+    retry.type = 'button';
+    retry.title = 'Retry';
+    retry.disabled = !!snap.busy;
+    retry.appendChild(svg(RETRY_SVG));
+    retry.appendChild(document.createTextNode('Retry'));
+    retry.addEventListener('click', function () { api.retry(msg.id); });
+    banner.appendChild(retry);
+    return banner;
   }
 
   function buildAssistant(msg, snap, api) {
@@ -458,6 +460,8 @@
     var body = el('div', 'msg-body');
     mountSegments(body, msg);
     wrap.appendChild(body);
+    var banner = statusBanner(msg, snap, api);
+    if (banner) wrap.appendChild(banner);
     var foot = footer(msg, snap, api);
     wrap.appendChild(foot);
     row.appendChild(wrap);

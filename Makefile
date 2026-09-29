@@ -20,7 +20,7 @@ LDFLAGS := -s -w \
   -X $(MODULE)/internal/build.Commit=$(COMMIT) \
   -X $(MODULE)/internal/build.BuildDate=$(BUILD_DATE)
 
-.PHONY: build run serve lint test clean tidy clip-zip icons editor dist-all dist-clean dist-cli dist-cli-snapshot dist-clip dist-dmg dist-win-app dist-checksum
+.PHONY: build run serve lint test test-js clean tidy clip-zip icons editor dist-all dist-clean dist-cli dist-cli-snapshot dist-clip dist-dmg dist-win-app dist-checksum
 
 ## build: compile the binary into ./bin/vaultr
 build:
@@ -42,6 +42,11 @@ lint:
 ## test: run all tests
 test:
 	go test -race -v ./...
+
+## test-js: run the editor's and static assets' JS test suites (node --test, no deps)
+test-js:
+	cd desktop-app/editor && npm test
+	node --test "internal/server/view/assets/**/*.test.js"
 
 ## tidy: tidy and verify go modules
 tidy:

@@ -1,6 +1,6 @@
 import { EditorSelection } from '@codemirror/state';
-import { syntaxTree } from '@codemirror/language';
 import { rangeTouchesCode, rangeCrossesBlock, trimWhitespace } from './format-guards.js';
+import { resolveAncestor } from './tree-utils.js';
 
 // Bold/italic/strikethrough toggle commands for the right-click format menu
 // (format-menu.js). CM6 ships no markdown-formatting commands at all (only
@@ -15,10 +15,12 @@ import { rangeTouchesCode, rangeCrossesBlock, trimWhitespace } from './format-gu
 // only partially overlaps an existing mark is treated as "not yet applied"
 // (see the toggleWrap comment below for why that's the deliberate choice).
 function enclosingNode(state, range, nodeNames) {
-  for (let node = syntaxTree(state).resolveInner(range.from, 1); node; node = node.parent) {
-    if (nodeNames.includes(node.name) && node.from <= range.from && node.to >= range.to) return node;
-  }
-  return null;
+  return resolveAncestor(
+    state,
+    range.from,
+    (n) => nodeNames.includes(n.name) && n.from <= range.from && n.to >= range.to,
+    1
+  );
 }
 
 function markChild(node, markName, fromEnd) {

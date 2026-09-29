@@ -4,6 +4,7 @@ import { syntaxTree } from '@codemirror/language';
 import { keymap } from '@codemirror/view';
 import { Prec } from '@codemirror/state';
 import { lineInsideCodeBlock } from './format-guards.js';
+import { resolveAncestor, nameIs } from './tree-utils.js';
 
 // Tab/Shift-Tab nest/un-nest a list item. Two things the generic
 // indentMore/indentLess (CM6's default "smart tab") get wrong for markdown
@@ -60,10 +61,7 @@ function hasNestedList(itemNode) {
 }
 
 function findListItemAt(state, pos) {
-  for (let n = syntaxTree(state).resolveInner(pos, -1); n; n = n.parent) {
-    if (n.name === 'ListItem') return n;
-  }
-  return null;
+  return resolveAncestor(state, pos, nameIs(['ListItem']), -1);
 }
 
 function previousSiblingItem(itemNode) {

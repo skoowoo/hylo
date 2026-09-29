@@ -626,8 +626,10 @@
 
     .msg-status-banner {
       display: inline-flex;
+      align-self: flex-start;
       align-items: center;
       gap: 0.6rem;
+      margin-left: 0.625rem;
       padding: 0.3rem 0.35rem 0.3rem 0.65rem;
       border-radius: var(--r-sm);
       font-size: var(--text-xs);

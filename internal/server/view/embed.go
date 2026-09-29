@@ -58,6 +58,12 @@ var chatKernelJS string
 //go:embed assets/chat_view.js
 var chatViewJS string
 
+//go:embed assets/list_tighten.js
+var listTightenJS string
+
+//go:embed assets/editor_session.js
+var editorSessionJS string
+
 //go:embed assets/content_pane.js
 var contentPaneScript string
 

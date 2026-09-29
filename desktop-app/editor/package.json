@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "build": "node build.mjs",
-    "build:livepreview-demo": "node livepreview-demo/build.mjs"
+    "build:livepreview-demo": "node livepreview-demo/build.mjs",
+    "test": "node --test"
   },
   "dependencies": {
     "@codemirror/commands": "^6.8.1",
