@@ -67,11 +67,22 @@ CREATE TABLE IF NOT EXISTS chat_messages (
     updated_at      INTEGER NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS chat_message_note_access (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    message_id  TEXT    NOT NULL REFERENCES chat_messages(id) ON DELETE CASCADE,
+    path        TEXT    NOT NULL,
+    action      TEXT    NOT NULL,
+    tool_name   TEXT    NOT NULL DEFAULT '',
+    created_at  INTEGER NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS mate_triggers_mate_idx  ON mate_triggers(mate_id);
 CREATE INDEX IF NOT EXISTS conversations_type_idx  ON conversations(type, updated_at);
 CREATE INDEX IF NOT EXISTS conversations_mate_idx  ON conversations(mate_id, updated_at);
 CREATE INDEX IF NOT EXISTS conversations_reply_idx ON conversations(type, mate_id, user_key);
 CREATE INDEX IF NOT EXISTS chat_messages_conv_idx  ON chat_messages(conversation_id, created_at);
+CREATE INDEX IF NOT EXISTS chat_message_note_access_msg_idx  ON chat_message_note_access(message_id);
+CREATE INDEX IF NOT EXISTS chat_message_note_access_path_idx ON chat_message_note_access(path);
 `
 
 // Store is the single data access point for both mate config and chat history.

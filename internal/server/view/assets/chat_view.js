@@ -112,6 +112,128 @@
   var CHECK_SVG = '<svg fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20 6L9 17l-5-5"/></svg>';
   var RETRY_SVG = '<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 1 1-3-6.7"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 3v6h-6"/></svg>';
 
+  // Batch-fetches title/preview/cover for note-touched cards, keyed by vault
+  // path. Shared across every note_access segment on the page so re-mounting
+  // (patch always forces a remount here) doesn't refetch what's cached.
+  var noteInfoCache = Object.create(null); // path -> row | null (unknown/failed)
+
+  function fetchNoteInfo(paths) {
+    var need = paths.filter(function (p) { return p && !(p in noteInfoCache); });
+    if (!need.length) return Promise.resolve();
+    return fetch('/api/notes/info', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ paths: need }),
+    }).then(function (resp) { return resp.ok ? resp.json() : { notes: [] }; })
+      .then(function (data) {
+        var got = Object.create(null);
+        (data.notes || []).forEach(function (n) { noteInfoCache[n.path] = n; got[n.path] = true; });
+        need.forEach(function (p) { if (!got[p]) noteInfoCache[p] = null; });
+      })
+      .catch(function () { need.forEach(function (p) { noteInfoCache[p] = null; }); });
+  }
+
+  // One card per touched note, built from the same markup/classes as the
+  // real note grid (home.css/.home-list-body.is-grid) so it looks and
+  // behaves identically — borderless surface, title + preview + cover.
+  // Starts from the path alone (filename as title) and hydrates with the
+  // note's real title/preview/cover once fetchNoteInfo resolves.
+  function noteAccessCard(item) {
+    var path = item.path || '';
+    var base = path.split('/').pop() || path;
+    var fallbackTitle = base.replace(/\.md$/i, '');
+    var isWrite = item.action === 'write';
+
+    var card = el('div', 'list-card list-card--clickable home-list-card home-note-row seg-note-access-card');
+    card.title = path;
+
+    var cover = el('div', 'home-note-cover');
+    var coverImg = document.createElement('img');
+    coverImg.alt = ''; coverImg.loading = 'lazy'; coverImg.decoding = 'async';
+    cover.appendChild(coverImg);
+    show(cover, false);
+    card.appendChild(cover);
+
+    var top = el('div', 'home-note-row-top');
+    var titleblock = el('div', 'home-note-row-titleblock');
+    var titlerow = el('div', 'home-note-row-titlerow');
+    var titleEl = el('span', 'home-note-row-title');
+    titleEl.textContent = fallbackTitle;
+    titlerow.appendChild(titleEl);
+    titleblock.appendChild(titlerow);
+    var previewEl = el('span', 'home-note-row-preview-grid');
+    show(previewEl, false);
+    titleblock.appendChild(previewEl);
+    top.appendChild(titleblock);
+
+    var badges = el('div', 'home-note-row-badges');
+    var actionBadge = el('span', 'badge badge--sm' + (isWrite ? ' badge--accent' : ''));
+    actionBadge.textContent = isWrite ? 'write' : 'read';
+    badges.appendChild(actionBadge);
+    top.appendChild(badges);
+    card.appendChild(top);
+
+    var meta = el('div', 'home-note-row-meta');
+    var timeEl = el('span', 'home-note-row-time');
+    show(timeEl, false);
+    meta.appendChild(timeEl);
+    card.appendChild(meta);
+
+    card.addEventListener('click', function () {
+      if (window.__vaultrContentPane) {
+        void window.__vaultrContentPane.openNoteInContentPane(path, titleEl.textContent || fallbackTitle, false, false);
+      }
+    });
+
+    function hydrate() {
+      var info = noteInfoCache[path];
+      if (!info) return;
+      if (info.title) titleEl.textContent = info.title.replace(/\.md$/i, '');
+      if (info.preview) { previewEl.textContent = info.preview; show(previewEl, true); }
+      if (info.updatedAt) { timeEl.textContent = R.formatTime(info.updatedAt); show(timeEl, true); }
+      if (info.cover) {
+        coverImg.src = info.cover;
+        show(cover, true);
+        card.classList.add('has-cover');
+      }
+    }
+
+    return { node: card, hydrate: hydrate };
+  }
+
+  // Adds left/right arrow buttons over a horizontally-scrolling row (the
+  // scrollbar itself is hidden — see .seg-note-access-row in agent_chat.css)
+  // and keeps them in sync with scroll position: hidden entirely when
+  // everything already fits, each one disabled at its end of the track.
+  function wireHorizontalScroller(scroller, row) {
+    var prev = el('button', 'icon-btn seg-note-access-arrow seg-note-access-arrow--prev');
+    prev.type = 'button';
+    prev.setAttribute('aria-label', 'Scroll left');
+    prev.appendChild(svg(CHEVRON));
+    var next = el('button', 'icon-btn seg-note-access-arrow seg-note-access-arrow--next');
+    next.type = 'button';
+    next.setAttribute('aria-label', 'Scroll right');
+    next.appendChild(svg(CHEVRON));
+    scroller.appendChild(prev);
+    scroller.appendChild(next);
+
+    function update() {
+      var max = row.scrollWidth - row.clientWidth;
+      var fits = max <= 1;
+      show(prev, !fits && row.scrollLeft > 0);
+      show(next, !fits && row.scrollLeft < max - 1);
+    }
+    function page(dir) {
+      row.scrollBy({ left: dir * Math.max(row.clientWidth * 0.8, 220), behavior: 'smooth' });
+    }
+    prev.addEventListener('click', function () { page(-1); });
+    next.addEventListener('click', function () { page(1); });
+    row.addEventListener('scroll', update, { passive: true });
+    // mount() runs before the caller inserts this subtree into the document
+    // (see mountSegments), so scrollWidth/clientWidth would still read 0 if
+    // checked synchronously here — defer past that insertion's layout pass.
+    requestAnimationFrame(update);
+  }
+
   function setCopyIcon(btn, on) {
     if (!btn) return;
     btn.classList.toggle('copied', on);
@@ -287,6 +409,37 @@
         setText(rec.pre, seg.content || '');
         return true;
       },
+    },
+    note_access: {
+      sig: function (seg) {
+        var items = seg.items || [];
+        var bits = ['n', items.length];
+        for (var i = 0; i < items.length; i++) bits.push(items[i].path, items[i].action);
+        return bits;
+      },
+      mount: function (slot, seg, ctx, i, msg, rec) {
+        var items = seg.items || [];
+        if (!items.length) return;
+        var wrap = el('div', 'seg-note-access');
+        var label = el('div', 'seg-note-access-label');
+        label.textContent = 'Notes touched';
+        wrap.appendChild(label);
+        // home-list-body/is-grid gives these the exact same card layout as
+        // the real note grid (see home.css); .seg-note-access-row itself
+        // turns that into a horizontal scroll strip (agent_chat.css).
+        var scroller = el('div', 'seg-note-access-scroller');
+        var row = el('div', 'seg-note-access-row home-list-body is-grid');
+        var cards = items.map(noteAccessCard);
+        cards.forEach(function (c) { row.appendChild(c.node); });
+        scroller.appendChild(row);
+        wrap.appendChild(scroller);
+        slot.appendChild(wrap);
+        wireHorizontalScroller(scroller, row);
+        fetchNoteInfo(items.map(function (it) { return it.path; })).then(function () {
+          cards.forEach(function (c) { c.hydrate(); });
+        });
+      },
+      patch: function () { return false; },
     },
     status: {
       sig: function (seg, ctx) { return ['s', ctx.running ? 1 : 0]; },

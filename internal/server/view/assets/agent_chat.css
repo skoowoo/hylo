@@ -244,6 +244,13 @@
       justify-content: center;
       border: none;
       border-radius: var(--r-full);
+      /* --card-hov/--btn-bg* are all low-alpha rgba tints (6–15%) — meant to
+         read as a tonal fill against a surface the button already sits on
+         top of (a toolbar, a list row). This button floats directly over
+         arbitrary chat content with nothing opaque behind it, so ANY
+         translucent fill shows through to whatever's underneath and reads
+         as "goes transparent" — the fix isn't picking a different
+         translucent token, it's using solid, fully opaque surface colors. */
       background: var(--surface-soft);
       color: var(--fg);
       box-shadow: var(--shadow-sm) var(--shadow-color);
@@ -251,8 +258,8 @@
       z-index: 150;
       transition: background var(--motion-fast) ease, transform var(--motion-fast) ease;
     }
-    .chat-scroll-bottom-btn:hover { background: var(--card-hov); }
-    .chat-scroll-bottom-btn:active { transform: translateX(-50%) scale(0.9); }
+    .chat-scroll-bottom-btn:hover { background: var(--surface-2); }
+    .chat-scroll-bottom-btn:active { background: var(--surface-2); transform: translateX(-50%) scale(0.9); }
     .chat-scroll-bottom-btn svg { width: 15px; height: 15px; flex-shrink: 0; }
 
     .chat-scroll-inner {
@@ -582,6 +589,84 @@
       line-height: 1.5;
       margin: 0;
     }
+
+    /* The cards themselves are the real note-grid markup/classes
+       (.home-list-card.home-note-row, .home-note-cover, .home-note-row-*  —
+       home.css) so they look and behave identically: borderless surface,
+       title + preview + cover. Only the horizontal-scroll strip layout below
+       and the wrapper's own spacing are local. */
+    .seg-note-access {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      align-self: stretch;
+      min-width: 0;
+      /* Breathing room from the reply text above and the footer below —
+         .msg-body's generic inter-segment gap (0.35rem) reads as too tight
+         next to a block this visually heavy. */
+      margin: 0.5rem 0;
+    }
+
+    .seg-note-access-label {
+      font-size: var(--text-xs);
+      color: var(--muted-soft);
+    }
+
+    /* Same three classes (.seg-note-access-row.home-list-body.is-grid) beats
+       plain .home-list-body.is-grid's specificity for `display`, but CSS
+       cascades per property, not per rule — every other property .home-list-
+       body's own (single-class) base rule sets (flex-direction: column,
+       padding: 20px 24px 40px, overflow-y: auto, flex: 1, …) still wins
+       wherever this rule stays silent on it. So this has to restate each one
+       explicitly rather than relying on display:flex alone to "reset" it. */
+    .seg-note-access-row.home-list-body.is-grid {
+      display: flex;
+      flex-direction: row;
+      flex-wrap: nowrap;
+      flex: 0 0 auto;
+      min-height: 0;
+      padding: 0;
+      overflow-x: auto;
+      overflow-y: visible;
+      scrollbar-width: none; /* Firefox */
+      -ms-overflow-style: none; /* legacy Edge */
+    }
+    .seg-note-access-row.home-list-body.is-grid::-webkit-scrollbar {
+      display: none; /* Chrome/Safari/newer Edge */
+    }
+    .seg-note-access-row .home-list-card {
+      flex: 0 0 220px;
+    }
+
+    .seg-note-access-scroller {
+      position: relative;
+    }
+
+    .seg-note-access-arrow {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      /* home.css's .home-note-row-top/-meta are also position:relative;
+         z-index:1 (lifting card text above its cover image), and they come
+         later in the DOM — an equal z-index there is a tie broken by DOM
+         order, so whichever card happens to scroll under this fixed-position
+         button wins and swallows its clicks. 2 beats that outright. */
+      z-index: 2;
+      border-radius: var(--r-full);
+      box-shadow: var(--shadow-sm) var(--shadow-color);
+      /* .icon-btn's own background (--btn-bg/-hov/-on) is a 6–15%-alpha
+         tint meant for a button already sitting on an opaque surface —
+         floating directly over scrolling card content instead, any of that
+         translucency shows the cards through it and reads as "goes
+         transparent". Same fix as .chat-scroll-bottom-btn: solid opaque
+         surface colors instead of a differently-translucent token. */
+      background: var(--surface-soft);
+    }
+    .seg-note-access-arrow:hover { background: var(--surface-2); }
+    .seg-note-access-arrow:active { background: var(--surface-2); }
+    .seg-note-access-arrow--prev { left: 0.4rem; }
+    .seg-note-access-arrow--next { right: 0.4rem; }
+    .seg-note-access-arrow--prev svg { transform: rotate(180deg); }
 
     .seg-status {
       font-size: var(--text-xs);

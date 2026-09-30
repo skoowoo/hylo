@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -285,7 +286,14 @@ func (s *Store) ListMessages(conversationID string) ([]Message, error) {
 		return nil, fmt.Errorf("mate: list messages: %w", err)
 	}
 	defer rows.Close()
-	return scanMessages(rows)
+	msgs, err := scanMessages(rows)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.attachNoteAccess(msgs); err != nil {
+		return nil, err
+	}
+	return msgs, nil
 }
 
 // ListMessagesSince returns messages in a conversation whose updated_at is after sinceMs (Unix ms).
@@ -301,7 +309,123 @@ func (s *Store) ListMessagesSince(conversationID string, sinceMs int64) ([]Messa
 		return nil, fmt.Errorf("mate: list messages since: %w", err)
 	}
 	defer rows.Close()
-	return scanMessages(rows)
+	msgs, err := scanMessages(rows)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.attachNoteAccess(msgs); err != nil {
+		return nil, err
+	}
+	return msgs, nil
+}
+
+// ── Note access ───────────────────────────────────────────────────────────────
+
+// InsertMessageNoteAccess records the notes an assistant run touched. Called once
+// per run after the agent process exits, from the normalized list any backend's
+// event stream produced (see agent.NoteAccessTracker).
+func (s *Store) InsertMessageNoteAccess(messageID string, entries []NoteAccessEntry) error {
+	if len(entries) == 0 {
+		return nil
+	}
+	tx, err := s.db.Begin()
+	if err != nil {
+		return fmt.Errorf("mate: note access tx: %w", err)
+	}
+	defer tx.Rollback() //nolint:errcheck
+	stmt, err := tx.Prepare(
+		`INSERT INTO chat_message_note_access(message_id, path, action, tool_name, created_at) VALUES (?,?,?,?,?)`,
+	)
+	if err != nil {
+		return fmt.Errorf("mate: note access prepare: %w", err)
+	}
+	defer stmt.Close()
+	for _, e := range entries {
+		at := e.At.UnixMilli()
+		if at == 0 {
+			at = time.Now().UnixMilli()
+		}
+		if _, err := stmt.Exec(messageID, e.Path, e.Action, e.Tool, at); err != nil {
+			return fmt.Errorf("mate: insert note access: %w", err)
+		}
+	}
+	return tx.Commit()
+}
+
+// ListMessageNoteAccess returns the notes a single message touched, oldest first.
+func (s *Store) ListMessageNoteAccess(messageID string) ([]NoteAccessEntry, error) {
+	rows, err := s.db.Query(
+		`SELECT path, action, tool_name, created_at FROM chat_message_note_access WHERE message_id = ? ORDER BY created_at ASC`,
+		messageID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("mate: list note access: %w", err)
+	}
+	defer rows.Close()
+	return scanNoteAccess(rows)
+}
+
+// attachNoteAccess fills Message.NoteAccess for every assistant message in msgs,
+// in a single query rather than one per message.
+func (s *Store) attachNoteAccess(msgs []Message) error {
+	var ids []string
+	for _, m := range msgs {
+		if m.Role == "assistant" {
+			ids = append(ids, m.ID)
+		}
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	placeholders := make([]string, len(ids))
+	args := make([]any, len(ids))
+	for i, id := range ids {
+		placeholders[i] = "?"
+		args[i] = id
+	}
+	rows, err := s.db.Query(
+		`SELECT message_id, path, action, tool_name, created_at FROM chat_message_note_access
+		 WHERE message_id IN (`+strings.Join(placeholders, ",")+`) ORDER BY created_at ASC`,
+		args...,
+	)
+	if err != nil {
+		return fmt.Errorf("mate: list note access for messages: %w", err)
+	}
+	defer rows.Close()
+	byID := make(map[string][]NoteAccessEntry)
+	for rows.Next() {
+		var mid string
+		var e NoteAccessEntry
+		var at int64
+		if err := rows.Scan(&mid, &e.Path, &e.Action, &e.Tool, &at); err != nil {
+			return err
+		}
+		e.At = time.UnixMilli(at)
+		byID[mid] = append(byID[mid], e)
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	for i := range msgs {
+		if v, ok := byID[msgs[i].ID]; ok {
+			msgs[i].NoteAccess = v
+		}
+	}
+	return nil
+}
+
+func scanNoteAccess(rows *sql.Rows) ([]NoteAccessEntry, error) {
+	var out []NoteAccessEntry
+	for rows.Next() {
+		var e NoteAccessEntry
+		var at int64
+		if err := rows.Scan(&e.Path, &e.Action, &e.Tool, &at); err != nil {
+			return nil, err
+		}
+		e.At = time.UnixMilli(at)
+		out = append(out, e)
+	}
+	return out, rows.Err()
 }
 
 // ── scan helpers ──────────────────────────────────────────────────────────────

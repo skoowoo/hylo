@@ -11,20 +11,22 @@ type JSONEventStream struct {
 	buffer string
 	on     func(map[string]any)
 	// cursor state
-	cursorText      string
-	cursorResuming  bool   // true when suppressing session-history replay
-	cursorCurrUser  string // composed text sent to agent; marks end of history replay
-	openCodeTools   map[string]struct{}
-	codexTools      map[string]struct{}
-	codexErrEmitted bool
+	cursorText         string
+	cursorResuming     bool   // true when suppressing session-history replay
+	cursorCurrUser     string // composed text sent to agent; marks end of history replay
+	openCodeTools      map[string]struct{}
+	codexTools         map[string]struct{}
+	codexErrEmitted    bool
+	cursorToolsEmitted map[string]struct{}
 }
 
 func NewJSONEventStream(kind string, on func(map[string]any)) *JSONEventStream {
 	return &JSONEventStream{
-		kind:          kind,
-		on:            on,
-		openCodeTools: make(map[string]struct{}),
-		codexTools:    make(map[string]struct{}),
+		kind:               kind,
+		on:                 on,
+		openCodeTools:      make(map[string]struct{}),
+		codexTools:         make(map[string]struct{}),
+		cursorToolsEmitted: make(map[string]struct{}),
 	}
 }
 
@@ -154,13 +156,15 @@ func (j *JSONEventStream) cursor(obj map[string]any) bool {
 	case "user":
 		// cursor-agent echoes user messages; consume them to avoid cluttering console output.
 		// When in resume-suppression mode, the current user turn signals end of history replay.
+		msg, _ := obj["message"].(map[string]any)
 		if j.cursorResuming {
-			msg, _ := obj["message"].(map[string]any)
 			text := extractCursorText(msg)
 			if text != "" && (text == j.cursorCurrUser || strings.Contains(text, j.cursorCurrUser)) {
 				j.cursorResuming = false
 				j.cursorText = "" // reset so the new response starts fresh
 			}
+		} else {
+			j.emitCursorToolResults(msg)
 		}
 		return true // always consume; user bubble already shows the user message
 	case "assistant":
@@ -168,6 +172,7 @@ func (j *JSONEventStream) cursor(obj map[string]any) bool {
 			return true // suppress replayed historical assistant messages
 		}
 		msg, _ := obj["message"].(map[string]any)
+		j.emitCursorTools(msg)
 		text := extractCursorText(msg)
 		if text == "" {
 			return true
@@ -218,6 +223,45 @@ func (j *JSONEventStream) cursor(obj map[string]any) bool {
 		return true
 	}
 	return false
+}
+
+// emitCursorTools relays tool_use blocks from a cursor-agent assistant message.
+// cursor-agent's stream-json message shape mirrors Claude's content-block
+// format (the same "assistant"/message/content[] the existing text handling
+// above already reads), so tool_use blocks arrive inline with text blocks
+// rather than as a separate event type.
+func (j *JSONEventStream) emitCursorTools(msg map[string]any) {
+	arr, _ := msg["content"].([]any)
+	for _, x := range arr {
+		m, ok := x.(map[string]any)
+		if !ok || m["type"] != "tool_use" {
+			continue
+		}
+		id, _ := m["id"].(string)
+		if id == "" {
+			continue
+		}
+		if _, seen := j.cursorToolsEmitted[id]; seen {
+			continue
+		}
+		j.cursorToolsEmitted[id] = struct{}{}
+		j.on(map[string]any{"type": "tool_use", "id": id, "name": m["name"], "input": m["input"]})
+	}
+}
+
+// emitCursorToolResults relays tool_result blocks from a cursor-agent user message.
+func (j *JSONEventStream) emitCursorToolResults(msg map[string]any) {
+	arr, _ := msg["content"].([]any)
+	for _, x := range arr {
+		m, ok := x.(map[string]any)
+		if !ok || m["type"] != "tool_result" {
+			continue
+		}
+		j.on(map[string]any{
+			"type": "tool_result", "toolUseId": m["tool_use_id"],
+			"content": stringifyToolResult(m["content"]), "isError": m["is_error"],
+		})
+	}
 }
 
 func extractCursorText(msg map[string]any) string {
@@ -287,6 +331,27 @@ func (j *JSONEventStream) codex(obj map[string]any) bool {
 			}
 			return true
 		}
+		if it["type"] == "file_change" {
+			id, _ := it["id"].(string)
+			changes, _ := it["changes"].([]any)
+			notes := make([]any, 0, len(changes))
+			for _, c := range changes {
+				cm, ok := c.(map[string]any)
+				if !ok {
+					continue
+				}
+				path, _ := cm["path"].(string)
+				if path == "" {
+					continue
+				}
+				notes = append(notes, map[string]any{"path": path, "action": NoteActionWrite})
+			}
+			if len(notes) > 0 {
+				j.on(map[string]any{"type": "tool_use", "id": id, "name": "codex_file_change", "input": map[string]any{"__notes": notes}})
+				j.on(map[string]any{"type": "tool_result", "toolUseId": id, "content": "", "isError": false})
+			}
+			return true
+		}
 		if it["type"] == "agent_message" {
 			if txt, ok := it["text"].(string); ok && txt != "" {
 				j.on(map[string]any{"type": "text_delta", "delta": txt})
@@ -326,4 +391,3 @@ func stringifyContent(v any) string {
 	}
 	return jsonStringify(v)
 }
-

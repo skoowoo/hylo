@@ -445,44 +445,46 @@
        rows keep that one untouched) — cards read a little too tight at this
        larger min-width otherwise. */
     .home-list-body.is-grid .home-list-card { margin-bottom: 0; display: flex; flex-direction: column; padding: 1rem 1.35rem; }
-    /* Badges pin to the title's first line, not the vertical center of the
-       whole (now possibly multi-line) title+excerpt block below. */
-    .home-list-body.is-grid .home-note-row-top { align-items: flex-start; }
-    /* A 2-line title still only puts the ring next to its first line, not
-       stretched/centered across the whole clamped block. */
-    .home-list-body.is-grid .home-note-row-titlerow { align-items: flex-start; }
-    /* Title fills up to 2 (title-sized) lines and the excerpt takes
-       whatever's left of a budget worth "2 lines of title + 2 lines of
-       excerpt" — a short 1-line title hands its unused line to the excerpt
-       instead of sitting there as blank space, while a full 2-line title
-       still leaves the excerpt some room. The budget is spelled out from
-       each font's own size/line-height rather than one shared em value:
-       title and excerpt don't share a font-size, so "N generic lines" of
-       .home-note-row-titleblock's own (inherited, third) font-size doesn't
-       equal N lines of either child's actual text — it was quietly letting
-       excerpts run a full extra line over budget. Capping the whole block
-       (instead of also flooring it there) is deliberate: it bounds how tall
-       any one card can get without forcing short titles/excerpts to pad
-       themselves out to match — CSS grid already aligns a row's cards to
-       its tallest member on its own. */
+    /* Grid mode's title+badge(s)+excerpt used to all live inside one flex
+       row (.home-note-row-top: titleblock | badges side by side), which
+       meant the badges column ate into titleblock's width for its *whole*
+       height — including the excerpt line(s) below the title, which only
+       ever need to share a line with the title itself. A 2-column/2-row
+       grid fixes that: the badges cell is pinned to row 1 (the title's
+       line) only, and the excerpt explicitly spans the full width on row 2.
+       titleblock itself becomes display:contents so its two children
+       (titlerow, preview-grid) act as direct grid items instead of a nested
+       flex slot — losing its own box means dropping the shared title+
+       excerpt max-height budget it used to enforce, but each child already
+       clamps its own line count (2 / 3 below), so card height still has a
+       hard ceiling either way. */
+    .home-list-body.is-grid .home-note-row-top {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: start;
+    }
     .home-list-body.is-grid .home-note-row-titleblock {
-      max-height: calc(2 * var(--text-base) * var(--lh-normal) + 2 * var(--text-sm) * var(--lh-normal));
-      overflow: hidden;
+      display: contents;
+    }
+    .home-list-body.is-grid .home-note-row-titlerow {
+      grid-column: 1;
+      grid-row: 1;
+      align-items: flex-start;
+    }
+    .home-list-body.is-grid .home-note-row-badges {
+      grid-column: 2;
+      grid-row: 1;
     }
     .home-list-body.is-grid .home-note-row-title {
       white-space: normal; display: -webkit-box;
       -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
     }
     .home-list-body.is-grid .home-note-row-preview-grid {
+      grid-column: 1 / -1;
+      grid-row: 2;
       display: -webkit-box; margin-top: 0.25rem;
       font-size: var(--text-sm); font-weight: var(--fw-normal); color: var(--muted);
       line-height: var(--lh-normal);
-      /* Its own clamp (rather than relying only on the titleblock's overflow
-         cutoff above) keeps this to whole lines with a trailing "…" when it
-         doesn't fit — a plain overflow:hidden cutoff can slice a line in
-         half instead. The titleblock's max-height is still what actually
-         varies how many of these lines end up visible when the title above
-         took 2 lines instead of 1. */
       -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
     }
     .home-list-body.is-grid .home-note-row-meta { margin-top: auto; padding-top: 0.5rem; }

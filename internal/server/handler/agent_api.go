@@ -476,6 +476,9 @@ func (a *AgentAPI) executeChat(ctx context.Context, run *agent.Run, body chatBod
 	// text_replace IS forwarded: it signals the client to replace (not append) text,
 	// preventing duplicate display when cursor-agent reformats mid-stream.
 	var textAcc strings.Builder
+	// Tracks which vault notes this run's tool calls touched, normalized across
+	// every backend's tool_use shape. See agent.NoteAccessTracker.
+	noteTracker := agent.NewNoteAccessTracker(cwd, a.vault.Root())
 	emit := func(ev string, data any) {
 		if ev == "agent" {
 			if m, ok := data.(map[string]any); ok {
@@ -496,6 +499,12 @@ func (a *AgentAPI) executeChat(ctx context.Context, run *agent.Run, body chatBod
 				case "text_delta":
 					if d, ok := m["delta"].(string); ok {
 						textAcc.WriteString(d)
+					}
+				case "tool_use":
+					for _, na := range noteTracker.Feed(m) {
+						a.hub.Emit(run, "agent", map[string]any{
+							"type": "note_access", "path": na.Path, "action": na.Action, "tool": na.Tool,
+						})
 					}
 				}
 			}
@@ -522,6 +531,7 @@ func (a *AgentAPI) executeChat(ctx context.Context, run *agent.Run, body chatBod
 			a.hub.Emit(run, "error", map[string]any{"message": err.Error()})
 			if assistantMsgID != "" && a.store != nil {
 				_ = a.store.UpdateMessageDone(assistantMsgID, textAcc.String(), "failed")
+				_ = a.store.InsertMessageNoteAccess(assistantMsgID, toMateNoteAccess(noteTracker.Entries()))
 			}
 			a.hub.Finish(run, "failed", map[string]any{})
 			a.invokeEventReply(ctx, body, textAcc.String(), "failed")
@@ -539,6 +549,9 @@ func (a *AgentAPI) executeChat(ctx context.Context, run *agent.Run, body chatBod
 	if assistantMsgID != "" && a.store != nil {
 		if err := a.store.UpdateMessageDone(assistantMsgID, textAcc.String(), st); err != nil {
 			a.logger.Warn("chat: update assistant message", slog.String("err", err.Error()))
+		}
+		if err := a.store.InsertMessageNoteAccess(assistantMsgID, toMateNoteAccess(noteTracker.Entries())); err != nil {
+			a.logger.Warn("chat: persist note access", slog.String("err", err.Error()))
 		}
 	}
 	if (!body.TriggerRun || body.TriggerReply) && st == "succeeded" && cp.SessionID != "" && body.ConversationID != "" && def.SupportsNativeSession && a.store != nil {
@@ -679,6 +692,20 @@ func filterImagePaths(paths []string, uploadRoot string) []string {
 				out = append(out, ap)
 			}
 		}
+	}
+	return out
+}
+
+// toMateNoteAccess converts the agent package's run-scoped note list to the
+// mate package's persisted shape. Kept as a conversion at this boundary so
+// mate (storage) doesn't need to import agent (CLI orchestration).
+func toMateNoteAccess(entries []agent.NoteAccess) []mate.NoteAccessEntry {
+	if len(entries) == 0 {
+		return nil
+	}
+	out := make([]mate.NoteAccessEntry, len(entries))
+	for i, e := range entries {
+		out[i] = mate.NoteAccessEntry{Path: e.Path, Action: e.Action, Tool: e.Tool, At: e.At}
 	}
 	return out
 }

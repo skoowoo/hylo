@@ -74,6 +74,7 @@ func AttachACP(
 	}
 	emTh, emTok := false, false
 	t0 := time.Now()
+	toolKinds := map[string]string{}
 
 	go func() {
 		sc := bufio.NewScanner(stdout)
@@ -82,11 +83,11 @@ func AttachACP(
 		for sc.Scan() {
 			line := sc.Bytes()
 			var env struct {
-				ID      float64         `json:"id"`
-				Method  string          `json:"method"`
-				Params  json.RawMessage `json:"params"`
-				Result  json.RawMessage `json:"result"`
-				Error   json.RawMessage `json:"error"`
+				ID     float64         `json:"id"`
+				Method string          `json:"method"`
+				Params json.RawMessage `json:"params"`
+				Result json.RawMessage `json:"result"`
+				Error  json.RawMessage `json:"error"`
 			}
 			if err := json.Unmarshal(line, &env); err != nil {
 				continue
@@ -119,6 +120,12 @@ func AttachACP(
 						Content       struct {
 							Text string `json:"text"`
 						} `json:"content"`
+						ToolCallID string `json:"toolCallId"`
+						Kind       string `json:"kind"`
+						Status     string `json:"status"`
+						Locations  []struct {
+							Path string `json:"path"`
+						} `json:"locations"`
 					} `json:"update"`
 				}
 				_ = json.Unmarshal(env.Params, &p)
@@ -138,6 +145,32 @@ func AttachACP(
 							emit("agent", map[string]any{"type": "status", "label": "streaming", "ttftMs": time.Since(t0).Milliseconds()})
 						}
 						emit("agent", map[string]any{"type": "text_delta", "delta": p.Update.Content.Text})
+					}
+				case "tool_call", "tool_call_update":
+					id := p.Update.ToolCallID
+					if id == "" {
+						continue
+					}
+					if p.Update.Kind != "" {
+						toolKinds[id] = p.Update.Kind
+					}
+					if len(p.Update.Locations) > 0 {
+						notes := make([]any, 0, len(p.Update.Locations))
+						for _, loc := range p.Update.Locations {
+							if loc.Path == "" {
+								continue
+							}
+							notes = append(notes, map[string]any{"path": loc.Path, "action": acpNoteAction(toolKinds[id])})
+						}
+						if len(notes) > 0 {
+							emit("agent", map[string]any{
+								"type": "tool_use", "id": id, "name": "acp_" + toolKinds[id],
+								"input": map[string]any{"__notes": notes},
+							})
+						}
+					}
+					if p.Update.Status == "completed" || p.Update.Status == "failed" {
+						emit("agent", map[string]any{"type": "tool_result", "toolUseId": id, "isError": p.Update.Status == "failed"})
 					}
 				}
 				continue
@@ -253,6 +286,18 @@ func AttachACP(
 	})
 
 	return sess
+}
+
+// acpNoteAction maps an ACP tool_call "kind" (per the Agent Client Protocol
+// spec: read/edit/delete/move/search/execute/think/fetch/other) to our
+// read/write action.
+func acpNoteAction(kind string) string {
+	switch kind {
+	case "edit", "delete", "move":
+		return NoteActionWrite
+	default:
+		return NoteActionRead
+	}
 }
 
 func toACPStdio(servers []MCPServer) []map[string]any {

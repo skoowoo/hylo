@@ -29,11 +29,20 @@
         });
       } else {
         var at = m.updatedAt ? new Date(m.updatedAt).getTime() : (m.createdAt ? new Date(m.createdAt).getTime() : 0);
+        var segments = m.content ? [{ type: 'text', content: m.content }] : [];
+        if (m.noteAccess && m.noteAccess.length) {
+          // See the note_access case in applyAgentSegment above for why
+          // glob-pattern paths are dropped here too.
+          var naItems = m.noteAccess
+            .filter(function (na) { return na.path && !/[*?]/.test(na.path); })
+            .map(function (na) { return { path: na.path, action: na.action, tool: na.tool || '' }; });
+          if (naItems.length) segments.push({ type: 'note_access', items: naItems });
+        }
         out.push({
           id: m.id,
           role: 'assistant', agentId: m.agentId, agentBotId: m.mateId,
           triggerEvent: m.triggerEvent || '',
-          segments: m.content ? [{ type: 'text', content: m.content }] : [],
+          segments: segments,
           status: m.status || 'succeeded',
           startTime: 0, duration: 0,
           createdAt: m.createdAt ? new Date(m.createdAt).getTime() : 0,
@@ -94,6 +103,22 @@
         }
         if (mergeTarget) { mergeTarget.count++; }
         else { segs.push({ type: 'tool_use', name: toolName, count: 1, results: [] }); }
+        break;
+      }
+      case 'note_access': {
+        var naPath = data.path || '';
+        // Glob patterns ("*.md") are not a specific touched note; skip them.
+        // Defends the client even if a stray one slips past the server-side
+        // filter (agent.NoteAccessTracker.resolve), e.g. from data recorded
+        // before that filter existed.
+        if (!naPath || /[*?]/.test(naPath)) break;
+        var naSeg = null;
+        for (var ni = 0; ni < segs.length; ni++) { if (segs[ni].type === 'note_access') { naSeg = segs[ni]; break; } }
+        if (!naSeg) { naSeg = { type: 'note_access', items: [] }; segs.push(naSeg); }
+        var existing = null;
+        for (var ii = 0; ii < naSeg.items.length; ii++) { if (naSeg.items[ii].path === naPath) { existing = naSeg.items[ii]; break; } }
+        if (existing) { existing.action = data.action || existing.action; existing.tool = data.tool || existing.tool; }
+        else { naSeg.items.push({ path: naPath, action: data.action || 'read', tool: data.tool || '' }); }
         break;
       }
       case 'tool_result': {

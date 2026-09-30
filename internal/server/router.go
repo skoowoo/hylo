@@ -173,6 +173,7 @@ func newRouter(
 
 	mux.Handle("POST /api/notes/resolve", handler.NewNoteResolve(vault))
 	mux.Handle("POST /api/notes/exist", handler.NewNoteExist(vault))
+	mux.Handle("POST /api/notes/info", handler.NewNoteInfo(vault))
 
 	// Vault REST
 	mux.HandleFunc("POST /api/vault/read", gh.Read)

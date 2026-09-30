@@ -50,6 +50,28 @@ test('tool_result attaches to the pending call and stops at text', function () {
   assert.equal(segs[segs.length - 1].content, 'late');
 });
 
+test('note_access merges into a single segment and upgrades read to write', function () {
+  var segs = [];
+  R.applyAgentSegment(segs, { type: 'note_access', path: '/a.md', action: 'read', tool: 'Read' });
+  R.applyAgentSegment(segs, { type: 'text_delta', delta: 'thinking...' });
+  R.applyAgentSegment(segs, { type: 'note_access', path: '/b.md', action: 'write', tool: 'Edit' });
+  R.applyAgentSegment(segs, { type: 'note_access', path: '/a.md', action: 'write', tool: 'Edit' });
+
+  var naSegs = segs.filter(function (s) { return s.type === 'note_access'; });
+  assert.equal(naSegs.length, 1);
+  assert.deepEqual(naSegs[0].items, [
+    { path: '/a.md', action: 'write', tool: 'Edit' },
+    { path: '/b.md', action: 'write', tool: 'Edit' },
+  ]);
+});
+
+test('note_access drops glob-pattern paths', function () {
+  var segs = [];
+  R.applyAgentSegment(segs, { type: 'note_access', path: '/*.md', action: 'read', tool: 'Glob' });
+  R.applyAgentSegment(segs, { type: 'note_access', path: '/daily-*.md', action: 'write', tool: 'Bash' });
+  assert.deepEqual(segs, []);
+});
+
 test('status ignores running and requesting and updates the tail label', function () {
   var segs = [];
   R.applyAgentSegment(segs, { type: 'status', label: 'running' });

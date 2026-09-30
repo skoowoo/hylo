@@ -71,4 +71,25 @@ type Message struct {
 	TriggerEvent   string    `json:"triggerEvent,omitempty"` // mate event type when fired by trigger (assistant only)
 	CreatedAt      time.Time `json:"createdAt"`
 	UpdatedAt      time.Time `json:"updatedAt"`
+
+	// NoteAccess lists the vault notes this run touched (assistant messages only).
+	// Populated on read via a join; not part of the chat_messages row itself.
+	NoteAccess []NoteAccessEntry `json:"noteAccess,omitempty"`
+}
+
+// Note access actions.
+const (
+	NoteAccessRead  = "read"
+	NoteAccessWrite = "write"
+)
+
+// NoteAccessEntry records one vault note an assistant run read or wrote,
+// normalized across every agent backend (claude/codex/opencode/hermes/
+// cursor-agent/copilot/pi) to the same shape regardless of which CLI tool
+// produced it.
+type NoteAccessEntry struct {
+	Path   string    `json:"path"`   // vault-relative, e.g. "/journal/2026/april.md"
+	Action string    `json:"action"` // NoteAccessRead | NoteAccessWrite
+	Tool   string    `json:"tool"`   // originating tool/event name, for debugging
+	At     time.Time `json:"at"`
 }
