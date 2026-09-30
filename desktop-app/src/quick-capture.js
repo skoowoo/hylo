@@ -334,7 +334,22 @@ function openPanelForImage(imagePath) {
   view.setBackgroundColor("#00000000");
   panelWin.contentView.addChildView(view);
   view.setBounds({ x: 0, y: 0, width: panelWidth, height: panelHeight });
-  view.webContents.loadFile(path.join(__dirname, "quick-capture", "index.html"));
+
+  // Rendered by Vaultr's own server (GET /quick-capture) — triggerQuickCapture()
+  // already bailed out before screencapture ran if the server wasn't up, so
+  // serverUrl is expected to still be live here. On the rare race where it
+  // died in the few seconds since (screenshot selection takes a moment),
+  // did-fail-load just closes the panel instead of degrading into some
+  // separately-maintained offline copy of the UI.
+  const serverUrl = getServerUrl();
+  if (!serverUrl) {
+    closePanel();
+    return;
+  }
+  view.webContents.once("did-fail-load", (_e, _code, _desc, _url, isMainFrame) => {
+    if (isMainFrame) closePanel({ restoreFocus: true });
+  });
+  view.webContents.loadURL(serverUrl + "/quick-capture");
 
   view.webContents.once("did-finish-load", () => {
     view.webContents.send("quick-capture:init", { imageDataUrl: image.toDataURL(), boxW, boxH, imgW, imgH });
@@ -363,6 +378,12 @@ function openPanelForImage(imagePath) {
 
 async function triggerQuickCapture() {
   if (captureInFlight || panelWin) return;
+  // The panel's whole content now comes from Vaultr's own server (GET
+  // /quick-capture) — no bundled local page left to fall back to — so the
+  // feature simply requires the app to be up, same as every other Vaultr
+  // surface. Checked before screencapture runs so a not-ready app doesn't
+  // walk the user through taking a screenshot for nothing.
+  if (!getServerUrl()) return;
   captureInFlight = true;
   try {
     // Both read *before* screencapture runs — screencapture's own selection

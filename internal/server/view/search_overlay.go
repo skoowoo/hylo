@@ -487,17 +487,22 @@ const searchOverlayScript = `
         const el = this._items()[this.activeIdx];
         if (el) this.selectResult(el);
       },
-      confirmPath() {
+      // Same underlying action as chat's "@" mention (path_ac.js) — both
+      // just reference a note as a [[stem]] wikilink, this is only a
+      // different way to land on the note (global search vs typing inline).
+      confirmReference() {
         if (this.activeIdx < 0) return;
         const el = this._items()[this.activeIdx];
         const path = el && el.dataset.previewPath;
         if (!path) return;
-        try { navigator.clipboard.writeText(path); } catch(_) {}
-        window.dispatchEvent(new CustomEvent('vaultr:insert-path', { detail: { path } }));
+        const slash = path.lastIndexOf('/');
+        const stem = (slash === -1 ? path : path.slice(slash + 1)).replace(/\.(md|markdown)$/i, '');
+        try { navigator.clipboard.writeText('[[' + stem + ']]'); } catch(_) {}
+        window.dispatchEvent(new CustomEvent('vaultr:reference-note', { detail: { stem } }));
         this.close();
       },
       handleInputEnter(e) {
-        if (e.metaKey || e.ctrlKey) { this.confirmPath(); } else { this.confirm(); }
+        if (e.metaKey || e.ctrlKey) { this.confirmReference(); } else { this.confirm(); }
       },
       selectResult(el) {
         if (!el) return;
@@ -555,7 +560,7 @@ const searchOverlayScript = `
         const mod = this.isMac ? e.metaKey : e.ctrlKey;
         if (e.key === 'ArrowDown')  { e.preventDefault(); this.moveDown(); }
         else if (e.key === 'ArrowUp')   { e.preventDefault(); this.moveUp(); }
-        else if (e.key === 'Enter' && mod) { e.preventDefault(); this.confirmPath(); }
+        else if (e.key === 'Enter' && mod) { e.preventDefault(); this.confirmReference(); }
         else if (e.key === 'Enter')     { e.preventDefault(); this.confirm(); }
       }
     }

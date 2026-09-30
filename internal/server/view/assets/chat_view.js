@@ -708,7 +708,10 @@
       hints.appendChild(v);
     }
     var mod = isMac ? '⌘' : 'Ctrl';
-    hint('Insert file', [kbd(mod), kbd('K'), textSpan('search'), arrow(), kbd(mod), kbd('↵'), textSpan('insert path')]);
+    // Same shared label on both rows — global search and the inline "@"
+    // mention are two doors into the same action (reference a note as a
+    // [[stem]] wikilink), not two different features.
+    hint('Reference note', [kbd(mod), kbd('K'), textSpan('search'), arrow(), kbd(mod), kbd('↵'), textSpan('insert')]);
     hint('Reference note', [kbd('@'), textSpan('search, or "/" to browse folders')]);
     card.appendChild(hints);
     box.appendChild(card);
@@ -1038,28 +1041,6 @@
         ta.style.height = '';
         ta.selectionStart = ta.selectionEnd = ta.value.length;
         ta.focus();
-      },
-      insertPath: function (path) {
-        if (!path) return;
-        var cur = ta ? ta.value : api.draft();
-        var start = ta ? ta.selectionStart : cur.length;
-        var end = ta ? ta.selectionEnd : start;
-        var bt = String.fromCharCode(96);
-        var before = cur.slice(0, start);
-        var after = cur.slice(end);
-        var leadSp = before.length > 0 && before[before.length - 1] !== ' ' ? ' ' : '';
-        var tailSp = after.length > 0 && after[0] !== ' ' ? ' ' : '';
-        var insert = leadSp + bt + path + bt + tailSp;
-        var next = before + insert + after;
-        api.setDraft(next);
-        if (ta) {
-          ta.value = next;
-          var pos = start + insert.length;
-          ta.selectionStart = ta.selectionEnd = pos;
-          ta.focus();
-          root.__vaultrAutoResize(ta);
-          show(hint, !next);
-        }
       },
       insertWikilink: function (stem) {
         if (!stem) return;

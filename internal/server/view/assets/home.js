@@ -932,9 +932,9 @@ function homeCtrl() {
       return name.trim().slice(0, 1).toUpperCase();
     },
 
-    insertPath(e) {
-      var path = (e && e.detail && e.detail.path) || '';
-      if (this._chat) this._chat.insertPath(path);
+    referenceNote(e) {
+      var stem = (e && e.detail && e.detail.stem) || '';
+      if (this._chat) this._chat.insertWikilink(stem);
     },
 
     // Editor toolbar's "send to agent bot" — unlike selectChatAgentBot

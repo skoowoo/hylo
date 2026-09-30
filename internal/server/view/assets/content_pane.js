@@ -785,7 +785,7 @@
       // where that bot's chat left off) and drops a `[[stem]]` wikilink for
       // the active note into its composer. home.js is what actually owns
       // the chat panel/agentBots list, so this only dispatches an event
-      // (mirrors search_overlay.go's vaultr:insert-path) rather than
+      // (mirrors search_overlay.go's vaultr:reference-note) rather than
       // reaching into window._homeData's chat internals directly.
       sendActiveNoteToAgentBot(mateId) {
         var tab = this.tabs[this.activeTab];

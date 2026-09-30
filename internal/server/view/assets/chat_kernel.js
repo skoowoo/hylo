@@ -24,11 +24,11 @@
     var lastMsgMs = 0;
     var draft = '';
     var stick = true;
-    // Set when insertPath/insertWikilink land on the draft fallback (no view
-    // mounted yet, e.g. a note handed to a bot before its chat panel has
-    // loaded) — attach() consumes it to focus the composer once the
-    // textarea actually exists, so the reference doesn't just sit there
-    // unfocused for the user to go click into themselves.
+    // Set when insertWikilink lands on the draft fallback (no view mounted
+    // yet, e.g. a note handed to a bot before its chat panel has loaded) —
+    // attach() consumes it to focus the composer once the textarea actually
+    // exists, so the reference doesn't just sit there unfocused for the
+    // user to go click into themselves.
     var focusAfterAttach = false;
 
     var phase = 'idle';
@@ -611,20 +611,10 @@
       } catch (e) { notify("Couldn't stop the run"); }
     }
 
-    function insertPath(path) {
-      if (!path) return;
-      if (view && view.insertPath) { view.insertPath(path); return; }
-      var cur = draft || '';
-      var bt = String.fromCharCode(96);
-      var leadSp = cur.length > 0 && cur[cur.length - 1] !== ' ' ? ' ' : '';
-      draft = cur + leadSp + bt + path + bt;
-      focusAfterAttach = true;
-    }
-
-    // Same shape as insertPath, but wraps a note's filename stem in
-    // `[[ ]]` — the wikilink syntax mdhtml.go's wikilinkRe resolves by
-    // stem, not backtick-quoted path — matching the format chatMentionSearch
-    // already produces when a "@" mention is picked (path_ac.js).
+    // Wraps a note's filename stem in `[[ ]]` — the wikilink syntax
+    // mdhtml.go's wikilinkRe resolves by stem, not a full path — matching
+    // the format both note-reference entry points produce: chat's "@"
+    // mention (path_ac.js) and global search's Cmd+Enter (search_overlay.go).
     function insertWikilink(stem) {
       if (!stem) return;
       if (view && view.insertWikilink) { view.insertWikilink(stem); return; }
@@ -657,7 +647,6 @@
       openFreshChat: openFreshChat,
       busy: busy,
       mateId: function () { return mateId; },
-      insertPath: insertPath,
       insertWikilink: insertWikilink,
     };
   };

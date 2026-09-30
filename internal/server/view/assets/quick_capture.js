@@ -3,7 +3,6 @@ const img = document.getElementById("img");
 const message = document.getElementById("message");
 const saveBtn = document.getElementById("save-btn");
 const sendBtn = document.getElementById("send-btn");
-const closeBtn = document.getElementById("close-btn");
 
 window.quickCapture.onInit(({ imageDataUrl, boxW, boxH, imgW, imgH }) => {
   imgWrap.style.width = boxW + "px";
@@ -24,7 +23,15 @@ function save() {
 
 saveBtn.addEventListener("click", save);
 sendBtn.addEventListener("click", send);
-closeBtn.addEventListener("click", () => window.quickCapture.cancel());
+
+// No explicit close button — this is a floating panel, so any click that
+// isn't on the composer or an action button is "blank space" and dismisses
+// it, same as clicking off a popover. The image/header count as blank too;
+// there's nothing to do with them besides dismiss.
+document.addEventListener("click", (e) => {
+  if (e.target.closest("#composer, #save-btn, #send-btn")) return;
+  window.quickCapture.cancel();
+});
 
 // A click on the image or inside the textarea doesn't activate Vaultr; a
 // click on the panel's blank padding/gaps does. The one difference we can
