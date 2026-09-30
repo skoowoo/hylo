@@ -43,6 +43,7 @@ export {
 } from './widgets.js';
 export { selectionTouchesRange, selectionTouchesLine, selectionInsideRange, readingMode } from './selection.js';
 export { readingExtensions } from './reading.js';
+export { initialCursorOffset } from './initial-cursor.js';
 
 // Shared by live-preview mode and (Phase 4) plain source mode, so toggling
 // between them reconfigures a Compartment around the *same* parse instead

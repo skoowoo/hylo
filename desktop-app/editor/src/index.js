@@ -3,7 +3,7 @@
 // src/cm-live/ for the actual implementation; this file is just the export
 // surface content_pane.js's dynamic import() pulls from.
 export { EditorView, keymap } from '@codemirror/view';
-export { EditorState, Compartment, Transaction } from '@codemirror/state';
+export { EditorState, EditorSelection, Compartment, Transaction } from '@codemirror/state';
 export { markdown } from '@codemirror/lang-markdown';
 export { HighlightStyle, syntaxHighlighting } from '@codemirror/language';
 export { tags } from '@lezer/highlight';
@@ -26,6 +26,7 @@ export {
   codeHighlightStyle,
   listIndentExtension,
   readingExtensions,
+  initialCursorOffset,
   toggleBold,
   toggleItalic,
   toggleStrikethrough,

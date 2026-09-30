@@ -465,6 +465,10 @@
       s._buildState = function(content, inSource, reading) {
         return cm.EditorState.create({
           doc: content || '',
+          // No saved cursor to restore (tabStateManager only tracks scroll/
+          // mode) — land past frontmatter and any leading list/task/heading
+          // marker instead of EditorState.create's default of offset 0.
+          selection: cm.EditorSelection.cursor(cm.initialCursorOffset(content || '')),
           extensions: s._buildExtensions(
             inSource ? [sourceHighlight] : cm.liveDecorations(liveOptions),
             (!inSource && reading) ? cm.readingExtensions() : []
