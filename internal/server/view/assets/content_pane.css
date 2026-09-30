@@ -307,6 +307,43 @@
     .content-pane-tabs-menu-close:hover { opacity: 1 !important; background: var(--tint-strong); }
     .content-pane-tabs-menu-empty { padding: 0.5rem 0.55rem; font-size: var(--text-sm); color: var(--muted-soft); }
 
+    /* ── Send-to-bot menu ───────────────────────────────────────── */
+    /* Same shape/positioning family as the tabs/more menus right next to
+       it — a short list of rows, no keyboard nav (neither does more-menu;
+       this one's just as shallow). */
+    .content-pane-bot-wrap { position: relative; flex-shrink: 0; }
+    .content-pane-bot-btn.active { color: var(--accent-text); background: var(--tint-md); }
+    .content-pane-bot-menu {
+      position: absolute; top: calc(100% + var(--float-panel-gap)); right: 0; z-index: 50;
+      transform-origin: top;
+      min-width: 200px; max-width: min(320px, 90vw);
+      display: flex; flex-direction: column;
+      padding: 0.25rem;
+      background: var(--surface-soft); border: var(--bd-w) solid var(--border);
+      border-radius: var(--r-md);
+      box-shadow: var(--shadow-sm) var(--shadow-color);
+    }
+    .content-pane-bot-menu-header { padding: 0.2rem 0.55rem 0.35rem; }
+    .content-pane-bot-menu-header-label {
+      font-size: var(--text-2xs); font-weight: var(--fw-medium);
+      letter-spacing: var(--ls-cap); text-transform: uppercase;
+      color: var(--muted);
+    }
+    .content-pane-bot-menu-list { max-height: calc(10 * var(--btn-h-xs) + 0.5rem); overflow-y: auto; }
+    .content-pane-bot-menu-row {
+      display: flex; align-items: center; gap: 0.5rem;
+      width: 100%; height: var(--btn-h-xs);
+      padding: 0 0.55rem;
+      border: none; background: transparent;
+      border-radius: var(--r-sm);
+      color: var(--muted); font-size: var(--text-sm); font-family: inherit;
+      cursor: pointer; text-align: left;
+    }
+    .content-pane-bot-menu-row:hover { color: var(--fg); background: var(--icon-hov); }
+    .content-pane-bot-menu-avatar { flex-shrink: 0; }
+    .content-pane-bot-menu-name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .content-pane-bot-menu-empty { padding: 0.5rem 0.55rem; font-size: var(--text-sm); color: var(--muted-soft); }
+
     /* ── More menu ──────────────────────────────────────────────── */
     .content-pane-more-wrap { position: relative; flex-shrink: 0; }
     .content-pane-more-menu {
@@ -581,7 +618,9 @@
     html.macos .content-pane.open .content-pane-tool-bar { -webkit-app-region: drag; cursor: default; }
     html.macos .content-pane.open .content-pane-tool-bar button,
     html.macos .content-pane.open .content-pane-tool-bar input,
+    html.macos .content-pane.open .content-pane-tabstrip,
     html.macos .content-pane.open .content-pane-tabs-menu,
+    html.macos .content-pane.open .content-pane-bot-menu,
     html.macos .content-pane.open .content-pane-more-menu { -webkit-app-region: no-drag; }
     html.macos .content-pane.open.content-pane-is-opening .content-pane-tool-bar { -webkit-app-region: no-drag; }
 

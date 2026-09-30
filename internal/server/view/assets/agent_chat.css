@@ -861,10 +861,10 @@
        text show through. background-color + a flattened background-image
        pre-composites the same tint onto an opaque base, so it reads
        identically to .chat-input-card while staying fully opaque regardless
-       of what's scrolled underneath. Border-radius relies on overflow-y:
-       auto clipping descendant content to the curve (standard Chromium
-       behavior), so option-row hover highlights don't square off past the
-       rounded corners. */
+       of what's scrolled underneath. overflow: hidden still clips the
+       scrollable list to the curve for the edge case of a very short panel;
+       normally .chat-path-ac's own side/end padding already keeps rows
+       clear of the corners. */
     .chat-ac-panel {
       display: none;
       position: absolute;
@@ -887,11 +887,12 @@
       min-height: 0;
       overflow-y: auto;
       margin: 0;
-      padding: 4px 0;
+      padding: 0.3rem;
       list-style: none;
     }
     .chat-path-ac li {
-      padding: 0.4rem 0.65rem;
+      padding: 0.5rem 0.7rem;
+      border-radius: var(--r-sm);
       font-size: var(--text-xs);
       font-family: var(--font-mono);
       color: var(--fg);
@@ -921,7 +922,7 @@
        scrolls internally via .chat-path-ac's own overflow-y). */
     .chat-path-ac-hint {
       flex: 0 0 auto;
-      padding: 0.4rem 0.65rem;
+      padding: 0.4rem 1rem;
       font-size: var(--text-2xs);
       font-family: var(--font-mono);
       font-style: italic;

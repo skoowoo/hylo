@@ -105,22 +105,14 @@
         else { segs.push({ type: 'tool_use', name: toolName, count: 1, results: [] }); }
         break;
       }
-      case 'note_access': {
-        var naPath = data.path || '';
-        // Glob patterns ("*.md") are not a specific touched note; skip them.
-        // Defends the client even if a stray one slips past the server-side
-        // filter (agent.NoteAccessTracker.resolve), e.g. from data recorded
-        // before that filter existed.
-        if (!naPath || /[*?]/.test(naPath)) break;
-        var naSeg = null;
-        for (var ni = 0; ni < segs.length; ni++) { if (segs[ni].type === 'note_access') { naSeg = segs[ni]; break; } }
-        if (!naSeg) { naSeg = { type: 'note_access', items: [] }; segs.push(naSeg); }
-        var existing = null;
-        for (var ii = 0; ii < naSeg.items.length; ii++) { if (naSeg.items[ii].path === naPath) { existing = naSeg.items[ii]; break; } }
-        if (existing) { existing.action = data.action || existing.action; existing.tool = data.tool || existing.tool; }
-        else { naSeg.items.push({ path: naPath, action: data.action || 'read', tool: data.tool || '' }); }
-        break;
-      }
+      // Deliberately a no-op: Notes touched isn't meant to render mid-stream
+      // (the running message doesn't need a live "here's what I'm reading"
+      // ticker), only once the message is done — at which point it's
+      // rebuilt whole from the DB's authoritative list (formatStoredMessages)
+      // and appended as the last segment, never assembled from this
+      // one-event-at-a-time trickle. See mergeSynced below for the other
+      // half of this (keeping it out of the "preserve live segments" set).
+      case 'note_access': break;
       case 'tool_result': {
         var trContent = data.content || '';
         if (typeof trContent !== 'string') trContent = JSON.stringify(trContent);
@@ -204,9 +196,14 @@
         ex.status = nm.status;
         var hasRichSegs = (ex.segments || []).some(function (s) { return s.type !== 'text'; });
         if (prevStatus !== 'running' && hasRichSegs) {
-          var richSegs = (ex.segments || []).filter(function (s) { return s.type !== 'text'; });
+          // note_access is excluded here on purpose (never on the "keep the
+          // live version" side) — it's never built live to begin with (see
+          // the note_access case above), so it always has to come from the
+          // DB's row, and always goes last, after the DB's own text.
+          var richSegs = (ex.segments || []).filter(function (s) { return s.type !== 'text' && s.type !== 'note_access'; });
           var dbTextSegs = (nm.segments || []).filter(function (s) { return s.type === 'text'; });
-          ex.segments = richSegs.concat(dbTextSegs);
+          var dbNoteAccess = (nm.segments || []).filter(function (s) { return s.type === 'note_access'; });
+          ex.segments = richSegs.concat(dbTextSegs).concat(dbNoteAccess);
         } else {
           ex.segments = nm.segments;
         }

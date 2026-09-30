@@ -937,6 +937,24 @@ function homeCtrl() {
       if (this._chat) this._chat.insertPath(path);
     },
 
+    // Editor toolbar's "send to agent bot" — unlike selectChatAgentBot
+    // (resumes that bot's most recent conversation), this always lands on a
+    // fresh one: handing a note to a bot from outside the chat panel reads
+    // as starting something new, not continuing whatever that bot's chat
+    // was last doing.
+    async sendNoteToAgentBot(e) {
+      if (!this._chat) return;
+      var mateId = (e && e.detail && e.detail.mateId) || '';
+      var stem = (e && e.detail && e.detail.stem) || '';
+      if (!mateId) return;
+      var opened = await this._chat.openFreshChat(mateId);
+      if (opened) this.activeKey = 'chat:' + mateId;
+      else if (this.selectedAgentBotId) this.activeKey = 'chat:' + this.selectedAgentBotId;
+      if (document.getElementById('chat-root')) this._lastURL = '/home/section?type=chat';
+      else this._load('/home/section?type=chat');
+      this._chat.insertWikilink(stem);
+    },
+
     // ── Shorts: inline composer ─────────────────────────────────────────
     handleShortComposeKeydown(e) {
       if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {

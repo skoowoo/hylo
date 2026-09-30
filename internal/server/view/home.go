@@ -1142,7 +1142,7 @@ var homePageHTML = `<!DOCTYPE html>
 ` + infoDialogCSS + baseCSS + cselectCSS + homeCSS + imagesCSS + graphCSS + agentChatCSS + contentPaneCSS + noteSharedCSS + noteEditorCSS + shortsCSS + searchOverlayStyles + confirmDialogCSS + settingsModalCSS + frontmatterDialogCSS + `
   </style>
 </head>
-<body x-data="homeCtrl()" @vaultr:insert-path.window="insertPath($event)">
+<body x-data="homeCtrl()" @vaultr:insert-path.window="insertPath($event)" @vaultr:send-note-to-agent.window="sendNoteToAgentBot($event)">
 ` + searchOnlyOverlayHTML + confirmDialogHTML + infoDialogHTML + frontmatterDialogHTML + settingsModalHTML() + homeImagesLightboxHTML + homeChatToastHTML + `
   <div class="home-container">
 ` + homeMainHTML + contentPaneHTML + `

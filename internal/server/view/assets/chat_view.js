@@ -1036,6 +1036,7 @@
       focusComposer: function () {
         if (!ta) return;
         ta.style.height = '';
+        ta.selectionStart = ta.selectionEnd = ta.value.length;
         ta.focus();
       },
       insertPath: function (path) {
@@ -1049,6 +1050,27 @@
         var leadSp = before.length > 0 && before[before.length - 1] !== ' ' ? ' ' : '';
         var tailSp = after.length > 0 && after[0] !== ' ' ? ' ' : '';
         var insert = leadSp + bt + path + bt + tailSp;
+        var next = before + insert + after;
+        api.setDraft(next);
+        if (ta) {
+          ta.value = next;
+          var pos = start + insert.length;
+          ta.selectionStart = ta.selectionEnd = pos;
+          ta.focus();
+          root.__vaultrAutoResize(ta);
+          show(hint, !next);
+        }
+      },
+      insertWikilink: function (stem) {
+        if (!stem) return;
+        var cur = ta ? ta.value : api.draft();
+        var start = ta ? ta.selectionStart : cur.length;
+        var end = ta ? ta.selectionEnd : start;
+        var before = cur.slice(0, start);
+        var after = cur.slice(end);
+        var leadSp = before.length > 0 && before[before.length - 1] !== ' ' ? ' ' : '';
+        var tailSp = after.length > 0 && after[0] !== ' ' ? ' ' : '';
+        var insert = leadSp + '[[' + stem + ']]' + tailSp;
         var next = before + insert + after;
         api.setDraft(next);
         if (ta) {

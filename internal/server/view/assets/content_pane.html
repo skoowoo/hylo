@@ -216,6 +216,45 @@
               <path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/>
             </svg>
           </button>
+          <div class="content-pane-bot-wrap" x-data="{ botMenuOpen: false }"
+               x-show="tabs[activeTab] && tabs[activeTab].path"
+               @mousedown.outside="botMenuOpen = false"
+               @content-pane:close-bot.document="botMenuOpen = false">
+            <button type="button" class="icon-btn-ghost content-pane-bot-btn"
+                    @click.stop="botMenuOpen = !botMenuOpen"
+                    :class="{ active: botMenuOpen }"
+                    title="Send to agent bot">
+              <!-- lucide "send" -->
+              <svg fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                <path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"/>
+                <path d="m21.854 2.147-10.94 10.939"/>
+              </svg>
+            </button>
+            <div class="content-pane-bot-menu" x-show="botMenuOpen" x-cloak
+                 x-transition:enter="transition ease-out duration-150"
+                 x-transition:enter-start="opacity-0 -translate-y-2 scale-[0.97]"
+                 x-transition:enter-end="opacity-100 translate-y-0 scale-100"
+                 x-transition:leave="transition ease-in duration-100"
+                 x-transition:leave-start="opacity-100 translate-y-0 scale-100"
+                 x-transition:leave-end="opacity-0 -translate-y-1 scale-[0.98]">
+              <div class="content-pane-bot-menu-header">
+                <span class="content-pane-bot-menu-header-label">Send to agent bot</span>
+              </div>
+              <div class="content-pane-bot-menu-list">
+                <template x-for="m in (window._homeData ? window._homeData.agentBots : [])" :key="m.id">
+                  <button type="button" class="content-pane-bot-menu-row"
+                          @click.stop="botMenuOpen = false; sendActiveNoteToAgentBot(m.id)"
+                          :title="m.name">
+                    <span class="avatar avatar--sm avatar--accent content-pane-bot-menu-avatar"
+                          :style="'background:' + window._homeData.agentBotColor(m.name) + ';color:var(--inverse-ink)'"
+                          x-text="window._homeData.agentBotInitials(m.name)"></span>
+                    <span class="content-pane-bot-menu-name" x-text="m.name"></span>
+                  </button>
+                </template>
+                <div class="content-pane-bot-menu-empty" x-show="!window._homeData || window._homeData.agentBots.length === 0">No agent bots yet</div>
+              </div>
+            </div>
+          </div>
           <div class="content-pane-more-wrap" x-data="{ moreOpen: false, copied: false }"
                @mousedown.outside="moreOpen = false"
                @content-pane:close-more.document="moreOpen = false">

@@ -24,6 +24,12 @@
     var lastMsgMs = 0;
     var draft = '';
     var stick = true;
+    // Set when insertPath/insertWikilink land on the draft fallback (no view
+    // mounted yet, e.g. a note handed to a bot before its chat panel has
+    // loaded) — attach() consumes it to focus the composer once the
+    // textarea actually exists, so the reference doesn't just sit there
+    // unfocused for the user to go click into themselves.
+    var focusAfterAttach = false;
 
     var phase = 'idle';
     var run = null; // { id, assistantMsgId } while streaming or stopping
@@ -438,6 +444,10 @@
       if (mode === 'none' && stick && messages.length) mode = 'jump';
       if (mode === 'jump') stick = true;
       view.render(mode);
+      if (focusAfterAttach) {
+        focusAfterAttach = false;
+        if (view.focusComposer) view.focusComposer();
+      }
     }
 
     function detach() {
@@ -450,7 +460,7 @@
       view = null;
     }
 
-    function tryOpen(id) {
+    function switchMate(id) {
       if (busy()) return false;
       bootstrapped = true;
       if (id !== mateId) {
@@ -465,7 +475,27 @@
       try { sessionStorage.setItem('vaultr_agent_bot_id', id); } catch (e) { /* ignore */ }
       if (host.onMate) host.onMate(id);
       requestRender('none');
+      return true;
+    }
+
+    function tryOpen(id) {
+      if (!switchMate(id)) return false;
       void refresh();
+      return true;
+    }
+
+    // Same mate switch as tryOpen, but lands on a brand-new conversation
+    // instead of resuming the mate's most recent one — used when a note is
+    // handed to a bot from outside the chat panel (editor toolbar), where a
+    // fresh conversation reads as "here's a new thing to look at" rather
+    // than continuing whatever that bot was last doing. Awaits refresh()
+    // (unlike tryOpen's fire-and-forget) so newChat()'s `messages.length ===
+    // 0` guard sees the switched-to mate's real history before deciding
+    // whether there's anything to replace.
+    async function openFreshChat(id) {
+      if (!switchMate(id)) return false;
+      await refresh();
+      await newChat();
       return true;
     }
 
@@ -588,6 +618,20 @@
       var bt = String.fromCharCode(96);
       var leadSp = cur.length > 0 && cur[cur.length - 1] !== ' ' ? ' ' : '';
       draft = cur + leadSp + bt + path + bt;
+      focusAfterAttach = true;
+    }
+
+    // Same shape as insertPath, but wraps a note's filename stem in
+    // `[[ ]]` — the wikilink syntax mdhtml.go's wikilinkRe resolves by
+    // stem, not backtick-quoted path — matching the format chatMentionSearch
+    // already produces when a "@" mention is picked (path_ac.js).
+    function insertWikilink(stem) {
+      if (!stem) return;
+      if (view && view.insertWikilink) { view.insertWikilink(stem); return; }
+      var cur = draft || '';
+      var leadSp = cur.length > 0 && cur[cur.length - 1] !== ' ' ? ' ' : '';
+      draft = cur + leadSp + '[[' + stem + ']] ';
+      focusAfterAttach = true;
     }
 
     return {
@@ -610,9 +654,11 @@
       attach: attach,
       detach: detach,
       tryOpen: tryOpen,
+      openFreshChat: openFreshChat,
       busy: busy,
       mateId: function () { return mateId; },
       insertPath: insertPath,
+      insertWikilink: insertWikilink,
     };
   };
 })(typeof window !== 'undefined' ? window : global);

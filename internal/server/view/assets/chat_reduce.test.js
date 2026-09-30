@@ -50,26 +50,12 @@ test('tool_result attaches to the pending call and stops at text', function () {
   assert.equal(segs[segs.length - 1].content, 'late');
 });
 
-test('note_access merges into a single segment and upgrades read to write', function () {
+test('note_access events are ignored while streaming (no live segment)', function () {
   var segs = [];
   R.applyAgentSegment(segs, { type: 'note_access', path: '/a.md', action: 'read', tool: 'Read' });
   R.applyAgentSegment(segs, { type: 'text_delta', delta: 'thinking...' });
   R.applyAgentSegment(segs, { type: 'note_access', path: '/b.md', action: 'write', tool: 'Edit' });
-  R.applyAgentSegment(segs, { type: 'note_access', path: '/a.md', action: 'write', tool: 'Edit' });
-
-  var naSegs = segs.filter(function (s) { return s.type === 'note_access'; });
-  assert.equal(naSegs.length, 1);
-  assert.deepEqual(naSegs[0].items, [
-    { path: '/a.md', action: 'write', tool: 'Edit' },
-    { path: '/b.md', action: 'write', tool: 'Edit' },
-  ]);
-});
-
-test('note_access drops glob-pattern paths', function () {
-  var segs = [];
-  R.applyAgentSegment(segs, { type: 'note_access', path: '/*.md', action: 'read', tool: 'Glob' });
-  R.applyAgentSegment(segs, { type: 'note_access', path: '/daily-*.md', action: 'write', tool: 'Bash' });
-  assert.deepEqual(segs, []);
+  assert.deepEqual(segs, [{ type: 'text', content: 'thinking...' }]);
 });
 
 test('status ignores running and requesting and updates the tail label', function () {
@@ -95,6 +81,35 @@ test('merge keeps rich segments after the message has finished', function () {
   assert.equal(messages[0].segments[0].type, 'thinking');
   assert.equal(messages[0].segments[1].content, 'new');
   assert.equal(messages[0].status, 'succeeded');
+});
+
+test('merge appends the DB\'s note_access last, even alongside kept-live rich segments', function () {
+  var messages = [{
+    id: 'a', role: 'assistant', status: 'succeeded', content: 'old',
+    segments: [{ type: 'thinking', content: 'hmm', open: false }, { type: 'text', content: 'old' }],
+    completedAt: 1, rev: 1,
+  }];
+  R.mergeSynced(messages, [{
+    id: 'a', role: 'assistant', content: 'new', status: 'succeeded', mateId: 'm',
+    updatedAt: '2026-09-29T00:00:00.000Z',
+    noteAccess: [{ path: 'a.md', action: 'read', tool: 'Read' }],
+  }]);
+  var segs = messages[0].segments;
+  assert.deepEqual(segs.map(function (s) { return s.type; }), ['thinking', 'text', 'note_access']);
+  assert.deepEqual(segs[2].items, [{ path: 'a.md', action: 'read', tool: 'Read' }]);
+});
+
+test('merge drops a stale note_access segment once the DB row has none', function () {
+  var messages = [{
+    id: 'a', role: 'assistant', status: 'succeeded', content: 'old',
+    segments: [{ type: 'thinking', content: 'hmm', open: false }, { type: 'text', content: 'old' }],
+    completedAt: 1, rev: 1,
+  }];
+  R.mergeSynced(messages, [{
+    id: 'a', role: 'assistant', content: 'new', status: 'succeeded', mateId: 'm',
+    updatedAt: '2026-09-29T00:00:00.000Z',
+  }]);
+  assert.deepEqual(messages[0].segments.map(function (s) { return s.type; }), ['thinking', 'text']);
 });
 
 test('merge replaces segments while the message is still running', function () {

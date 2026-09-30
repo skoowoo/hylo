@@ -43,6 +43,16 @@
     return (name || '').replace(/\.(md|markdown)$/i, '');
   }
 
+  // Vault-relative path -> filename stem (no directory, no extension) — the
+  // wikilink target format (internal/util/mdhtml.go's wikilinkRe resolves by
+  // stem, not full path), so this can't just reuse tab.title: a knowledge
+  // note's title may come from frontmatter and differ from its filename.
+  function __vaultrNoteStem(path) {
+    var p = String(path || '');
+    var slash = p.lastIndexOf('/');
+    return __vaultrStripMdExt(slash === -1 ? p : p.slice(slash + 1));
+  }
+
   // ── Content-pane controller factory ────────────────────────────────────────────────
   function contentPaneCtrl() {
     return {
@@ -432,6 +442,12 @@
             focusManager.blurActive();
             return;
           }
+          var botMenu = document.querySelector('.content-pane-bot-menu');
+          if (botMenu && botMenu.style.display !== 'none') {
+            document.dispatchEvent(new CustomEvent('content-pane:close-bot'));
+            focusManager.blurActive();
+            return;
+          }
           var tabsMenu = document.querySelector('.content-pane-tabs-menu');
           if (tabsMenu && tabsMenu.style.display !== 'none') {
             document.dispatchEvent(new CustomEvent('content-pane:close-tabs'));
@@ -761,6 +777,21 @@
         }
         if (this.contentPaneOpen) this._prepareEntering();
         this._flipApply(before);
+      },
+
+      // Opens the given mate's chat panel with a brand-new conversation
+      // (not its most recent one — this is a one-shot "hand this note to a
+      // bot", distinct from the sidebar's tryOpen which deliberately resumes
+      // where that bot's chat left off) and drops a `[[stem]]` wikilink for
+      // the active note into its composer. home.js is what actually owns
+      // the chat panel/agentBots list, so this only dispatches an event
+      // (mirrors search_overlay.go's vaultr:insert-path) rather than
+      // reaching into window._homeData's chat internals directly.
+      sendActiveNoteToAgentBot(mateId) {
+        var tab = this.tabs[this.activeTab];
+        if (!tab || !tab.path) return;
+        var stem = __vaultrNoteStem(tab.path);
+        window.dispatchEvent(new CustomEvent('vaultr:send-note-to-agent', { detail: { mateId: mateId, stem: stem } }));
       },
 
       async togglePinActiveNote() {
