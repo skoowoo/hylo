@@ -5,6 +5,7 @@ import { keymap } from '@codemirror/view';
 import { Prec } from '@codemirror/state';
 import { lineInsideCodeBlock } from './format-guards.js';
 import { resolveAncestor, nameIs } from './tree-utils.js';
+import { emptyQuoteEnter, emptyQuoteBackspace } from './quote-format.js';
 
 // Tab/Shift-Tab nest/un-nest a list item. Two things the generic
 // indentMore/indentLess (CM6's default "smart tab") get wrong for markdown
@@ -260,6 +261,7 @@ const LIST_LINE = /^[ \t]*(?:[-+*]|\d+[.)]) /;
 // continuation transaction so one undo removes the whole keystroke.
 function listEnter(view) {
   if (emptyItemEnter(view)) return true;
+  if (emptyQuoteEnter(view)) return true;
   const origin = view.state.doc.lineAt(view.state.selection.main.head).text;
   const orderedTask = /^\s*\d+[.)][ \t]+\[[ xX]\]/.test(origin);
   let tr = null;
@@ -346,6 +348,10 @@ function emptyItemBackspace(view) {
   return false;
 }
 
+function backspaceHandler(view) {
+  return emptyItemBackspace(view) || emptyQuoteBackspace(view);
+}
+
 // Prec.highest: @codemirror/lang-markdown's own language support registers
 // a high-precedence Enter/Backspace binding for list markup — the exact
 // thing emptyItemEnter/emptyItemBackspace are replacing for the empty-item
@@ -354,7 +360,7 @@ function emptyItemBackspace(view) {
 export const listIndentExtension = Prec.highest(
   keymap.of([
     { key: 'Enter', run: listEnter },
-    { key: 'Backspace', run: emptyItemBackspace },
+    { key: 'Backspace', run: backspaceHandler },
     { key: 'Tab', run: smartIndentMore },
     { key: 'Shift-Tab', run: smartIndentLess },
   ])

@@ -68,3 +68,78 @@ export function toggleBlockquote(view) {
 export function quoteFormatActiveAt(state, range) {
   return !!quoteMarkOnLine(state, state.doc.lineAt(range.head));
 }
+
+// All QuoteMarks on the line, in source order — a nested "> > " line carries
+// one per level, and emptyQuoteEnter needs the innermost plus its parent.
+function lineQuoteMarks(state, line) {
+  const marks = [];
+  syntaxTree(state).iterate({
+    from: line.from,
+    to: line.to,
+    enter(node) {
+      if (node.name === 'QuoteMark') marks.push({ from: node.from, to: node.to });
+    },
+  });
+  return marks;
+}
+
+function isEmptyQuotedLine(state, line, marks) {
+  if (!marks.length) return false;
+  const last = marks[marks.length - 1];
+  return state.doc.sliceString(quoteContentStart(state, last, line), line.to).trim() === '';
+}
+
+// Range covering just the innermost QuoteMark (plus its separator space) on
+// an already-empty quoted line — deleting it outdents one nesting level, or
+// exits the blockquote entirely when there's no parent level left. Shared by
+// emptyQuoteEnter and emptyQuoteBackspace so both keystrokes agree on
+// exactly what "one level" means.
+function innermostMarkRange(state, line, marks) {
+  const last = marks[marks.length - 1];
+  const prev = marks.length > 1 ? marks[marks.length - 2] : null;
+  const from = prev ? quoteContentStart(state, prev, line) : line.from;
+  const to = quoteContentStart(state, last, line);
+  return { from, to };
+}
+
+// Enter on an empty quoted line ("> " with nothing typed after it) exits the
+// quote on this keystroke — the same one-blank-line convention most markdown
+// editors use, and the one list-indent.js's emptyItemEnter already gives
+// lists. Left to lang-markdown's own insertNewlineContinueMarkup, a
+// blockquote instead needs TWO consecutive empty quoted lines before it
+// recognizes the exit (its "two aligned empty quoted lines in a row" check),
+// so a plain Enter here silently inserts a second blank quoted line instead
+// of leaving the quote — one extra, invisible keystroke. Nested quotes exit
+// one level per Enter, same as the list outdent-on-empty-item convention.
+export function emptyQuoteEnter(view) {
+  const state = view.state;
+  const sel = state.selection.main;
+  if (!sel.empty) return false;
+  const line = state.doc.lineAt(sel.head);
+  const marks = lineQuoteMarks(state, line);
+  if (!isEmptyQuotedLine(state, line, marks)) return false;
+  const { from, to } = innermostMarkRange(state, line, marks);
+  view.dispatch({ changes: { from, to, insert: '' }, userEvent: 'input' });
+  return true;
+}
+
+// Backspace on an empty quoted line strips the innermost marker in one
+// keystroke — same one-level-per-keystroke convention as emptyQuoteEnter
+// and list-indent.js's emptyItemBackspace. Left unhandled, CM6's default
+// deleteMarkupBackward erases the trailing space one character at a time,
+// so clearing an empty quote line's marker takes as many keystrokes as it
+// has characters instead of one. Unlike emptyItemBackspace's top-level
+// case, this never needs to delete the whole line: stripping the outermost
+// QuoteMark already leaves an ordinary blank line, and a second Backspace
+// on that is plain, unremarkable default behavior — no extra case to write.
+export function emptyQuoteBackspace(view) {
+  const state = view.state;
+  const sel = state.selection.main;
+  if (!sel.empty) return false;
+  const line = state.doc.lineAt(sel.head);
+  const marks = lineQuoteMarks(state, line);
+  if (!isEmptyQuotedLine(state, line, marks)) return false;
+  const { from, to } = innermostMarkRange(state, line, marks);
+  view.dispatch({ changes: { from, to, insert: '' }, userEvent: 'delete' });
+  return true;
+}
