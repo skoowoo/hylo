@@ -31,18 +31,32 @@
 // opts:
 //   getInput()            → HTMLInputElement | HTMLTextAreaElement
 //   getList()             → HTMLUListElement  (the dropdown)
+//   getPanel()            → HTMLElement  (optional — outer box that owns
+//                            open/close visibility; falls back to getList()
+//                            when omitted, so callers that never wrapped the
+//                            list in a panel keep working unchanged)
+//   getHint()             → HTMLElement  (optional — persistent footer row
+//                            below the list; mention mode only)
 //   parseCtx(val, caret)  → { kind: 'path', dirPath, partial, tokenStart, atPos, replaceStart } |
 //                            { kind: 'mention', partial, replaceStart } | null
 //   search(query, signal) → Promise<Array<{label, value, sub}>>  (mention mode only)
+//   getDefaultItems()     → Array<{label, value, sub}>  (optional — shown
+//                            for a bare "@" instead of the hint alone, e.g.
+//                            the editor's currently open tabs; put whichever
+//                            item should read as "the pick" first — it gets
+//                            the same aria-selected highlight item 0 always
+//                            gets, no separate marker needed)
 //   onApply(el, newVal, caretPos) → void  (update element value + cursor)
 //   escKey                → string key for __vaultrEscPush / __vaultrEscPop
 //
 function __vaultrPathAcCreate(opts) {
   var st = { seq: 0, abort: null, tick: null, active: -1, fetchedDir: null, cachedDirs: [], pendingStripAt: -1 };
-  // Shown for a bare "@" (no query typed yet) — the one moment neither mode
-  // has anything to show results for, so it's the natural place to surface
-  // both things "@" can do (mirrors the empty-chat onboarding hint in
-  // home.go).
+  // Shown for a bare "@" only when there's nothing else to list (no open
+  // tabs to default to) — the one moment neither mode has anything to show
+  // results for, so it's the natural place to surface both things "@" can
+  // do (mirrors the empty-chat onboarding hint in home.go). Once there's an
+  // actual list on screen (default tabs or search results), the same text
+  // moves to the persistent footer via getHint() instead.
   var EMPTY_MENTION_HINT = 'Type to search notes, or "/" to browse folders';
 
   function writeValue(input, newVal, caretPos) {
@@ -72,15 +86,28 @@ function __vaultrPathAcCreate(opts) {
     writeValue(input, newVal, caret > pos ? caret - 1 : caret);
   }
 
+  // The panel is whatever owns open/close visibility — a dedicated wrapper
+  // when the caller gave one (so a footer hint can sit beside the list
+  // inside the same box), otherwise the list itself, unchanged from before
+  // getPanel existed.
+  function panelEl() { return (opts.getPanel && opts.getPanel()) || opts.getList(); }
+
+  function setHint(text) {
+    var hintEl = opts.getHint && opts.getHint();
+    if (!hintEl) return;
+    if (text) { hintEl.textContent = text; hintEl.hidden = false; }
+    else { hintEl.textContent = ''; hintEl.hidden = true; }
+  }
+
   function close() {
     if (st.abort) { st.abort.abort(); st.abort = null; }
     clearTimeout(st.tick); st.tick = null;
     stripPendingAt();
+    var panel = panelEl();
+    if (panel) { panel.classList.remove('open'); panel.hidden = true; panel.setAttribute('aria-expanded', 'false'); }
     var list = opts.getList();
-    if (list) {
-      list.classList.remove('open'); list.hidden = true;
-      list.setAttribute('aria-expanded', 'false'); list.innerHTML = '';
-    }
+    if (list) list.innerHTML = '';
+    setHint('');
     st.active = -1;
     if (window.__vaultrEscPop && opts.escKey) window.__vaultrEscPop(opts.escKey);
   }
@@ -101,14 +128,18 @@ function __vaultrPathAcCreate(opts) {
   }
 
   function openList() {
-    var list = opts.getList();
-    if (list) { list.classList.add('open'); list.hidden = false; list.setAttribute('aria-expanded', 'true'); }
+    var panel = panelEl();
+    if (panel) { panel.classList.add('open'); panel.hidden = false; panel.setAttribute('aria-expanded', 'true'); }
     if (window.__vaultrEscPush && opts.escKey) window.__vaultrEscPush(opts.escKey, close);
   }
 
   // items: Array<{label, value, sub?}> — sub (mention mode's folder line)
-  // renders as a second block line under label; dir mode leaves it unset
-  // and gets the original single-line row, byte-for-byte unchanged.
+  // renders as a second block line under label; dir mode leaves it unset and
+  // gets the original single-line row, byte-for-byte unchanged. Item 0 always
+  // gets aria-selected="true" (the same highlight ArrowUp/Down move around),
+  // so a caller wanting a particular row to read as "the pick" — e.g. the
+  // default mention list putting the editor's active tab first — gets that
+  // for free just by ordering, no separate badge or dedicated color needed.
   function render(items, emptyMsg) {
     var list = opts.getList(); if (!list) return;
     list.innerHTML = '';
@@ -143,6 +174,7 @@ function __vaultrPathAcCreate(opts) {
     var items = names.map(function(name) { return { label: name + '/', value: name, sub: null }; });
     var noMatch = !st.cachedDirs.length ? 'No folders' : 'No match';
     render(items, items.length ? '' : noMatch);
+    setHint(''); // footer text is mention-only; folder browsing never shows it
     openList();
   }
 
@@ -166,12 +198,27 @@ function __vaultrPathAcCreate(opts) {
     } catch(e) { if (e.name !== 'AbortError') close(); }
   }
 
+  // Bare "@" (no query yet): show the open-tabs default list when there is
+  // one, otherwise fall back to the plain hint row. Shared by refresh() and
+  // doFetchSearch's empty-partial short-circuit below.
+  function showMentionDefault() {
+    var items = (opts.getDefaultItems && opts.getDefaultItems()) || [];
+    if (items.length) {
+      render(items, '');
+      setHint(EMPTY_MENTION_HINT); // list is now occupied, so the "how to use this" text moves to the footer
+    } else {
+      render([], EMPTY_MENTION_HINT);
+      setHint('');
+    }
+    openList();
+  }
+
   async function doFetchSearch(ctx0) {
     // The debounced timer can still fire after the partial was deleted back
     // to empty (e.g. typed "@x" then backspaced to "@" within the debounce
     // window) — the search API 400s on an empty q, so short-circuit to the
-    // same hint refresh() shows instead of firing a doomed request.
-    if (!(ctx0.partial || '')) { render([], EMPTY_MENTION_HINT); openList(); return; }
+    // same default refresh() shows instead of firing a doomed request.
+    if (!(ctx0.partial || '')) { showMentionDefault(); return; }
     var mySeq = st.seq;
     st.abort = new AbortController();
     try {
@@ -181,6 +228,7 @@ function __vaultrPathAcCreate(opts) {
       var ctxNow = opts.parseCtx(input.value, input.selectionStart);
       if (!ctxNow || ctxNow.kind !== 'mention') return;
       render(items || [], (items && items.length) ? '' : 'No matching notes');
+      setHint(''); // once real search results (or a "no match" state) are showing, the footer hint is no longer needed
       openList();
     } catch (e) { if (!e || e.name !== 'AbortError') close(); }
   }
@@ -202,14 +250,13 @@ function __vaultrPathAcCreate(opts) {
     var ctx = opts.parseCtx(input.value, input.selectionStart);
     if (!ctx) { close(); return; }
     if (ctx.kind === 'mention') {
-      // Bare "@" (no query yet) — show a static hint instead of firing a
-      // search for an empty query.
+      // Bare "@" (no query yet) — show the default (open tabs) list instead
+      // of firing a search for an empty query.
       if (!(ctx.partial || '')) {
         st.seq++;
         if (st.abort) { st.abort.abort(); st.abort = null; }
         clearTimeout(st.tick); st.tick = null;
-        render([], EMPTY_MENTION_HINT);
-        openList();
+        showMentionDefault();
         return;
       }
       schedule();
@@ -259,8 +306,8 @@ function __vaultrPathAcCreate(opts) {
   }
 
   function isOpen() {
-    var list = opts.getList();
-    return !!(list && list.classList.contains('open'));
+    var panel = panelEl();
+    return !!(panel && panel.classList.contains('open'));
   }
 
   // Call from a keydown handler. Returns true if the event was consumed.

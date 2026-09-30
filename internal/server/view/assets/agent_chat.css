@@ -493,7 +493,6 @@
     /* Thinking */
     .seg-thinking {
       border-left: var(--bd-w) solid var(--hairline);
-      border-radius: 0;
       padding-left: 0.7rem;
     }
 
@@ -866,25 +865,31 @@
        auto clipping descendant content to the curve (standard Chromium
        behavior), so option-row hover highlights don't square off past the
        rounded corners. */
-    .chat-path-ac {
+    .chat-ac-panel {
       display: none;
       position: absolute;
       bottom: calc(100% + 4px);
       left: 0;
       right: 0;
-      max-height: min(240px, 40vh);
-      overflow-y: auto;
-      margin: 0;
-      padding: 4px 0;
-      list-style: none;
+      max-height: min(280px, 45vh);
+      flex-direction: column;
       background-color: var(--bg);
       background-image: linear-gradient(var(--btn-bg), var(--btn-bg));
       border: var(--bd-w) solid var(--border-strong);
       border-radius: var(--r-xl);
       box-shadow: var(--shadow-sm) var(--shadow-color);
+      overflow: hidden; /* clips the scrollable list to the panel's rounded corners */
       z-index: 200;
     }
-    .chat-path-ac.open { display: block; }
+    .chat-ac-panel.open { display: flex; }
+    .chat-path-ac {
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow-y: auto;
+      margin: 0;
+      padding: 4px 0;
+      list-style: none;
+    }
     .chat-path-ac li {
       padding: 0.4rem 0.65rem;
       font-size: var(--text-xs);
@@ -910,6 +915,21 @@
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+    }
+    /* Persistent footer below the list — always the same "how to use this"
+       copy, so it never competes with the list above it for space (the list
+       scrolls internally via .chat-path-ac's own overflow-y). */
+    .chat-path-ac-hint {
+      flex: 0 0 auto;
+      padding: 0.4rem 0.65rem;
+      font-size: var(--text-2xs);
+      font-family: var(--font-mono);
+      font-style: italic;
+      color: var(--muted);
+      /* hairline-faint, not border-strong — this line only needs to read as
+         "whitespace with a hint of a seam" inside a panel that already has
+         its own outer border, not a second real separator. */
+      border-top: var(--bd-w) solid var(--hairline-faint);
     }
 
     /* Single-row capsule composer — was textarea-on-top + a separate fixed

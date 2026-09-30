@@ -157,7 +157,6 @@
       flex: 0 0 256px; width: 256px;
       display: flex; flex-direction: column;
       border-left: var(--bd-w) solid var(--hairline);
-      border-radius: 0; /* internal seam within the modal */
       background: var(--surface-soft);
     }
     .lb-sidebar-head {
@@ -165,7 +164,6 @@
       display: flex; align-items: center; gap: 0.5rem;
       padding: 0.75rem 0.875rem;
       border-bottom: var(--bd-w) solid var(--hairline);
-      border-radius: 0;
       min-height: 44px;
     }
     .lb-sidebar-title {
@@ -201,7 +199,7 @@
       font-family: var(--font-mono);
       font-size: var(--text-xs); font-weight: 400;
     }
-    .lb-divider { height: 2px; background: var(--border); border-radius: 0; margin: 0.5rem 0 0.875rem; }
+    .lb-divider { height: 2px; background: var(--border); margin: 0.5rem 0 0.875rem; }
 
     /* ── Linked note cards ───────────────────────────────────────── */
     .lb-note-card {

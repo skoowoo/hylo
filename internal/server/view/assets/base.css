@@ -19,6 +19,20 @@
       border-radius: var(--r-md);
     }
 
+    /* Opt-out utility for anything whose whole job is to render as a flat
+       line/seam (a divider, a hairline border on one side, a thin
+       background bar) rather than a "shaped" surface — the 8px default
+       above rounds these the same as a button or card, which turns a
+       single-side border into a little rounded pill at both ends, or a
+       background rule into a rounded-cap bar. Add this class instead of
+       re-deriving `border-radius: 0` ad hoc at each new divider. Always a
+       real element, never a ::before/::after — a class can't target a
+       pseudo-element, and every divider in the app already draws itself
+       this way, so there's never a second case for this rule to cover. */
+    .hairline {
+      border-radius: 0;
+    }
+
     /* Native selection (CM6 runs without drawSelection, so this is what
        the editor shows too) in brand tint instead of the system blue. */
     ::selection { background: var(--selection-bg); }

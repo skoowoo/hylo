@@ -2,7 +2,7 @@
   <div class="home-shell"
        :class="{'content-pane-open': (contentPaneOpen || inboxSheetOpen), 'is-resizing': isPaneResizing, 'is-editor-maximized': splitRatio <= 0.02}"
        :style="'--split-ratio:' + splitRatio + ';--split-ratio-inv:' + (1 - splitRatio)">
-    <aside class="home-side" id="home-side">
+    <aside class="home-side hairline" id="home-side">
       <div class="home-side-top">
         <button type="button" class="icon-btn-ghost"
                 :title="/Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent) ? 'Search (⌘K)' : 'Search (Ctrl+K)'"
@@ -77,7 +77,7 @@
           </div>
         </div>
 
-        <div class="home-side-sep"></div>
+        <div class="home-side-sep hairline"></div>
 
         <div class="home-side-group">
           <button type="button" class="side-nav-item home-side-item home-side-item--parent"
@@ -135,7 +135,7 @@
           <span class="home-side-label">Memory</span>
         </button>
 
-        <div class="home-side-sep"></div>
+        <div class="home-side-sep hairline"></div>
 
         <button type="button" class="side-nav-item home-side-item" :class="{'is-active': activeKey === 'pinned'}"
                 @click="selectSection('pinned', '/home/section?type=pinned')">

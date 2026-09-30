@@ -637,7 +637,7 @@ const homeTagsSectionHTML = `{{define "tags"}}{{if .Selected}}<div class="home-l
       <div class="tag-picker-search">
         <input x-ref="tpInput" type="text" x-model="tpQuery" placeholder="Filter tags…" @keydown.escape="tpOpen=false">
       </div>
-      <div class="cselect-divider"></div>
+      <div class="cselect-divider hairline"></div>
       <button type="button" class="cselect-option tag-picker-alltags" @click="selectSection('tags', '/home/section?type=tags'); tpOpen=false">
         <svg fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
           <rect width="7" height="7" x="3" y="3" rx="1" /><rect width="7" height="7" x="14" y="3" rx="1" />
@@ -645,7 +645,7 @@ const homeTagsSectionHTML = `{{define "tags"}}{{if .Selected}}<div class="home-l
         </svg>
         <span>All tags</span>
       </button>
-      <div class="cselect-divider"></div>
+      <div class="cselect-divider hairline"></div>
       <div class="tag-picker-options">
         {{$sel := .Selected}}
         {{range .Tags}}
@@ -875,8 +875,8 @@ const homeImagesLightboxHTML = `
              :alt="lightbox ? lightbox.name : ''"
              draggable="false">
       </div>
-      <aside class="lb-sidebar">
-        <div class="lb-sidebar-head">
+      <aside class="lb-sidebar hairline">
+        <div class="lb-sidebar-head hairline">
           <span class="lb-sidebar-title" x-text="lightbox ? lightbox.name : ''"></span>
           <button type="button" class="lb-delete-btn" title="Delete image"
                   x-show="lightbox"
@@ -905,7 +905,7 @@ const homeImagesLightboxHTML = `
           <template x-if="!lightbox || !lightbox.notes || lightbox.notes.length === 0">
             <div class="lb-no-notes">No linked notes</div>
           </template>
-          <div class="lb-divider"></div>
+          <div class="lb-divider hairline"></div>
           <div class="lb-section-label">Info</div>
           <div class="lb-field">
             <div class="lb-field-label">Filename</div>
@@ -947,13 +947,13 @@ const homeGraphSectionHTML = `<div class="graph-main">
           <path stroke-linecap="round" d="M12 5v14M5 12h14"/>
         </svg>
       </button>
-      <div class="graph-zoom-divider"></div>
+      <div class="graph-zoom-divider hairline"></div>
       <button type="button" class="icon-btn-ghost graph-zoom-btn" title="Zoom out" @click="zoomOut()">
         <svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
           <path stroke-linecap="round" d="M5 12h14"/>
         </svg>
       </button>
-      <div class="graph-zoom-divider"></div>
+      <div class="graph-zoom-divider hairline"></div>
       <button type="button" class="icon-btn-ghost graph-zoom-btn" title="Fit all nodes" @click="zoomFit()">
         <svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" d="M8 3H5a2 2 0 0 0-2 2v3"/>
@@ -1072,7 +1072,10 @@ const homeChatSectionHTML = `<div class="chat-main" id="chat-root">
 
   <div class="chat-input-outer" id="chat-input-outer">
     <div class="chat-ac-wrap">
-      <ul class="chat-path-ac" id="chat-path-ac" role="listbox" aria-expanded="false" hidden></ul>
+      <div class="chat-ac-panel" id="chat-ac-panel" aria-expanded="false" hidden>
+        <ul class="chat-path-ac" id="chat-path-ac" role="listbox"></ul>
+        <div class="chat-path-ac-hint hairline" id="chat-path-ac-hint" hidden></div>
+      </div>
       <div class="chat-input-card" id="chat-input-card">
         <div class="chat-input-hint" id="chat-input-hint" aria-hidden="true">
           <span class="chat-hint-name" id="chat-hint-name"></span>

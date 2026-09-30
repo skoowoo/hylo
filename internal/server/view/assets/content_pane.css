@@ -153,7 +153,7 @@
     .content-pane-rename-input {
       flex: 1; min-width: 0; background: transparent; border: none; outline: none;
       border-bottom: var(--bd-w) solid var(--accent);
-      padding: 0; border-radius: 0;
+      padding: 0;
       font-size: var(--text-xs); font-family: var(--font-mono);
       color: var(--fg);
     }

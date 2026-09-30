@@ -164,7 +164,6 @@
     .graph-zoom-divider {
       width: 2px;
       background: var(--border-strong);
-      border-radius: 0;
       margin: 4px 1px;
     }
 

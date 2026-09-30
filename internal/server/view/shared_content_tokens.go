@@ -15,7 +15,7 @@ package view
 const contentTokensShared = `
       --bq-bd:rgba(var(--accent-rgb),0.55);
       --ul-mk:var(--prose-body); --ol-mk:var(--prose-body);
-      --code-bg:rgba(var(--ink-rgb),0.055); --code-bd:rgba(var(--ink-rgb),0.10);
+      --code-bg:rgba(var(--ink-rgb),0.055);
       --th-bg:rgba(var(--ink-rgb),0.04); --tbl-bd:rgba(var(--ink-rgb),0.12);
       /* h6 rides the same muted-soft tier both themes already use for
          lowest-emphasis text — a heading that size doesn't need its own hue,
@@ -29,7 +29,7 @@ const contentTokensDark = `
       --h1:#eef0f4; --h2:#d0d6e0; --h3:#adb2bc; --h4:#8d92a0; --h5:#797e8c;
       --prose-body:#ccd1db;
       --prose-strong:#eef0f4; --prose-em:#ccd1db;
-      --pre-bg:rgba(var(--ink-rgb),0.055); --pre-bd:rgba(var(--ink-rgb),0.13); --pre-tx:#e9ebf0;
+      --pre-tx:#e9ebf0;
       --code-tx:#ccd1db;
       --bq-tx:rgba(208,214,224,0.85);
       --th-tx:#9a9fa8; --td-tx:#ccd1db; --tbl-bd:rgba(var(--ink-rgb),0.12);
@@ -47,7 +47,7 @@ const contentTokensLight = `
       --h1:#111111; --h2:#1f2937; --h3:#374151; --h4:#6b7280; --h5:#838896;
       --prose-body:#374151;
       --prose-strong:#111111; --prose-em:#374151;
-      --pre-bg:rgba(var(--ink-rgb),0.055); --pre-bd:rgba(var(--ink-rgb),0.13); --pre-tx:#111111;
+      --pre-tx:#111111;
       --code-tx:#374151;
       --bq-tx:rgba(55,65,81,0.88);
       --th-tx:#9ca3af; --td-tx:#374151; --tbl-bd:rgba(var(--ink-rgb),0.12);

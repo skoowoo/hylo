@@ -80,7 +80,7 @@ func RenderShortNoteFileToHTML(body []byte, exists func(string) bool) ([]byte, e
 		e := &entries[i]
 		if len(bytes.TrimSpace(e.BodyMD)) == 0 {
 			// Still show timestamp-only bubble
-			buf.WriteString(`<div class="short-entry-card" role="listitem">`)
+			buf.WriteString(`<div class="short-entry-card hairline" role="listitem">`)
 			if e.Timestamp != "" {
 				buf.WriteString(`<div class="short-entry-time"><span class="short-entry-time-inner">`)
 				buf.WriteString(html.EscapeString(e.Timestamp))
@@ -94,7 +94,7 @@ func RenderShortNoteFileToHTML(body []byte, exists func(string) bool) ([]byte, e
 		if err != nil {
 			return nil, fmt.Errorf("short entry (file order %d): %w", i, err)
 		}
-		buf.WriteString(`<div class="short-entry-card" role="listitem">`)
+		buf.WriteString(`<div class="short-entry-card hairline" role="listitem">`)
 		if e.Timestamp != "" {
 			buf.WriteString(`<div class="short-entry-time"><span class="short-entry-time-inner">`)
 			buf.WriteString(html.EscapeString(e.Timestamp))

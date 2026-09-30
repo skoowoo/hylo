@@ -53,7 +53,6 @@ const settingsModalCSS = `
       /* --hairline, not --border — matches .home-side's sidebar/content
          seam (home.css) so both dividers read at the same weight. */
       border-right: var(--bd-w) solid var(--hairline);
-      border-radius: 0; /* internal seam within the modal */
       background: var(--surface-soft);
       padding: 1rem 0.5rem; display: flex; flex-direction: column;
       gap: 2px; user-select: none;
@@ -118,7 +117,7 @@ const settingsModalCSS = `
       flex-shrink: 0; display: flex; align-items: center;
       justify-content: space-between; flex-wrap: wrap;
       gap: 0.75rem 1rem; margin-top: 2rem; padding-top: 1.25rem;
-      border-top: var(--bd-w) solid var(--hairline); border-radius: 0; max-width: 640px;
+      border-top: var(--bd-w) solid var(--hairline); max-width: 640px;
     }
     .cfg-action-left { display: flex; align-items: center; gap: 0.75rem; flex: 1; min-width: 0; }
     .cfg-action-right { display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0; }
@@ -158,7 +157,7 @@ const settingsModalCSS = `
       text-align: left; color: inherit;
     }
     .cfg-section-head:hover { background: var(--card-hov); }
-    .cfg-section.is-open .cfg-section-head { border-bottom: var(--bd-w) solid var(--hairline); border-radius: 0; }
+    .cfg-section.is-open .cfg-section-head { border-bottom: var(--bd-w) solid var(--hairline); }
     .cfg-section-head-text { min-width: 0; flex: 1; }
     .cfg-section-title {
       font-size: var(--text-sm); font-weight: 600; letter-spacing: -0.01em;
@@ -184,7 +183,7 @@ const settingsModalCSS = `
       grid-template-columns: 1fr 220px;
       grid-template-areas: "meta ctrl" "desc desc";
       column-gap: 1rem; padding: 0.88rem 0;
-      border-bottom: var(--bd-w) solid var(--hairline); border-radius: 0; align-items: center;
+      border-bottom: var(--bd-w) solid var(--hairline); align-items: center;
     }
     .cfg-field.multiline {
       grid-template-columns: 1fr;
@@ -206,7 +205,7 @@ const settingsModalCSS = `
       font-family: var(--font-mono);
     }
     .cfg-field-desc { grid-area: desc; font-size: var(--text-xs); color: var(--muted); margin: 0.35rem 0 0; line-height: 1.5; }
-    .cfg-wechat-auth { padding: 0.88rem 0 0; border-top: var(--bd-w) solid var(--hairline); border-radius: 0; }
+    .cfg-wechat-auth { padding: 0.88rem 0 0; border-top: var(--bd-w) solid var(--hairline); }
     .cfg-wechat-auth-head {
       display: flex; align-items: center; justify-content: space-between;
       gap: 0.75rem; margin-bottom: 0.65rem;
@@ -351,7 +350,7 @@ const settingsModalCSS = `
     .shortcuts-list { display: flex; flex-direction: column; }
     .shortcuts-row {
       display: flex; align-items: center; justify-content: space-between;
-      padding: 0.55rem 0; border-bottom: var(--bd-w) solid var(--hairline); border-radius: 0; gap: 1rem;
+      padding: 0.55rem 0; border-bottom: var(--bd-w) solid var(--hairline); gap: 1rem;
     }
     .shortcuts-list .shortcuts-row:last-child { border-bottom: none; }
     .shortcuts-row-meta { min-width: 0; flex: 1; }
@@ -416,9 +415,11 @@ const settingsModalCSS = `
       text-transform: uppercase; color: var(--fg); margin: 0;
       display: flex; align-items: center; gap: 0.6rem; white-space: nowrap;
     }
-    .agent-bot-form-section-title::after {
-      content: ''; flex: 1; height: 2px; background: var(--hairline); border-radius: 0;
-    }
+    /* Trailing rule after the title text — a real element (like every other
+       divider in the app) rather than a ::after, so it's just .hairline
+       like anything else instead of needing that class taught about
+       pseudo-elements for this one caller. */
+    .agent-bot-form-section-rule { flex: 1; height: 2px; background: var(--hairline); }
     .agent-bot-trigger-section-top { display: flex; flex-direction: column; gap: 0.4rem; }
     .agent-bot-section-desc { font-size: var(--text-sm); color: var(--muted); line-height: 1.5; margin: 0; }
     .agent-bot-form-row { display: flex; gap: 1rem; }
@@ -474,7 +475,7 @@ const settingsModalCSS = `
       display: flex; align-items: center; justify-content: space-between;
       /* Header-to-body seam inside .agent-bot-trigger-card, which reads as
          a card from its own surface-soft background (above), not a line. */
-      padding-bottom: 0.75rem; border-bottom: var(--bd-w) solid var(--hairline); border-radius: 0;
+      padding-bottom: 0.75rem; border-bottom: var(--bd-w) solid var(--hairline);
     }
     .agent-bot-trigger-label { font-size: var(--text-sm); font-weight: 600; color: var(--fg); }
     .agent-bot-trigger-hdr-actions { display: flex; align-items: center; gap: 0.65rem; }
@@ -498,7 +499,7 @@ const settingsModalCSS = `
     .agent-bot-schedule-kind-body { margin-bottom: 0.85rem; }
     .agent-bot-form-footer {
       display: flex; align-items: center; gap: 0.5rem;
-      margin-top: 0.25rem; padding-top: 1.1rem; border-top: var(--bd-w) solid var(--hairline); border-radius: 0;
+      margin-top: 0.25rem; padding-top: 1.1rem; border-top: var(--bd-w) solid var(--hairline);
     }
     /* Save/Cancel now use the shared .btn-solid / .btn-outline (base.css). */
     .agent-bot-form-err { flex: 1; font-size: var(--text-xs); color: var(--s-err); }
@@ -568,7 +569,7 @@ func settingsModalHTML() string {
       <div class="settings-modal-inner">
 
         <!-- Primary sidebar -->
-        <nav class="settings-sidebar">
+        <nav class="settings-sidebar hairline">
           <button class="side-nav-item settings-sidebar-item"
                   :class="{'is-active': tab === 'appearance'}"
                   @click="tab = 'appearance'">
@@ -744,7 +745,7 @@ func settingsModalHTML() string {
 
                 <template x-for="section in sectionTabs" :key="section">
                   <section class="cfg-section" :class="{ 'is-open': openSection === section }" x-show="!cfgLoading && !cfgError">
-                    <button type="button" class="cfg-section-head" @click="toggleSection(section)">
+                    <button type="button" class="cfg-section-head hairline" @click="toggleSection(section)">
                       <div class="cfg-section-head-text">
                         <span class="cfg-section-title" x-text="sectionLabel(section)"></span>
                         <span class="cfg-section-head-desc"
@@ -763,7 +764,7 @@ func settingsModalHTML() string {
                     <div class="cfg-section-body" x-show="openSection === section">
                       <div class="cfg-fields">
                         <template x-for="field in fieldsForSection(section)" :key="field.key">
-                          <div class="cfg-field" :class="{dirty: isDirty(field.key), multiline: field.multiline}">
+                          <div class="cfg-field hairline" :class="{dirty: isDirty(field.key), multiline: field.multiline}">
                             <div class="cfg-field-meta">
                               <span class="cfg-field-label" x-text="field.label"></span>
                               <code class="cfg-field-key" x-text="field.key"></code>
@@ -842,7 +843,7 @@ func settingsModalHTML() string {
                         </template>
                       </div>
 
-                      <div class="cfg-wechat-auth" x-show="section === 'plugins.wechat'">
+                      <div class="cfg-wechat-auth hairline" x-show="section === 'plugins.wechat'">
                         <div class="cfg-wechat-auth-head">
                           <span class="cfg-wechat-auth-title">WeChat login</span>
                           <span class="badge"
@@ -888,7 +889,7 @@ func settingsModalHTML() string {
                         <p class="cfg-wechat-ok" x-show="wechatLoginOk">Connected — restart the server to start the bridge.</p>
                       </div>
 
-                      <div class="cfg-wechat-auth" x-show="section === 'plugins.discord'">
+                      <div class="cfg-wechat-auth hairline" x-show="section === 'plugins.discord'">
                         <div class="cfg-wechat-auth-head">
                           <span class="cfg-wechat-auth-title">Discord Bot status</span>
                           <span class="badge"
@@ -910,7 +911,7 @@ func settingsModalHTML() string {
                   </section>
                 </template>
 
-                <div class="cfg-action-bar" x-show="!cfgLoading && !cfgError">
+                <div class="cfg-action-bar hairline" x-show="!cfgLoading && !cfgError">
                   <div class="cfg-action-left">
                     <span class="cfg-status-ok" x-show="cfgSaveOk && !hasDirty">Saved — restart server to apply</span>
                     <span class="cfg-status-err" x-show="cfgSaveError" x-text="cfgSaveError"></span>
@@ -940,7 +941,7 @@ func settingsModalHTML() string {
             <div class="shortcuts-fields">
               <div class="shortcuts-list">
                 <template x-for="s in shortcutDefs" :key="s.id">
-                  <div class="shortcuts-row">
+                  <div class="shortcuts-row hairline">
                     <div class="shortcuts-row-meta">
                       <span class="shortcuts-label" x-text="s.label"></span>
                       <span class="shortcuts-desc" x-text="s.desc"></span>
@@ -1088,7 +1089,7 @@ func settingsModalHTML() string {
                 </div>
                 <div class="agent-bot-form">
                   <section class="agent-bot-form-section">
-                    <h3 class="agent-bot-form-section-title">Profile</h3>
+                    <h3 class="agent-bot-form-section-title">Profile<span class="agent-bot-form-section-rule hairline"></span></h3>
                     <div class="agent-bot-form-row">
                       <div>
                         <label class="agent-bot-form-label">Name</label>
@@ -1109,7 +1110,7 @@ func settingsModalHTML() string {
                   </section>
 
                   <section class="agent-bot-form-section">
-                    <h3 class="agent-bot-form-section-title">Agent</h3>
+                    <h3 class="agent-bot-form-section-title">Agent<span class="agent-bot-form-section-rule hairline"></span></h3>
                     <div class="agent-bot-form-row">
                       <div>
                         <label class="agent-bot-form-label">Agent</label>
@@ -1141,14 +1142,14 @@ func settingsModalHTML() string {
                   <section class="agent-bot-form-section agent-bot-form-section-triggers">
                     <div class="agent-bot-trigger-section-top">
                       <div class="agent-bot-trigger-section-hdr">
-                        <h3 class="agent-bot-form-section-title">Triggers</h3>
+                        <h3 class="agent-bot-form-section-title">Triggers<span class="agent-bot-form-section-rule hairline"></span></h3>
                       </div>
                       <p class="agent-bot-section-desc">Automatically run this agent bot on vault events or on a schedule. Each trigger sends a prompt template to the agent.</p>
                     </div>
                     <div class="agent-bot-trigger-list">
                       <template x-for="(t, ti) in agentBotTriggers" :key="ti">
                         <div class="agent-bot-trigger-card">
-                          <div class="agent-bot-trigger-hdr">
+                          <div class="agent-bot-trigger-hdr hairline">
                             <span class="agent-bot-trigger-label">Trigger <span x-text="ti+1"></span></span>
                             <div class="agent-bot-trigger-hdr-actions">
                               <button class="agent-bot-trigger-del" type="button" @click="removeAgentBotTrigger(ti)">Remove</button>
@@ -1278,7 +1279,7 @@ func settingsModalHTML() string {
                     <button class="agent-bot-trigger-add" type="button" @click="addAgentBotTrigger()" style="margin-top:0.25rem;">+ Add trigger</button>
                   </section>
 
-                  <div class="agent-bot-form-footer">
+                  <div class="agent-bot-form-footer hairline">
                     <button class="btn-solid" type="button"
                             :disabled="!agentBotDraft.name.trim() || agentBotSaving"
                             @click="saveAgentBot()"

@@ -112,7 +112,7 @@
               <!-- Renaming only ever targets the active tab — same slot the
                    title span above occupies, swapped in instead of it. -->
               <template x-if="i === activeTab">
-                <input type="text" id="content-pane-rename-input" class="content-pane-rename-input"
+                <input type="text" id="content-pane-rename-input" class="content-pane-rename-input hairline"
                        x-show="renaming" x-cloak
                        @click.stop
                        @input="checkRenameNameAvailable()"
@@ -190,7 +190,7 @@
                 </template>
                 <div class="content-pane-tabs-menu-empty" x-show="tabs.length === 0">No open tabs</div>
               </div>
-              <div class="content-pane-more-divider" role="separator"></div>
+              <div class="content-pane-more-divider hairline" role="separator"></div>
               <!-- Not a feature — mousedown-outside/Esc/picking a tab above
                    already dismisses this menu; same convenience row as the
                    more menu's Close (content_pane.css reuses its classes
@@ -312,7 +312,7 @@
                 </svg>
                 Delete
               </button>
-              <div class="content-pane-more-divider" role="separator"></div>
+              <div class="content-pane-more-divider hairline" role="separator"></div>
               <!-- Not a feature — mousedown-outside/Esc/picking any row above
                    already dismisses the menu; this just gives mouse-only
                    users the same escape hatch, so it's set apart by the

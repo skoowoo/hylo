@@ -142,7 +142,6 @@
          in tone now that the full-contrast --border reads as too heavy a
          seam; the ink-alpha hairline keeps the boundary a thin, quiet line. */
       border-right: var(--bd-w) solid var(--hairline);
-      border-radius: 0;
       /* Every "currently active" row in here (.home-side-item.is-active,
          .home-side-child.is-active, the content-pane-toggle icon button) just
          consumes the generic --control-active-bg, same as any other
@@ -269,7 +268,6 @@
     .home-side-sep {
       flex-shrink: 0;
       height: var(--bd-w); background: var(--hairline); margin: 11px 8px;
-      border-radius: 0; /* divider line — never rounds */
     }
     /* Row/hover/active/icon now come from the shared .side-nav-item /
        .side-nav-icon (base.css) — --control-active-bg still resolves to
@@ -852,7 +850,6 @@
     .short-entry-card {
       padding: 16px 0;
       border-bottom: 1px solid var(--border);
-      border-radius: 0;
       transition: opacity var(--motion-fast) ease;
     }
     .short-entry-card:last-child {

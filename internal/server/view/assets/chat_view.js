@@ -83,15 +83,44 @@
   async function chatMentionSearch(query, signal) {
     var resp = await fetch('/api/search', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ q: query, type: 'name', limit: 8 }), signal: signal,
+      body: JSON.stringify({ q: query, type: 'name', limit: 30 }), signal: signal,
     });
     if (!resp.ok) return [];
     var data = await resp.json();
     var results = Array.isArray(data.results) ? data.results : [];
     return results.map(function (r) {
       var stem = (typeof r.name === 'string' ? r.name : '').replace(/\.md$/i, '');
-      var dir = (r.dir || '').replace(/^\/+/, '');
-      return { label: stem, value: stem, sub: dir || '/' };
+      return { label: stem, value: stem };
+    });
+  }
+
+  // Vault-relative note path -> filename stem (no directory), for turning a
+  // tab's path into the same "[[stem]]" value chatMentionSearch produces.
+  // Folder info is left out of the list on purpose — with it, rows carried
+  // two lines each and the default/search list read as too sparse.
+  function noteStem(path) {
+    var p = String(path || '').replace(/^\/+/, '');
+    var slash = p.lastIndexOf('/');
+    var name = slash === -1 ? p : p.slice(slash + 1);
+    return name.replace(/\.md$/i, '');
+  }
+
+  // Default "@" list: every open editor tab, active one pinned first —
+  // referencing whatever note you're already looking at is the single most
+  // common case, so it lands on the row the picker pre-selects (item 0),
+  // no extra badge or color needed to make the point. Tabs without a
+  // materialized path (a brand-new, never-saved tab) can't become a
+  // "[[stem]]" wikilink, so they're skipped.
+  function chatMentionDefaultItems() {
+    var pane = window.__vaultrContentPane;
+    var tabs = pane && Array.isArray(pane.tabs) ? pane.tabs : [];
+    var activeIdx = pane ? pane.activeTab : -1;
+    var withPath = [];
+    tabs.forEach(function (t, i) { if (t && t.path) withPath.push({ tab: t, active: i === activeIdx }); });
+    withPath.sort(function (a, b) { return (b.active ? 1 : 0) - (a.active ? 1 : 0); });
+    return withPath.map(function (x) {
+      var stem = noteStem(x.tab.path);
+      return { label: x.tab.title || stem, value: stem };
     });
   }
 
@@ -302,7 +331,7 @@
       mount: function (slot, seg, ctx, i, msg, rec) {
         var streamingLast = ctx.running && i === ctx.lastThink;
         var open = isOpen(seg);
-        var wrap = el('div', 'seg-thinking');
+        var wrap = el('div', 'seg-thinking hairline');
         var btn = el('button', 'seg-thinking-toggle' + (open ? ' open' : '') + (streamingLast ? ' is-streaming' : ''));
         btn.type = 'button';
         btn.appendChild(svg(CHEVRON));
@@ -921,8 +950,11 @@
       ac = root.__vaultrPathAcCreate({
         getInput: function () { return ta; },
         getList: function () { return rootEl.querySelector('#chat-path-ac'); },
+        getPanel: function () { return rootEl.querySelector('#chat-ac-panel'); },
+        getHint: function () { return rootEl.querySelector('#chat-path-ac-hint'); },
         parseCtx: chatAcParseCtx,
         search: chatMentionSearch,
+        getDefaultItems: chatMentionDefaultItems,
         onApply: function (input, newVal, caretPos) {
           if (detaching) return;
           input.value = newVal;

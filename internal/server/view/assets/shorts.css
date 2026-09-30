@@ -197,7 +197,6 @@
       padding: var(--space-lg) 0 var(--space-xxl);
       padding-top: 16px;
       border-top: var(--bd-w) solid var(--border-strong);
-      border-radius: 0;
       text-align: center;
       font-size: var(--text-3xs);
       font-family: var(--font-mono);

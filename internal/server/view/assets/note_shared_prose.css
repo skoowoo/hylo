@@ -77,7 +77,10 @@
     .prose blockquote > :last-child { margin-bottom: 0; }
     .prose blockquote p::before, .prose blockquote p::after { content: none; }
     .prose pre {
-      background: var(--pre-bg); border: 1px solid var(--pre-bd);
+      /* --th-bg, not --pre-bg, and no border — matches the CM live-preview
+         editor's .cm-lp-codeblock (theme.js) exactly, so a note's rendered
+         view and its editing view show identical code-block chrome. */
+      background: var(--th-bg);
       border-radius: var(--r-sm);
       padding: 1.25rem 1.5rem; overflow-x: auto; line-height: 1.65;
       margin: 1.5em 0;
@@ -90,8 +93,9 @@
     }
     .prose :not(pre) > code {
       font-family: var(--font-mono);
-      color: var(--code-tx); background: var(--code-bg);
-      border: 1px solid var(--code-bd);
+      /* --th-bg, not --code-bg, and no border — matches the CM live-preview
+         editor's .cm-lp-code (theme.js) exactly. */
+      color: var(--code-tx); background: var(--th-bg);
       border-radius: var(--r-xs);
       padding: 0.15em 0.42em; font-size: 0.85em;
     }
@@ -125,7 +129,12 @@
     }
     .prose td:last-child { border-right: none; }
     .prose tr:last-child td { border-bottom: none; }
-    .prose hr { border: none; border-top: 1px solid var(--border); margin: 2em 0; }
+    /* border-radius: 0 — same override as .prose th/td above: without it,
+       the global *{border-radius} reset (base.css) rounds this border-top's
+       own two corners, so every markdown "---" rule reads as a tiny rounded
+       pill instead of a flat line. Goldmark emits a bare <hr>, so there's no
+       class to hang the shared .hairline utility off of here. */
+    .prose hr { border: none; border-top: 1px solid var(--border); border-radius: 0; margin: 2em 0; }
     .prose img { border: 1px solid var(--tbl-bd); border-radius: var(--r-sm); max-width: 100%; height: auto; }
 
     /* ── Task list (GFM - [ ] / - [x]) ──────────────────────────── */
