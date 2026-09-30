@@ -1154,7 +1154,7 @@ var homePageHTML = `<!DOCTYPE html>
 ` + alpineStoresScript + `
   });
 
-` + keysJS + pathAcScript + chatReduceJS + chatTextJS + chatKernelJS + chatViewJS + listTightenJS + editorSessionJS + contentPaneScript + searchOverlayScript + confirmDialogJS + infoDialogJS + frontmatterDialogJS + settingsCtrlJS + homeJS + `
+` + keysJS + pathAcScript + chatReduceJS + chatTextJS + chatKernelJS + chatViewJS + listTightenJS + tabFitJS + editorSessionJS + contentPaneScript + searchOverlayScript + confirmDialogJS + infoDialogJS + frontmatterDialogJS + settingsCtrlJS + homeJS + `
   </script>
 ` + noteSharedJS + `
 </body>

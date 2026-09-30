@@ -61,6 +61,9 @@ var chatViewJS string
 //go:embed assets/list_tighten.js
 var listTightenJS string
 
+//go:embed assets/tab_fit.js
+var tabFitJS string
+
 //go:embed assets/editor_session.js
 var editorSessionJS string
 

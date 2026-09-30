@@ -8,7 +8,7 @@
          choreography (content_pane.css) instead of each animating on its own. -->
     <div class="content-pane-panel" x-show="!inboxSheetOpen">
 
-      <!-- ① Tool bar: maximize | path/rename | save status | note actions -->
+      <!-- ① Tool bar: maximize | tab strip (+ overflow) | note actions -->
       <div class="content-pane-tool-bar">
         <!-- Maximize/restore — unconditional (doesn't depend on create vs
              edit mode below), same spot/icon the old tab bar's own button
@@ -27,43 +27,22 @@
             <path d="M9 19v-4H5"/><path d="M15 19v-4h4"/>
           </svg>
         </button>
-        <!-- Path label + save status + note actions. Every tab is a real
-             note from its first keystroke onward (see content_pane.js's
-             __vaultrEditorMaterializeTab) — there's no separate create-mode
-             toolbar; a brand-new, not-yet-materialized tab just shows
-             "Untitled" here until that first edit lands. -->
-        <span id="content-pane-path-text" class="content-pane-path-text"
-              x-show="!renaming && activeTab >= 0"
-              @dblclick="renameActiveNote()" title="Double-click to rename"></span>
-        <!-- Filename only, no extension — ".md" is implicit (ensureMarkdownName). -->
-        <input type="text" id="content-pane-rename-input" class="content-pane-rename-input"
-               x-show="renaming" x-cloak
-               @input="checkRenameNameAvailable()"
-               @keydown.enter="submitRenameActiveNote()"
-               @keydown.escape="cancelRenameActiveNote()"
-               @blur="submitRenameActiveNote()" />
-        <span id="content-pane-save-status" class="content-pane-save-status"
-              x-show="activeTab >= 0">
-          <svg class="ssi-pending" width="8" height="8" viewBox="0 0 8 8" fill="currentColor">
-            <circle cx="4" cy="4" r="3.5"/>
-          </svg>
-          <svg class="ssi-saved" width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M2 7l4 4 6-6"/>
-          </svg>
-        </span>
-        <div class="content-pane-tool-actions" x-show="activeTab >= 0">
-          <!-- Tabs stay functionally the same (open several notes, switch,
-               close) — just a vertical dropdown list instead of a
-               horizontal strip. Each row is one open tab/draft. -->
-          <button type="button" class="icon-btn-ghost content-pane-reading-btn"
-                  @click.stop="editorMode.toggleReading()"
-                  :title="'Reading view (' + (isMac ? '⌘L' : 'Ctrl+L') + ')'">
-            <!-- lucide "book-open" -->
-            <svg fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
-              <path d="M12 7v14"/>
-              <path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/>
-            </svg>
-          </button>
+        <!-- Header tab strip: real per-tab chips instead of a single path
+             label. tabs' first tabVisibleCount entries are the visible
+             window, kept in stable (open-order) position by _activateTab
+             (content_pane.js) — switching among tabs already shown never
+             reorders them; only a tab arriving from the hidden/MRU tail
+             evicts one (the longest-untouched visible tab) to make room.
+             So the active tab can be anywhere in this loop, not just i=0 —
+             template bindings below compare against activeTab directly.
+             Each chip's width hugs its own title (content_pane.css's
+             --cp-tab-min-w/--cp-tab-max-w). How many fit is computed once
+             from off-row measurements (initTabstrip), then committed. -->
+        <div class="content-pane-tabstrip" id="content-pane-tabstrip"
+             x-show="activeTab >= 0" x-init="initTabstrip($el)">
+          <!-- x-data stays on this wrap, not the tabstrip: x-init above has
+               to run against the pane controller. The menu is a sibling of
+               the clip row so overflow:hidden doesn't trap it. -->
           <div class="content-pane-tabs-wrap" id="content-pane-tabs-wrap"
                x-data="{
                  tabsMenuOpen: false, tabsMenuActiveIndex: -1,
@@ -71,18 +50,101 @@
                }"
                @mousedown.outside="tabsMenuOpen = false"
                @content-pane:close-tabs.document="tabsMenuOpen = false">
-            <button type="button" class="icon-btn-ghost content-pane-tabs-btn"
+          <div class="content-pane-tabstrip-row" id="content-pane-tabstrip-row">
+          <template x-for="(tab, i) in visibleTabs()" :key="tab.id">
+            <!-- No x-transition:enter here — Alpine only plays a
+                 transition directive's enter/leave when something toggles
+                 via x-show/x-if; a plain x-for insertion just splices the
+                 node straight into the DOM with no hook into that
+                 machinery, so those attributes would be silently inert.
+                 Chips that slide (a close, or a tab promoted in from the
+                 overflow tail) are moved by content_pane.js's _flipApply.
+                 A chip entering the window fades via .is-entering, which
+                 has to be on its first paint — a later opacity write
+                 flashes it solid.
+                 A tab leaving the visible set (closed, or evicted to the
+                 hidden tail) isn't animated out at all, on purpose — that
+                 would hold its flex slot open for the transition's
+                 length and delay the *other* tabs' slide into filling
+                 the gap, turning one clean motion into two staggered
+                 ones. The slide itself already reads as "something
+                 left". -->
+            <div class="content-pane-tab" :data-tab-id="tab.id"
+                 :class="{ active: i === activeTab, 'is-entering': tabEntering[tab.id] }"
+                 :title="tab.path || 'Untitled'"
+                 @click="tabsMenuOpen = false; i !== activeTab && contentPaneSwitchTab(i)">
+              <span class="content-pane-tab-draft-icon" x-show="!tab.path" aria-hidden="true">
+                <svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 20h9"/>
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>
+                </svg>
+              </span>
+              <!-- Only the active tab can ever be dirty — one CodeMirror
+                   instance edits one tab at a time, and switching away
+                   flushes it first (contentPaneSwitchTab) — so this is the
+                   one chip that ever needs #content-pane-save-status, not
+                   one copy per chip (that'd be a duplicate-id DOM). Visible
+                   tabs keep a stable position now (_activateTab), so the
+                   active one isn't reliably i===0 any more — compare
+                   against activeTab directly, same as the dropdown below
+                   already does.
+
+                   The slot itself (not just its content) stays in every
+                   chip regardless of active state — mounting/unmounting
+                   #content-pane-save-status only when a tab becomes active
+                   used to change that chip's width by the icon's own size,
+                   which read as every tab jittering wider/narrower on each
+                   switch (content_pane.css's fixed slot width). -->
+              <span class="content-pane-tab-status-slot">
+                <template x-if="i === activeTab">
+                  <span id="content-pane-save-status" class="content-pane-save-status">
+                    <svg class="ssi-pending" width="8" height="8" viewBox="0 0 8 8" fill="currentColor">
+                      <circle cx="4" cy="4" r="3.5"/>
+                    </svg>
+                    <svg class="ssi-saved" width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M2 7l4 4 6-6"/>
+                    </svg>
+                  </span>
+                </template>
+              </span>
+              <span class="content-pane-tab-title" x-show="!(i === activeTab && renaming)"
+                    @dblclick="i === activeTab && tab.path && renameActiveNote()" x-text="tab.title"></span>
+              <!-- Renaming only ever targets the active tab — same slot the
+                   title span above occupies, swapped in instead of it. -->
+              <template x-if="i === activeTab">
+                <input type="text" id="content-pane-rename-input" class="content-pane-rename-input"
+                       x-show="renaming" x-cloak
+                       @click.stop
+                       @input="checkRenameNameAvailable()"
+                       @keydown.enter="submitRenameActiveNote()"
+                       @keydown.escape="cancelRenameActiveNote()"
+                       @blur="submitRenameActiveNote()" />
+              </template>
+              <button type="button" class="content-pane-tab-close"
+                      @click.stop="contentPaneCloseTab(i)" title="Close tab">
+                <svg fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" d="M18 6 6 18"/>
+                  <path stroke-linecap="round" d="m6 6 12 12"/>
+                </svg>
+              </button>
+            </div>
+          </template>
+          <!-- Always mounted as a lookup target for Cmd/Ctrl+T
+               (__vaultrContentPaneTabsMenuScope), even with nothing hidden.
+               The "+N" button itself is overflow-only and has no
+               enter/leave transition — a leave would keep it in the flex
+               row after the count changed and shove the last chip. -->
+            <button type="button" class="content-pane-tabs-overflow"
+                    x-show="hiddenTabCount() > 0"
                     @click.stop="toggleTabsMenu()"
                     :class="{ active: tabsMenuOpen }"
                     :title="'Open tabs (' + (isMac ? '⌘T' : 'Ctrl+T') + ')'">
-              <!-- lucide "swatch-book" -->
-              <svg fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
-                <path d="M11 17a4 4 0 0 1-8 0V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2Z"/>
-                <path d="M16.7 13H19a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2H7"/>
-                <path d="M 7 17h.01"/>
-                <path d="m11 8 2.3-2.3a2.4 2.4 0 0 1 3.404.004L18.6 7.6a2.4 2.4 0 0 1 .026 3.434L9.9 19.8"/>
+              <span x-text="'+' + hiddenTabCount()"></span>
+              <svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                <path d="m6 9 6 6 6-6"/>
               </svg>
             </button>
+          </div>
             <div class="content-pane-tabs-menu" x-show="tabsMenuOpen" x-cloak
                  x-transition:enter="transition ease-out duration-150"
                  x-transition:enter-start="opacity-0 -translate-y-2 scale-[0.97]"
@@ -99,10 +161,11 @@
                   <!-- active compares tab.id, not the loop index i, against
                        the active tab's id — comparing against i directly
                        went stale on the row Alpine reused/moved during a
-                       reorder (_moveActiveTabToFront splices+unshifts tabs
-                       on every switch): tab-scoped bindings (x-text, :title)
-                       tracked the move fine, but the outer-scope activeTab
-                       === i comparison didn't get re-evaluated on that node. -->
+                       reorder (_activateTab splices tabs around on
+                       eviction/promotion — content_pane.js): tab-scoped
+                       bindings (x-text, :title) tracked the move fine, but
+                       the outer-scope activeTab === i comparison didn't get
+                       re-evaluated on that node. -->
                   <div class="content-pane-tabs-menu-row" :class="{active: tab.id === (tabs[activeTab] && tabs[activeTab].id), 'kbd-active': tabsMenuActiveIndex === i}"
                        @click.stop="contentPaneSwitchTab(i); tabsMenuOpen = false" :title="tab.title">
                     <!-- Shape/color from the shared .dot/.dot--accent (base.css); only
@@ -142,6 +205,17 @@
               </button>
             </div>
           </div>
+        </div>
+        <div class="content-pane-tool-actions" x-show="activeTab >= 0">
+          <button type="button" class="icon-btn-ghost content-pane-reading-btn"
+                  @click.stop="editorMode.toggleReading()"
+                  :title="'Reading view (' + (isMac ? '⌘L' : 'Ctrl+L') + ')'">
+            <!-- lucide "book-open" -->
+            <svg fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+              <path d="M12 7v14"/>
+              <path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/>
+            </svg>
+          </button>
           <div class="content-pane-more-wrap" x-data="{ moreOpen: false, copied: false }"
                @mousedown.outside="moreOpen = false"
                @content-pane:close-more.document="moreOpen = false">
@@ -254,6 +328,13 @@
             </div>
           </div>
         </div>
+        <button type="button" class="icon-btn-ghost content-pane-close-btn"
+                @click.stop="contentPaneOpen = false"
+                title="Close">
+          <svg fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+            <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
+          </svg>
+        </button>
       </div>
 
       <!-- ③ Editor area — single CodeMirror 6 view; editorMode.enterSource/

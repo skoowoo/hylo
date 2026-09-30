@@ -174,8 +174,6 @@
       s.currentPath = data.path;
       s.dirty = true; // re-arm autosave — more may have been typed while the create call was in flight
       __vaultrEditorScheduleSave();
-      var ptEl = document.getElementById('content-pane-path-text');
-      if (ptEl) ptEl.textContent = data.path;
       if (window.__vaultrAfterVaultMutation) await window.__vaultrAfterVaultMutation();
     } catch(e) {
       window.showError((e && e.message) || 'Network error — your note may not be saved.', 'Save error');
@@ -831,8 +829,6 @@
     } else { clearTimeout(s.saveTimer); s.saveTimer = null; }
     if (!__vaultrEditorIsActiveTabId(tabId)) return false;
     __vaultrEditorSaveStatus('');
-    var ptEl = document.getElementById('content-pane-path-text');
-    if (ptEl) ptEl.textContent = path;
 
     // Load from server
     var resp = await fetch('/api/vault/read', {

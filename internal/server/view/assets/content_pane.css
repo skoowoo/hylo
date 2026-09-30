@@ -53,12 +53,10 @@
     .content-pane.open .content-pane-panel { transform: translateX(0); opacity: 1; }
 
     /* ── Tool bar ────────────────────────────────────────────────── */
-    /* The old horizontal tab strip is gone — tabs now live in the
-       dropdown below (.content-pane-tabs-menu), reachable via .content-pane-tabs-btn
-       next to the more-actions button. .content-pane-expand-btn (maximize/
-       restore) used to sit in that strip's own left slot; it's now just
-       the tool bar's first child. .content-pane-tab-draft-icon is still used —
-       each tab, wherever it's listed, marks an unsaved draft with it. */
+    /* A real horizontal tab strip again (.content-pane-tabstrip, below) —
+       .content-pane-tab-draft-icon marks an unsaved draft wherever a tab is
+       listed, here and in the overflow dropdown (.content-pane-tabs-menu)
+       both. */
     .content-pane-expand-btn {
       display: flex; align-items: center; justify-content: center;
       width: var(--action-btn-sz); height: var(--action-btn-sz);
@@ -82,15 +80,74 @@
       border-radius: 0; /* flush chrome strip */
       height: var(--toolbar-h);
     }
-    .content-pane-path-text {
-      flex: 1; min-width: 0; font-size: var(--text-xs);
-      font-family: var(--font-mono);
-      color: var(--muted);
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-      border-radius: 0;
-      cursor: text;
+    /* ── Header tab strip ──────────────────────────────────────────
+       Each chip hugs its title's width between --cp-tab-min-w and
+       --cp-tab-max-w (flex-shrink:0 — width is a pure function of the
+       tab's own content, never squeezed by how many siblings are
+       present), so a short filename doesn't waste the same room a long
+       one needs. initTabstrip measures each title once, off the row, and
+       commits tabVisibleCount in a single write. */
+    .content-pane-tabstrip {
+      --cp-tab-min-w: 72px; --cp-tab-max-w: 220px; --cp-tab-gap: 4px; --cp-tab-overflow-w: 44px;
+      /* Capped even on a wide editor — tabs are navigation, not the main
+         event; past 60% of the tool bar they'd start crowding out the
+         note-level actions on the right instead of just filling idle
+         space. initTabstrip measures this element's own (already-capped)
+         clientWidth, so the fit math needs no separate awareness of the
+         cap — it just sees a narrower box. */
+      flex: 1; min-width: 0; max-width: 60%; height: 100%;
+      /* Positioning root for .content-pane-tabs-menu (below). This box's
+         width comes from flex-grow/max-width, never from how many tabs are
+         inside, so the menu's right edge stays put when chips reflow.
+         No overflow clip here — the menu has to hang below the row. The
+         clip lives on .content-pane-tabstrip-row so a stale chip can't
+         paint over the toolbar actions for the frame before fit lands. */
+      position: relative;
     }
-    /* Inline rename box — same slot/typography as .content-pane-path-text
+    .content-pane-tabstrip-row {
+      display: flex; align-items: center; gap: var(--cp-tab-gap);
+      width: 100%; height: 100%; min-width: 0;
+      overflow: hidden;
+    }
+    .content-pane-tab-measure {
+      position: fixed; left: 0; top: 0; visibility: hidden; pointer-events: none;
+      width: max-content;
+    }
+    .content-pane-tab {
+      position: relative; flex: 0 0 auto; min-width: var(--cp-tab-min-w); max-width: var(--cp-tab-max-w);
+      transition: opacity var(--motion-fast) var(--ease-out);
+      height: 30px;
+      display: flex; align-items: center; gap: 0.35rem;
+      padding: 0 0.4rem;
+      border-radius: var(--r-sm);
+      color: var(--muted);
+      /* Faint at-rest fill (the same neutral ladder .icon-btn's rest state
+         uses) so an unselected tab still reads as "a chip sitting on the
+         toolbar" against the bare --bg strip, without competing with the
+         active tab's accent tint. */
+      background: var(--btn-bg);
+      cursor: pointer;
+    }
+    .content-pane-tab:hover { color: var(--fg); background: var(--btn-bg-hov); }
+    .content-pane-tab.active { color: var(--accent-text); background: var(--tint-md); cursor: default; }
+    /* First paint of a chip that just entered the window. The class is on
+       before that paint, then removed so this opacity transition fades it
+       in — setting opacity from JS a frame later flashes the chip solid. */
+    .content-pane-tab.is-entering { opacity: 0; }
+    /* Reserved regardless of active state — only #content-pane-save-status
+       inside it (below) actually mounts/unmounts per tab switch. Sizing
+       the slot itself, not just its sometime-content, is what keeps a
+       chip's width (and everything after it) from jumping every time
+       activation moves between tabs. */
+    .content-pane-tab-status-slot {
+      flex-shrink: 0; width: 16px; height: 16px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .content-pane-tab-title {
+      flex: 1; min-width: 0; font-size: var(--text-xs);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    /* Inline rename box — same slot/typography as .content-pane-tab-title
        (only one of the two is ever visible), but editable. Only the
        filename is ever shown/edited here; the directory never changes. */
     .content-pane-rename-input {
@@ -101,10 +158,44 @@
       color: var(--fg);
     }
     .content-pane-rename-input.invalid { color: var(--s-err); border-bottom-color: var(--s-err); }
-    .content-pane-tool-actions { flex-shrink: 0; display: flex; align-items: center; gap: 0.3rem; }
+    /* Close (✕) stays hidden until the tab itself is hovered — a per-tab
+       close button that's always on would out-compete the title for
+       attention across up to a handful of chips at once. */
+    .content-pane-tab-close {
+      flex-shrink: 0; width: 15px; height: 15px;
+      display: flex; align-items: center; justify-content: center;
+      border: none; background: transparent; color: inherit; cursor: pointer; padding: 0;
+      border-radius: var(--r-xs);
+      opacity: 0; pointer-events: none;
+    }
+    .content-pane-tab:hover .content-pane-tab-close { opacity: 0.7; pointer-events: auto; }
+    .content-pane-tab-close:hover { opacity: 1 !important; background: var(--tint-strong); }
+    .content-pane-tab-close svg { width: 9px; height: 9px; }
+    /* Overflow trigger ("+N ▾") — same footprint/rhythm as a tab chip so it
+       reads as "the strip continuing", not a separate toolbar icon; opens
+       the same dropdown the strip used to be entirely hidden behind. */
+    .content-pane-tabs-overflow {
+      flex: 0 0 auto; min-width: var(--cp-tab-overflow-w);
+      height: 30px; padding: 0 0.4rem;
+      display: flex; align-items: center; justify-content: center; gap: 2px;
+      border: none; background: transparent; color: var(--muted);
+      font-size: var(--text-2xs); font-weight: var(--fw-medium); font-variant-numeric: tabular-nums;
+      border-radius: var(--r-sm); cursor: pointer;
+    }
+    .content-pane-tabs-overflow:hover { color: var(--fg); background: var(--icon-hov); }
+    .content-pane-tabs-overflow.active { color: var(--accent-text); background: var(--tint-md); }
+    .content-pane-tabs-overflow svg { width: 10px; height: 10px; flex-shrink: 0; }
+    /* margin-left:auto claims whatever the tabstrip's own 60% cap left
+       unused and pushes this (and the close button right after it) flush
+       to the tool bar's true right edge — before the cap, the tabstrip's
+       flex:1 always grew to exactly fill that space itself, so nothing
+       here needed to ask for it; capped, the leftover space would
+       otherwise just sit dead between the last tab and this cluster
+       instead of at the row's actual end. */
+    .content-pane-tool-actions { flex-shrink: 0; display: flex; align-items: center; gap: 0.3rem; margin-left: auto; }
     .content-pane-save-status {
       flex-shrink: 0; display: flex; align-items: center; justify-content: center;
-      width: 16px; height: 16px; margin-left: 0.4rem;
+      width: 16px; height: 16px;
     }
     .content-pane-save-status .ssi-pending,
     .content-pane-save-status .ssi-saved { display: none; }
@@ -118,13 +209,24 @@
     .ssi-saved { color: var(--accent-text); animation: ssi-fadein 0.25s ease; }
     @keyframes ssi-fadein { from { opacity: 0; transform: scale(0.7); } to { opacity: 1; transform: scale(1); } }
     /* ── Tabs menu ──────────────────────────────────────────────── */
-    /* Same dropdown shape/positioning as the more menu right next to it
-       (below) — a vertical list instead of the old horizontal strip, one
-       row per open tab/draft. */
-    .content-pane-tabs-wrap { position: relative; flex-shrink: 0; }
-    .content-pane-tabs-btn.active { color: var(--accent-text); background: var(--tint-md); }
+    /* Dropdown shape/positioning matches the more menu right next to it —
+       a vertical list, one row per open tab/draft. Its trigger
+       (.content-pane-tabs-overflow, above) only shows once the header
+       strip can't fit every open tab; the list itself always covers all
+       of them, not just the overflow. */
+    /* Fills the tabstrip so the menu (a sibling of the clip row) can hang
+       off .content-pane-tabstrip. Not position:relative — that would make
+       this the menu's anchor and shift it with chip reflow. */
+    .content-pane-tabs-wrap { width: 100%; height: 100%; min-width: 0; }
     .content-pane-reading-btn.active { color: var(--accent-text); background: var(--tint-md); }
     .content-pane-tabs-menu {
+      /* right:0 resolves against .content-pane-tabstrip (position:relative,
+         above) — a stable box whose width comes from flex-grow/max-width,
+         not from .content-pane-tabs-wrap, which shifts left/right as chips
+         reflow (a tab opening/closing can change how many — and which —
+         tabs are visible). Anchoring here instead of the wrap keeps this
+         panel from sliding out from under the cursor mid-interaction, e.g.
+         closing several tabs back-to-back from the list below. */
       position: absolute; top: calc(100% + var(--float-panel-gap)); right: 0; z-index: 50;
       /* The enter/leave scale (content_pane.html's x-transition) unfurls from
          this top edge — anchored where the panel actually docks, not its
