@@ -978,4 +978,4 @@
        text thin across the whole pane. Centered (not left-stuck) so a
        wide pane reads as a deliberate reading column, not a narrow block
        stranded on the left with dead space on the right. */
-    .inbox-sheet-body.prose { font-size: var(--text-base); max-width: 680px; margin-left: auto; margin-right: auto; }
+    .inbox-sheet-body.prose { font-size: var(--text-body); max-width: 680px; margin-left: auto; margin-right: auto; }

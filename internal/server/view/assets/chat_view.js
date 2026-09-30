@@ -7,6 +7,7 @@
   var openSegs = new WeakMap();
   var copiedUntil = new Map();
   var copiedListener = null;
+  var hydrateListener = null;
 
   function isOpen(seg) { return !!openSegs.get(seg); }
 
@@ -466,6 +467,8 @@
         wireHorizontalScroller(scroller, row);
         fetchNoteInfo(items.map(function (it) { return it.path; })).then(function () {
           cards.forEach(function (c) { c.hydrate(); });
+          // Hydration grows card height after scrollToBottom already ran; re-pin if still stuck.
+          if (hydrateListener) hydrateListener();
         });
       },
       patch: function () { return false; },
@@ -759,6 +762,11 @@
     function scrollToBottom() {
       if (scrollEl) scrollEl.scrollTop = scrollEl.scrollHeight;
     }
+
+    function onContentHydrated() {
+      if (!detaching && api.stick()) scrollToBottom();
+    }
+    hydrateListener = onContentHydrated;
 
     function updateJump(snap) {
       var st = snap || api.state();
@@ -1055,6 +1063,7 @@
       destroy: function () {
         detaching = true;
         if (copiedListener === onCopied) copiedListener = null;
+        if (hydrateListener === onContentHydrated) hydrateListener = null;
         listen.abort();
         if (timeTimer) { clearInterval(timeTimer); timeTimer = 0; }
         if (ro) { ro.disconnect(); ro = null; }
