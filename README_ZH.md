@@ -1,36 +1,36 @@
 # Hylo：一个兼容 Obsidian 的 AI native 笔记系统，使用 AI agent 帮你整理、使用笔记。
 
-![graph](./docs/assets/knowledge-graph.png)
-
 1. 从 AI 知识图中选择知识点，直接打开编辑器浏览编辑知识笔记
 
-![chat](./docs/assets/agent-chat.png)
+![graph](./docs/assets/knowledge-graph.png)
 
 2. 通过 chat 让 agent 执行笔记任务
 
-![tags](./docs/assets/tags.png)
+![chat](./docs/assets/agent-chat.png)
 
 3. AI 生成 tags 图
 
-![inbox message](./docs/assets/inbox-message.png)
+![tags](./docs/assets/tags.png)
 
 4. Agent bots 每天自动抓取感兴趣的新闻等通知，统一发送到 inbox
 
-![clip-read](./docs/assets/clip-read.png)
+![inbox message](./docs/assets/inbox-message.png)
 
 5. 使用编辑器直接阅读编辑剪藏的网页
 
-![images](./docs/assets/images.png)
+![clip-read](./docs/assets/clip-read.png)
 
 6. 笔记中添加的图片集中管理，通过图片反向查找笔记
 
-![short-notes](./docs/assets/short-notes.png)
+![images](./docs/assets/images.png)
 
 7. 每天记录临时的，碎片化的思考
 
-![search](./docs/assets/search.png)
+![short-notes](./docs/assets/short-notes.png)
 
 8. 实时搜索查找笔记
+
+![search](./docs/assets/search.png)
 
 ## 目录
 
