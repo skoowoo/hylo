@@ -130,7 +130,7 @@
             </div>
           </template>
           <!-- Always mounted as a lookup target for Cmd/Ctrl+T
-               (__vaultrContentPaneTabsMenuScope), even with nothing hidden.
+               (__hyloContentPaneTabsMenuScope), even with nothing hidden.
                The "+N" button itself is overflow-only and has no
                enter/leave transition — a leave would keep it in the flex
                row after the count changed and shove the last chip. -->
@@ -276,13 +276,13 @@
                  x-transition:leave-start="opacity-100 translate-y-0 scale-100"
                  x-transition:leave-end="opacity-0 -translate-y-1 scale-[0.98]">
               <button type="button" class="content-pane-more-item content-pane-find-btn"
-                      @click.stop="moreOpen = false; __vaultrEditorOpenFind()"
+                      @click.stop="moreOpen = false; __hyloEditorOpenFind()"
                       :title="'Find (' + (isMac ? '⌘F' : 'Ctrl+F') + ')'">
                 <svg fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
                   <circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-4.34-4.34"/>
                 </svg>
                 <span>Find</span>
-                <span class="content-pane-more-item-kbd kbd-combo" x-html="vaultrKbdHTML(isMac ? '⌘F' : 'Ctrl+F')"></span>
+                <span class="content-pane-more-item-kbd kbd-combo" x-html="hyloKbdHTML(isMac ? '⌘F' : 'Ctrl+F')"></span>
               </button>
               <button type="button" class="content-pane-more-item content-pane-source-toggle-btn"
                       @click.stop="moreOpen = false; editorMode.toggle()"
@@ -301,7 +301,7 @@
                 <span class="dstb-goto-wysiwyg">Live preview</span>
               </button>
               <button type="button" class="content-pane-more-item content-pane-copy-btn"
-                      @click.stop="__vaultrEditorCopyMarkdown().then(ok => { if (!ok) { moreOpen = false; return; } copied = true; setTimeout(() => { copied = false; moreOpen = false; }, 900); })"
+                      @click.stop="__hyloEditorCopyMarkdown().then(ok => { if (!ok) { moreOpen = false; return; } copied = true; setTimeout(() => { copied = false; moreOpen = false; }, 900); })"
                       title="Copy note as markdown">
                 <svg x-show="!copied" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
                   <rect width="14" height="14" x="8" y="8" rx="2" ry="2"/>

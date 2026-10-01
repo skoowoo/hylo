@@ -23,7 +23,7 @@ import { touchedLines } from './selection-lines.js';
 // .content-pane-more-menu/.content-pane-more-item/.content-pane-more-divider
 // (same padding/gap/font-size/icon-size/hover, same --hairline-faint inset
 // divider) — cm-live/ can't reference those classes directly (app-agnostic
-// library, no Vaultr DOM/class dependencies), so the rules are duplicated
+// library, no Hylo DOM/class dependencies), so the rules are duplicated
 // here instead, using the same var-with-fallback convention as theme.js so
 // this still degrades reasonably outside the main app (e.g.
 // livepreview-demo/).

@@ -1,9 +1,9 @@
 ---
-name: vaultr-memory
-description: "Extract and update personal memories from Vaultr notes into structured memory files. Use when the user wants to update their personal memory, extract memories from notes, run memory extraction, or refresh the personal memory base. Triggers on phrases like 'update my memory', 'extract memories from notes', 'run memory extraction', 'refresh personal memory', or any request to build or maintain a personal memory base from notes."
+name: hylo-memory
+description: "Extract and update personal memories from Hylo notes into structured memory files. Use when the user wants to update their personal memory, extract memories from notes, run memory extraction, or refresh the personal memory base. Triggers on phrases like 'update my memory', 'extract memories from notes', 'run memory extraction', 'refresh personal memory', or any request to build or maintain a personal memory base from notes."
 ---
 
-# Vaultr Memory Extract
+# Hylo Memory Extract
 
 Extracts personal memories from short notes (`/_shorts`) and the knowledge base (`/_knowledge`) into six structured memory files under `/_memory/`. On first run (no memory files exist yet), scans the last 90 days for a rich initial snapshot. On subsequent runs, scans only the last 2 days. Memories not reinforced over time gradually fade and are eventually removed.
 
@@ -24,7 +24,7 @@ Extracts personal memories from short notes (`/_shorts`) and the knowledge base 
 Check whether any memory file already exists:
 
 ```bash
-vaultr read /_memory/_identity.md
+hylo read /_memory/_identity.md
 ```
 
 - **First run** (file not found): set `scan_window = 90` days.
@@ -47,11 +47,11 @@ This profile is critical for the knowledge base step: if a `source_notes` path f
 Run both queries in parallel:
 
 ```bash
-vaultr short list --latest <scan_window> --limit 100
-vaultr knowledge list --kind knowledge --latest <scan_window> --limit 50
+hylo short list --latest <scan_window> --limit 100
+hylo knowledge list --kind knowledge --latest <scan_window> --limit 50
 ```
 
-Also run `vaultr list <path> --latest <scan_window>` for each extra scan path provided.
+Also run `hylo list <path> --latest <scan_window>` for each extra scan path provided.
 
 If all queries return zero results, skip to Step 4.
 
@@ -63,7 +63,7 @@ Apply different extraction rules depending on the source.
 
 ### Source A: Short notes (`/_shorts`)
 
-`vaultr short list` returns each entry's `content` inline — process directly, no file reads needed.
+`hylo short list` returns each entry's `content` inline — process directly, no file reads needed.
 
 Short notes are the author's own unfiltered voice. Extract from **all six dimensions**:
 
@@ -78,10 +78,10 @@ Short notes are the author's own unfiltered voice. Extract from **all six dimens
 
 ### Source B: Knowledge base (`/_knowledge`)
 
-`vaultr knowledge list` returns file paths. Read each unit:
+`hylo knowledge list` returns file paths. Read each unit:
 
 ```bash
-vaultr knowledge read <path>
+hylo knowledge read <path>
 ```
 
 **Classify each unit by its `source_notes` paths, using the author profile from Step 1:**
@@ -164,8 +164,8 @@ last_updated: <YYYY-MM-DD>
 ### Writing the file
 
 ```bash
-vaultr create /_memory/_<dimension>.md --content "<content>"           # new
-vaultr create /_memory/_<dimension>.md --content "<content>" --force   # overwrite
+hylo create /_memory/_<dimension>.md --content "<content>"           # new
+hylo create /_memory/_<dimension>.md --content "<content>" --force   # overwrite
 ```
 
 Only write files that actually changed.

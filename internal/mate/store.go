@@ -86,14 +86,14 @@ CREATE INDEX IF NOT EXISTS chat_message_note_access_path_idx ON chat_message_not
 `
 
 // Store is the single data access point for both mate config and chat history.
-// All data lives in <vaultRoot>/.vaultr/mate.db.
+// All data lives in <vaultRoot>/.hylo/mate.db.
 type Store struct {
 	db *sql.DB
 }
 
-// Open opens (or creates) the combined database at <vaultRoot>/.vaultr/mate.db.
+// Open opens (or creates) the combined database at <vaultRoot>/.hylo/mate.db.
 func Open(vaultRoot string) (*Store, error) {
-	dir := filepath.Join(vaultRoot, ".vaultr")
+	dir := filepath.Join(vaultRoot, ".hylo")
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return nil, fmt.Errorf("mate: create dir: %w", err)
 	}

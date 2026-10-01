@@ -65,7 +65,7 @@ func RewriteWikilinkTarget(src []byte, oldName, newName string) ([]byte, bool) {
 // the same field — a path-shaped item is left to that one instead, so the two
 // never touch the same line. Only simple block-style list items
 // ("  - item"/"  - item.md") are recognized; flow-style lists aren't (not the
-// documented skills/vaultr-compile-note format).
+// documented skills/hylo-compile-note format).
 //
 // Reports whether anything changed; raw is returned unmodified otherwise.
 func RewriteFrontmatterBareNameRef(raw []byte, oldName, newName string) ([]byte, bool) {

@@ -1,6 +1,6 @@
 import { WidgetType } from '@codemirror/view';
 
-// Clickable [[wikilink]] chip; onClick injected by content_pane.js (no Vaultr routing here).
+// Clickable [[wikilink]] chip; onClick injected by content_pane.js (no Hylo routing here).
 // broken (from options.isWikiLinkBroken, also app-injected) means the target note
 // doesn't exist any more — nothing to navigate to, so it renders struck-through
 // and skips the click handler entirely rather than firing onClick into a dead end.

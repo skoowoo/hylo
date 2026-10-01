@@ -4,7 +4,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Vaultr</title>
+  <title>Hylo</title>
   <style>
     *,
     *::before,
@@ -206,7 +206,7 @@
 
 <body>
   <div class="shell">
-    <p class="logo">VAULTR</p>
+    <p class="logo">HYLO</p>
 
     <div class="url-row">
       <input id="url-input" type="url" class="url-input" placeholder="http://localhost:54321" spellcheck="false"
@@ -281,8 +281,8 @@
 
       async function debugPaths() {
         try {
-          if (window.vaultrDesktop?.getShellDebugPaths)
-            return await window.vaultrDesktop.getShellDebugPaths();
+          if (window.hyloDesktop?.getShellDebugPaths)
+            return await window.hyloDesktop.getShellDebugPaths();
         } catch { }
         return {};
       }
@@ -296,8 +296,8 @@
         setUI('connecting', 'connecting');
 
         let ok = false;
-        if (window.vaultrDesktop) {
-          try { ok = await window.vaultrDesktop.checkServer(url); } catch { }
+        if (window.hyloDesktop) {
+          try { ok = await window.hyloDesktop.checkServer(url); } catch { }
         }
 
         if (ok) {
@@ -307,7 +307,7 @@
           busy = false;
           showStart(false);
           setUI('ok', 'connected');
-          if (window.vaultrDesktop) await window.vaultrDesktop.setServerUrl(url);
+          if (window.hyloDesktop) await window.hyloDesktop.setServerUrl(url);
           return;
         }
 
@@ -317,13 +317,13 @@
         let showRetry = false;
         let headline = '', hint = '';
 
-        if (!window.vaultrDesktop) {
+        if (!window.hyloDesktop) {
           headline = 'preload api unavailable';
           hint = 'Desktop API not found. Check DevTools.';
         } else if (isLocal(url) && !detachStartConsumed) {
           try {
             detachStartConsumed = true;
-            const st = await window.vaultrDesktop.startVaultrServerDetached({ userInitiated });
+            const st = await window.hyloDesktop.startHyloServerDetached({ userInitiated });
             if (st.ok) {
               spawnedLocalServerOk = true;
               pendingStart = true;
@@ -382,8 +382,8 @@
 
       async function init() {
         let url = 'http://localhost:54321';
-        if (window.vaultrDesktop) {
-          try { url = await window.vaultrDesktop.getServerUrl() || url; } catch { }
+        if (window.hyloDesktop) {
+          try { url = await window.hyloDesktop.getServerUrl() || url; } catch { }
         }
         input.value = url;
         attempt(url);

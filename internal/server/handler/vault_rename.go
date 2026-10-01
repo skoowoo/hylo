@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/hardhacker/vaultr/internal/storage"
+	"github.com/hardhacker/hylo/internal/storage"
 )
 
 type renameRequest struct {

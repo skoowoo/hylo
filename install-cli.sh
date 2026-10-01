@@ -1,8 +1,8 @@
 #!/bin/sh
 set -e
 
-REPO="skoowoo/vaultr-notes"
-BINARY_NAME="vaultr"
+REPO="skoowoo/hylo"
+BINARY_NAME="hylo"
 
 # Default install directory
 INSTALL_DIR="/usr/local/bin"
@@ -16,8 +16,8 @@ NC='\033[0m' # No Color
 TMP_DIR=$(mktemp -d)
 trap 'rm -rf "$TMP_DIR"' EXIT
 
-VAULTR_DIR="$HOME/.vaultr"
-mkdir -p "$VAULTR_DIR"
+HYLO_DIR="$HOME/.hylo"
+mkdir -p "$HYLO_DIR"
 
 echo "==> Installing $BINARY_NAME from $REPO..."
 
@@ -51,7 +51,7 @@ fi
 
 echo "==> Version to install: $VERSION"
 
-# Format the filename: vaultr_linux_amd64.tar.gz
+# Format the filename: hylo_linux_amd64.tar.gz
 FILE_NAME="${BINARY_NAME}_${OS}_${ARCH}.tar.gz"
 DOWNLOAD_URL="https://github.com/$REPO/releases/download/$VERSION/$FILE_NAME"
 
@@ -85,17 +85,17 @@ mv "$BINARY_NAME" "$INSTALL_DIR/"
 chmod +x "$INSTALL_DIR/$BINARY_NAME"
 
 if [ -f "$TMP_DIR/config.example.toml" ]; then
-    if [ ! -f "$VAULTR_DIR/config.toml" ]; then
-        echo "==> Installing default config to $VAULTR_DIR/config.toml..."
-        cp "$TMP_DIR/config.example.toml" "$VAULTR_DIR/config.toml"
+    if [ ! -f "$HYLO_DIR/config.toml" ]; then
+        echo "==> Installing default config to $HYLO_DIR/config.toml..."
+        cp "$TMP_DIR/config.example.toml" "$HYLO_DIR/config.toml"
     else
-        echo "==> Config already exists at $VAULTR_DIR/config.toml, skipping."
+        echo "==> Config already exists at $HYLO_DIR/config.toml, skipping."
     fi
 fi
 
 if [ -d "$TMP_DIR/skills" ]; then
-    echo "==> Installing built-in skills to $VAULTR_DIR/skills/..."
-    cp -r "$TMP_DIR/skills" "$VAULTR_DIR/"
+    echo "==> Installing built-in skills to $HYLO_DIR/skills/..."
+    cp -r "$TMP_DIR/skills" "$HYLO_DIR/"
 fi
 
 echo "${GREEN}==> Installation complete!${NC}"

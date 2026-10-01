@@ -8,7 +8,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/hardhacker/vaultr/internal/plugin"
+	"github.com/hardhacker/hylo/internal/plugin"
 )
 
 // RunResult carries the outcome of a completed trigger agent run.

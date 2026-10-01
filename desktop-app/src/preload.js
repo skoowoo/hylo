@@ -1,15 +1,15 @@
 const { contextBridge, ipcRenderer } = require("electron");
 
-contextBridge.exposeInMainWorld("vaultrDesktop", {
+contextBridge.exposeInMainWorld("hyloDesktop", {
   platform: process.platform,
   checkServer: (url) => ipcRenderer.invoke("check-server", url),
-  startVaultrServerDetached: (opts) => ipcRenderer.invoke("start-vaultr-server-detached", opts),
-  stopServer: () => ipcRenderer.invoke("stop-vaultr-server"),
+  startHyloServerDetached: (opts) => ipcRenderer.invoke("start-hylo-server-detached", opts),
+  stopServer: () => ipcRenderer.invoke("stop-hylo-server"),
   getServerProcessStatus: () => ipcRenderer.invoke("get-server-process-status"),
   getShellDebugPaths: () => ipcRenderer.invoke("get-shell-debug-paths"),
   getServerUrl: () => ipcRenderer.invoke("get-server-url"),
   setServerUrl: (url) => ipcRenderer.invoke("set-server-url", url),
-  restartServer: () => ipcRenderer.invoke("restart-vaultr-server"),
+  restartServer: () => ipcRenderer.invoke("restart-hylo-server"),
   syncVaultDataAcrossSections: () => ipcRenderer.invoke("sync-vault-data-across-sections"),
   setViewBgColor: (color, theme) => ipcRenderer.send("set-view-bg-color", color, theme),
   setWindowButtonVisibility: (visible) => ipcRenderer.send("set-window-button-visibility", visible),

@@ -212,7 +212,7 @@
        covered even scrolled to the true bottom) — a spacer that's an actual
        flex child is unambiguous, its height is just as real as any message
        row's. Height tracks the panel's real rendered height via a ResizeObserver
-       (__vaultrSyncChatComposerHeight in home.js); the fallback covers the
+       (__hyloSyncChatComposerHeight in home.js); the fallback covers the
        first paint before that observer fires. .chat-scroll-inner's own gap
        supplies the breathing room between the last message and this spacer,
        same as between any two messages. The trigger tab has no composer to
@@ -822,7 +822,7 @@
       left: 0;
       /* Stops short of the true right edge by .chat-scroll's real
          scrollbar-gutter width, measured in JS with a few px of safety
-         margin added (__vaultrSyncChatComposerHeight in home.js) rather
+         margin added (__hyloSyncChatComposerHeight in home.js) rather
          than guessed as a flat constant — the gutter scrollbar-gutter:
          stable actually reserves doesn't line up with the "5px" base.css
          declares for the custom ::-webkit-scrollbar skin, which left a

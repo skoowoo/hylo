@@ -369,7 +369,7 @@
        far end and min-width gives it a fixed starting x regardless of the
        hint's own length, so hints on different rows line up in a column
        instead of each hugging its label. Only rows with a real registered
-       hotkey (content_pane.js's __vaultrHotkeys) carry one. */
+       hotkey (content_pane.js's __hyloHotkeys) carry one. */
     .content-pane-more-item-kbd {
       margin-left: auto; min-width: 2.6rem; padding-left: 0.5rem;
       flex-shrink: 0; text-align: right;
@@ -477,7 +477,7 @@
 
     /* ── Search panel (floating card, not inline in the note) ──────
        CodeMirror's own panel API still owns open/close/mount (see
-       __vaultrCreateSearchPanel) — it just gets absolutely positioned
+       __hyloCreateSearchPanel) — it just gets absolutely positioned
        here instead of left in-flow, so it floats over the top-right
        corner of the editor like a popover card (same recipe as
        .content-pane-tabs-menu/.content-pane-more-menu) rather than pushing the note
@@ -506,7 +506,7 @@
          easing, see content_pane.html's Tailwind classes and shared_tokens.go's
          --tw-ease-out/in) — CodeMirror's panel API has no declarative
          x-show equivalent, so .is-entering/.is-closing are toggled
-         imperatively by __vaultrCreateSearchPanel's mount() and the
+         imperatively by __hyloCreateSearchPanel's mount() and the
          cmCloseSearchPanel wrapper (content_pane.js). */
       transition: transform 150ms cubic-bezier(0, 0, 0.2, 1), opacity 150ms cubic-bezier(0, 0, 0.2, 1);
     }
@@ -526,7 +526,7 @@
        don't share either one's columns (a leading spacer, not a chevron
        or a label), so each row lays itself out instead of feeding cells
        into one shared grid. */
-    .vaultr-search-panel {
+    .hylo-search-panel {
       display: flex; flex-direction: column;
       row-gap: 0.5rem;
       padding: 0.7rem 0.8rem;
@@ -534,15 +534,15 @@
     }
     /* "Find" label + Close — the panel's only non-search control, kept off
        the Find row itself (below) so that row stays pure search actions. */
-    .vaultr-sr-header { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
-    .vaultr-sr-header-label {
+    .hylo-sr-header { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+    .hylo-sr-header-label {
       font-size: var(--text-2xs); font-weight: var(--fw-medium);
       letter-spacing: var(--ls-cap); text-transform: uppercase;
       color: var(--muted);
     }
-    .vaultr-sr-row { display: flex; align-items: center; gap: 0.45rem; }
-    .vaultr-sr-input-wrap { position: relative; display: flex; align-items: center; flex: 1; min-width: 0; }
-    .vaultr-sr-inset-btns {
+    .hylo-sr-row { display: flex; align-items: center; gap: 0.45rem; }
+    .hylo-sr-input-wrap { position: relative; display: flex; align-items: center; flex: 1; min-width: 0; }
+    .hylo-sr-inset-btns {
       position: absolute; right: 4px;
       display: flex; align-items: center; gap: 3px;
     }
@@ -553,7 +553,7 @@
        floating over its right edge. `input.___`, not `.___` alone, to
        outrank base.css's own `input.field-input` sizing at equal
        specificity regardless of stylesheet order. */
-    input.vaultr-sr-input {
+    input.hylo-sr-input {
       height: var(--btn-h-xs);
       padding: 0 0.5rem;
       font-family: inherit;
@@ -562,37 +562,37 @@
        is count + 3 icons, row 2 (replace) is 2 text buttons — sized for
        these (with the wider gap/padding below folded in), not a shared
        guess, so neither cramps its label. */
-    .vaultr-sr-input[main-field]       { padding-right: 7.25rem; }
-    .vaultr-sr-input:not([main-field]) { padding-right: 6.75rem; }
+    .hylo-sr-input[main-field]       { padding-right: 7.25rem; }
+    .hylo-sr-input:not([main-field]) { padding-right: 6.75rem; }
     /* Placeholder color/italic now comes from the shared .field-input::placeholder (base.css). */
-    .vaultr-sr-ibtn {
+    .hylo-sr-ibtn {
       flex-shrink: 0; width: 20px; height: 20px;
       display: flex; align-items: center; justify-content: center;
       background: transparent; border: none;
       color: var(--muted); cursor: pointer; padding: 0;
     }
-    .vaultr-sr-ibtn:hover { color: var(--fg); background: var(--card-hov); }
+    .hylo-sr-ibtn:hover { color: var(--fg); background: var(--card-hov); }
     /* Chevron left of the Find input — toggles the Replace row (collapsed
        by default). Rotates in place rather than swapping glyphs, same
        "one shape reads as two states" idea as .cselect-btn.open. */
-    .vaultr-sr-expand-btn svg { transition: transform var(--motion-fast) ease; }
-    .vaultr-sr-expand-btn.is-open svg { transform: rotate(90deg); }
+    .hylo-sr-expand-btn svg { transition: transform var(--motion-fast) ease; }
+    .hylo-sr-expand-btn.is-open svg { transform: rotate(90deg); }
     /* Row 2's left-hand placeholder — holds the column open so its input
        lines up under Find's (row 1 starts with the expand chevron; row 2
        has no equivalent leading control). */
-    .vaultr-sr-row-spacer { flex: 0 0 20px; width: 20px; }
+    .hylo-sr-row-spacer { flex: 0 0 20px; width: 20px; }
     /* Match count ("2/7") ahead of the nav icons — plain label, not a
        button; mono digits read as a counter rather than running text. */
-    .vaultr-sr-count {
+    .hylo-sr-count {
       flex-shrink: 0; padding: 0 0.35rem;
       font-family: var(--font-mono); font-size: var(--text-3xs);
       color: var(--muted-soft); white-space: nowrap; user-select: none;
     }
-    .vaultr-sr-toggle {
+    .hylo-sr-toggle {
       width: auto; padding: 0 4px;
       font-size: var(--text-3xs); font-weight: 800; font-family: inherit; letter-spacing: -0.02em;
     }
-    .vaultr-sr-toggle.active {
+    .hylo-sr-toggle.active {
       color: var(--control-active-fg);
       background: var(--control-active-bg);
     }
@@ -600,7 +600,7 @@
        vocabulary; same size/weight family as the Aa toggle above so the
        panel reads as one consistent "small caps label" language rather
        than icons-plus-text. Plain buttons, not toggles, so no .active. */
-    .vaultr-sr-text {
+    .hylo-sr-text {
       width: auto; padding: 0 5px;
       font-size: var(--text-3xs); font-weight: 700; font-family: inherit; letter-spacing: 0.01em;
     }

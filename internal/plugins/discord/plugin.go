@@ -9,9 +9,9 @@ import (
 	"time"
 
 	"github.com/bwmarrin/discordgo"
-	"github.com/hardhacker/vaultr/internal/config"
-	"github.com/hardhacker/vaultr/internal/discord"
-	"github.com/hardhacker/vaultr/internal/plugin"
+	"github.com/hardhacker/hylo/internal/config"
+	"github.com/hardhacker/hylo/internal/discord"
+	"github.com/hardhacker/hylo/internal/plugin"
 	"log/slog"
 )
 

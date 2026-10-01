@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hardhacker/vaultr/internal/storage"
+	"github.com/hardhacker/hylo/internal/storage"
 )
 
 var pngBytes = append([]byte("\x89PNG\r\n\x1a\n"), make([]byte, 32)...)

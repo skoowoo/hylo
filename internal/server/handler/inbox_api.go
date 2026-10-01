@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/hardhacker/vaultr/internal/inbox"
+	"github.com/hardhacker/hylo/internal/inbox"
 )
 
 // InboxAPI serves /api/inbox endpoints.

@@ -3,7 +3,7 @@
 (function (root, factory) {
   var api = factory();
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
-  if (root) root.__vaultrChatReduce = api;
+  if (root) root.__hyloChatReduce = api;
 })(typeof window !== 'undefined' ? window : global, function () {
   function genId() {
     return (typeof crypto !== 'undefined' && crypto.randomUUID)

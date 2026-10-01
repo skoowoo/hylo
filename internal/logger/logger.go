@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/hardhacker/vaultr/internal/config"
+	"github.com/hardhacker/hylo/internal/config"
 )
 
 // New creates a slog.Logger based on the log config.

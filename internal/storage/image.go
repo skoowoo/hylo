@@ -118,7 +118,7 @@ func (g *Vault) DeleteImageMeta(dir, name string) error {
 
 // DeleteImage removes the image file at vault-relative (dir, name) and its
 // metadata row. dir is vault-absolute (e.g. "/_assets/202501"); name is the
-// basename only. Paths under .vaultr are rejected. Missing files still clear DB.
+// basename only. Paths under .hylo are rejected. Missing files still clear DB.
 func (g *Vault) DeleteImage(dir, name string) error {
 	if name == "" || strings.Contains(name, "/") || strings.Contains(name, "\\") || strings.Contains(name, "..") {
 		return fmt.Errorf("%w: invalid image name %q", ErrInvalidImageRef, name)

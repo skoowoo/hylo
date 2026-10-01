@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/hardhacker/vaultr/internal/mate"
+	"github.com/hardhacker/hylo/internal/mate"
 )
 
 // ConversationAPI handles conversation CRUD endpoints.

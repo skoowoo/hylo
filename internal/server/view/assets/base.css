@@ -292,7 +292,7 @@
     .dot--fg     { background: var(--fg); }
 
     /* ── Shared key-combo glyph — renders a "⌘K"/"Ctrl+K"-style hint via
-       vaultrKbdHTML() (note_shared.js), which wraps ⌘ in .kbd-cmd. ⌘ isn't
+       hyloKbdHTML() (note_shared.js), which wraps ⌘ in .kbd-cmd. ⌘ isn't
        in the mono font so it falls back to a symbol font that renders
        smaller than the mono letters beside it; .kbd-cmd scales it back up,
        and the inline-flex here re-centers the row on its own baseline so

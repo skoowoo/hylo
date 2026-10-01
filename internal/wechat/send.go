@@ -26,7 +26,7 @@ func SendTextMessage(ctx context.Context, to, text string, opts SendOpts) (strin
 	if client == nil {
 		client = NewClient()
 	}
-	clientID := "vaultr-wechat-" + uuid.NewString()
+	clientID := "hylo-wechat-" + uuid.NewString()
 	req := SendMessageReq{
 		Msg: &Message{
 			FromUserID:   "",

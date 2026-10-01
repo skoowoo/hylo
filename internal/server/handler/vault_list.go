@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/hardhacker/vaultr/internal/storage"
+	"github.com/hardhacker/hylo/internal/storage"
 )
 
 type listRequest struct {

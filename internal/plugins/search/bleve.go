@@ -20,8 +20,8 @@ import (
 	bleveSearch "github.com/blevesearch/bleve/v2/search"
 	"github.com/blevesearch/bleve/v2/search/query"
 
-	"github.com/hardhacker/vaultr/internal/storage"
-	"github.com/hardhacker/vaultr/internal/util"
+	"github.com/hardhacker/hylo/internal/storage"
+	"github.com/hardhacker/hylo/internal/util"
 )
 
 // nameKeywordAnalyzer is a custom analyzer name that stores the full filename
@@ -29,7 +29,7 @@ import (
 const nameKeywordAnalyzer = "name_keyword"
 
 const (
-	vaultInternalDir  = ".vaultr"
+	vaultInternalDir  = ".hylo"
 	vaultIndexDirName = "data.idx"
 )
 
@@ -43,7 +43,7 @@ type BleveIndexer struct {
 	useJieba bool
 }
 
-// NewBleveIndexer opens the bleve index at <vaultRoot>/.vaultr/data.idx,
+// NewBleveIndexer opens the bleve index at <vaultRoot>/.hylo/data.idx,
 // creating it if it does not yet exist.
 // useJieba controls whether the jieba CJK tokeniser is enabled when creating
 // a new index; it has no effect on an already-existing index.

@@ -9,16 +9,16 @@
   // stray whitespace to tighten. Collapsing it regardless of marker family
   // silently merged two distinct lists on every note load and re-saved that
   // merge 800ms later via the normal autosave path.
-  function __vaultrEditorSameListMarker(a, b) {
+  function __hyloEditorSameListMarker(a, b) {
     var aOrdered = /^\d+[.)]$/.test(a), bOrdered = /^\d+[.)]$/.test(b);
     if (aOrdered !== bOrdered) return false;
     return aOrdered ? a[a.length - 1] === b[b.length - 1] : a === b;
   }
-  function __vaultrEditorTightenLists(md) {
+  function __hyloEditorTightenLists(md) {
     return md.replace(
       /^([ \t]*)([-*+]|\d+[.)])( [^\n]*)\n\n(?=([ \t]*)([-*+]|\d+[.)]) )/gm,
       function(match, indent, marker, rest, nextIndent, nextMarker) {
-        if (!__vaultrEditorSameListMarker(marker, nextMarker)) return match;
+        if (!__hyloEditorSameListMarker(marker, nextMarker)) return match;
         return indent + marker + rest + '\n';
       }
     );
@@ -28,5 +28,5 @@
   // `module` doesn't exist. Node: list_tighten.test.js requires this file
   // directly.
   if (typeof module !== 'undefined') {
-    module.exports = { __vaultrEditorTightenLists, __vaultrEditorSameListMarker };
+    module.exports = { __hyloEditorTightenLists, __hyloEditorSameListMarker };
   }

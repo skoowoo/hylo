@@ -31,7 +31,7 @@ body {
   flex-direction: column;
   /* No background/border/box-shadow here on purpose: the window itself
    supplies a native vibrancy fill (quick-capture.js — "sidebar"
-   material, same as the main Vaultr window) plus a native drop shadow
+   material, same as the main Hylo window) plus a native drop shadow
    (hasShadow:true) and native rounded corners (frameless windows
    default to roundedCorners:true on macOS) — this container just
    needs to stay fully transparent so all of that shows through,

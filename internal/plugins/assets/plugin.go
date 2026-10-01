@@ -8,9 +8,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/hardhacker/vaultr/internal/plugin"
-	"github.com/hardhacker/vaultr/internal/storage"
-	"github.com/hardhacker/vaultr/internal/util"
+	"github.com/hardhacker/hylo/internal/plugin"
+	"github.com/hardhacker/hylo/internal/storage"
+	"github.com/hardhacker/hylo/internal/util"
 )
 
 // Plugin extracts note-attached resources on create/write.
@@ -149,7 +149,7 @@ func (p *Plugin) fetchRemote(rawURL string) (storage.Image, error) {
 	if err != nil {
 		return storage.Image{}, err
 	}
-	req.Header.Set("User-Agent", "Vaultr/1.0")
+	req.Header.Set("User-Agent", "Hylo/1.0")
 	req.Header.Set("Accept", "image/*,*/*;q=0.8")
 
 	res, err := p.client.Do(req)

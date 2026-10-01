@@ -3,7 +3,7 @@
 (function (root) {
   var mdCache = new Map();
 
-  root.__vaultrRenderMarkdown = function (text, opts) {
+  root.__hyloRenderMarkdown = function (text, opts) {
     if (!text || typeof text !== 'string') return '';
     var useCache = !opts || opts.cache !== false;
     if (useCache) {
@@ -44,7 +44,7 @@
     return html;
   };
 
-  root.__vaultrAutoResize = function (el) {
+  root.__hyloAutoResize = function (el) {
     if (!el) return;
     el.style.height = 'auto';
     el.style.height = Math.min(el.scrollHeight, 140) + 'px';

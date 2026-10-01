@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
-  "name": "Vaultr Clip",
-  "version": "1.0.4",
+  "name": "Hylo Clip",
+  "version": "1.1.0",
   "description": "Clip web pages to Markdown and save them to your local vault via HTTP API.",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAoa/4pOF5CrwzjI9H3TW1k7Gebe4CX/tvKqC+90V8s94C0Ob93ClIwbOkqMC5PN7mUBBRkueIFIqGbswMP4uPDyEaP6hTw8melwUpkmNIjkhBLrlOQOWKEFc+KbzyJIE1afJoQHFQufF1J9lu+/ZJJZlh3bI6cEPU5CrnYGe/ZXzkf9CQB7RFizCQbr87cqmFWfWDJgUvmtn/qncz7+K1lgcsQdPM5hmACZqB+WKRMypR39s5W9bPDju00pvVyCjT/K0VkoxGXZNWLbrG9sIdYtVOmRcqSde92odM9SPYSyGe43UwQuKmsTwVHIZ90cubnfs6kVNHU281ztgQm/fL5QIDAQAB",
   "permissions": ["storage", "activeTab", "contextMenus"],

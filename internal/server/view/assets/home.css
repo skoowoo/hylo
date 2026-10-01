@@ -357,7 +357,7 @@
     /* Swapped in for .drag-over the instant a move lands successfully — a
        quick receipt bounce (this is the one animation here that's allowed to
        overshoot, since it's an arrival, not a departure — see --ease-spring,
-       shared_tokens.go). __vaultrDragMoveNote (home.js) adds/removes it
+       shared_tokens.go). __hyloDragMoveNote (home.js) adds/removes it
        around the same time it starts the card's fly-out. */
     @keyframes home-drop-received {
       0% { transform: scale(1); }
@@ -544,7 +544,7 @@
     .home-note-row { display: block; background: var(--surface-soft); border-color: transparent; }
     .home-note-row:hover { background: var(--card-hov); }
     /* Drag-to-move (home.js) — draggable is toggled on/off per card by
-       __vaultrUpdateDraggableCards() (folder view only; every section shares
+       __hyloUpdateDraggableCards() (folder view only; every section shares
        this markup, "rows" template, home.go), not baked into the template. */
     .home-note-row[draggable="true"] {
       cursor: grab;
@@ -592,7 +592,7 @@
     }
     /* Move succeeded — flies toward the drop target and shrinks away instead
        of just sitting there until the section reload removes it, so there's
-       no dead air between "dropped" and "visibly gone". __vaultrFlyCardToTarget
+       no dead air between "dropped" and "visibly gone". __hyloFlyCardToTarget
        (home.js) sets --fly-dx/--fly-dy from the two elements' actual
        positions before adding this class, then removes the node once the
        transition ends. --ease-in (accelerating), not --ease-spring — this is
@@ -764,7 +764,7 @@
        (see .tag-picker below) instead of listing every tag in the header —
        a vault's tag count isn't bounded the way a handful of view-toggle
        buttons is. */
-    /* __vaultrRenderTagCloud (home.js) sets this element's own height (the
+    /* __hyloRenderTagCloud (home.js) sets this element's own height (the
        word cloud needs a fixed box to lay out into) and fills it with
        absolutely-positioned .tag-cloud-word buttons at the x/y d3-cloud
        computed — position:relative is all this container itself needs. */

@@ -1,4 +1,4 @@
-// __vaultrPathAcCreate — shared autocomplete factory for the chat textarea.
+// __hyloPathAcCreate — shared autocomplete factory for the chat textarea.
 // Creates a self-contained autocomplete controller bound to a specific
 // input element and dropdown list element. Agnostic of which character(s)
 // actually trigger it and of how a kind's dirPath/partial get built up —
@@ -47,9 +47,9 @@
 //                            the same aria-selected highlight item 0 always
 //                            gets, no separate marker needed)
 //   onApply(el, newVal, caretPos) → void  (update element value + cursor)
-//   escKey                → string key for __vaultrEscPush / __vaultrEscPop
+//   escKey                → string key for __hyloEscPush / __hyloEscPop
 //
-function __vaultrPathAcCreate(opts) {
+function __hyloPathAcCreate(opts) {
   var st = { seq: 0, abort: null, tick: null, active: -1, fetchedDir: null, cachedDirs: [], pendingStripAt: -1 };
   // Shown for a bare "@" only when there's nothing else to list (no open
   // tabs to default to) — the one moment neither mode has anything to show
@@ -109,7 +109,7 @@ function __vaultrPathAcCreate(opts) {
     if (list) list.innerHTML = '';
     setHint('');
     st.active = -1;
-    if (window.__vaultrEscPop && opts.escKey) window.__vaultrEscPop(opts.escKey);
+    if (window.__hyloEscPop && opts.escKey) window.__hyloEscPop(opts.escKey);
   }
 
   function listItems() {
@@ -130,7 +130,7 @@ function __vaultrPathAcCreate(opts) {
   function openList() {
     var panel = panelEl();
     if (panel) { panel.classList.add('open'); panel.hidden = false; panel.setAttribute('aria-expanded', 'true'); }
-    if (window.__vaultrEscPush && opts.escKey) window.__vaultrEscPush(opts.escKey, close);
+    if (window.__hyloEscPush && opts.escKey) window.__hyloEscPush(opts.escKey, close);
   }
 
   // items: Array<{label, value, sub?}> — sub (mention mode's folder line)

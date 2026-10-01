@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/hardhacker/vaultr/internal/config"
-	"github.com/hardhacker/vaultr/internal/wechat"
+	"github.com/hardhacker/hylo/internal/config"
+	"github.com/hardhacker/hylo/internal/wechat"
 )
 
 const wechatQrcodeRefreshMax = 3

@@ -1,6 +1,6 @@
 package handler
 
-import "github.com/hardhacker/vaultr/internal/config"
+import "github.com/hardhacker/hylo/internal/config"
 
 // SchemaField describes one editable configuration key for GET /api/config/schema.
 type SchemaField struct {
@@ -30,7 +30,7 @@ func buildConfigSchema() []SchemaField {
 			Description: "Path to PEM private key; enable HTTPS together with cert_file.",
 			Default:     ""},
 		{Key: "server.api_key", Type: "string", Section: "server", Label: "API key",
-			Description: "If set, every request needs X-Vaultr-API-Key matching this token.",
+			Description: "If set, every request needs X-Hylo-API-Key matching this token.",
 			Sensitive:   true, Default: ""},
 		{Key: "server.read_timeout", Type: "int", Section: "server", Label: "Read timeout (s)",
 			Description: "HTTP server read deadline in seconds.",
@@ -41,7 +41,7 @@ func buildConfigSchema() []SchemaField {
 
 		{Key: "vault.path", Type: "string", Section: "vault", Label: "Vault root",
 			Description: "Filesystem root directory for markdown notes (~ allowed).",
-			Default:     "~/.vaultr/root"},
+			Default:     "~/.hylo/root"},
 
 		{Key: "log.level", Type: "string", Section: "log", Label: "Log level",
 			Description: "Minimum log verbosity.",

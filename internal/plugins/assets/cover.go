@@ -6,8 +6,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/hardhacker/vaultr/internal/storage"
-	"github.com/hardhacker/vaultr/internal/util"
+	"github.com/hardhacker/hylo/internal/storage"
+	"github.com/hardhacker/hylo/internal/util"
 )
 
 // maxCoverCandidates bounds how many refs are tried, since each remote one

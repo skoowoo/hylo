@@ -3,7 +3,7 @@
 // Deliberately its own top-level BaseWindow (a native, non-activating NSPanel
 // via type:"panel") rather than a WebContentsView bolted onto the main
 // window: that's what lets it float over whatever the user is doing —
-// including a fullscreen browser — without ever bringing the main Vaultr
+// including a fullscreen browser — without ever bringing the main Hylo
 // window (or even the app itself) to the foreground. Capture -> message ->
 // send should feel like Spotlight, not like switching apps.
 //
@@ -63,14 +63,14 @@ let panelImagePath = null;
 // macOS's NSWindowStyleMaskNonactivatingPanel (Electron's type:"panel") is
 // meant to let a window become key — so the textarea can type — without the
 // owning app itself activating. In practice a WebContentsView's own click/
-// focus handling still ends up activating Vaultr (a known rough edge, not
+// focus handling still ends up activating Hylo (a known rough edge, not
 // something toggleable from here) — so instead of fighting that, we record
 // whichever app was frontmost right when the shortcut fired and explicitly
 // reactivate it once the panel closes, regardless of what activated in
-// between. Without this, closing the panel leaves Vaultr's main window
+// between. Without this, closing the panel leaves Hylo's main window
 // showing instead of returning to the app being screenshotted.
 let frontAppBeforeCapture = null;
-// Whether Vaultr was ⌘H-hidden (app.isHidden()) right when the shortcut
+// Whether Hylo was ⌘H-hidden (app.isHidden()) right when the shortcut
 // fired. Showing the panel unavoidably un-hides the whole app — ⌘H hides
 // at the NSApplication level, not per-window, so revealing any one window
 // of the app un-hides all of them, main window included. If it was hidden,
@@ -98,13 +98,13 @@ function makePanelWebPrefs() {
 const FRONTMOST_APP_TIMEOUT_MS = 1500;
 
 // Bundle ids that mean "that's us" — never a legitimate reactivation target.
-// "dev.hardhacker.vaultr" is the packaged app id (package.json's
+// "dev.hardhacker.hylo" is the packaged app id (package.json's
 // build.appId); "com.github.Electron" is what an *unpackaged* `electron .`
 // dev run gets instead, and it's Electron's own generic dev-mode id, not
 // something unique to this project. Confirmed live on this machine: the
-// running dev Vaultr process actually reports bundle id "com.github.Electron",
+// running dev Hylo process actually reports bundle id "com.github.Electron",
 // and LaunchServices currently resolves that id to this exact app's own
-// Electron.app. If the shortcut ever fires while Vaultr itself happens to be
+// Electron.app. If the shortcut ever fires while Hylo itself happens to be
 // frontmost, activateApp() would later run `open -b com.github.Electron` on
 // ourselves — and since there's no app.requestSingleInstanceLock() guarding
 // against it, that can kick off a second instance that fights the running
@@ -112,13 +112,13 @@ const FRONTMOST_APP_TIMEOUT_MS = 1500;
 // window (and with it, the Dock icon) disappear. Filtering both ids out
 // here means getFrontmostAppId() can never hand activateApp() a target that
 // resolves back to us.
-const SELF_BUNDLE_IDS = new Set(["dev.hardhacker.vaultr", "com.github.Electron"]);
+const SELF_BUNDLE_IDS = new Set(["dev.hardhacker.hylo", "com.github.Electron"]);
 
 /**
  * Bundle identifier of whatever app is frontmost right now (e.g. the browser
  * the user was screenshotting), so the panel can hand focus back to it
  * explicitly on close — see the note on `frontAppBeforeCapture` below for why.
- * Returns null if that's Vaultr itself (see SELF_BUNDLE_IDS) — nothing to
+ * Returns null if that's Hylo itself (see SELF_BUNDLE_IDS) — nothing to
  * restore focus to in that case, and reactivating "ourselves" is exactly
  * the bug this guards against.
  */
@@ -149,7 +149,7 @@ async function getFrontmostAppId() {
 function activateApp(bundleId) {
   // Defense in depth: getFrontmostAppId() already filters these out, but
   // never let this function itself be the one thing standing between a
-  // future caller and reactivating Vaultr into a second-instance fight
+  // future caller and reactivating Hylo into a second-instance fight
   // with itself (see SELF_BUNDLE_IDS above for what that broke last time).
   if (!bundleId || SELF_BUNDLE_IDS.has(bundleId)) return Promise.resolve();
   return new Promise((resolve) => {
@@ -161,16 +161,16 @@ function activateApp(bundleId) {
 }
 
 /**
- * POST a PNG file to Vaultr's existing image library endpoint
+ * POST a PNG file to Hylo's existing image library endpoint
  * (internal/server/handler/vault_image.go's UploadImage, the same one
  * content_pane.js's editor image paste/drop already uses via
  * `fetch('/api/vault/upload-image', {body: FormData})`). No `fetch`/
  * `FormData` here since this runs in the main process, not a renderer —
  * same multipart/form-data shape built by hand instead. Local server, no
  * auth needed. Resolves with `{ src, name }` on success (`src` is the
- * vault-relative path other Vaultr APIs use to reference the image).
+ * vault-relative path other Hylo APIs use to reference the image).
  */
-function uploadImageToVaultr(imagePath, serverUrl) {
+function uploadImageToHylo(imagePath, serverUrl) {
   return new Promise((resolve, reject) => {
     if (!serverUrl) return reject(new Error("no server URL"));
     let fileData;
@@ -180,7 +180,7 @@ function uploadImageToVaultr(imagePath, serverUrl) {
       return reject(e);
     }
 
-    const boundary = `----vaultrCapture${Date.now()}`;
+    const boundary = `----hyloCapture${Date.now()}`;
     const head = Buffer.from(
       `--${boundary}\r\n` +
       `Content-Disposition: form-data; name="file"; filename="${path.basename(imagePath)}"\r\n` +
@@ -224,7 +224,7 @@ function uploadImageToVaultr(imagePath, serverUrl) {
 /** Runs `screencapture -i`; resolves with the temp PNG path, or null if the user cancelled (Esc / right-click). */
 function runInteractiveScreencapture() {
   return new Promise((resolve) => {
-    const tmpFile = path.join(os.tmpdir(), `vaultr-capture-${Date.now()}.png`);
+    const tmpFile = path.join(os.tmpdir(), `hylo-capture-${Date.now()}.png`);
     const proc = spawn("screencapture", ["-i", "-o", tmpFile]);
     proc.on("error", () => resolve(null)); // e.g. binary missing — not expected on macOS
     proc.on("close", () => {
@@ -235,17 +235,17 @@ function runInteractiveScreencapture() {
 
 /**
  * `restoreFocus`: true for the explicit in-panel actions (Send/Cancel click,
- * Esc, ⌘⏎) — that's the path where our own panel activated Vaultr as a
+ * Esc, ⌘⏎) — that's the path where our own panel activated Hylo as a
  * side effect, so we own putting focus back. Left false for the "blur"
  * auto-dismiss (user clicked into some *other* app) — there the OS is
  * already handling focus correctly on its own, and forcing it back to
  * `frontAppBeforeCapture` would fight whatever the user just clicked into.
  *
  * When true, activateApp() is awaited *before* win.close(): closing first
- * would leave Vaultr briefly active with no window of its own to offer
+ * would leave Hylo briefly active with no window of its own to offer
  * except the main one, which macOS then raises for the ~50-100ms it takes
  * the (async, subprocess-based) activateApp call to land elsewhere — a
- * visible flash. Sequencing it the other way means Vaultr is never the
+ * visible flash. Sequencing it the other way means Hylo is never the
  * active app at the moment the panel actually disappears, so there's
  * nothing to flash.
  */
@@ -300,7 +300,7 @@ function openPanelForImage(imagePath) {
     alwaysOnTop: true,
     skipTaskbar: true,
     show: false,
-    // Same native glass material the main Vaultr window's sidebar uses
+    // Same native glass material the main Hylo window's sidebar uses
     // (main.js's createWindow) — index.html leaves #panel's own background
     // transparent so this shows through, instead of painting a flat color.
     // Tried "popover" (the material semantically meant for a floating panel
@@ -319,8 +319,8 @@ function openPanelForImage(imagePath) {
   // above a fullscreen Space. That's supposed to be a brief flicker, but on
   // this Electron version DockShow() never actually gets called back — a
   // known upstream bug (electron/electron#26350) — so the very first
-  // capture permanently drops Vaultr out of the Dock, ⌘-Tab, and even its
-  // own menu bar, with the process still running underneath. Vaultr is
+  // capture permanently drops Hylo out of the Dock, ⌘-Tab, and even its
+  // own menu bar, with the process still running underneath. Hylo is
   // already a regular (Dock-visible) app the whole time this panel is
   // open, so skipping the transform costs nothing here and sidesteps the
   // bug entirely — this is Electron's own documented escape hatch for it.
@@ -335,7 +335,7 @@ function openPanelForImage(imagePath) {
   panelWin.contentView.addChildView(view);
   view.setBounds({ x: 0, y: 0, width: panelWidth, height: panelHeight });
 
-  // Rendered by Vaultr's own server (GET /quick-capture) — triggerQuickCapture()
+  // Rendered by Hylo's own server (GET /quick-capture) — triggerQuickCapture()
   // already bailed out before screencapture ran if the server wasn't up, so
   // serverUrl is expected to still be live here. On the rare race where it
   // died in the few seconds since (screenshot selection takes a moment),
@@ -360,7 +360,7 @@ function openPanelForImage(imagePath) {
 
   panelWin.showInactive();
   // Not panelWin.focus(): that BaseWindow-level focus() call turned out to
-  // also pull Vaultr's main window forward when opening the panel — despite
+  // also pull Hylo's main window forward when opening the panel — despite
   // electron/electron#40307 saying a type:"panel" window's own focus()
   // shouldn't activate the owning app, BaseWindow (the newer API both this
   // panel and the main window are built on, rather than classic
@@ -378,9 +378,9 @@ function openPanelForImage(imagePath) {
 
 async function triggerQuickCapture() {
   if (captureInFlight || panelWin) return;
-  // The panel's whole content now comes from Vaultr's own server (GET
+  // The panel's whole content now comes from Hylo's own server (GET
   // /quick-capture) — no bundled local page left to fall back to — so the
-  // feature simply requires the app to be up, same as every other Vaultr
+  // feature simply requires the app to be up, same as every other Hylo
   // surface. Checked before screencapture runs so a not-ready app doesn't
   // walk the user through taking a screenshot for nothing.
   if (!getServerUrl()) return;
@@ -419,8 +419,8 @@ function registerQuickCapture(ipcMain, { getMainWindow: getMainWindowOpt, getSer
     // file (closePanel's finish()), so this has to know the upload actually
     // landed first or a failed save would silently lose the screenshot.
     try {
-      const result = await uploadImageToVaultr(imagePath, getServerUrl());
-      console.log("[quick-capture] saved to Vaultr Images:", result);
+      const result = await uploadImageToHylo(imagePath, getServerUrl());
+      console.log("[quick-capture] saved to Hylo Images:", result);
     } catch (e) {
       // No visible failure state in the panel yet (no error UI built for
       // this first pass) — it still closes either way, so a failed save

@@ -7,7 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/hardhacker/vaultr/internal/storage"
+	"github.com/hardhacker/hylo/internal/storage"
 )
 
 func TestVaultMove(t *testing.T) {

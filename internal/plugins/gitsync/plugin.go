@@ -1,4 +1,4 @@
-// Package gitsync implements a Vaultr plugin that automatically commits
+// Package gitsync implements a Hylo plugin that automatically commits
 // vault mutations to a local git repository and optionally syncs the commits
 // to a remote (GitHub, GitLab, Gitea, any bare git server).
 //
@@ -6,7 +6,7 @@
 // batches changes using a configurable debounce window before committing, and
 // runs a separate periodic timer to pull from and push to the remote.
 //
-// Vault-internal metadata (.vaultr/) is always excluded via .gitignore.
+// Vault-internal metadata (.hylo/) is always excluded via .gitignore.
 package gitsync
 
 import (
@@ -26,8 +26,8 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	githttp "github.com/go-git/go-git/v5/plumbing/transport/http"
 
-	"github.com/hardhacker/vaultr/internal/config"
-	"github.com/hardhacker/vaultr/internal/plugin"
+	"github.com/hardhacker/hylo/internal/config"
+	"github.com/hardhacker/hylo/internal/plugin"
 )
 
 // Plugin implements plugin.Plugin for git-based vault sync.
@@ -53,7 +53,7 @@ func New(cfg config.GitSyncConfig, vaultRoot string, logger *slog.Logger) (*Plug
 		cfg.Debounce = "15s"
 	}
 	if cfg.CommitMessage == "" {
-		cfg.CommitMessage = "vaultr: sync {{.Time}}"
+		cfg.CommitMessage = "hylo: sync {{.Time}}"
 	}
 
 	debounce, err := time.ParseDuration(cfg.Debounce)
@@ -294,7 +294,7 @@ func (p *Plugin) ensureGitignore() error {
 			sb.WriteByte('\n')
 		}
 	}
-	sb.WriteString("# Exclude hidden files and directories (including .vaultr/ and .Vaultr/)\n")
+	sb.WriteString("# Exclude hidden files and directories (including .hylo/ and .Hylo/)\n")
 	for _, entry := range entries {
 		if !strings.Contains(content, entry) {
 			sb.WriteString(entry)
@@ -339,8 +339,8 @@ func (p *Plugin) commitAll() error {
 	msg := p.buildCommitMessage()
 	hash, err := wt.Commit(msg, &git.CommitOptions{
 		Author: &object.Signature{
-			Name:  "Vaultr",
-			Email: "vaultr@local",
+			Name:  "Hylo",
+			Email: "hylo@local",
 			When:  time.Now(),
 		},
 	})

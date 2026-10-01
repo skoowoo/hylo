@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hardhacker/vaultr/internal/storage"
-	"github.com/hardhacker/vaultr/internal/util"
+	"github.com/hardhacker/hylo/internal/storage"
+	"github.com/hardhacker/hylo/internal/util"
 )
 
 // ─── stream types ─────────────────────────────────────────────────────────────

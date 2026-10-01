@@ -15,8 +15,8 @@ func newDeleteCmd() *cobra.Command {
 		Long: `Delete the note at <path>.
 
 <path> is a vault-absolute path starting with "/" (e.g. /journal/today.md).`,
-		Example: `  vaultr delete /journal/today.md
-  vaultr delete /note.md`,
+		Example: `  hylo delete /journal/today.md
+  hylo delete /note.md`,
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {

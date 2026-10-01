@@ -29,10 +29,10 @@ var proxyOnce sync.Once
 
 // DefaultSkills are always enabled and cannot be disabled by the user.
 var DefaultSkills = []string{
-	"vaultr-compile-note",
-	"vaultr-index-knowledge",
-	"vaultr-memory",
-	"vaultr-notes",
+	"hylo-compile-note",
+	"hylo-index-knowledge",
+	"hylo-memory",
+	"hylo-notes",
 }
 
 // state persists only the non-default skills the user has explicitly enabled.
@@ -76,12 +76,12 @@ func Open(vaultRoot string, shellEnvFn func() []string) *Manager {
 		shellEnvFn = os.Environ
 	}
 	m := &Manager{
-		sourceDir: filepath.Join(home, ".vaultr", "skills"),
+		sourceDir: filepath.Join(home, ".hylo", "skills"),
 		targets: []string{
 			filepath.Join(vaultRoot, ".agents", "skills"),
 			filepath.Join(vaultRoot, ".claude", "skills"),
 		},
-		stateFile:  filepath.Join(vaultRoot, ".vaultr", "skills_state.json"),
+		stateFile:  filepath.Join(vaultRoot, ".hylo", "skills_state.json"),
 		shellEnvFn: shellEnvFn,
 	}
 	_ = m.loadState()
@@ -276,7 +276,7 @@ func (m *Manager) Disable(name string) error {
 }
 
 // Remove disables the skill (removes all symlinks) and deletes its source
-// directory from ~/.vaultr/skills/. Returns an error for built-in skills.
+// directory from ~/.hylo/skills/. Returns an error for built-in skills.
 func (m *Manager) Remove(name string) error {
 	if isDefault(name) {
 		return fmt.Errorf("skill %q is a built-in skill and cannot be removed", name)
@@ -325,7 +325,7 @@ func (m *Manager) Install(repoURL, subPath, skillName string) error {
 	// Register proxy transport once, using the captured shell environment.
 	proxyOnce.Do(func() { setupProxyTransport(m.shellEnvFn()) })
 
-	tmp, err := os.MkdirTemp("", "vaultr-skill-*")
+	tmp, err := os.MkdirTemp("", "hylo-skill-*")
 	if err != nil {
 		return fmt.Errorf("create temp dir: %w", err)
 	}

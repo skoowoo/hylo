@@ -5,10 +5,10 @@ import (
 	"net/http"
 	"path"
 
-	"github.com/hardhacker/vaultr/internal/config"
-	"github.com/hardhacker/vaultr/internal/plugins/search"
-	"github.com/hardhacker/vaultr/internal/storage"
-	"github.com/hardhacker/vaultr/internal/util"
+	"github.com/hardhacker/hylo/internal/config"
+	"github.com/hardhacker/hylo/internal/plugins/search"
+	"github.com/hardhacker/hylo/internal/storage"
+	"github.com/hardhacker/hylo/internal/util"
 )
 
 // ViewHandler serves vault pages as HTML.

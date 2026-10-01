@@ -1,4 +1,4 @@
-// Package compile implements a Vaultr plugin for knowledge compilation.
+// Package compile implements a Hylo plugin for knowledge compilation.
 // EventCompileRequested is emitted by the HTTP handler when the user manually
 // triggers compilation; actual LLM work is performed by a mate agent.
 package compile
@@ -12,9 +12,9 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/hardhacker/vaultr/internal/plugin"
-	"github.com/hardhacker/vaultr/internal/storage"
-	"github.com/hardhacker/vaultr/internal/util"
+	"github.com/hardhacker/hylo/internal/plugin"
+	"github.com/hardhacker/hylo/internal/storage"
+	"github.com/hardhacker/hylo/internal/util"
 )
 
 // ErrNoteAlreadyCompiled is returned by the trigger handler when the note is already compiled.

@@ -1,6 +1,6 @@
 # Knowledge Graph — Entity Type Distribution
 
-Queried from `.vaultr/meta.db` → `knowledge_links.source_entity_type` on 2026-06-26.
+Queried from `.hylo/meta.db` → `knowledge_links.source_entity_type` on 2026-06-26.
 
 | Entity Type        | Count |
 |--------------------|------:|

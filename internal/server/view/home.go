@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hardhacker/vaultr/internal/plugins/search"
-	"github.com/hardhacker/vaultr/internal/storage"
+	"github.com/hardhacker/hylo/internal/plugins/search"
+	"github.com/hardhacker/hylo/internal/storage"
 )
 
 const homeListPageSize = 20
@@ -362,7 +362,7 @@ const tagNotesLimit = 5000
 // filterable tag picker dropdown shown above a selected tag's note list (see
 // homeTagsSectionHTML). JSON tags matter: the wall passes the whole slice to
 // the client as JSON (see the "tagsJSON" template func below) for d3-cloud
-// to lay out — see __vaultrRenderTagCloud in home.js.
+// to lay out — see __hyloRenderTagCloud in home.js.
 type tagItem struct {
 	Name  string `json:"name"`
 	Count int    `json:"count"`
@@ -476,7 +476,7 @@ func (vh *ViewHandler) HomeSectionMore(w http.ResponseWriter, r *http.Request) {
 }
 
 var homeTemplateFuncs = template.FuncMap{
-	// tagsJSON serializes the wall's tag list for __vaultrRenderTagCloud
+	// tagsJSON serializes the wall's tag list for __hyloRenderTagCloud
 	// (home.js) to lay out client-side via d3-cloud. Returned as a plain
 	// string, not template.HTML, so html/template still HTML-escapes it into
 	// the data-tags attribute (the JSON's own double quotes become &#34;) —
@@ -537,7 +537,7 @@ const todoRingRadius = 8.0
 var todoRingCircumference = 2 * math.Pi * todoRingRadius
 
 const homeSectionRowsHTML = `{{define "rows"}}{{range .Items}}
-<div class="list-card list-card--clickable home-list-card home-note-row{{if .Cover}} has-cover{{end}}" @click="__vaultrOpenNote($event.currentTarget)"
+<div class="list-card list-card--clickable home-list-card home-note-row{{if .Cover}} has-cover{{end}}" @click="__hyloOpenNote($event.currentTarget)"
      draggable="true"
      data-note-path="{{.Path}}" data-note-title="{{label .}}"
      data-note-is-knowledge="{{.IsKnowledge}}" data-note-is-index="{{.IsIndex}}"
@@ -608,7 +608,7 @@ var homeSectionTemplate = template.Must(
 
 // homeTagsSectionHTML is the Tags section: with no tag selected, a
 // d3-cloud-packed word cloud of every tag (plain text sized by how often
-// it's used — see __vaultrRenderTagCloud, home.js); with one selected, just
+// it's used — see __hyloRenderTagCloud, home.js); with one selected, just
 // that tag's own pill + a count, plus a single dropdown trigger for jumping
 // to another tag (a vault can have hundreds of tags, so listing them all as
 // a permanent header row — the first cut of this — doesn't scale; a
@@ -1160,7 +1160,7 @@ func (vh *ViewHandler) noteItemsFromNotes(notes []storage.Note) []noteItem {
 
 var homePageHTML = `<!DOCTYPE html>
 <html lang="en">
-` + headHTML(headOpts{title: "Home — Vaultr", withFonts: true, withTW: true, withAlpine: true, withHTMX: true}) + `
+` + headHTML(headOpts{title: "Home — Hylo", withFonts: true, withTW: true, withAlpine: true, withHTMX: true}) + `
   <script src="/static/vendor/cytoscape.min.js"></script>
   <script src="/static/vendor/layout-base.js"></script>
   <script src="/static/vendor/cose-base.js"></script>
@@ -1176,7 +1176,7 @@ var homePageHTML = `<!DOCTYPE html>
 ` + infoDialogCSS + baseCSS + cselectCSS + homeCSS + imagesCSS + graphCSS + agentChatCSS + contentPaneCSS + noteSharedCSS + noteEditorCSS + shortsCSS + searchOverlayStyles + confirmDialogCSS + settingsModalCSS + frontmatterDialogCSS + `
   </style>
 </head>
-<body x-data="homeCtrl()" @vaultr:reference-note.window="referenceNote($event)" @vaultr:send-note-to-agent.window="sendNoteToAgentBot($event)">
+<body x-data="homeCtrl()" @hylo:reference-note.window="referenceNote($event)" @hylo:send-note-to-agent.window="sendNoteToAgentBot($event)">
 ` + searchOnlyOverlayHTML + confirmDialogHTML + infoDialogHTML + frontmatterDialogHTML + settingsModalHTML() + homeImagesLightboxHTML + homeChatToastHTML + `
   <div class="home-container">
 ` + homeMainHTML + contentPaneHTML + `

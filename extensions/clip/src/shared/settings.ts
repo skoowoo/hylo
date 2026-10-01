@@ -3,7 +3,7 @@ export const STORAGE_KEY = "clipSettings";
 export interface ClipSettings {
   /** e.g. http://127.0.0.1:54321 — no trailing slash */
   baseUrl: string;
-  /** Optional API Key for authentication (sent as X-Vaultr-API-Key header) */
+  /** Optional API Key for authentication (sent as X-Hylo-API-Key header) */
   apiKey: string;
   /** Vault-relative directory to save clipped pages into. Default: "Web Clips" */
   saveDir: string;

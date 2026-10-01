@@ -71,7 +71,7 @@ test('phase, cancel, and cursor finisher', async function () {
   var matesP = new Promise(function (resolve) { matesReady = resolve; });
   var api;
   var snaps = [];
-  global.__vaultrChatMount = function (el, facade) {
+  global.__hyloChatMount = function (el, facade) {
     api = facade;
     return {
       render: function () { snaps.push(facade.state()); },
@@ -108,7 +108,7 @@ test('phase, cancel, and cursor finisher', async function () {
     throw new Error('unmocked ' + u);
   };
 
-  var chat = global.__vaultrChatCreate({
+  var chat = global.__hyloChatCreate({
     onMates: function () { matesReady(); },
     onToast: function (text) { toasts.push(text); },
   });
@@ -163,7 +163,7 @@ test('a failed mate list toasts once', async function () {
     }
     throw new Error('unmocked ' + url);
   };
-  var chat = global.__vaultrChatCreate({
+  var chat = global.__hyloChatCreate({
     onToast: function (text) { toasts.push(text); },
   });
   try {

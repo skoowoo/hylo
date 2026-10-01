@@ -1,11 +1,11 @@
 ---
-name: vaultr-quote-extract
-description: Extract high-value verbatim quotes from a Vaultr note and save each as a short note with a backlink wikilink. Use this skill whenever the user wants to extract key quotes, highlight important passages, or "划重点" from a vault note. Trigger on phrases like "extract quotes", "highlight this note", "save important quotes from", "提取引文", "划重点", "摘录重点", or any request to pull out notable original text from a note and store it.
+name: hylo-quote-extract
+description: Extract high-value verbatim quotes from a Hylo note and save each as a short note with a backlink wikilink. Use this skill whenever the user wants to extract key quotes, highlight important passages, or "划重点" from a vault note. Trigger on phrases like "extract quotes", "highlight this note", "save important quotes from", "提取引文", "划重点", "摘录重点", or any request to pull out notable original text from a note and store it.
 ---
 
-# Vaultr Quote Extractor
+# Hylo Quote Extractor
 
-Extract high-value verbatim passages from a Vaultr note and save each one as a short note with a backlink to the source.
+Extract high-value verbatim passages from a Hylo note and save each one as a short note with a backlink to the source.
 
 ## What counts as a good quote
 
@@ -30,7 +30,7 @@ The user will name the note as either a vault-absolute path (`/clips/article.md`
 ### 2. Read the note
 
 ```bash
-vaultr raw_note read <path-or-name>
+hylo raw_note read <path-or-name>
 ```
 
 If this fails, surface the error directly — don't proceed.
@@ -55,7 +55,7 @@ For the display label, use (in priority order):
 For every extracted quote run:
 
 ```bash
-vaultr short_note create --content "QUOTE_TEXT
+hylo short_note create --content "QUOTE_TEXT
 
 [[STEM|DISPLAY]]"
 ```
@@ -65,22 +65,22 @@ The wikilink goes on its own paragraph (blank line separator) after the quote te
 **Example** — source `/clips/网络效应.md`, title "网络效应":
 
 ```bash
-vaultr short_note create --content "网络效应使得先发优势几乎不可逾越，后进者需要付出数倍的资源才能撬动用户迁移。
+hylo short_note create --content "网络效应使得先发优势几乎不可逾越，后进者需要付出数倍的资源才能撬动用户迁移。
 
 [[网络效应|网络效应]]"
 ```
 
-Run each `vaultr short_note create` call separately (one per quote), not batched into one.
+Run each `hylo short_note create` call separately (one per quote), not batched into one.
 
 ### 5. Report
 
 After all saves succeed, output:
 - How many quotes were saved
-- The file path(s) returned by each `vaultr short_note create` call (the CLI prints `saved short note to "..."`)
+- The file path(s) returned by each `hylo short_note create` call (the CLI prints `saved short note to "..."`)
 
 ## Edge cases
 
-- **Note not found**: `vaultr raw_note read` will error — surface it.
+- **Note not found**: `hylo raw_note read` will error — surface it.
 - **Very short note / few quotable passages**: save what exists (even 1–2 is fine) and note it.
 - **Note is itself a list of bullets or quotes**: each bullet is a candidate; still apply the quality filter — don't blindly save every line.
 - **Frontmatter title with quotes or special chars**: escape them properly in the shell argument, or use `$'...'` syntax.

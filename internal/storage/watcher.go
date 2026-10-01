@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/fsnotify/fsnotify"
-	"github.com/hardhacker/vaultr/internal/util"
+	"github.com/hardhacker/hylo/internal/util"
 )
 
 // Watcher monitors the vault directory tree for external file-system changes
@@ -18,7 +18,7 @@ import (
 //
 // Only markdown files (.md, .markdown) are tracked.
 // Hidden files and directories (any path component starting with ".") are
-// ignored, which covers vault internals such as .vaultr and the
+// ignored, which covers vault internals such as .hylo and the
 // temporary files created by Vault's two-phase write protocol.
 //
 // On kqueue (macOS, BSD), each directory must be watched (fsnotify Add) before the

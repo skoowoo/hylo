@@ -4,7 +4,7 @@ var fmIconUp   = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fi
 // Renders a key-combo hint (e.g. "⌘K") for the shared .kbd-combo component
 // (base.css) — wraps ⌘ in .kbd-cmd so its fallback-font glyph can be
 // rescaled independently of the surrounding mono text.
-window.vaultrKbdHTML = function(str) {
+window.hyloKbdHTML = function(str) {
   return str.replace(/⌘/g, '<span class="kbd-cmd">⌘</span>');
 };
 
@@ -31,11 +31,11 @@ window.fmToggleGrid = function(btn) {
         var u = new URL(href, window.location.origin);
         var name = u.searchParams.get('name') || '';
         var path = u.searchParams.get('path') || '';
-        if (path && window.__vaultrContentPane) {
+        if (path && window.__hyloContentPane) {
           var title = a.textContent.trim() || path.split('/').pop().replace(/\.md$/, '');
-          void window.__vaultrContentPane.openNoteInContentPane(path, title, false, false);
-        } else if (name && typeof __vaultrContentPaneOpenWikiLink === 'function') {
-          void __vaultrContentPaneOpenWikiLink(name.replace(/\.md$/, ''));
+          void window.__hyloContentPane.openNoteInContentPane(path, title, false, false);
+        } else if (name && typeof __hyloContentPaneOpenWikiLink === 'function') {
+          void __hyloContentPaneOpenWikiLink(name.replace(/\.md$/, ''));
         }
       } catch(_) {}
     }

@@ -15,14 +15,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hardhacker/vaultr/internal/plugin"
-	"github.com/hardhacker/vaultr/internal/util"
+	"github.com/hardhacker/hylo/internal/plugin"
+	"github.com/hardhacker/hylo/internal/util"
 )
 
 const (
 	// vaultInternalDir holds metadata DB, search index, and other
 	// vault-internal data. User notes live directly under the vault root.
-	vaultInternalDir = ".vaultr"
+	vaultInternalDir = ".hylo"
 
 	vaultDBFileName = "meta.db"
 )
@@ -35,7 +35,7 @@ func vaultDBPath(root string) string {
 	return filepath.Join(vaultInternalPath(root), vaultDBFileName)
 }
 
-// IsVaultInitialized reports whether dir contains a .vaultr directory.
+// IsVaultInitialized reports whether dir contains a .hylo directory.
 // It does not create any paths on disk.
 func IsVaultInitialized(dir string) (bool, error) {
 	expanded, err := expandHome(dir)
@@ -63,7 +63,7 @@ func IsVaultInitialized(dir string) (bool, error) {
 // It must not block.
 type EventHook func(e plugin.Event)
 
-// Vault is the root of the Vaultr personal database.
+// Vault is the root of the Hylo personal database.
 //
 // All note operations take explicit (dir, name string) coordinates:
 //   - dir  — vault-absolute slash path of the containing directory, e.g. "/journal/2026".
@@ -411,7 +411,7 @@ func (g *Vault) BackfillKnowledgeLinks(knowledgeOutputDir string) error {
 // registered in the metadata DB, reading each one's content fresh from disk.
 // Unlike ScanAndRegisterFull, it only touches the preview column — kind,
 // tags, knowledge deps, and the search index are all left exactly as they
-// are. Used by `vaultr init --preview-only` to backfill a vault that predates
+// are. Used by `hylo init --preview-only` to backfill a vault that predates
 // the preview feature (or one last registered by a version of
 // ScanAndRegisterFull that didn't compute it), without redoing the rest of a
 // full rescan. A note whose file can't be read (permissions, removed
@@ -722,8 +722,8 @@ func (g *Vault) DeleteNote(p Path) error {
 // a knowledge note, or an index note are all handled the same way at the DB
 // layer. On top of that, a dependent knowledge note's source_notes:
 // frontmatter or a dependent index note's table may hold p's full path as a
-// literal string (see skills/vaultr-compile-note and
-// skills/vaultr-index-knowledge); those are rewritten too, best-effort, once
+// literal string (see skills/hylo-compile-note and
+// skills/hylo-index-knowledge); those are rewritten too, best-effort, once
 // the move itself has committed — see dbMove's comment for why leaving them
 // stale would eventually undo this.
 //
@@ -1470,7 +1470,7 @@ func (g *Vault) GetShortDailyNote(shortsDir string, day time.Time) (Note, error)
 // ScanAndRegister walks the vault root recursively and upserts a metadata row
 // for every markdown file found on disk.
 // Hidden directories (any component beginning with ".") are skipped, which
-// excludes .vaultr and editor temp files.
+// excludes .hylo and editor temp files.
 // Returns the number of files registered (newly inserted or updated).
 func (g *Vault) ScanAndRegister() (int, error) {
 	g.mu.Lock()

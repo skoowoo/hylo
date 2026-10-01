@@ -15,8 +15,8 @@ func newMoveCmd() *cobra.Command {
 		Long: `Move the note at <path> into <new-dir>, keeping its filename.
 
 <path> and <new-dir> are vault-absolute, starting with "/" (e.g. /journal/today.md, /archive).`,
-		Example: `  vaultr move /journal/today.md /archive
-  vaultr move /note.md /`,
+		Example: `  hylo move /journal/today.md /archive
+  hylo move /note.md /`,
 		Args:         cobra.ExactArgs(2),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {

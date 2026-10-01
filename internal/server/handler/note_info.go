@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/hardhacker/vaultr/internal/storage"
+	"github.com/hardhacker/hylo/internal/storage"
 )
 
 // NewNoteInfo returns an http.Handler for POST /api/notes/info.

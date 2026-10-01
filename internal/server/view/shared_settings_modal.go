@@ -554,7 +554,7 @@ const settingsModalCSS = `
 // opened via the sidebar's bottom-row Settings button (see home.html).
 func settingsModalHTML() string {
 	return `
-  <div id="vaultr-settings-modal"
+  <div id="hylo-settings-modal"
        x-data="settingsCtrl()"
        x-show="$store.settingsModal.open"
        x-cloak
@@ -724,7 +724,7 @@ func settingsModalHTML() string {
                             x-text="urlSaving ? 'Applying…' : 'Apply'"></button>
                   </div>
                   <div class="settings-error" x-show="urlError" x-text="urlError"></div>
-                  <p class="settings-field-desc">Vaultr server address used by the desktop app. Changes reload immediately.</p>
+                  <p class="settings-field-desc">Hylo server address used by the desktop app. Changes reload immediately.</p>
                 </div>
 
                 <div x-show="isElectron && serverManaged" style="max-width:640px; margin-bottom:1.75rem;">
@@ -948,7 +948,7 @@ func settingsModalHTML() string {
                     </div>
                     <div class="shortcuts-keys">
                       <template x-for="k in getEffectiveKeys(s)" :key="k">
-                        <span class="kbd kbd-combo" x-html="vaultrKbdHTML(k)"></span>
+                        <span class="kbd kbd-combo" x-html="hyloKbdHTML(k)"></span>
                       </template>
                     </div>
                   </div>
@@ -1010,7 +1010,7 @@ func settingsModalHTML() string {
                         </div>
                         <button type="button" class="icon-btn icon-btn--lg" title="Preview sound"
                                 :disabled="notifySettings.sound === 'none'"
-                                @click="window.vaultrDesktop?.inboxNotify?.previewSound(notifySettings.sound)">
+                                @click="window.hyloDesktop?.inboxNotify?.previewSound(notifySettings.sound)">
                           <svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 4v16l13-8z"/></svg>
                         </button>
                       </div>
@@ -1300,7 +1300,7 @@ func settingsModalHTML() string {
             </div>
             <p class="skills-desc">
               Manage skills for agents. Built-in skills are always enabled.
-              External skills can be installed or removed here. Source directory: <code>~/.vaultr/skills/</code>
+              External skills can be installed or removed here. Source directory: <code>~/.hylo/skills/</code>
             </p>
             <div class="cfg-err-msg" x-show="skillsError && !skillsLoading" x-text="'Error: ' + skillsError"></div>
             <div class="cfg-loader" x-show="skillsLoading">Loading skills…</div>
@@ -1402,7 +1402,7 @@ func settingsModalHTML() string {
         </div><!-- .settings-content -->
       </div><!-- .settings-modal-inner -->
     </div><!-- .settings-modal-panel -->
-  </div><!-- #vaultr-settings-modal -->`
+  </div><!-- #hylo-settings-modal -->`
 }
 
 // settingsCtrlJS is the Alpine.js controller for the settings modal.
@@ -1411,7 +1411,7 @@ const settingsCtrlJS = `
   function settingsCtrl() {
     return {
       _inited: false,
-      isElectron: !!window.vaultrDesktop,
+      isElectron: !!window.hyloDesktop,
       tab: 'appearance',
       serverUrl: '',
       urlSaving: false,
@@ -1524,35 +1524,35 @@ const settingsCtrlJS = `
       // Read live by the editor's remark pipeline on every parse (breaks.js),
       // not threaded through Editor.make() config — so this takes effect on
       // the next parse without needing the editor to be recreated.
-      lineBreaksPref: localStorage.getItem('vaultr-line-breaks') || 'loose',
-      setLineBreaks(key) { this.lineBreaksPref = key; localStorage.setItem('vaultr-line-breaks', key); },
+      lineBreaksPref: localStorage.getItem('hylo-line-breaks') || 'loose',
+      setLineBreaks(key) { this.lineBreaksPref = key; localStorage.setItem('hylo-line-breaks', key); },
 
       // themePref mirrors what themeBootstrapScript already resolved at
       // first paint (light/dark/auto) — switching here just persists the
       // new choice and re-runs that same resolution logic immediately via
-      // window.__vaultrApplyTheme (defined once in <head>, shared by both).
-      themePref: localStorage.getItem('vaultr-theme') || 'auto',
+      // window.__hyloApplyTheme (defined once in <head>, shared by both).
+      themePref: localStorage.getItem('hylo-theme') || 'auto',
       setTheme(key) {
         this.themePref = key;
-        localStorage.setItem('vaultr-theme', key);
-        if (window.__vaultrApplyTheme) window.__vaultrApplyTheme(key);
+        localStorage.setItem('hylo-theme', key);
+        if (window.__hyloApplyTheme) window.__hyloApplyTheme(key);
       },
 
       // Presets come from accentBootstrapScript (shared_accent.go), which also
       // owns applying them; this just persists the pick and re-runs it.
-      accentPresets: window.__vaultrAccentPresets || [],
+      accentPresets: window.__hyloAccentPresets || [],
       accentPref: (function() {
-        var id = localStorage.getItem('vaultr-accent');
-        return (window.__vaultrAccentPresets || []).some(function(p) { return p.id === id; }) ? id : 'indigo';
+        var id = localStorage.getItem('hylo-accent');
+        return (window.__hyloAccentPresets || []).some(function(p) { return p.id === id; }) ? id : 'indigo';
       })(),
       setAccent(id) {
         this.accentPref = id;
-        localStorage.setItem('vaultr-accent', id);
-        if (window.__vaultrApplyAccent) window.__vaultrApplyAccent(id);
+        localStorage.setItem('hylo-accent', id);
+        if (window.__hyloApplyAccent) window.__hyloApplyAccent(id);
       },
 
       isMac: /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent),
-      customKeys: JSON.parse(localStorage.getItem('vaultr-custom-keys') || '{}'),
+      customKeys: JSON.parse(localStorage.getItem('hylo-custom-keys') || '{}'),
       shortcutDefs: [
         { id: 'dismiss',        label: 'Dismiss',                desc: 'Close any open overlay or dialog',          mac: 'Esc',  win: 'Esc' },
         { id: 'toggle-search',  label: 'Search',                 desc: 'Open the quick search overlay',             mac: '⌘K',   win: 'Ctrl+K' },
@@ -1665,26 +1665,26 @@ const settingsCtrlJS = `
       },
 
       async init() {
-        window.__vaultrSettingsShell = this;
+        window.__hyloSettingsShell = this;
         // Another same-origin view can change the accent; keep the picker's ring in step.
-        window.addEventListener('vaultr:accent', () => {
-          var id = localStorage.getItem('vaultr-accent');
+        window.addEventListener('hylo:accent', () => {
+          var id = localStorage.getItem('hylo-accent');
           this.accentPref = this.accentPresets.some(p => p.id === id) ? id : 'indigo';
         });
-        window.__vaultrHotkeys.register('open-settings', ',', function() {
+        window.__hyloHotkeys.register('open-settings', ',', function() {
           Alpine.store('settingsModal').open = true;
         });
         this.$watch('$store.settingsModal.open', async (open) => {
           if (!open) {
-            if (window.__vaultrEscPop) window.__vaultrEscPop('settings');
+            if (window.__hyloEscPop) window.__hyloEscPop('settings');
             this.cancelWechatLogin();
             return;
           }
-          if (window.__vaultrEscPush) window.__vaultrEscPush('settings', () => { Alpine.store('settingsModal').open = false; });
+          if (window.__hyloEscPush) window.__hyloEscPush('settings', () => { Alpine.store('settingsModal').open = false; });
           if (!this._inited) {
             this._inited = true;
-            if (window.vaultrDesktop) {
-              this.serverUrl = await window.vaultrDesktop.getServerUrl();
+            if (window.hyloDesktop) {
+              this.serverUrl = await window.hyloDesktop.getServerUrl();
             }
             this.$watch('tab', val => {
               if (val === 'server') { this.loadServerStatus(); this.loadConfig(); }
@@ -1711,9 +1711,9 @@ const settingsCtrlJS = `
       },
 
       async loadServerStatus() {
-        if (!window.vaultrDesktop?.getServerProcessStatus) return;
+        if (!window.hyloDesktop?.getServerProcessStatus) return;
         try {
-          const s = await window.vaultrDesktop.getServerProcessStatus();
+          const s = await window.hyloDesktop.getServerProcessStatus();
           this.serverManaged = s.managed;
           this.serverRunning = s.alive;
         } catch { /* noop */ }
@@ -1723,7 +1723,7 @@ const settingsCtrlJS = `
         this.serverStopping = true;
         this.serverStopError = '';
         try {
-          const r = await window.vaultrDesktop.stopServer();
+          const r = await window.hyloDesktop.stopServer();
           if (!r.ok) { this.serverStopError = r.error || 'Stop failed'; this.serverStopping = false; }
         } catch (e) { this.serverStopError = e.message; this.serverStopping = false; }
       },
@@ -2030,7 +2030,7 @@ const settingsCtrlJS = `
 
       async uninstallSkill(name) {
         const ok = (typeof window.showConfirm === 'function')
-          ? await window.showConfirm({ title: 'Uninstall skill', message: 'Remove "' + name + '" and all its files from ~/.vaultr/skills/?', confirmLabel: 'Uninstall', danger: true })
+          ? await window.showConfirm({ title: 'Uninstall skill', message: 'Remove "' + name + '" and all its files from ~/.hylo/skills/?', confirmLabel: 'Uninstall', danger: true })
           : window.confirm('Uninstall skill "' + name + '"? This cannot be undone.');
         if (!ok) return;
         this.skillsUninstalling = Object.assign({}, this.skillsUninstalling, { [name]: true });
@@ -2176,10 +2176,10 @@ const settingsCtrlJS = `
         } catch (e) { this.cfgSaveError = e.message; }
         finally { this.cfgSaving = false; }
 
-        if (saved && window.vaultrDesktop?.restartServer) {
+        if (saved && window.hyloDesktop?.restartServer) {
           this.cfgRestarting = true;
           try {
-            const r = await window.vaultrDesktop.restartServer();
+            const r = await window.hyloDesktop.restartServer();
             if (r.ok) return;
             if (r.reason === 'no_pid') { this.cfgSaveOk = true; }
             else { this.cfgRestartError = r.error || 'Restart failed'; }
@@ -2197,13 +2197,13 @@ const settingsCtrlJS = `
           const p = new URL(raw);
           if (!['http:', 'https:'].includes(p.protocol)) throw new Error('Must use http:// or https://');
           this.urlSaving = true;
-          await window.vaultrDesktop.setServerUrl(raw);
+          await window.hyloDesktop.setServerUrl(raw);
         } catch (e) { this.urlError = e.message; this.urlSaving = false; }
       },
 
       async pickFolder(key, currentVal) {
-        if (!window.vaultrDesktop?.pickFolder) return;
-        const result = await window.vaultrDesktop.pickFolder({
+        if (!window.hyloDesktop?.pickFolder) return;
+        const result = await window.hyloDesktop.pickFolder({
           title: 'Select Vault Root Folder',
           defaultPath: currentVal || undefined,
         });
@@ -2216,14 +2216,14 @@ const settingsCtrlJS = `
       },
 
       async loadNotifySettings() {
-        if (!window.vaultrDesktop?.inboxNotify) return;
+        if (!window.hyloDesktop?.inboxNotify) return;
         try {
-          this.notifySettings = await window.vaultrDesktop.inboxNotify.getSettings();
+          this.notifySettings = await window.hyloDesktop.inboxNotify.getSettings();
         } catch(_) {}
       },
 
       async saveNotifySettings() {
-        if (!window.vaultrDesktop?.inboxNotify) return;
+        if (!window.hyloDesktop?.inboxNotify) return;
         try {
           // Spread to a plain object so Electron's contextBridge Structured Clone
           // doesn't silently drop the Alpine.js reactive Proxy wrapper.
@@ -2232,7 +2232,7 @@ const settingsCtrlJS = `
             soundEnabled: this.notifySettings.soundEnabled,
             sound:        this.notifySettings.sound,
           };
-          this.notifySettings = await window.vaultrDesktop.inboxNotify.setSettings(snap);
+          this.notifySettings = await window.hyloDesktop.inboxNotify.setSettings(snap);
           this.notifySaveOk = true;
           setTimeout(() => { this.notifySaveOk = false; }, 1500);
         } catch(e) { console.error('[notify] saveNotifySettings error:', e); }

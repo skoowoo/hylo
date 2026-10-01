@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hardhacker/vaultr/internal/plugins/search"
-	"github.com/hardhacker/vaultr/internal/storage"
+	"github.com/hardhacker/hylo/internal/plugins/search"
+	"github.com/hardhacker/hylo/internal/storage"
 )
 
 // searchResultItem is passed to the search fragment template.

@@ -7,7 +7,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/hardhacker/vaultr/internal/storage"
+	"github.com/hardhacker/hylo/internal/storage"
 	"github.com/spf13/cobra"
 )
 
@@ -44,11 +44,11 @@ func newKnowledgeListCmd() *cobra.Command {
 		Long: `List knowledge notes, sorted by most recently updated. Output is JSON by default; use --table for a table view.
 
 Pass a vault-absolute directory path (e.g. /_knowledge) to scope the listing to that directory.`,
-		Example: `  vaultr knowledge list
-  vaultr knowledge list --kind index
-  vaultr knowledge list --latest 7
-  vaultr knowledge list --start 2026-01-01 --end 2026-01-31
-  vaultr knowledge list --limit 20`,
+		Example: `  hylo knowledge list
+  hylo knowledge list --kind index
+  hylo knowledge list --latest 7
+  hylo knowledge list --start 2026-01-01 --end 2026-01-31
+  hylo knowledge list --limit 20`,
 		Args:         cobra.MaximumNArgs(1),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -87,8 +87,8 @@ func newKnowledgeReadCmd() *cobra.Command {
 
 Pass a vault-absolute path (e.g. /_knowledge/summary.md) or a bare filename.
 If multiple notes share the same name, use the full vault path.`,
-		Example: `  vaultr knowledge read "/_knowledge/summary.md"
-  vaultr knowledge read summary.md`,
+		Example: `  hylo knowledge read "/_knowledge/summary.md"
+  hylo knowledge read summary.md`,
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -108,9 +108,9 @@ Query syntax:
   word              match any file containing "word"
   word1 word2       match files containing either word (OR)
   "exact phrase"    phrase search within content`,
-		`  vaultr knowledge search "summary"
-  vaultr knowledge search clip --field name
-  vaultr knowledge search "TODO" --field content --limit 5`,
+		`  hylo knowledge search "summary"
+  hylo knowledge search clip --field name
+  hylo knowledge search "TODO" --field content --limit 5`,
 		searchScopeKnowledge,
 	)
 }
@@ -122,7 +122,7 @@ func newKnowledgeDeleteCmd() *cobra.Command {
 		Long: `Delete the knowledge note at <path>.
 
 <path> is a vault-absolute path starting with "/" (e.g. /_knowledge/article.md).`,
-		Example:      `  vaultr knowledge delete "/_knowledge/article.md"`,
+		Example:      `  hylo knowledge delete "/_knowledge/article.md"`,
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -209,7 +209,7 @@ func newKnowledgeListIndexesCmd() *cobra.Command {
 		Use:          "list-indexes",
 		Short:        "List index notes",
 		Long:         `List all index notes. Each entry shows the domain and the vault path of the index note. Output is JSON by default; use --table for a table view.`,
-		Example:      `  vaultr knowledge list-indexes\n  vaultr knowledge list-indexes --table`,
+		Example:      `  hylo knowledge list-indexes\n  hylo knowledge list-indexes --table`,
 		Args:         cobra.NoArgs,
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {

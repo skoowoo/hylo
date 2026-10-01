@@ -9,24 +9,24 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/hardhacker/vaultr/internal/agent"
-	"github.com/hardhacker/vaultr/internal/config"
-	"github.com/hardhacker/vaultr/internal/logger"
-	"github.com/hardhacker/vaultr/internal/plugins/search"
-	"github.com/hardhacker/vaultr/internal/server"
-	"github.com/hardhacker/vaultr/internal/storage"
+	"github.com/hardhacker/hylo/internal/agent"
+	"github.com/hardhacker/hylo/internal/config"
+	"github.com/hardhacker/hylo/internal/logger"
+	"github.com/hardhacker/hylo/internal/plugins/search"
+	"github.com/hardhacker/hylo/internal/server"
+	"github.com/hardhacker/hylo/internal/storage"
 	"github.com/spf13/cobra"
 )
 
 func defaultServerPIDFile() string {
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return filepath.Join(".vaultr", "pid")
+		return filepath.Join(".hylo", "pid")
 	}
-	return filepath.Join(home, ".vaultr", "pid")
+	return filepath.Join(home, ".hylo", "pid")
 }
 
-// set by `vaultr start server --pid-file`
+// set by `hylo start server --pid-file`
 var servePIDFile string
 
 func newStartCmd() *cobra.Command {
@@ -42,10 +42,10 @@ func newStartCmd() *cobra.Command {
 		Long: `Start the database server.
 
 The listening address (TCP host/port, timeouts) is read only from
-the vaultr.toml config file — not from flags or environment variables.
+the hylo.toml config file — not from flags or environment variables.
 
 By default the server listens on TCP at 127.0.0.1:54321. Set server.port to 0
-in vaultr.toml to disable the server entirely.
+in hylo.toml to disable the server entirely.
 
 After the server successfully binds its listen address, its process ID is written
 to the pid file (see --pid-file). The file is removed when the server exits.`,
@@ -76,7 +76,7 @@ func runServe(_ *cobra.Command, _ []string) error {
 	log := logger.New(cfg.Log)
 
 	// Detect whether the vault was already initialised before we open it.
-	// storage.New creates .vaultr on first use, so we must check beforehand.
+	// storage.New creates .hylo on first use, so we must check beforehand.
 	wasInit, err := storage.IsVaultInitialized(cfg.Vault.Path)
 	if err != nil {
 		log.Warn("could not check vault initialisation state", "err", err)
@@ -114,7 +114,7 @@ func runServe(_ *cobra.Command, _ []string) error {
 }
 
 // autoInitVault checks whether the (freshly created) vault root already contains
-// markdown files. If it does, it runs the same registration steps as "vaultr init"
+// markdown files. If it does, it runs the same registration steps as "hylo init"
 // so that pre-existing notes are immediately available to the server.
 // The search backfill is intentionally omitted here: the search plugin runs its
 // own backfill on startup and will pick up all notes registered by this call.
@@ -155,7 +155,7 @@ func autoInitVault(log *slog.Logger, cfg *config.Config, vault *storage.Vault) e
 }
 
 // vaultHasMarkdownFiles reports whether root contains at least one .md file,
-// skipping hidden directories (including .vaultr itself).
+// skipping hidden directories (including .hylo itself).
 func vaultHasMarkdownFiles(root string) bool {
 	found := false
 	_ = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {

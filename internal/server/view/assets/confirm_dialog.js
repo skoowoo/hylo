@@ -1,6 +1,6 @@
 
   function confirmDialogCtrl() {
-    return window.vaultrOverlay('confirm', {
+    return window.hyloOverlay('confirm', {
       title: '',
       titleHTML: '',
       message: '',

@@ -7,13 +7,13 @@
   // Compartment reconfigured to plain syntax highlighting" vs "live-preview
   // decorations active", toggled in place on the same view/doc instead of
   // switching between two separately-mounted editors.
-  var __vaultrEditor = {
+  var __hyloEditor = {
     view: null,
     initPromise: null, dirty: false,
     currentPath: '', currentMd: '',
     saveTimer: null,
     // Names (with ".md") confirmed missing from the vault for the note
-    // currently loaded — see __vaultrEditorRevalidateWikiLinks. Cleared and
+    // currently loaded — see __hyloEditorRevalidateWikiLinks. Cleared and
     // recomputed on every note/tab load; stale until that async check lands.
     brokenWikiLinkNames: new Set(),
     wikiLinkRevalidateSeq: 0,
@@ -24,18 +24,18 @@
     // even while the preference is on.
     reading: false, readingActive: false,
   };
-  // The editor.js module. Session state stays on __vaultrEditor; CodeMirror
+  // The editor.js module. Session state stays on __hyloEditor; CodeMirror
   // symbols stay here so init doesn't copy them onto the session.
-  var __vaultrCM = null;
-  try { __vaultrEditor.reading = localStorage.getItem('vaultr.reading') === '1'; } catch(_) {}
-  function __vaultrEditorSetReadingPref(on) {
-    __vaultrEditor.reading = on;
-    try { localStorage.setItem('vaultr.reading', on ? '1' : '0'); } catch(_) {}
+  var __hyloCM = null;
+  try { __hyloEditor.reading = localStorage.getItem('hylo.reading') === '1'; } catch(_) {}
+  function __hyloEditorSetReadingPref(on) {
+    __hyloEditor.reading = on;
+    try { localStorage.setItem('hylo.reading', on ? '1' : '0'); } catch(_) {}
   }
 
 
   // ── Save helpers ─────────────────────────────────────────────────────────────
-  function __vaultrEditorSaveStatus(txt) {
+  function __hyloEditorSaveStatus(txt) {
     var el = document.getElementById('content-pane-save-status');
     if (!el) return;
     clearTimeout(el._ssiTimer);
@@ -48,15 +48,15 @@
       el.dataset.state = '';
     }
   }
-  function __vaultrEditorScheduleSave() {
-    __vaultrEditorSaveStatus('●');
-    clearTimeout(__vaultrEditor.saveTimer);
-    __vaultrEditor.saveTimer = setTimeout(__vaultrEditorDoSave, 800);
+  function __hyloEditorScheduleSave() {
+    __hyloEditorSaveStatus('●');
+    clearTimeout(__hyloEditor.saveTimer);
+    __hyloEditor.saveTimer = setTimeout(__hyloEditorDoSave, 800);
   }
-  async function __vaultrEditorDoSave() {
-    if (!__vaultrEditor.dirty) return;
-    var path = __vaultrEditor.currentPath;
-    var content = __vaultrEditor.currentMd;
+  async function __hyloEditorDoSave() {
+    if (!__hyloEditor.dirty) return;
+    var path = __hyloEditor.currentPath;
+    var content = __hyloEditor.currentMd;
     if (!path) return;
     try {
       var r = await fetch('/api/vault/write', {
@@ -64,15 +64,15 @@
         body: JSON.stringify({path: path, content: content}),
       });
       if (r.ok) {
-        __vaultrEditor.dirty = false; __vaultrEditorSaveStatus('Saved');
+        __hyloEditor.dirty = false; __hyloEditorSaveStatus('Saved');
         // A plain content save is by far the most frequent vault mutation
         // (every ~800ms of idle-after-typing) — unlike pin/delete/rename/move,
-        // which go through window.__vaultrAfterVaultMutation() and refetch +
+        // which go through window.__hyloAfterVaultMutation() and refetch +
         // re-render the whole active section, this patches only the one row
         // that could have changed, straight from the save response, with no
         // extra request at all.
         var saved = null; try { saved = await r.json(); } catch(_) {}
-        if (saved) __vaultrPatchNoteRowAfterSave(path, saved);
+        if (saved) __hyloPatchNoteRowAfterSave(path, saved);
       } else {
         var errText = ''; try { errText = await r.text(); } catch(_) {}
         window.showError(errText || 'Server error — your changes may not be saved.', 'Save error');
@@ -88,7 +88,7 @@
   // rule. Only touches the row if it's actually rendered in the list right
   // now; most saves happen while some other section is showing, and there's
   // nothing to patch then.
-  function __vaultrPatchNoteRowAfterSave(path, note) {
+  function __hyloPatchNoteRowAfterSave(path, note) {
     var row = document.querySelector('.home-note-row[data-note-path="' + CSS.escape(path) + '"]');
     if (!row) return;
     var meta = row.querySelector('.home-note-row-meta');
@@ -114,9 +114,9 @@
   }
 
   // ── Misc helpers ─────────────────────────────────────────────────────────────
-  // __vaultrEditorTightenLists / __vaultrEditorSameListMarker → list_tighten.js
+  // __hyloEditorTightenLists / __hyloEditorSameListMarker → list_tighten.js
   // (same concatenated scope; split out so it's unit-testable headlessly).
-  function __vaultrEditorFindImageFile(dt) {
+  function __hyloEditorFindImageFile(dt) {
     if (!dt) return null;
     var items = Array.from(dt.items || []);
     for (var i = 0; i < items.length; i++) {
@@ -124,7 +124,7 @@
     }
     return null;
   }
-  async function __vaultrEditorUploadImage(imgFile) {
+  async function __hyloEditorUploadImage(imgFile) {
     var fd = new FormData();
     fd.append('file', imgFile);
     var resp = await fetch('/api/vault/upload-image', {method: 'POST', body: fd});
@@ -134,26 +134,26 @@
 
   // ── Note materialization ─────────────────────────────────────────────────────
   // A brand-new tab has no path — and nothing on the server — until its
-  // first real edit (see __vaultrEditorHandleContentChange below). There is
+  // first real edit (see __hyloEditorHandleContentChange below). There is
   // no draft state to load/flush/discard before that point.
-  function __vaultrEditorActiveTab() {
-    var pane = window.__vaultrContentPane;
+  function __hyloEditorActiveTab() {
+    var pane = window.__hyloContentPane;
     return pane ? pane.tabs[pane.activeTab] : null;
   }
-  function __vaultrEditorIsActiveTabId(tabId) {
+  function __hyloEditorIsActiveTabId(tabId) {
     if (!tabId) return true;
-    var pane = window.__vaultrContentPane;
+    var pane = window.__hyloContentPane;
     var tab = pane && pane.tabs[pane.activeTab];
     return !!(tab && tab.id === tabId);
   }
-  async function __vaultrEditorSaveTabForLeave(tab) { await tabStateManager.saveForLeave(tab); }
+  async function __hyloEditorSaveTabForLeave(tab) { await tabStateManager.saveForLeave(tab); }
 
   // _materializing lives on the tab itself, not a shared variable — two
   // different unmaterialized tabs can be in flight at once.
-  async function __vaultrEditorMaterializeTab(tab, md) {
+  async function __hyloEditorMaterializeTab(tab, md) {
     if (tab._materializing) return;
     tab._materializing = true;
-    if (__vaultrEditorIsActiveTabId(tab.id)) __vaultrEditorSaveStatus('●');
+    if (__hyloEditorIsActiveTabId(tab.id)) __hyloEditorSaveStatus('●');
     try {
       var resp = await fetch('/api/vault/create-untitled', {
         method: 'POST', headers: {'Content-Type': 'application/json'},
@@ -167,14 +167,14 @@
       }
       var data = await resp.json();
       tab.path = data.path;
-      tab.title = __vaultrStripMdExt(data.path.split('/').pop()) || data.path;
+      tab.title = __hyloStripMdExt(data.path.split('/').pop()) || data.path;
       delete tab._pendingContent;
-      if (!__vaultrEditorIsActiveTabId(tab.id)) return; // switched away while this was in flight — nothing to autosave right now
-      var s = __vaultrEditor;
+      if (!__hyloEditorIsActiveTabId(tab.id)) return; // switched away while this was in flight — nothing to autosave right now
+      var s = __hyloEditor;
       s.currentPath = data.path;
       s.dirty = true; // re-arm autosave — more may have been typed while the create call was in flight
-      __vaultrEditorScheduleSave();
-      if (window.__vaultrAfterVaultMutation) await window.__vaultrAfterVaultMutation();
+      __hyloEditorScheduleSave();
+      if (window.__hyloAfterVaultMutation) await window.__hyloAfterVaultMutation();
     } catch(e) {
       window.showError((e && e.message) || 'Network error — your note may not be saved.', 'Save error');
     } finally {
@@ -187,39 +187,39 @@
   // arrive here is a real edit (typing, paste-image insert, frontmatter
   // dialog apply, undo/redo, …). No text comparison: the transaction having
   // happened at all is the dirty signal.
-  function __vaultrEditorHandleContentChange(md) {
-    var s = __vaultrEditor;
-    var pane = window.__vaultrContentPane;
+  function __hyloEditorHandleContentChange(md) {
+    var s = __hyloEditor;
+    var pane = window.__hyloContentPane;
     if (pane && !pane.contentPaneOpen) return;
     s.currentMd = md;
-    var tab = __vaultrEditorActiveTab();
+    var tab = __hyloEditorActiveTab();
     if (tab && !tab.path) {
       // In-memory only (never persisted) — lets switching back to this tab
       // while its create-untitled call is still in flight show what was
       // typed instead of a blank editor. Cleared once materialized.
       tab._pendingContent = md;
-      void __vaultrEditorMaterializeTab(tab, md);
+      void __hyloEditorMaterializeTab(tab, md);
       return;
     }
     s.dirty = true;
-    __vaultrEditorScheduleSave();
+    __hyloEditorScheduleSave();
   }
 
   // Mirrors internal/util/mdhtml.go's wikilinkRe + name normalization so the
   // client can batch-check the same target names the server would resolve.
-  var __vaultrWikilinkRe = /\[\[([^\]\[|]+?)(?:\|[^\]\[]+?)?\]\]/g;
+  var __hyloWikilinkRe = /\[\[([^\]\[|]+?)(?:\|[^\]\[]+?)?\]\]/g;
 
-  function __vaultrWikiLinkTargetName(raw) {
+  function __hyloWikiLinkTargetName(raw) {
     var name = (raw || '').trim();
     if (!/\.md$/i.test(name)) name += '.md';
     return name;
   }
 
-  function __vaultrExtractWikilinkNames(md) {
+  function __hyloExtractWikilinkNames(md) {
     var names = [], seen = {}, m;
-    __vaultrWikilinkRe.lastIndex = 0;
-    while ((m = __vaultrWikilinkRe.exec(md || ''))) {
-      var name = __vaultrWikiLinkTargetName(m[1]);
+    __hyloWikilinkRe.lastIndex = 0;
+    while ((m = __hyloWikilinkRe.exec(md || ''))) {
+      var name = __hyloWikiLinkTargetName(m[1]);
       if (!seen[name]) { seen[name] = true; names.push(name); }
     }
     return names;
@@ -231,10 +231,10 @@
   // above). Fire-and-forget; wikiLinkRevalidateSeq (bumped by the caller
   // before this runs) guards against a slow response landing after the user
   // has already switched to a different note.
-  async function __vaultrEditorRevalidateWikiLinks() {
-    var s = __vaultrEditor;
+  async function __hyloEditorRevalidateWikiLinks() {
+    var s = __hyloEditor;
     var seq = s.wikiLinkRevalidateSeq;
-    var names = __vaultrExtractWikilinkNames(s.currentMd);
+    var names = __hyloExtractWikilinkNames(s.currentMd);
     if (!names.length) return;
     try {
       var r = await fetch('/api/notes/exist', {
@@ -248,15 +248,15 @@
       var broken = new Set();
       names.forEach(function(n) { if (!existing[n]) broken.add(n); });
       s.brokenWikiLinkNames = broken;
-      if (s.view && __vaultrCM) {
-        s.view.dispatch({effects: __vaultrCM.wikiLinksRevalidated.of(null)});
+      if (s.view && __hyloCM) {
+        s.view.dispatch({effects: __hyloCM.wikiLinksRevalidated.of(null)});
       }
     } catch (_) {}
   }
 
   // Open a wiki-link target in the pane.  value is the raw [[…]] inner text.
-  async function __vaultrContentPaneOpenWikiLink(value) {
-    var pane = window.__vaultrContentPane;
+  async function __hyloContentPaneOpenWikiLink(value) {
+    var pane = window.__hyloContentPane;
     if (!pane) return;
     // Path-like value (contains /): treat as vault-absolute path directly
     if (value.indexOf('/') !== -1) {
@@ -291,11 +291,11 @@
     } catch(_) {}
   }
 
-  function __vaultrEditorSaveTabState(tabId) { tabStateManager.save(tabId); }
-  function __vaultrEditorRestoreTabState(tabId) { return tabStateManager.restore(tabId); }
-  function __vaultrEditorClearTabState(tabId) { tabStateManager.clear(tabId); }
-  function __vaultrEditorSyncViewButtons() {
-    var s = __vaultrEditor;
+  function __hyloEditorSaveTabState(tabId) { tabStateManager.save(tabId); }
+  function __hyloEditorRestoreTabState(tabId) { return tabStateManager.restore(tabId); }
+  function __hyloEditorClearTabState(tabId) { tabStateManager.clear(tabId); }
+  function __hyloEditorSyncViewButtons() {
+    var s = __hyloEditor;
     document.querySelectorAll('.content-pane-view-btn-wysiwyg').forEach(function(btn) {
       btn.classList.toggle('active', !s.inSource);
     });
@@ -310,23 +310,23 @@
     });
   }
   // Bookkeeping only, no dispatch — shared by editorMode's reconfigure()
-  // (user toggles mode on the current tab) and __vaultrEditorApplyState
+  // (user toggles mode on the current tab) and __hyloEditorApplyState
   // (a note/tab switch already baked the right mode into the new state).
-  function __vaultrEditorSetModeState(inSource, reading) {
-    var s = __vaultrEditor;
+  function __hyloEditorSetModeState(inSource, reading) {
+    var s = __hyloEditor;
     s.inSource = inSource;
     s.readingActive = reading;
-    __vaultrEditorSyncViewButtons();
+    __hyloEditorSyncViewButtons();
   }
 
   // ── Lazy editor init ─────────────────────────────────────────────────────────
-  async function __vaultrEnsureContentPaneEditor() {
-    var s = __vaultrEditor;
+  async function __hyloEnsureContentPaneEditor() {
+    var s = __hyloEditor;
     if (s.view) return;
     if (s.initPromise) return s.initPromise;
     s.initPromise = (async function() {
       var cm = await import('/static/editor.js');
-      __vaultrCM = cm;
+      __hyloCM = cm;
 
       var editArea = document.getElementById('content-pane-edit-area');
 
@@ -363,12 +363,12 @@
         resolveImageSrc: function(filename) {
           return '/api/images/serve?name=' + encodeURIComponent(filename);
         },
-        onWikiLinkClick: function(target) { void __vaultrContentPaneOpenWikiLink(target); },
-        // Populated (async, after each note load) by __vaultrEditorRevalidateWikiLinks.
+        onWikiLinkClick: function(target) { void __hyloContentPaneOpenWikiLink(target); },
+        // Populated (async, after each note load) by __hyloEditorRevalidateWikiLinks.
         // Mutating the set alone doesn't repaint; that function also dispatches
         // wikiLinksRevalidated.
-        isWikiLinkBroken: function(target) { return s.brokenWikiLinkNames.has(__vaultrWikiLinkTargetName(target)); },
-        onEditFrontmatter: __vaultrEditorEditFrontmatter,
+        isWikiLinkBroken: function(target) { return s.brokenWikiLinkNames.has(__hyloWikiLinkTargetName(target)); },
+        onEditFrontmatter: __hyloEditorEditFrontmatter,
       };
       s.decoCompartment = new cm.Compartment();
       s.readCompartment = new cm.Compartment();
@@ -407,7 +407,7 @@
           // from the paste handler below.
           cm.selectionFormatMenu(),
           cm.keymap.of([].concat(cm.defaultKeymap, cm.historyKeymap)),
-          cm.search({ top: true, createPanel: __vaultrCreateSearchPanel }),
+          cm.search({ top: true, createPanel: __hyloCreateSearchPanel }),
           cm.EditorView.lineWrapping, cmTheme,
           cm.EditorView.contentAttributes.of({spellcheck: 'false'}),
           cm.linkClickHandler(),
@@ -424,14 +424,14 @@
             // editor.js. So every docChanged transaction that does arrive
             // here is a real edit; no "is this programmatic" flag needed.
             if (!update.docChanged) return;
-            __vaultrEditorHandleContentChange(update.state.doc.toString());
+            __hyloEditorHandleContentChange(update.state.doc.toString());
           }),
           cm.EditorView.domEventHandlers({
             paste: function(e, view) {
-              var imgFile = __vaultrEditorFindImageFile(e.clipboardData);
+              var imgFile = __hyloEditorFindImageFile(e.clipboardData);
               if (!imgFile) return false;
               e.preventDefault();
-              __vaultrEditorUploadImage(imgFile).then(function(src) {
+              __hyloEditorUploadImage(imgFile).then(function(src) {
                 var filename = src.split('/').pop();
                 var ins = '![[' + filename + ']]'; var sel = view.state.selection.main;
                 view.dispatch({changes:{from:sel.from,to:sel.to,insert:ins},selection:{anchor:sel.from+ins.length}});
@@ -444,7 +444,7 @@
         ];
       };
       // One EditorState per note/tab, built fresh from its saved markdown —
-      // used for every note/tab switch (see __vaultrEditorApplyState) via
+      // used for every note/tab switch (see __hyloEditorApplyState) via
       // view.setState(), never view.dispatch(). setState() swaps the whole
       // state in one shot: no transaction is produced, so there's nothing to
       // exclude from history and nothing for the frontmatter changeFilter to
@@ -483,12 +483,12 @@
 
       document.querySelectorAll('.content-pane-view-btn-wysiwyg').forEach(function(btn) {
         btn.addEventListener('click', function() {
-          if (__vaultrEditor.inSource) editorMode.exitSource();
+          if (__hyloEditor.inSource) editorMode.exitSource();
         });
       });
       document.querySelectorAll('.content-pane-view-btn-source').forEach(function(btn) {
         btn.addEventListener('click', function() {
-          if (!__vaultrEditor.inSource) editorMode.enterSource();
+          if (!__hyloEditor.inSource) editorMode.enterSource();
         });
       });
     })();
@@ -513,14 +513,14 @@
   // fading-out DOM instead of reopening it — and this timer, still pending,
   // then closes that freshly-reopened panel a moment later anyway. One
   // fast Escape-then-Cmd+F (or Esc then clicking Find again) was enough to
-  // hit it. __vaultrEditorOpenFind cancels s._searchCloseTimer before
+  // hit it. __hyloEditorOpenFind cancels s._searchCloseTimer before
   // asking CM6 to (re)open, and the timer is tracked as a single id here
   // (not left to stack one per close call) so there's only ever one to
   // cancel.
-  function __vaultrEditorCloseSearch(view) {
-    var cm = __vaultrCM;
+  function __hyloEditorCloseSearch(view) {
+    var cm = __hyloCM;
     if (!cm) return;
-    var s = __vaultrEditor;
+    var s = __hyloEditor;
     if (s._searchCloseTimer) { clearTimeout(s._searchCloseTimer); s._searchCloseTimer = null; }
     var panel = document.querySelector('#content-pane-edit-area .cm-panels-top');
     if (!panel) { cm.closeSearchPanel(view); return; }
@@ -530,23 +530,23 @@
       cm.closeSearchPanel(view);
     }, 100);
   }
-  function __vaultrCreateSearchPanel(view) {
-    var cm = __vaultrCM;
+  function __hyloCreateSearchPanel(view) {
+    var cm = __hyloCM;
     var dom = document.createElement('div');
-    dom.className = 'vaultr-search-panel';
+    dom.className = 'hylo-search-panel';
 
     // Header: what this floating panel is, plus its one non-search control
     // (Close) — kept off the Find row itself so that row is only ever
     // search controls, not a mix of "act on the query" and "dismiss the
     // panel" buttons.
     var headerRow = document.createElement('div');
-    headerRow.className = 'vaultr-sr-header';
+    headerRow.className = 'hylo-sr-header';
     var headerLabel = document.createElement('span');
-    headerLabel.className = 'vaultr-sr-header-label';
+    headerLabel.className = 'hylo-sr-header-label';
     headerLabel.textContent = 'Find';
 
     var closeBtn = document.createElement('button');
-    closeBtn.type = 'button'; closeBtn.className = 'vaultr-sr-ibtn'; closeBtn.setAttribute('aria-label', 'Close');
+    closeBtn.type = 'button'; closeBtn.className = 'hylo-sr-ibtn'; closeBtn.setAttribute('aria-label', 'Close');
     closeBtn.innerHTML = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
 
     headerRow.append(headerLabel, closeBtn);
@@ -554,43 +554,43 @@
     // Row 1: Find. Leading chevron reveals/hides row 2 (Replace, below) —
     // collapsed by default since most Cmd+F visits are look-not-change.
     var findRow = document.createElement('div');
-    findRow.className = 'vaultr-sr-row';
+    findRow.className = 'hylo-sr-row';
 
     var expandBtn = document.createElement('button');
-    expandBtn.type = 'button'; expandBtn.className = 'vaultr-sr-ibtn vaultr-sr-expand-btn';
+    expandBtn.type = 'button'; expandBtn.className = 'hylo-sr-ibtn hylo-sr-expand-btn';
     expandBtn.title = 'Toggle replace'; expandBtn.setAttribute('aria-label', 'Toggle replace');
     expandBtn.setAttribute('aria-expanded', 'false');
     expandBtn.innerHTML = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg>';
 
     var findWrap = document.createElement('div');
-    findWrap.className = 'vaultr-sr-input-wrap';
+    findWrap.className = 'hylo-sr-input-wrap';
 
     var findInput = document.createElement('input');
     findInput.type = 'text'; findInput.placeholder = 'Find';
-    findInput.className = 'field-input vaultr-sr-input'; findInput.setAttribute('main-field', '');
+    findInput.className = 'field-input hylo-sr-input'; findInput.setAttribute('main-field', '');
     findInput.setAttribute('aria-label', 'Find');
 
     var findInset = document.createElement('div');
-    findInset.className = 'vaultr-sr-inset-btns';
+    findInset.className = 'hylo-sr-inset-btns';
 
     // Match count ("2/7") — a plain label, not a button; sits ahead of the
     // nav icons so the two read together ("2/7, then ↑↓ to move"). Hidden
     // (not just empty) when the field itself is empty, so it doesn't leave
     // a dead gap before you've typed anything.
     var countEl = document.createElement('span');
-    countEl.className = 'vaultr-sr-count'; countEl.setAttribute('aria-hidden', 'true');
+    countEl.className = 'hylo-sr-count'; countEl.setAttribute('aria-hidden', 'true');
     countEl.style.display = 'none';
 
     var prevBtn = document.createElement('button');
-    prevBtn.type = 'button'; prevBtn.className = 'vaultr-sr-ibtn'; prevBtn.title = 'Previous (Shift+Enter)';
+    prevBtn.type = 'button'; prevBtn.className = 'hylo-sr-ibtn'; prevBtn.title = 'Previous (Shift+Enter)';
     prevBtn.innerHTML = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>';
 
     var nextBtn = document.createElement('button');
-    nextBtn.type = 'button'; nextBtn.className = 'vaultr-sr-ibtn'; nextBtn.title = 'Next (Enter)';
+    nextBtn.type = 'button'; nextBtn.className = 'hylo-sr-ibtn'; nextBtn.title = 'Next (Enter)';
     nextBtn.innerHTML = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>';
 
     var caseBtn = document.createElement('button');
-    caseBtn.type = 'button'; caseBtn.className = 'vaultr-sr-ibtn vaultr-sr-toggle'; caseBtn.title = 'Match case';
+    caseBtn.type = 'button'; caseBtn.className = 'hylo-sr-ibtn hylo-sr-toggle'; caseBtn.title = 'Match case';
     caseBtn.textContent = 'Aa';
 
     findInset.append(countEl, prevBtn, nextBtn, caseBtn);
@@ -603,30 +603,30 @@
     // they're short text labels now — same treatment as the "Aa" toggle
     // above, not a second icon language for two actions that matter.
     var replaceRow = document.createElement('div');
-    replaceRow.className = 'vaultr-sr-row';
+    replaceRow.className = 'hylo-sr-row';
     replaceRow.hidden = true;
 
     // Empty — just holds the column open so replaceWrap lines up under
     // findWrap instead of under expandBtn.
     var replaceSpacer = document.createElement('div');
-    replaceSpacer.className = 'vaultr-sr-row-spacer';
+    replaceSpacer.className = 'hylo-sr-row-spacer';
 
     var replaceWrap = document.createElement('div');
-    replaceWrap.className = 'vaultr-sr-input-wrap';
+    replaceWrap.className = 'hylo-sr-input-wrap';
 
     var replaceInput = document.createElement('input');
     replaceInput.type = 'text'; replaceInput.placeholder = 'Replace';
-    replaceInput.className = 'field-input vaultr-sr-input'; replaceInput.setAttribute('aria-label', 'Replace');
+    replaceInput.className = 'field-input hylo-sr-input'; replaceInput.setAttribute('aria-label', 'Replace');
 
     var replaceInset = document.createElement('div');
-    replaceInset.className = 'vaultr-sr-inset-btns';
+    replaceInset.className = 'hylo-sr-inset-btns';
 
     var replaceBtn = document.createElement('button');
-    replaceBtn.type = 'button'; replaceBtn.className = 'vaultr-sr-ibtn vaultr-sr-text'; replaceBtn.title = 'Replace (Enter)';
+    replaceBtn.type = 'button'; replaceBtn.className = 'hylo-sr-ibtn hylo-sr-text'; replaceBtn.title = 'Replace (Enter)';
     replaceBtn.textContent = 'Replace';
 
     var replaceAllBtn = document.createElement('button');
-    replaceAllBtn.type = 'button'; replaceAllBtn.className = 'vaultr-sr-ibtn vaultr-sr-text'; replaceAllBtn.title = 'Replace All';
+    replaceAllBtn.type = 'button'; replaceAllBtn.className = 'hylo-sr-ibtn hylo-sr-text'; replaceAllBtn.title = 'Replace All';
     replaceAllBtn.textContent = 'All';
 
     replaceInset.append(replaceBtn, replaceAllBtn);
@@ -677,17 +677,17 @@
     });
     findInput.addEventListener('keydown', function(e) {
       if (e.key === 'Enter') { e.preventDefault(); if (e.shiftKey) cm.findPrevious(view); else cm.findNext(view); updateMatchCount(); }
-      if (e.key === 'Escape') { e.preventDefault(); __vaultrEditorCloseSearch(view); }
+      if (e.key === 'Escape') { e.preventDefault(); __hyloEditorCloseSearch(view); }
     });
     replaceInput.addEventListener('keydown', function(e) {
       if (e.key === 'Enter') { e.preventDefault(); cm.replaceNext(view); updateMatchCount(); }
-      if (e.key === 'Escape') { e.preventDefault(); __vaultrEditorCloseSearch(view); }
+      if (e.key === 'Escape') { e.preventDefault(); __hyloEditorCloseSearch(view); }
     });
     prevBtn.addEventListener('click', function() { cm.findPrevious(view); updateMatchCount(); });
     nextBtn.addEventListener('click', function() { cm.findNext(view); updateMatchCount(); });
     replaceBtn.addEventListener('click', function() { cm.replaceNext(view); updateMatchCount(); });
     replaceAllBtn.addEventListener('click', function() { cm.cmReplaceAll(view); updateMatchCount(); });
-    closeBtn.addEventListener('click', function() { __vaultrEditorCloseSearch(view); });
+    closeBtn.addEventListener('click', function() { __hyloEditorCloseSearch(view); });
 
     return {
       dom: dom,
@@ -718,40 +718,40 @@
   // reading, which layers on live preview), a pure decoration change with no
   // `changes`, so it never touches the document, the undo stack, or dirty
   // tracking. Switching to a *different* note/tab is a different operation
-  // entirely — see __vaultrEditorApplyState, which builds a fresh EditorState
+  // entirely — see __hyloEditorApplyState, which builds a fresh EditorState
   // (mode baked in from the start) and swaps it in with view.setState().
   var editorMode = (function() {
     function reconfigure(inSource, reading, opts) {
-      var s = __vaultrEditor;
+      var s = __hyloEditor;
       s.view.dispatch({effects: s._modeEffects(inSource, reading)});
-      __vaultrEditorSetModeState(inSource, reading);
+      __hyloEditorSetModeState(inSource, reading);
       if (!(opts && opts.skipFocus)) focusManager.focusEditor();
     }
     return {
       // User-triggered: live preview → source
       enterSource: function() {
-        if (__vaultrEditor.readingActive) __vaultrEditorSetReadingPref(false);
+        if (__hyloEditor.readingActive) __hyloEditorSetReadingPref(false);
         reconfigure(true, false);
       },
       // User-triggered: source / reading → live preview
       exitSource: function() {
-        var s = __vaultrEditor;
-        if (s.readingActive) __vaultrEditorSetReadingPref(false);
+        var s = __hyloEditor;
+        if (s.readingActive) __hyloEditorSetReadingPref(false);
         s.currentMd = s.view.state.doc.toString();
         reconfigure(false, false);
       },
       // User-triggered: any mode → reading view
       enterReading: function() {
-        var s = __vaultrEditor;
-        __vaultrEditorSetReadingPref(true);
+        var s = __hyloEditor;
+        __hyloEditorSetReadingPref(true);
         s.currentMd = s.view.state.doc.toString();
         reconfigure(false, true, {skipFocus: true});
       },
       toggle: function() {
-        if (__vaultrEditor.inSource) this.exitSource(); else this.enterSource();
+        if (__hyloEditor.inSource) this.exitSource(); else this.enterSource();
       },
       toggleReading: function() {
-        if (__vaultrEditor.readingActive) this.exitSource(); else this.enterReading();
+        if (__hyloEditor.readingActive) this.exitSource(); else this.enterReading();
       },
     };
   })();
@@ -760,7 +760,7 @@
   // Single authority for all editor focus/blur decisions.
   var focusManager = {
     focusEditor: function() {
-      var s = __vaultrEditor;
+      var s = __hyloEditor;
       if (s.view) s.view.focus();
     },
     // Blur whatever currently has focus.
@@ -775,26 +775,26 @@
     },
   };
 
-  function __vaultrEditorEnterSource() { editorMode.enterSource(); }
-  function __vaultrEditorExitSource() { editorMode.exitSource(); }
+  function __hyloEditorEnterSource() { editorMode.enterSource(); }
+  function __hyloEditorExitSource() { editorMode.exitSource(); }
 
   // "Metadata" header's pencil button (cm-live/frontmatter-collapse.js) —
   // frontmatter is read-only in live-preview mode (frontmatterReadOnly()),
   // so this dialog + allowFrontmatterEdit-annotated dispatch is the only
   // way to change it there. from/to span the whole node including the
   // "---" delimiters; only the interior YAML is shown/edited.
-  function __vaultrEditorEditFrontmatter(view, from, to) {
+  function __hyloEditorEditFrontmatter(view, from, to) {
     var raw = view.state.doc.sliceString(from, to);
     var lines = raw.split('\n');
     var hasClose = lines.length > 1 && lines[lines.length - 1].trim() === '---';
     var interior = (hasClose ? lines.slice(1, lines.length - 1) : lines.slice(1)).join('\n');
-    if (!window.__vaultrEditFrontmatter) return;
-    window.__vaultrEditFrontmatter(interior, function(newInterior) {
+    if (!window.__hyloEditFrontmatter) return;
+    window.__hyloEditFrontmatter(interior, function(newInterior) {
       var body = newInterior.replace(/\s+$/, '');
       var newBlock = '---\n' + (body ? body + '\n' : '') + '---';
       view.dispatch({
         changes: { from: from, to: to, insert: newBlock },
-        annotations: __vaultrCM.allowFrontmatterEdit.of(true),
+        annotations: __hyloCM.allowFrontmatterEdit.of(true),
       });
     });
   }
@@ -806,7 +806,7 @@
     return {
       save: function(tabId) {
         if (!tabId) return;
-        var s = __vaultrEditor;
+        var s = __hyloEditor;
         var scroller = document.querySelector('#content-pane-edit-area .cm-scroller');
         _states.set(tabId, { scrollTop: scroller ? scroller.scrollTop : 0, inSource: s.inSource });
       },
@@ -826,13 +826,13 @@
   })();
 
   // ── Content loaders ──────────────────────────────────────────────────────────
-  async function __vaultrContentPaneLoadNote(path, tabId, savedState) {
-    var s = __vaultrEditor;
+  async function __hyloContentPaneLoadNote(path, tabId, savedState) {
+    var s = __hyloEditor;
     if (s.dirty && s.currentPath && s.currentPath !== path) {
-      clearTimeout(s.saveTimer); s.saveTimer = null; await __vaultrEditorDoSave();
+      clearTimeout(s.saveTimer); s.saveTimer = null; await __hyloEditorDoSave();
     } else { clearTimeout(s.saveTimer); s.saveTimer = null; }
-    if (!__vaultrEditorIsActiveTabId(tabId)) return false;
-    __vaultrEditorSaveStatus('');
+    if (!__hyloEditorIsActiveTabId(tabId)) return false;
+    __hyloEditorSaveStatus('');
 
     // Load from server
     var resp = await fetch('/api/vault/read', {
@@ -846,29 +846,29 @@
       return false;
     }
     var content = await resp.text();
-    if (!__vaultrEditorIsActiveTabId(tabId)) return false;
-    s.currentPath = path; s.currentMd = __vaultrEditorTightenLists(content); s.dirty = false;
+    if (!__hyloEditorIsActiveTabId(tabId)) return false;
+    s.currentPath = path; s.currentMd = __hyloEditorTightenLists(content); s.dirty = false;
     
     // Apply state (will create new state if no saved state)
-    return await __vaultrEditorApplyState(savedState || { inSource: false, scrollTop: 0 }, tabId);
+    return await __hyloEditorApplyState(savedState || { inSource: false, scrollTop: 0 }, tabId);
   }
 
-  async function __vaultrContentPaneSetContent(content, tabId, savedState) {
-    var s = __vaultrEditor;
-    if (s.dirty && s.currentPath) { clearTimeout(s.saveTimer); s.saveTimer = null; await __vaultrEditorDoSave(); }
+  async function __hyloContentPaneSetContent(content, tabId, savedState) {
+    var s = __hyloEditor;
+    if (s.dirty && s.currentPath) { clearTimeout(s.saveTimer); s.saveTimer = null; await __hyloEditorDoSave(); }
     else { clearTimeout(s.saveTimer); s.saveTimer = null; }
-    if (!__vaultrEditorIsActiveTabId(tabId)) return false;
-    __vaultrEditorSaveStatus('');
-    s.currentPath = ''; s.currentMd = __vaultrEditorTightenLists(content || ''); s.dirty = false;
+    if (!__hyloEditorIsActiveTabId(tabId)) return false;
+    __hyloEditorSaveStatus('');
+    s.currentPath = ''; s.currentMd = __hyloEditorTightenLists(content || ''); s.dirty = false;
     
     // Apply state
-    return await __vaultrEditorApplyState(savedState || { inSource: false, scrollTop: 0 }, tabId);
+    return await __hyloEditorApplyState(savedState || { inSource: false, scrollTop: 0 }, tabId);
   }
   
-  async function __vaultrEditorApplyState(state, expectedTabId) {
-    var s = __vaultrEditor;
-    await __vaultrEnsureContentPaneEditor();
-    if (!__vaultrEditorIsActiveTabId(expectedTabId)) return false;
+  async function __hyloEditorApplyState(state, expectedTabId) {
+    var s = __hyloEditor;
+    await __hyloEnsureContentPaneEditor();
+    if (!__hyloEditorIsActiveTabId(expectedTabId)) return false;
 
     var targetInSource = state.inSource || false;
     var targetScroll = state.scrollTop || 0;
@@ -880,7 +880,7 @@
 
     // Clear the previous note's broken-wikilink set before the new one's
     // decorations render, so a stale "broken" flag can't flash on a target
-    // that's perfectly fine in *this* note — __vaultrEditorRevalidateWikiLinks
+    // that's perfectly fine in *this* note — __hyloEditorRevalidateWikiLinks
     // repopulates it (and repaints) once the batch check comes back.
     s.brokenWikiLinkNames = new Set();
     s.wikiLinkRevalidateSeq++;
@@ -889,22 +889,22 @@
     // start) swapped in via setState(), not a dispatch()'d replace onto the
     // previous tab's state — see s._buildState's comment for why.
     s.view.setState(s._buildState(s.currentMd, wantSource, wantReading));
-    __vaultrEditorSetModeState(wantSource, wantReading);
-    void __vaultrEditorRevalidateWikiLinks();
+    __hyloEditorSetModeState(wantSource, wantReading);
+    void __hyloEditorRevalidateWikiLinks();
     // Sync write covers the tab-switch frame. Two more writes cover the
     // pane slide-in tearing down a compositing layer and resetting scrollTop.
-    __vaultrEditorRestoreScroll(targetScroll, { sync: true, frames: 2, afterMs: 270, tabId: expectedTabId, focus: true });
+    __hyloEditorRestoreScroll(targetScroll, { sync: true, frames: 2, afterMs: 270, tabId: expectedTabId, focus: true });
     return true;
   }
 
-  function __vaultrEditorRestoreScroll(scrollTop, opts) {
-    var s = __vaultrEditor;
+  function __hyloEditorRestoreScroll(scrollTop, opts) {
+    var s = __hyloEditor;
     opts = opts || {};
     var top = scrollTop || 0;
     var tabId = opts.tabId;
     function scroller() { return document.querySelector('#content-pane-edit-area .cm-scroller'); }
     function apply() {
-      if (tabId && !__vaultrEditorIsActiveTabId(tabId)) return;
+      if (tabId && !__hyloEditorIsActiveTabId(tabId)) return;
       var el = scroller();
       if (el) el.scrollTop = top;
     }

@@ -18,12 +18,12 @@ Reviews everything created or updated in a recent window — knowledge units, re
 Run in parallel:
 
 ```bash
-vaultr knowledge list --kind knowledge --latest <window>
-vaultr short list --latest <window> --limit 100
-vaultr list --latest <window>
+hylo knowledge list --kind knowledge --latest <window>
+hylo short list --latest <window> --limit 100
+hylo list --latest <window>
 ```
 
-Scope any of these to a specific directory if the user narrowed the request (e.g. `vaultr list /journal --latest <window>`).
+Scope any of these to a specific directory if the user narrowed the request (e.g. `hylo list /journal --latest <window>`).
 
 If everything comes back empty, report that nothing changed in the window and stop.
 
@@ -31,11 +31,11 @@ If everything comes back empty, report that nothing changed in the window and st
 
 ## Step 2 — Read what changed
 
-**Knowledge units**: for each, `vaultr extract tag <unit>` and `vaultr extract segment <unit> --head 20` for a quick read of what it's about, without a full load. Note whether `created_at` falls inside the window (new unit) or only `last_compiled_at` does (existing unit that grew this week) — `vaultr extract segment` on the frontmatter block or `vaultr knowledge read <unit>` if the distinction isn't clear from the preview.
+**Knowledge units**: for each, `hylo extract tag <unit>` and `hylo extract segment <unit> --head 20` for a quick read of what it's about, without a full load. Note whether `created_at` falls inside the window (new unit) or only `last_compiled_at` does (existing unit that grew this week) — `hylo extract segment` on the frontmatter block or `hylo knowledge read <unit>` if the distinction isn't clear from the preview.
 
-**Short notes**: `vaultr short list` returns `content` inline — no extra read needed.
+**Short notes**: `hylo short list` returns `content` inline — no extra read needed.
 
-**Regular notes**: skim with `vaultr extract outline <note>` or `vaultr extract segment <note> --head 20`; full `vaultr read` only if a note looks central to the week's theme.
+**Regular notes**: skim with `hylo extract outline <note>` or `hylo extract segment <note> --head 20`; full `hylo read` only if a note looks central to the week's theme.
 
 ---
 

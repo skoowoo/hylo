@@ -124,13 +124,13 @@ async function saveToVault(): Promise<void> {
     } else {
       showSaveFeedback(false, "Could not save", result.error);
       btn.disabled = false;
-      btn.textContent = "Add to Vaultr";
+      btn.textContent = "Add to Hylo";
     }
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     showSaveFeedback(false, "Something went wrong", msg);
     btn.disabled = false;
-    btn.textContent = "Add to Vaultr";
+    btn.textContent = "Add to Hylo";
   }
 }
 
@@ -174,7 +174,7 @@ document.addEventListener("DOMContentLoaded", () => {
     setCopied(false);
     hideSaveFeedback();
     $<HTMLButtonElement>("save").disabled = false;
-    $<HTMLButtonElement>("save").textContent = "Add to Vaultr";
+    $<HTMLButtonElement>("save").textContent = "Add to Hylo";
   });
 
   $("copyMd").addEventListener("click", () => void copyMarkdown());

@@ -1,6 +1,6 @@
 
   function frontmatterDialogCtrl() {
-    return window.vaultrOverlay('frontmatter-edit', {
+    return window.hyloOverlay('frontmatter-edit', {
       text: '',
       _onSave: null,
 
@@ -33,7 +33,7 @@
 
   // Global helper — call from content_pane.js (or any page that includes
   // frontmatterDialogHTML). onSave receives the edited text verbatim.
-  window.__vaultrEditFrontmatter = function(initialText, onSave) {
+  window.__hyloEditFrontmatter = function(initialText, onSave) {
     if (!window._frontmatterDialogCtrl) return;
     window._frontmatterDialogCtrl.show(initialText, onSave);
   };

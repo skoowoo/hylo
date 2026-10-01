@@ -1,8 +1,8 @@
 # External skills available for installation via the UI.
 # Format: GitHubUser/RepoName:path/in/repo:skill-dir-name
-skoowoo/vaultr-notes:skills/vaultr-writing:vaultr-writing
-skoowoo/vaultr-notes:skills/vaultr-quote-extract:vaultr-quote-extract
-skoowoo/vaultr-notes:skills/vaultr-recap:vaultr-recap
+skoowoo/hylo:skills/hylo-writing:hylo-writing
+skoowoo/hylo:skills/hylo-quote-extract:hylo-quote-extract
+skoowoo/hylo:skills/hylo-recap:hylo-recap
 hardhackerlabs/podwise-cli:skills:podwise
 Tencent/WeChatReading:skills:weread-skills
 blader/humanizer::humanizer

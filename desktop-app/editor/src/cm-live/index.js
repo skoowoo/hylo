@@ -1,8 +1,8 @@
 // Public entry point for the CodeMirror-based live-preview editor (Phase 0
 // foundation). Everything under cm-live/ is app-agnostic — no fetch calls,
-// no Vaultr routing, no DOM ids from content_pane.js — app wiring (image upload,
+// no Hylo routing, no DOM ids from content_pane.js — app wiring (image upload,
 // wikilink navigation, autosave, tab state) stays in content_pane.js and is
-// injected here through `options`, the same seam __vaultrDE currently uses
+// injected here through `options`, the same seam __hyloDE currently uses
 // to configure Milkdown's plugins. That separation is what let this be
 // built and demoed (see ../../livepreview-demo/) without touching the live
 // app, and is what should let Phase 1-4 extend it without re-architecting.

@@ -6,7 +6,7 @@
   // (the "+N" control is wider for "+9" than "+1"). It is reserved only
   // while something remains hidden. Always keeps one chip when there is
   // any width at all; the strip clips that chip rather than showing zero.
-  function __vaultrFitTabCount(widths, avail, gap, overflowW) {
+  function __hyloFitTabCount(widths, avail, gap, overflowW) {
     var n = widths.length;
     if (!n || !(avail > 0)) return 0;
     var overflowAt = typeof overflowW === 'function' ? overflowW : function() { return overflowW; };
@@ -22,5 +22,5 @@
     return fit > 0 ? fit : 1;
   }
   if (typeof module !== 'undefined') {
-    module.exports = { __vaultrFitTabCount: __vaultrFitTabCount };
+    module.exports = { __hyloFitTabCount: __hyloFitTabCount };
   }

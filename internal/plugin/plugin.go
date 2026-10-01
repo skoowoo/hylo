@@ -1,4 +1,4 @@
-// Package plugin defines the interface that all Vaultr plugins must implement
+// Package plugin defines the interface that all Hylo plugins must implement
 // and the Event type that the vault emits after every mutation.
 package plugin
 
@@ -106,7 +106,7 @@ type Event struct {
 	Reply ReplyFunc
 }
 
-// Plugin is the interface every Vaultr plugin must implement.
+// Plugin is the interface every Hylo plugin must implement.
 //
 // Plugins are long-lived services started alongside the server and stopped
 // during graceful shutdown. They receive vault mutation events via Notify

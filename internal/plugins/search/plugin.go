@@ -1,4 +1,4 @@
-// Package search implements a Vaultr plugin that keeps the full-text search
+// Package search implements a Hylo plugin that keeps the full-text search
 // index in sync with the vault by reacting to vault mutation events.
 //
 // On startup the plugin backtracks any notes that were written while the daemon
@@ -15,9 +15,9 @@ import (
 	"log/slog"
 	"strings"
 
-	"github.com/hardhacker/vaultr/internal/config"
-	"github.com/hardhacker/vaultr/internal/plugin"
-	"github.com/hardhacker/vaultr/internal/storage"
+	"github.com/hardhacker/hylo/internal/config"
+	"github.com/hardhacker/hylo/internal/plugin"
+	"github.com/hardhacker/hylo/internal/storage"
 )
 
 // Plugin is the search-index plugin. It is always registered; no config gate.
@@ -227,7 +227,7 @@ func (p *Plugin) indexFile(pathStr string) {
 // It opens the BleveIndexer if it is not already open.
 // Returns the number of notes indexed.
 // This is the public entry point used by both the daemon start path and the
-// "vaultr init" one-shot initialisation command.
+// "hylo init" one-shot initialisation command.
 func (p *Plugin) Backfill(ctx context.Context) (int, error) {
 	if p.indexer == nil {
 		indexer, err := NewBleveIndexer(p.vault.Root(), p.cfg.UseJieba)

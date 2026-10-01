@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/hardhacker/vaultr/internal/storage"
+	"github.com/hardhacker/hylo/internal/storage"
 )
 
 type createUntitledRequest struct {
@@ -18,7 +18,7 @@ type createUntitledRequest struct {
 // with an auto-generated "Untitled <timestamp>" name and the given initial
 // content — the editor calls this once, the first time the user types
 // something into a brand-new tab (see content_pane.js's
-// __vaultrEditorMaterializeTab). There is no draft state before this and no
+// __hyloEditorMaterializeTab). There is no draft state before this and no
 // filename to pick up front; the note can be renamed any time afterward via
 // POST /api/vault/rename.
 // Body: {"dir": "/", "content": "..."}

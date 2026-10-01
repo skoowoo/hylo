@@ -6,8 +6,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/hardhacker/vaultr/internal/storage"
-	"github.com/hardhacker/vaultr/internal/util"
+	"github.com/hardhacker/hylo/internal/storage"
+	"github.com/hardhacker/hylo/internal/util"
 	"github.com/spf13/cobra"
 )
 
@@ -26,10 +26,10 @@ func newCreateCmd() *cobra.Command {
 <path> is a vault-absolute path starting with "/" (e.g. /journal/today.md).
 Content is read from --file, --content, or stdin (checked in that order).
 Use --force to overwrite an existing note.`,
-		Example: `  vaultr create /journal/today.md --content "# Today"
-  vaultr create /journal/recipe.md --file recipe.md
-  vaultr create /note.md < draft.md
-  echo "# Idea" | vaultr create /idea.md`,
+		Example: `  hylo create /journal/today.md --content "# Today"
+  hylo create /journal/recipe.md --file recipe.md
+  hylo create /note.md < draft.md
+  echo "# Idea" | hylo create /idea.md`,
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {

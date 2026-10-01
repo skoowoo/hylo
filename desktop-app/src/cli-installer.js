@@ -5,15 +5,15 @@ const fs = require("node:fs");
 const os = require("node:os");
 const { spawnSync } = require("node:child_process");
 
-const BINARY_NAME = process.platform === "win32" ? "vaultr.exe" : "vaultr";
+const BINARY_NAME = process.platform === "win32" ? "hylo.exe" : "hylo";
 
 // app.getVersion() (package.json "version", x.y.z) is what users see and
-// should only change on real releases. "vaultrBuild" is a separate counter
+// should only change on real releases. "hyloBuild" is a separate counter
 // for re-shipping the same x.y.z with a fixed bundled CLI/skills payload
 // (e.g. patching a bug found right after release, without bumping the public
-// version number). Bump vaultrBuild whenever bundled/ changes but version
+// version number). Bump hyloBuild whenever bundled/ changes but version
 // doesn't; reset it to "0" whenever version is bumped for a normal release.
-const { vaultrBuild: BUILD_ID = "0" } = require("../package.json");
+const { hyloBuild: BUILD_ID = "0" } = require("../package.json");
 
 /** Combines app version + build id so a build-only re-ship still invalidates old sentinels. */
 function sentinelValueFor(appVersion) {
@@ -22,13 +22,13 @@ function sentinelValueFor(appVersion) {
 
 // Sentinel file: records which app version+build last installed the CLI.
 // If it matches the current value, installation is skipped.
-const SENTINEL_FILE = path.join(os.homedir(), ".vaultr", ".cli_app_version");
+const SENTINEL_FILE = path.join(os.homedir(), ".hylo", ".cli_app_version");
 
 function getBundledArchive() {
   const { app } = require("electron");
   if (!app.isPackaged) return null; // dev mode: no bundled archive
   const ext = process.platform === "win32" ? "zip" : "tar.gz";
-  return path.join(process.resourcesPath, "cli", `vaultr.${ext}`);
+  return path.join(process.resourcesPath, "cli", `hylo.${ext}`);
 }
 
 function getSystemInstallDir() {
@@ -47,9 +47,9 @@ function getSystemInstallDir() {
 let installChain = Promise.resolve();
 
 /**
- * Install the bundled vaultr CLI by extracting the tar.gz from app resources.
+ * Install the bundled hylo CLI by extracting the tar.gz from app resources.
  *
- * Skipped when the sentinel file matches the current app version + vaultrBuild,
+ * Skipped when the sentinel file matches the current app version + hyloBuild,
  * unless `force` is set (e.g. the sentinel matches but the binary itself is
  * missing — reinstalling is the only way to recover).
  * Binary is always overwritten (keeps CLI in sync with app version).
@@ -100,7 +100,7 @@ async function doInstallCli(log, opts) {
   // Extract archive to a temp directory
   let tmpDir;
   try {
-    tmpDir = await fsp.mkdtemp(path.join(os.tmpdir(), "vaultr-install-"));
+    tmpDir = await fsp.mkdtemp(path.join(os.tmpdir(), "hylo-install-"));
   } catch (e) {
     log(`cli-installer: mkdtemp failed: ${e.message}`);
     return { ok: false, error: e.message };
@@ -150,10 +150,10 @@ async function doInstallCli(log, opts) {
 
   // config.toml — only write if not already present (never overwrite user config)
   try {
-    const vaultrDir = path.join(os.homedir(), ".vaultr");
-    await fsp.mkdir(vaultrDir, { recursive: true });
+    const hyloDir = path.join(os.homedir(), ".hylo");
+    await fsp.mkdir(hyloDir, { recursive: true });
 
-    const configDst = path.join(vaultrDir, "config.toml");
+    const configDst = path.join(hyloDir, "config.toml");
     try {
       await fsp.access(configDst);
       // file exists — skip
@@ -168,12 +168,12 @@ async function doInstallCli(log, opts) {
     const skillsSrc = path.join(tmpDir, "skills");
     try {
       await fsp.access(skillsSrc);
-      fs.cpSync(skillsSrc, path.join(vaultrDir, "skills"), {
+      fs.cpSync(skillsSrc, path.join(hyloDir, "skills"), {
         recursive: true,
         force: false,
         errorOnExist: false,
       });
-      log(`cli-installer: installed built-in skills to ${path.join(vaultrDir, "skills")}`);
+      log(`cli-installer: installed built-in skills to ${path.join(hyloDir, "skills")}`);
     } catch { /* skills dir absent in archive */ }
   } catch (e) {
     log(`cli-installer: config/skills copy failed (non-fatal): ${e.message}`);

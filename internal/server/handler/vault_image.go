@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/hardhacker/vaultr/internal/storage"
+	"github.com/hardhacker/hylo/internal/storage"
 )
 
 // writeImageHeaders sets the headers for serving a stored image. The sandbox
@@ -72,7 +72,7 @@ func (gh *VaultHandler) UploadImage(w http.ResponseWriter, r *http.Request) {
 }
 
 // ServeAsset handles GET /_assets/{path} — streams image files stored in the
-// vault's _assets directory. The .vaultr internal directory is always blocked.
+// vault's _assets directory. The .hylo internal directory is always blocked.
 func (gh *VaultHandler) ServeAsset(w http.ResponseWriter, r *http.Request) {
 	// r.URL.Path is like "/_assets/202501/xxx.png"
 	rel := strings.TrimPrefix(r.URL.Path, "/_assets/")

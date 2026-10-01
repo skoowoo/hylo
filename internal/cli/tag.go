@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/hardhacker/vaultr/internal/client"
+	"github.com/hardhacker/hylo/internal/client"
 	"github.com/spf13/cobra"
 )
 
@@ -20,7 +20,7 @@ func newTagCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "tag",
 		Short: "List tags, count tag usage, or delete by tag",
-		Long:  `List tag usage across notes, count how many notes use a tag, or remove notes from the index by tag. To search notes by tag, use: vaultr search <query> --field tag`,
+		Long:  `List tag usage across notes, count how many notes use a tag, or remove notes from the index by tag. To search notes by tag, use: hylo search <query> --field tag`,
 
 		SilenceUsage: true,
 	}
@@ -31,9 +31,9 @@ func newTagCmd() *cobra.Command {
 		Long: `Prints every tag found, with the number of notes that include it.
 
 If you have many different tags, raise --limit to include more of them (0 uses the server default).`,
-		Example: `  vaultr tag list
-  vaultr tag list --limit 1000
-  vaultr tag list --table`,
+		Example: `  hylo tag list
+  hylo tag list --limit 1000
+  hylo tag list --table`,
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runTagList(listLimit, listTable)
@@ -45,7 +45,7 @@ If you have many different tags, raise --limit to include more of them (0 uses t
 	countCmd := &cobra.Command{
 		Use:          "count <tag>",
 		Short:        "Print how many notes have this tag",
-		Long:         `Counts notes that include the tag. Matching follows the same rules as "vaultr tag search".`,
+		Long:         `Counts notes that include the tag. Matching follows the same rules as "hylo tag search".`,
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {

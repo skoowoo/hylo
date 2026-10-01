@@ -4,7 +4,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Vaultr Clip — Settings</title>
+  <title>Hylo Clip — Settings</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="popup.css" />
@@ -18,14 +18,14 @@
         <span class="label">HTTP base URL</span>
         <input type="url" id="baseUrl" required placeholder="http://127.0.0.1:54321" autocomplete="off" />
         <span class="help">Must match <code>server.host</code> and <code>server.port</code> in
-          <code>vaultr.toml</code>. Prefer binding to
+          <code>hylo.toml</code>. Prefer binding to
           <code>127.0.0.1</code>.</span>
       </label>
       <label class="field">
         <span class="label">API Key (optional)</span>
         <input type="password" id="apiKey" placeholder="Leave empty if no authentication required" autocomplete="off" />
         <span class="help">If your server requires authentication, enter the API key here. It will be sent as
-          <code>X-Vaultr-API-Key</code> header. Stored securely in Chrome sync storage.</span>
+          <code>X-Hylo-API-Key</code> header. Stored securely in Chrome sync storage.</span>
       </label>
       <label class="field">
         <span class="label">Save directory</span>

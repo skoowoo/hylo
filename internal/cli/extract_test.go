@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/hardhacker/vaultr/internal/client"
+	"github.com/hardhacker/hylo/internal/client"
 )
 
 // ── mdParseHeadings ───────────────────────────────────────────────────────────

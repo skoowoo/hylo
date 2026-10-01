@@ -83,7 +83,7 @@ func TestWriteNoteEmptyContentClearsPreview(t *testing.T) {
 // written through the app.
 func TestOpenDBMigratesExistingV24Database(t *testing.T) {
 	root := t.TempDir()
-	internal := filepath.Join(root, ".vaultr")
+	internal := filepath.Join(root, ".hylo")
 	if err := os.MkdirAll(internal, 0o750); err != nil {
 		t.Fatal(err)
 	}
@@ -158,7 +158,7 @@ func TestOpenDBMigratesExistingV24Database(t *testing.T) {
 // ALTER TABLE against a column that's already there.
 func TestOpenDBMigrationIsIdempotent(t *testing.T) {
 	root := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(root, ".vaultr"), 0o750); err != nil {
+	if err := os.MkdirAll(filepath.Join(root, ".hylo"), 0o750); err != nil {
 		t.Fatal(err)
 	}
 
@@ -185,7 +185,7 @@ func TestOpenDBMigrationIsIdempotent(t *testing.T) {
 	}
 }
 
-// TestScanAndRegisterFullComputesPreview mirrors `vaultr init` (and the
+// TestScanAndRegisterFullComputesPreview mirrors `hylo init` (and the
 // server's own auto-init on first launch) pointed at a directory that
 // already has markdown files on disk before any Vault ever touched them:
 // the files are written directly, bypassing WriteNote entirely, then
@@ -194,7 +194,7 @@ func TestOpenDBMigrationIsIdempotent(t *testing.T) {
 // all) — this checks it now does.
 func TestScanAndRegisterFullComputesPreview(t *testing.T) {
 	root := t.TempDir()
-	const body = "正文第一段，用来验证全量扫描（vaultr init / 首次自动导入）时也会算出 preview。"
+	const body = "正文第一段，用来验证全量扫描（hylo init / 首次自动导入）时也会算出 preview。"
 	if err := os.WriteFile(filepath.Join(root, "plain.md"), []byte(body), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -245,7 +245,7 @@ func TestScanAndRegisterFullSkipsUnreadableFile(t *testing.T) {
 	}
 }
 
-// TestBackfillPreviewsRecomputesFromDisk covers `vaultr init --preview-only`:
+// TestBackfillPreviewsRecomputesFromDisk covers `hylo init --preview-only`:
 // a note whose preview column is stale/empty (as any note registered before
 // the preview feature existed would be) gets it recomputed from the file
 // already sitting on disk.

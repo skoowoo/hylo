@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hardhacker/vaultr/internal/plugin"
-	"github.com/hardhacker/vaultr/internal/storage"
+	"github.com/hardhacker/hylo/internal/plugin"
+	"github.com/hardhacker/hylo/internal/storage"
 )
 
 

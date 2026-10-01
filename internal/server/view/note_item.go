@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hardhacker/vaultr/internal/storage"
+	"github.com/hardhacker/hylo/internal/storage"
 )
 
 // noteItem is the shared per-note view model rendered by home's note list,

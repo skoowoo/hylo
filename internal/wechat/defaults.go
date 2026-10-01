@@ -14,9 +14,9 @@ const (
 func DefaultStorageDir() string {
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return ".vaultr/wechat"
+		return ".hylo/wechat"
 	}
-	return filepath.Join(home, ".vaultr", "wechat")
+	return filepath.Join(home, ".hylo", "wechat")
 }
 
 // TokenFromFields builds runtime credentials from config fields.

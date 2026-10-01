@@ -1,17 +1,17 @@
 ---
-name: vaultr-notes
-description: "Guide for working with Vaultr, an AI-native personal note-taking system. Use this skill whenever the user wants to search, find, read, write, save, create, modify, delete, or capture notes — including journal entries, research notes, quick thoughts, knowledge retrieval, or any note-taking task. Trigger when the user says things like 'save this as a note', 'find my notes about X', 'create a note', 'look up my notes on X', 'read my note about Y', 'delete a note', 'quick note', 'short note', 'what do I know about X', or any variation of managing notes in Vaultr."
+name: hylo-notes
+description: "Guide for working with Hylo, an AI-native personal note-taking system. Use this skill whenever the user wants to search, find, read, write, save, create, modify, delete, or capture notes — including journal entries, research notes, quick thoughts, knowledge retrieval, or any note-taking task. Trigger when the user says things like 'save this as a note', 'find my notes about X', 'create a note', 'look up my notes on X', 'read my note about Y', 'delete a note', 'quick note', 'short note', 'what do I know about X', or any variation of managing notes in Hylo."
 ---
 
-# Vaultr Notes — Router
+# Hylo Notes — Router
 
 ## Environment check
 
 ```bash
-vaultr --help
+hylo --help
 ```
 
-If `vaultr` is not found, inform the user and stop.
+If `hylo` is not found, inform the user and stop.
 
 ---
 

@@ -6,9 +6,9 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/hardhacker/vaultr/internal/config"
-	"github.com/hardhacker/vaultr/internal/plugin"
-	"github.com/hardhacker/vaultr/internal/wechat"
+	"github.com/hardhacker/hylo/internal/config"
+	"github.com/hardhacker/hylo/internal/plugin"
+	"github.com/hardhacker/hylo/internal/wechat"
 )
 
 func TestDispatchWechatMessageCarriesReply(t *testing.T) {

@@ -28,7 +28,7 @@ well-defined responsibility.
 ```
 .
 ├── cmd/
-│   └── vaultr/         # main entry point
+│   └── hylo/         # main entry point
 ├── internal/
 │   ├── cli/             # cobra commands
 │   ├── client/          # HTTP client for the server API
@@ -67,18 +67,18 @@ See also: [[Project Layout#Packages]] and [[Coding Conventions]].
 Clone and build in one step:
 
 ```bash
-git clone https://github.com/hardhacker/vaultr
-cd vaultr
-go build -o bin/vaultr ./cmd/vaultr
+git clone https://github.com/hardhacker/hylo
+cd hylo
+go build -o bin/hylo ./cmd/hylo
 ```
 
 Run the server pointing at your Obsidian vault:
 
 ```bash
-./bin/vaultr serve --vault ~/Notes --port 7070
+./bin/hylo serve --vault ~/Notes --port 7070
 ```
 
-On first run, Vaultr creates `.vaultr/meta.db` inside the vault root. This
+On first run, Hylo creates `.hylo/meta.db` inside the vault root. This
 file is **safe to delete** — it will be rebuilt from the filesystem on the next
 start, though re-indexing may take a moment for large vaults.
 
@@ -88,8 +88,8 @@ Add the binary to your `PATH` and configure your editor's shell environment:
 
 ```bash
 # ~/.zshrc or ~/.bashrc
-export PATH="$HOME/hardhacker/vaultr/bin:$PATH"
-export VAULTR_API_KEY="your-key-here"
+export PATH="$HOME/hardhacker/hylo/bin:$PATH"
+export HYLO_API_KEY="your-key-here"
 ```
 
 For VS Code, install the [REST Client](https://marketplace.visualstudio.com/items?itemName=humao.rest-client)
@@ -101,7 +101,7 @@ extension and point it at `http://localhost:7070`.
 
 ### Overview
 
-Vaultr is a thin HTTP server that wraps an Obsidian vault directory. All state
+Hylo is a thin HTTP server that wraps an Obsidian vault directory. All state
 lives in two places:
 
 1. **The filesystem** — source of truth for note content.
@@ -129,7 +129,7 @@ CLI / MCP client
 ### Plugin System
 
 Plugins are optional modules that hook into vault events. Each plugin is
-**disabled by default** and must be enabled explicitly in `vaultr.yaml`.
+**disabled by default** and must be enabled explicitly in `hylo.yaml`.
 
 Currently available plugins:
 
@@ -163,7 +163,7 @@ Related: [[Plugin Architecture]] · [[Search Plugin Deep Dive]]
 ## API Reference
 
 All endpoints accept and return JSON. Authentication is via the
-`X-Vaultr-API-Key` header when `api_key` is set in config.
+`X-Hylo-API-Key` header when `api_key` is set in config.
 
 ### Read a note
 
@@ -315,7 +315,7 @@ go test -race ./...
 1. **Table-driven tests** — every test function uses a `tests []struct{...}` slice
    and a `for _, tc := range tests` loop. Subtests are named via `t.Run(tc.name, ...)`.
 2. **No mocks for storage** — integration tests hit a real temp vault. We were
-   [burned by mock/prod divergence](https://github.com/hardhacker/vaultr/issues/42)
+   [burned by mock/prod divergence](https://github.com/hardhacker/hylo/issues/42)
    during a migration last quarter.
 3. **Testdata files** live in `testdata/` at the repo root. Prefer real markdown
    fixtures over inline strings for complex parsing tests.
@@ -338,15 +338,15 @@ Parser helpers (`mdParse*`) should be close to **100 %**.
 ### Production Config
 
 ```yaml
-# /etc/vaultr/vaultr.yaml
+# /etc/hylo/hylo.yaml
 vault: /data/vault
 server:
   host: 127.0.0.1
   port: 7070
-  api_key: "${VAULTR_API_KEY}"
+  api_key: "${HYLO_API_KEY}"
   tls:
-    cert: /etc/vaultr/tls/cert.pem
-    key:  /etc/vaultr/tls/key.pem
+    cert: /etc/hylo/tls/cert.pem
+    key:  /etc/hylo/tls/key.pem
 log:
   level: info
   format: json
@@ -356,16 +356,16 @@ log:
 
 ```ini
 [Unit]
-Description=Vaultr note server
+Description=Hylo note server
 After=network.target
 
 [Service]
 Type=simple
-User=vaultr
-ExecStart=/usr/local/bin/vaultr serve --config /etc/vaultr/vaultr.yaml
+User=hylo
+ExecStart=/usr/local/bin/hylo serve --config /etc/hylo/hylo.yaml
 Restart=on-failure
 RestartSec=5s
-Environment=VAULTR_API_KEY=changeme
+Environment=HYLO_API_KEY=changeme
 
 [Install]
 WantedBy=multi-user.target
@@ -375,8 +375,8 @@ Enable and start:
 
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl enable --now vaultr
-sudo journalctl -u vaultr -f
+sudo systemctl enable --now hylo
+sudo journalctl -u hylo -f
 ```
 
 ### Health Check
@@ -403,7 +403,7 @@ rsync -av --delete ~/Notes/ /backup/notes-$(date +%Y%m%d)/
 
 ### Server won't start
 
-1. Check the config file path: `vaultr serve --config /path/to/vaultr.yaml`
+1. Check the config file path: `hylo serve --config /path/to/hylo.yaml`
 2. Verify the vault directory exists and is readable.
 3. Check for port conflicts: `lsof -i :7070`
 
@@ -412,8 +412,8 @@ rsync -av --delete ~/Notes/ /backup/notes-$(date +%Y%m%d)/
 This should not happen in normal operation (single writer, WAL mode). If you
 see them:
 
-- Ensure only **one** Vaultr process is running against the vault.
-- Check for orphaned lock files: `ls -la /path/to/vault/.vaultr/`
+- Ensure only **one** Hylo process is running against the vault.
+- Check for orphaned lock files: `ls -la /path/to/vault/.hylo/`
 - Delete `meta.db` and restart — it will be rebuilt automatically.
 
 ### Search returns no results
@@ -422,19 +422,19 @@ see them:
 - [ ] Has the index been built? Check `indexed` counts:
 
 ```bash
-./bin/vaultr info | jq .vault
-sqlite3 ~/.notes/.vaultr/meta.db "SELECT COUNT(*) FROM notes WHERE indexed=0;"
+./bin/hylo info | jq .vault
+sqlite3 ~/.notes/.hylo/meta.db "SELECT COUNT(*) FROM notes WHERE indexed=0;"
 ```
 
 - [ ] Re-trigger indexing by restarting the server (it runs a backfill on startup).
 
 ### Notes not appearing after manual file edits
 
-Vaultr's SQLite index is updated **only through the API**. If you edit files
+Hylo's SQLite index is updated **only through the API**. If you edit files
 directly on disk, you need to either:
 
 1. Restart the server (it reconciles the DB against the filesystem on startup), or
-2. Use `vaultr sync` to trigger a manual reconciliation.
+2. Use `hylo sync` to trigger a manual reconciliation.
 
 > **Note:** Direct filesystem edits bypass the git-sync plugin's change
 > detection. Commit manually if needed: `cd ~/Notes && git add -A && git commit -m "manual edit"`
@@ -448,30 +448,30 @@ directly on disk, you need to either:
 List the 10 most recently modified raw notes:
 
 ```bash
-./bin/vaultr raw list --limit 10
+./bin/hylo raw list --limit 10
 ```
 
 Extract all Go code blocks from a note:
 
 ```bash
-./bin/vaultr extract code /docs/architecture.md
+./bin/hylo extract code /docs/architecture.md
 ```
 
 Resolve a bare filename to all vault locations:
 
 ```bash
-./bin/vaultr resolve today.md
+./bin/hylo resolve today.md
 ```
 
 Pull the outline of a long note:
 
 ```bash
-./bin/vaultr extract outline /docs/developer-handbook.md
+./bin/hylo extract outline /docs/developer-handbook.md
 ```
 
 ### Glossary
 
-**vault** — the root directory that Vaultr manages; typically your Obsidian
+**vault** — the root directory that Hylo manages; typically your Obsidian
 notes folder.
 
 **vault-absolute path** — a `/`-prefixed path relative to the vault root, e.g.
@@ -482,12 +482,12 @@ notes folder.
 **name** — the filename component, always including the `.md` or `.markdown`
 extension.
 
-**upsert** — insert-or-update; Vaultr uses SQLite's `ON CONFLICT DO UPDATE`
+**upsert** — insert-or-update; Hylo uses SQLite's `ON CONFLICT DO UPDATE`
 to keep metadata in sync with file writes.
 
 ### External References
 
-- Go documentation: <https://pkg.go.dev/github.com/hardhacker/vaultr>
+- Go documentation: <https://pkg.go.dev/github.com/hardhacker/hylo>
 - Goldmark AST reference: [yuin/goldmark](https://github.com/yuin/goldmark)
 - Bleve search docs: [blevesearch.com](https://blevesearch.com/docs/Home/)
 - SQLite WAL mode: [sqlite.org/wal.html](https://www.sqlite.org/wal.html)

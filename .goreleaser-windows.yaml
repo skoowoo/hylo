@@ -1,14 +1,14 @@
 version: 2
-project_name: vaultr
+project_name: hylo
 
 before:
   hooks:
     - go mod tidy
 
 builds:
-  - id: vaultr-windows
-    main: ./cmd/vaultr
-    binary: vaultr
+  - id: hylo-windows
+    main: ./cmd/hylo
+    binary: hylo
     goos:
       - windows
     goarch:
@@ -17,12 +17,12 @@ builds:
       - CGO_ENABLED=1
     ldflags:
       - -s -w
-      - -X github.com/hardhacker/vaultr/internal/build.Version={{.Version}}
-      - -X github.com/hardhacker/vaultr/internal/build.Commit={{.Commit}}
-      - -X github.com/hardhacker/vaultr/internal/build.BuildDate={{.Date}}
+      - -X github.com/hardhacker/hylo/internal/build.Version={{.Version}}
+      - -X github.com/hardhacker/hylo/internal/build.Commit={{.Commit}}
+      - -X github.com/hardhacker/hylo/internal/build.BuildDate={{.Date}}
 
 archives:
-  - id: vaultr-windows
+  - id: hylo-windows
     name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
     formats:
       - zip

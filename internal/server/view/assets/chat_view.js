@@ -3,7 +3,7 @@
 // streaming token only rewrites the tail. Open and copied live here, not on
 // the message.
 (function (root) {
-  var R = root.__vaultrChatReduce;
+  var R = root.__hyloChatReduce;
   var openSegs = new WeakMap();
   var copiedUntil = new Map();
   var copiedListener = null;
@@ -113,7 +113,7 @@
   // materialized path (a brand-new, never-saved tab) can't become a
   // "[[stem]]" wikilink, so they're skipped.
   function chatMentionDefaultItems() {
-    var pane = window.__vaultrContentPane;
+    var pane = window.__hyloContentPane;
     var tabs = pane && Array.isArray(pane.tabs) ? pane.tabs : [];
     var activeIdx = pane ? pane.activeTab : -1;
     var withPath = [];
@@ -209,8 +209,8 @@
     card.appendChild(meta);
 
     card.addEventListener('click', function () {
-      if (window.__vaultrContentPane) {
-        void window.__vaultrContentPane.openNoteInContentPane(path, titleEl.textContent || fallbackTitle, false, false);
+      if (window.__hyloContentPane) {
+        void window.__hyloContentPane.openNoteInContentPane(path, titleEl.textContent || fallbackTitle, false, false);
       }
     });
 
@@ -296,7 +296,7 @@
   function setProse(node, text, streaming) {
     if (node._raw === text) return;
     node._raw = text;
-    node.innerHTML = root.__vaultrRenderMarkdown(text, { cache: !streaming });
+    node.innerHTML = root.__hyloRenderMarkdown(text, { cache: !streaming });
   }
 
   function setText(node, text) {
@@ -718,7 +718,7 @@
     return box;
   }
 
-  root.__vaultrChatMount = function (rootEl, api) {
+  root.__hyloChatMount = function (rootEl, api) {
     var isMac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
     var thread = rootEl.querySelector('#chat-thread');
     var scrollEl = rootEl.querySelector('#chat-scroll');
@@ -823,7 +823,7 @@
         ta.disabled = busy || !snap.mateId;
         if (document.activeElement !== ta && ta.value !== snap.draft) {
           ta.value = snap.draft;
-          root.__vaultrAutoResize(ta);
+          root.__hyloAutoResize(ta);
         }
         show(hint, !ta.value);
       }
@@ -950,15 +950,15 @@
         e.preventDefault();
         try {
           var name = new URLSearchParams(href.split('?')[1] || '').get('name') || '';
-          if (name && typeof root.__vaultrContentPaneOpenWikiLink === 'function') {
-            void root.__vaultrContentPaneOpenWikiLink(name.replace(/\.md$/, ''));
+          if (name && typeof root.__hyloContentPaneOpenWikiLink === 'function') {
+            void root.__hyloContentPaneOpenWikiLink(name.replace(/\.md$/, ''));
           }
         } catch (err) { /* ignore */ }
       });
     }
 
-    if (ta && root.__vaultrPathAcCreate) {
-      ac = root.__vaultrPathAcCreate({
+    if (ta && root.__hyloPathAcCreate) {
+      ac = root.__hyloPathAcCreate({
         getInput: function () { return ta; },
         getList: function () { return rootEl.querySelector('#chat-path-ac'); },
         getPanel: function () { return rootEl.querySelector('#chat-ac-panel'); },
@@ -979,7 +979,7 @@
       on(ta, 'input', function () {
         if (detaching) return;
         api.setDraft(ta.value);
-        root.__vaultrAutoResize(ta);
+        root.__hyloAutoResize(ta);
         ac.refresh();
         show(hint, !ta.value);
         var snap = api.state();
@@ -1020,7 +1020,7 @@
 
     if (ta) {
       ta.value = api.draft();
-      root.__vaultrAutoResize(ta);
+      root.__hyloAutoResize(ta);
     }
     armComposerObserver();
     timeTimer = setInterval(updateTimes, 30000);
@@ -1059,7 +1059,7 @@
           var pos = start + insert.length;
           ta.selectionStart = ta.selectionEnd = pos;
           ta.focus();
-          root.__vaultrAutoResize(ta);
+          root.__hyloAutoResize(ta);
           show(hint, !next);
         }
       },

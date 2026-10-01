@@ -33,7 +33,7 @@ document.addEventListener("click", (e) => {
   window.quickCapture.cancel();
 });
 
-// A click on the image or inside the textarea doesn't activate Vaultr; a
+// A click on the image or inside the textarea doesn't activate Hylo; a
 // click on the panel's blank padding/gaps does. The one difference we can
 // see from here is that those clicks don't change which element has DOM
 // focus (the image isn't focusable at all, and the textarea is already

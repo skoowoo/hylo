@@ -1,9 +1,9 @@
-# Vaultr：一个兼容 Obsidian 的 AI native 笔记系统，使用 AI agent 帮你整理、使用笔记。
+# Hylo：一个兼容 Obsidian 的 AI native 笔记系统，使用 AI agent 帮你整理、使用笔记。
 
-![Vaultr Hero](./docs/assets/hero1.png)
-![Vaultr Hero](./docs/assets/hero2.png)
-![Vaultr Hero](./docs/assets/hero3.png)
-![Vaultr Hero](./docs/assets/hero4.png)
+![Hylo Hero](./docs/assets/hero1.png)
+![Hylo Hero](./docs/assets/hero2.png)
+![Hylo Hero](./docs/assets/hero3.png)
+![Hylo Hero](./docs/assets/hero4.png)
 
 ## 目录
 
@@ -54,17 +54,17 @@
 
 ## 设计
 
-Vaultr 的核心主张只有一句话：**让 AI 帮你整理笔记，而不是你自己整理。**
+Hylo 的核心主张只有一句话：**让 AI 帮你整理笔记，而不是你自己整理。**
 
 #### 随便写，不要管理
 
-Vaultr 不鼓励你把精力花在维护笔记上——精心分类、建目录体系、打标签、整理归档，这些都是低价值的重复劳动。记笔记应该是顺手的、随心的，想写就写。
+Hylo 不鼓励你把精力花在维护笔记上——精心分类、建目录体系、打标签、整理归档，这些都是低价值的重复劳动。记笔记应该是顺手的、随心的，想写就写。
 
-具体来说，Vaultr **不推荐嵌套目录**。你可以建 `/读书`、`/工作`、`/想法` 这样的简单分类，技术上虽然可以在里面再建子目录，但我们强烈不建议这样做。保持扁平结构，把你从"这条笔记该放哪"的心智负担中解放出来。
+具体来说，Hylo **不推荐嵌套目录**。你可以建 `/读书`、`/工作`、`/想法` 这样的简单分类，技术上虽然可以在里面再建子目录，但我们强烈不建议这样做。保持扁平结构，把你从"这条笔记该放哪"的心智负担中解放出来。
 
 #### AI 编译，而非人工整理
 
-笔记写完之后怎么变成有用的知识？Vaultr 的答案是交给 AI：
+笔记写完之后怎么变成有用的知识？Hylo 的答案是交给 AI：
 
 - 你写速记、写随笔、存网页——这些是原始输入，不需要整理
 - AI agent 自动把这些笔记**编译成结构化知识**，在知识库中构建互联的 LLM Wiki 网络
@@ -74,14 +74,14 @@ Vaultr 不鼓励你把精力花在维护笔记上——精心分类、建目录�
 
 #### 检索也交给 AI
 
-Vaultr 提供全文搜索，但更重要的是让 agent 替你检索。当你需要某个信息时，直接问 agent，它会自动在笔记和知识库里找到答案——不需要你自己翻。
+Hylo 提供全文搜索，但更重要的是让 agent 替你检索。当你需要某个信息时，直接问 agent，它会自动在笔记和知识库里找到答案——不需要你自己翻。
 
-#### ⚠️ 使用 Vaultr，你必须知道的那些事
+#### ⚠️ 使用 Hylo，你必须知道的那些事
 
-- **不推荐嵌套目录**。Vaultr 推荐单层扁平目录结构，不要在分类目录下再建子目录（技术上虽然可以，但强烈不建议）。
-- **文件名最好唯一**。Vaultr 用 Wiki Link `[[stem]]` 格式引用笔记，链接的是文件名而非路径，文件名重复会导致引用歧义。
-- **下划线前缀是系统目录**。`_knowledge/`、`_shorts/`、`_memory/` 这类以 `_` 开头的目录是 Vaultr 内部使用的，你自己的分类目录不要用下划线前缀。
-- **Vaultr 本身不内置 AI Agent**。需要你的电脑上已安装 agent 环境（如 Claude Code、OpenCode、Codex 等）。Vaultr 会自动从 PATH 中发现它们，无需额外配置。查看[支持的底层 Agent](#底层-agent)。
+- **不推荐嵌套目录**。Hylo 推荐单层扁平目录结构，不要在分类目录下再建子目录（技术上虽然可以，但强烈不建议）。
+- **文件名最好唯一**。Hylo 用 Wiki Link `[[stem]]` 格式引用笔记，链接的是文件名而非路径，文件名重复会导致引用歧义。
+- **下划线前缀是系统目录**。`_knowledge/`、`_shorts/`、`_memory/` 这类以 `_` 开头的目录是 Hylo 内部使用的，你自己的分类目录不要用下划线前缀。
+- **Hylo 本身不内置 AI Agent**。需要你的电脑上已安装 agent 环境（如 Claude Code、OpenCode、Codex 等）。Hylo 会自动从 PATH 中发现它们，无需额外配置。查看[支持的底层 Agent](#底层-agent)。
 
 ## 架构
 
@@ -96,7 +96,7 @@ Vaultr 提供全文搜索，但更重要的是让 agent 替你检索。当你需
                                   │
                                   ▼
 ┌────────────────────────────────────────────────────────────────────┐
-│                           Vaultr Server                            │
+│                           Hylo Server                            │
 └──────┬─────────────────┬─────────────────┬─────────────────┬───────┘
        │                 │                 │                 │
        ▼                 ▼                 ▼                 ▼
@@ -106,7 +106,7 @@ Vaultr 提供全文搜索，但更重要的是让 agent 替你检索。当你需
 └──────────────┘  └──────────────┘  └──────────────┘  └──────────────┘
 ```
 
-**Vaultr Server** 是一个独立的 Go 二进制程序，没有外部依赖。SQLite 和 Bleve 都直接内嵌其中，整个服务端就是一个可执行文件，放哪里跑哪里。
+**Hylo Server** 是一个独立的 Go 二进制程序，没有外部依赖。SQLite 和 Bleve 都直接内嵌其中，整个服务端就是一个可执行文件，放哪里跑哪里。
 
 它本质上是一个普通的 HTTP 服务，可以跑在本地，也可以部署到远程云服务器或容器里。所有客户端（桌面 App、CLI、微信桥接）通过网络连接，方式完全一样。
 
@@ -116,13 +116,13 @@ Vaultr 提供全文搜索，但更重要的是让 agent 替你检索。当你需
 
 #### 💻 桌面 App
 
-1. 去 [最新发布页](https://github.com/skoowoo/vaultr-notes/releases/latest) 下载 `.dmg`
-2. 打开 dmg，把 Vaultr 拖进应用程序文件夹
+1. 去 [最新发布页](https://github.com/skoowoo/hylo/releases/latest) 下载 `.dmg`
+2. 打开 dmg，把 Hylo 拖进应用程序文件夹
 3. 第一次启动 macOS 可能拦截（签名了但没公证）
 
    解决也很简单：**系统设置 → 隐私与安全性**，找到拦截提示点**仍要打开**就好
 
-4. App 会把 `vaultr` CLI 装到 `~/.local/bin/vaultr`。把这个路径加到你的 shell 配置里，agent 才能正常调用它：
+4. App 会把 `hylo` CLI 装到 `~/.local/bin/hylo`。把这个路径加到你的 shell 配置里，agent 才能正常调用它：
 
    ```sh
    # zsh — 加到 ~/.zshrc 或 ~/.zprofile
@@ -136,7 +136,7 @@ Vaultr 提供全文搜索，但更重要的是让 agent 替你检索。当你需
 
 #### 🧩 浏览器扩展（Clip）
 
-1. 同样去 [最新发布页](https://github.com/skoowoo/vaultr-notes/releases/latest) 下载 `vaultr-clip-*.zip`
+1. 同样去 [最新发布页](https://github.com/skoowoo/hylo/releases/latest) 下载 `hylo-clip-*.zip`
 2. 解压
 3. 打开 Chrome/Edge，地址栏输 `chrome://extensions/`
 4. 右上角打开**开发者模式**
@@ -148,43 +148,43 @@ Vaultr 提供全文搜索，但更重要的是让 agent 替你检索。当你需
 一行命令搞定：
 
 ```sh
-curl -sL https://raw.githubusercontent.com/skoowoo/vaultr-notes/main/install-cli.sh | sh
+curl -sL https://raw.githubusercontent.com/skoowoo/hylo/main/install-cli.sh | sh
 ```
 
 ## Obsidian 兼容
 
-Vaultr 与 Obsidian **完全兼容**，二者可以在**同一个 vault 上同时并存**——不需要迁移，也不必二选一。
+Hylo 与 Obsidian **完全兼容**，二者可以在**同一个 vault 上同时并存**——不需要迁移，也不必二选一。
 
-- **同一份笔记，两个工具共用。** Vaultr 直接读写你现有的 Markdown 文件和目录结构。继续用 Obsidian 当主编辑器，完全没问题。
+- **同一份笔记，两个工具共用。** Hylo 直接读写你现有的 Markdown 文件和目录结构。继续用 Obsidian 当主编辑器，完全没问题。
 - **原生 Obsidian 语法。** Wikilink（`[[笔记名]]`）、别名（`[[页面|别名]]`）、Wiki 图片（`![[图片.png]]`）开箱即用。
-- **无需格式转换。** Vaultr 创建或修改的内容都是标准 Markdown，在 Obsidian 里打开毫无异样。
-- **Vaultr 做 AI 补充。** 把你的 Obsidian vault 交给 Vaultr，让它负责 AI 能力：LLM Wiki 编译、个人记忆、事件驱动的 Agent、微信接入、全文搜索。你照常用 Obsidian 写作，Vaultr 在上面跑自动化。
+- **无需格式转换。** Hylo 创建或修改的内容都是标准 Markdown，在 Obsidian 里打开毫无异样。
+- **Hylo 做 AI 补充。** 把你的 Obsidian vault 交给 Hylo，让它负责 AI 能力：LLM Wiki 编译、个人记忆、事件驱动的 Agent、微信接入、全文搜索。你照常用 Obsidian 写作，Hylo 在上面跑自动化。
 
 #### 用现有 vault 开始使用
 
-把 `vaultr init` 指向你的 Obsidian vault 目录：
+把 `hylo init` 指向你的 Obsidian vault 目录：
 
 ```sh
 # 在当前目录初始化
-vaultr init
+hylo init
 
 # 或者指定路径
-vaultr init /path/to/your/obsidian-vault
+hylo init /path/to/your/obsidian-vault
 ```
 
-跑完之后，Vaultr 会在目录里创建 `.vaultr/` 文件夹、扫描所有 Markdown 文件、建好全文搜索索引。如果 `.vaultr/` 已经存在，命令什么都不会动。你的 Obsidian vault 本身不会被改动。
+跑完之后，Hylo 会在目录里创建 `.hylo/` 文件夹、扫描所有 Markdown 文件、建好全文搜索索引。如果 `.hylo/` 已经存在，命令什么都不会动。你的 Obsidian vault 本身不会被改动。
 
-然后打开 **Vaultr App** 完成最后一步：
+然后打开 **Hylo App** 完成最后一步：
 
 1. **Settings → Server → Config**
 2. **Vault** 那里选你的 vault 目录
 3. 保存
 
-笔记会出现在 Vaultr 里——Obsidian 照旧可以读写同一个 vault。
+笔记会出现在 Hylo 里——Obsidian 照旧可以读写同一个 vault。
 
 ## 编辑器
 
-Vaultr 内置 WYSIWYG Markdown 编辑器，打开笔记默认进入富文本模式，随时可以切换为原始 Markdown。
+Hylo 内置 WYSIWYG Markdown 编辑器，打开笔记默认进入富文本模式，随时可以切换为原始 Markdown。
 
 #### ✍️ 写作
 
@@ -220,7 +220,7 @@ Shorts 是一个轻量的日常捕捉流，按天存储的速记条目，保存�
 | 快速笔记     | 在 App 任意位置按 `⌘.`（`Ctrl+.`）全屏 Zen 模式；`⌘↵` 保存，`Esc` 退出 |
 | 从编辑器存入 | 选中任意段落 → 点工具条中的 **⚡**                                      |
 
-快速笔记采用全屏沉浸式设计，没有工具栏，没有按钮，只有你和文字。从编辑器存入时，Vaultr 会自动在条目末尾附上 `[[来源笔记]]` 反向链接，方便日后追溯。
+快速笔记采用全屏沉浸式设计，没有工具栏，没有按钮，只有你和文字。从编辑器存入时，Hylo 会自动在条目末尾附上 `[[来源笔记]]` 反向链接，方便日后追溯。
 
 #### 📅 查看
 
@@ -248,7 +248,7 @@ Agent Bot 最有意思的地方是事件驱动：配好触发器，你什么都�
 
 #### 底层 Agent
 
-> **Vaultr 直接从本地 `PATH` 发现可用的 agent CLI，不用任何额外配置。** 你已经在用 Claude Code 写代码？在终端里跑 Codex 或 Copilot？Vaultr 启动时自动找到它们，直接拿来用。你的工具，你的习惯，Vaultr 不折腾你。
+> **Hylo 直接从本地 `PATH` 发现可用的 agent CLI，不用任何额外配置。** 你已经在用 Claude Code 写代码？在终端里跑 Codex 或 Copilot？Hylo 启动时自动找到它们，直接拿来用。你的工具，你的习惯，Hylo 不折腾你。
 
 开箱集成 **7 个 agent CLI**：
 
@@ -349,7 +349,7 @@ Bot 要能给你发主动消息（如定时推送），需要和你在同一个�
 
 ## 个人记忆（Memory）
 
-Vaultr 能从你的笔记里提取个人记忆，生成六个结构化文件（身份、偏好、目标、信念、人际关系、当前状态），存在 `/_memory/` 下。用 AI 帮你"认识自己"，听起来有点玄，但挺实用的。
+Hylo 能从你的笔记里提取个人记忆，生成六个结构化文件（身份、偏好、目标、信念、人际关系、当前状态），存在 `/_memory/` 下。用 AI 帮你"认识自己"，听起来有点玄，但挺实用的。
 
 默认只扫**速记**（`/_shorts`）和**知识库**（`/_knowledge`）。如果你想多扫几个目录，在 prompt 里说一句就行。
 
@@ -361,7 +361,7 @@ Vaultr 能从你的笔记里提取个人记忆，生成六个结构化文件（�
 请更新我的 memory。我是 XXX，目前在做 YYY 项目，…（简单自我介绍）
 ```
 
-Agent 会自己调用 `vaultr-memory` skill 完成提取。首次运行扫最近 90 天，之后每次增量只扫最近 2 天，很快。
+Agent 会自己调用 `hylo-memory` skill 完成提取。首次运行扫最近 90 天，之后每次增量只扫最近 2 天，很快。
 
 #### ⏰ 方式二：定时 Agent Bot，每天自动更新
 
@@ -389,12 +389,12 @@ Agent 会自己调用 `vaultr-memory` skill 完成提取。首次运行扫最近
 
 ## Skills
 
-Vaultr 内置了一套 skill，agent 执行任务时会自动调用。你也可以从 GitHub 安装外部 skill，或者把自己写的 skill 扔进 `~/.vaultr/skills/` 来扩展。
+Hylo 内置了一套 skill，agent 执行任务时会自动调用。你也可以从 GitHub 安装外部 skill，或者把自己写的 skill 扔进 `~/.hylo/skills/` 来扩展。
 
 每个 skill 就是一个带 `SKILL.md` 的目录：
 
 ```
-~/.vaultr/skills/
+~/.hylo/skills/
 └── your-skill/
     └── SKILL.md
 ```
@@ -404,42 +404,42 @@ Vaultr 内置了一套 skill，agent 执行任务时会自动调用。你也可�
 **查看已安装的 skill**
 
 ```sh
-vaultr skills list
+hylo skills list
 ```
 
 **从 GitHub 仓库安装 skill**
 
 ```sh
-vaultr skills add https://github.com/hardhackerlabs/podwise-cli --skill podwise
+hylo skills add https://github.com/hardhackerlabs/podwise-cli --skill podwise
 ```
 
-安装后保存到 `~/.vaultr/skills/podwise/`。
+安装后保存到 `~/.hylo/skills/podwise/`。
 
 也支持 `owner/repo` 简写：
 
 ```sh
-vaultr skills add hardhackerlabs/podwise-cli --skill podwise
+hylo skills add hardhackerlabs/podwise-cli --skill podwise
 ```
 
 **删除 skill**
 
 ```sh
-vaultr skills remove podwise
+hylo skills remove podwise
 ```
 
 删除 skill 目录、清理所有软链接。
 
-Vaultr 启动时自动加载 `~/.vaultr/skills/` 下的所有 skill。在 **Settings → Skills** 中可以单独启用或禁用某个 skill。
+Hylo 启动时自动加载 `~/.hylo/skills/` 下的所有 skill。在 **Settings → Skills** 中可以单独启用或禁用某个 skill。
 
 每个内置 skill 的具体功能和提示词示例，见 [Skills 使用指南](./docs/skills_zh.md)。
 
 ## 自定义 AI 行为
 
-Vaultr 的每一层 AI 输出都可以自定义：
+Hylo 的每一层 AI 输出都可以自定义：
 
 #### 1. 全局 Agent System Prompt
 
-**设置 → Server → Config → Agent** — 填写 `agent.system_prompt` 替换内置的全局 system prompt，该 prompt 会拼接在每次 agent 运行的最前面。留空时 Vaultr 使用内置默认值，该默认值会告知 agent vault 的目录结构、wiki-link 语法以及个人记忆文件的位置。
+**设置 → Server → Config → Agent** — 填写 `agent.system_prompt` 替换内置的全局 system prompt，该 prompt 会拼接在每次 agent 运行的最前面。留空时 Hylo 使用内置默认值，该默认值会告知 agent vault 的目录结构、wiki-link 语法以及个人记忆文件的位置。
 
 #### 2. 每个 Agent Bot 的 System Prompt 与 Trigger Prompt
 
@@ -450,15 +450,15 @@ Vaultr 的每一层 AI 输出都可以自定义：
 
 #### 3. 重写 LLM-Wiki 编译 Skill
 
-LLM Wiki 编译行为由 `~/.vaultr/skills/vaultr-compile-note/SKILL.md` 定义。编辑此文件即可改变原始笔记被编译成结构化知识、并链接进 LLM Wiki 网络的方式。
+LLM Wiki 编译行为由 `~/.hylo/skills/hylo-compile-note/SKILL.md` 定义。编辑此文件即可改变原始笔记被编译成结构化知识、并链接进 LLM Wiki 网络的方式。
 
 #### 4. 重写记忆抽取 Skill
 
-个人记忆抽取行为由 `~/.vaultr/skills/vaultr-memory/SKILL.md` 定义。编辑此文件即可改变抽取内容与记忆文件的组织结构。
+个人记忆抽取行为由 `~/.hylo/skills/hylo-memory/SKILL.md` 定义。编辑此文件即可改变抽取内容与记忆文件的组织结构。
 
 #### 5. 安装或编写自定义 Skill
 
-将任意 skill 目录放入 `~/.vaultr/skills/`，然后在**设置 → Skills** 中启用即可。Agent 通过目录名来引用 skill。
+将任意 skill 目录放入 `~/.hylo/skills/`，然后在**设置 → Skills** 中启用即可。Agent 通过目录名来引用 skill。
 
 ## 快捷键
 

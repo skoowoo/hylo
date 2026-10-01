@@ -1,4 +1,4 @@
-module github.com/hardhacker/vaultr
+module github.com/hardhacker/hylo
 
 go 1.26.1
 

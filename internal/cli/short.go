@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hardhacker/vaultr/internal/client"
+	"github.com/hardhacker/hylo/internal/client"
 	"github.com/spf13/cobra"
 )
 
@@ -36,8 +36,8 @@ func newShortCreateCmd() *cobra.Command {
 Content sources (in priority order):
   1. --content <text>   inline text
   2. stdin              pipe or interactive input`,
-		Example: `  vaultr short create --content "Quick thought"
-  echo "Buy groceries" | vaultr short create`,
+		Example: `  hylo short create --content "Quick thought"
+  echo "Buy groceries" | hylo short create`,
 		Args:         cobra.NoArgs,
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -94,10 +94,10 @@ Each daily shorts file is parsed into individual entries so you see one row per
 note rather than one row per day.
 
 Without date filters all entries are returned (subject to --limit).`,
-		Example: `  vaultr short list
-  vaultr short list --latest 7
-  vaultr short list --start 2026-01-01 --end 2026-01-31
-  vaultr short list --limit 20 --table`,
+		Example: `  hylo short list
+  hylo short list --latest 7
+  hylo short list --start 2026-01-01 --end 2026-01-31
+  hylo short list --limit 20 --table`,
 		Args:         cobra.NoArgs,
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {

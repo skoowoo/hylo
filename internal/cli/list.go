@@ -6,8 +6,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/hardhacker/vaultr/internal/storage"
-	"github.com/hardhacker/vaultr/internal/util"
+	"github.com/hardhacker/hylo/internal/storage"
+	"github.com/hardhacker/hylo/internal/util"
 	"github.com/spf13/cobra"
 )
 
@@ -27,11 +27,11 @@ func newListCmd() *cobra.Command {
 		Long: `List notes, sorted by most recently updated. Output is JSON by default; use --table for a table view.
 
 Pass a vault-absolute directory path (e.g. /journal) to scope the listing to that directory.`,
-		Example: `  vaultr list
-  vaultr list --latest 7
-  vaultr list --kind raw
-  vaultr list --start 2026-01-01 --end 2026-01-31
-  vaultr list --limit 20`,
+		Example: `  hylo list
+  hylo list --latest 7
+  hylo list --kind raw
+  hylo list --start 2026-01-01 --end 2026-01-31
+  hylo list --limit 20`,
 		Args:         cobra.MaximumNArgs(1),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {

@@ -1,11 +1,11 @@
-# Vaultr: AI-native note-taking app compatible with Obsidian. AI agents organize and help you use your notes.
+# Hylo: AI-native note-taking app compatible with Obsidian. AI agents organize and help you use your notes.
 
 [中文文档](./README_ZH.md)
 
-![Vaultr Hero](./docs/assets/hero1.png)
-![Vaultr Hero](./docs/assets/hero2.png)
-![Vaultr Hero](./docs/assets/hero3.png)
-![Vaultr Hero](./docs/assets/hero4.png)
+![Hylo Hero](./docs/assets/hero1.png)
+![Hylo Hero](./docs/assets/hero2.png)
+![Hylo Hero](./docs/assets/hero3.png)
+![Hylo Hero](./docs/assets/hero4.png)
 
 ## Table of Contents
 
@@ -56,17 +56,17 @@
 
 ## Design
 
-Vaultr has one core idea: **let AI organize your notes, not you.**
+Hylo has one core idea: **let AI organize your notes, not you.**
 
 #### Write freely, don't manage
 
-Vaultr discourages spending energy on note maintenance: elaborate categorization, nested folder hierarchies, manual tagging, and archiving. These are low-value, repetitive chores. Taking notes should be effortless and spontaneous: just write.
+Hylo discourages spending energy on note maintenance: elaborate categorization, nested folder hierarchies, manual tagging, and archiving. These are low-value, repetitive chores. Taking notes should be effortless and spontaneous: just write.
 
-Concretely, Vaultr **strongly discourages nested directories**. You can create simple buckets like `/reading`, `/work`, or `/ideas`, but nesting subdirectories inside them is not recommended, though it's technically possible. Keeping things flat frees you from the mental overhead of deciding *where* every note belongs.
+Concretely, Hylo **strongly discourages nested directories**. You can create simple buckets like `/reading`, `/work`, or `/ideas`, but nesting subdirectories inside them is not recommended, though it's technically possible. Keeping things flat frees you from the mental overhead of deciding *where* every note belongs.
 
 #### AI compiles, you don't organize
 
-What turns raw notes into useful knowledge? Vaultr's answer: hand it off to AI.
+What turns raw notes into useful knowledge? Hylo's answer: hand it off to AI.
 
 - You write short notes, journal entries, clip web pages. No curation needed.
 - AI agents automatically **compile these notes into structured knowledge**, building an interconnected LLM wiki network in the knowledge base
@@ -76,14 +76,14 @@ The entire pipeline runs automatically. You don't need to be involved in any org
 
 #### AI retrieves, you don't browse
 
-Vaultr ships full-text search, but the more important capability is letting agents retrieve on your behalf. When you need something, ask an agent directly. It searches your notes and knowledge base and surfaces the answer.
+Hylo ships full-text search, but the more important capability is letting agents retrieve on your behalf. When you need something, ask an agent directly. It searches your notes and knowledge base and surfaces the answer.
 
-#### ⚠️ Things you must know before using Vaultr
+#### ⚠️ Things you must know before using Hylo
 
-- **Avoid nested directories.** Vaultr recommends a flat, single-level directory structure. You can technically create subdirectories inside category folders, but it is strongly discouraged.
-- **Keep filenames unique.** Vaultr links notes using Wiki Link syntax `[[stem]]`, by filename rather than path. Duplicate filenames cause ambiguous references.
-- **Underscore-prefixed directories are system-reserved.** Directories like `_knowledge/`, `_shorts/`, and `_memory/` are used internally by Vaultr. Do not use an underscore prefix for your own category directories.
-- **Vaultr does not bundle an AI Agent.** You need an agent CLI already installed on your machine (e.g. Claude Code, OpenCode, Codex). Vaultr discovers them automatically from your PATH with no extra configuration needed. See [Backing Agents](#backing-agents).
+- **Avoid nested directories.** Hylo recommends a flat, single-level directory structure. You can technically create subdirectories inside category folders, but it is strongly discouraged.
+- **Keep filenames unique.** Hylo links notes using Wiki Link syntax `[[stem]]`, by filename rather than path. Duplicate filenames cause ambiguous references.
+- **Underscore-prefixed directories are system-reserved.** Directories like `_knowledge/`, `_shorts/`, and `_memory/` are used internally by Hylo. Do not use an underscore prefix for your own category directories.
+- **Hylo does not bundle an AI Agent.** You need an agent CLI already installed on your machine (e.g. Claude Code, OpenCode, Codex). Hylo discovers them automatically from your PATH with no extra configuration needed. See [Backing Agents](#backing-agents).
 
 ## Architecture
 
@@ -98,7 +98,7 @@ Vaultr ships full-text search, but the more important capability is letting agen
                                   │
                                   ▼
 ┌────────────────────────────────────────────────────────────────────┐
-│                           Vaultr Server                            │
+│                           Hylo Server                            │
 └──────┬─────────────────┬─────────────────┬─────────────────┬───────┘
        │                 │                 │                 │
        ▼                 ▼                 ▼                 ▼
@@ -108,23 +108,23 @@ Vaultr ships full-text search, but the more important capability is letting agen
 └──────────────┘  └──────────────┘  └──────────────┘  └──────────────┘
 ```
 
-**Vaultr Server** is a single, self-contained Go binary with no external dependencies. It embeds SQLite and Bleve directly, so the entire server is just one executable you drop anywhere and run.
+**Hylo Server** is a single, self-contained Go binary with no external dependencies. It embeds SQLite and Bleve directly, so the entire server is just one executable you drop anywhere and run.
 
 Because it's a plain HTTP server, it deploys equally well on your local machine or a remote cloud instance. Run it on a home server or a container; all clients (desktop app, CLI, WeChat bridge) connect over the network the same way.
 
 ## Installation
 
-> **For most users:** install the Desktop App and the Clip extension — that's it. The Desktop App detects the CLI on first launch and offers one-click installation if it is not found. A standalone Server & CLI installation is only needed if you want to deploy Vaultr on a remote or headless host.
+> **For most users:** install the Desktop App and the Clip extension — that's it. The Desktop App detects the CLI on first launch and offers one-click installation if it is not found. A standalone Server & CLI installation is only needed if you want to deploy Hylo on a remote or headless host.
 
 #### 💻 Desktop App
 
-1. Download the latest `.dmg` file from the [Latest Release](https://github.com/skoowoo/vaultr-notes/releases/latest) page
-2. Open the dmg and drag Vaultr into your Applications folder
+1. Download the latest `.dmg` file from the [Latest Release](https://github.com/skoowoo/hylo/releases/latest) page
+2. Open the dmg and drag Hylo into your Applications folder
 3. On first launch, macOS may block the app since it is signed but not notarized by Apple
 
    **Fix:** Go to **System Settings → Privacy & Security**, scroll down to find the blocked app notice, and click **Open Anyway**
 
-4. The Desktop App installs the `vaultr` CLI to `~/.local/bin/vaultr`. Add this to your shell profile so agents can use it:
+4. The Desktop App installs the `hylo` CLI to `~/.local/bin/hylo`. Add this to your shell profile so agents can use it:
 
    ```sh
    # zsh — add to ~/.zshrc or ~/.zprofile
@@ -138,7 +138,7 @@ Because it's a plain HTTP server, it deploys equally well on your local machine 
 
 #### 🧩 Browser Extension (Clip)
 
-1. Download the latest `vaultr-clip-*.zip` from the [Latest Release](https://github.com/skoowoo/vaultr-notes/releases/latest) page
+1. Download the latest `hylo-clip-*.zip` from the [Latest Release](https://github.com/skoowoo/hylo/releases/latest) page
 2. Unzip the file
 3. Open Chrome or Edge and go to `chrome://extensions/`
 4. Enable **Developer mode** in the top-right corner
@@ -147,46 +147,46 @@ Because it's a plain HTTP server, it deploys equally well on your local machine 
 
 #### ⌨️ Server & CLI
 
-Run the following command to install the Vaultr server and CLI:
+Run the following command to install the Hylo server and CLI:
 
 ```sh
-curl -sL https://raw.githubusercontent.com/skoowoo/vaultr-notes/main/install-cli.sh | sh
+curl -sL https://raw.githubusercontent.com/skoowoo/hylo/main/install-cli.sh | sh
 ```
 
 ## Obsidian Compatibility
 
-Vaultr is **fully compatible with Obsidian**. Both tools can work on the same vault at the same time, no migration required, no need to pick one over the other.
+Hylo is **fully compatible with Obsidian**. Both tools can work on the same vault at the same time, no migration required, no need to pick one over the other.
 
-- **Same vault, same files.** Vaultr reads and writes plain Markdown in your existing directory structure. Keep using Obsidian as your primary editor if you prefer.
+- **Same vault, same files.** Hylo reads and writes plain Markdown in your existing directory structure. Keep using Obsidian as your primary editor if you prefer.
 - **Obsidian-native syntax.** Wikilinks (`[[Note]]`), aliases (`[[Page|Alias]]`), and wiki images (`![[image.png]]`) all work out of the box.
-- **No format conversion.** Everything Vaultr creates or modifies stays standard Markdown — open it in Obsidian and it looks exactly as you'd expect.
-- **Vaultr as your AI layer.** Point Vaultr at your Obsidian vault and let it handle the AI side: LLM wiki compilation, personal memory, event-driven agents, WeChat, and search. You write in Obsidian; Vaultr runs the automation on top.
+- **No format conversion.** Everything Hylo creates or modifies stays standard Markdown — open it in Obsidian and it looks exactly as you'd expect.
+- **Hylo as your AI layer.** Point Hylo at your Obsidian vault and let it handle the AI side: LLM wiki compilation, personal memory, event-driven agents, WeChat, and search. You write in Obsidian; Hylo runs the automation on top.
 
 #### Get started with an existing vault
 
-Point `vaultr init` at your Obsidian vault directory:
+Point `hylo init` at your Obsidian vault directory:
 
 ```sh
 # Initialize the current directory
-vaultr init
+hylo init
 
 # Or pass a path explicitly
-vaultr init /path/to/your/obsidian-vault
+hylo init /path/to/your/obsidian-vault
 ```
 
-This creates a `.vaultr/` folder inside the directory, scans all Markdown files, registers them in the metadata database, and builds the full-text search index. If `.vaultr/` already exists the command exits safely without changing anything. Your Obsidian vault is otherwise untouched.
+This creates a `.hylo/` folder inside the directory, scans all Markdown files, registers them in the metadata database, and builds the full-text search index. If `.hylo/` already exists the command exits safely without changing anything. Your Obsidian vault is otherwise untouched.
 
-After running `vaultr init`, open the **Vaultr desktop app** and complete the setup:
+After running `hylo init`, open the **Hylo desktop app** and complete the setup:
 
 1. Go to **Settings → Server → Config**
 2. Under **Vault**, click the path field and select your vault directory
 3. Save config
 
-Your notes will now be available in Vaultr — while Obsidian continues to work on the same vault as before.
+Your notes will now be available in Hylo — while Obsidian continues to work on the same vault as before.
 
 ## Editor
 
-Vaultr includes a built-in WYSIWYG Markdown editor. Notes open in rich-text mode by default; toggle to raw Markdown at any time with the mode button in the toolbar.
+Hylo includes a built-in WYSIWYG Markdown editor. Notes open in rich-text mode by default; toggle to raw Markdown at any time with the mode button in the toolbar.
 
 #### ✍️ Writing
 
@@ -222,7 +222,7 @@ Shorts is a lightweight daily capture stream, a rolling feed of timestamped quic
 | Quick Note      | Press `⌘.` (`Ctrl+.`) to open a full-screen Zen editor; `⌘↵` to save, `Esc` to exit |
 | From the editor | Select any passage → click **⚡** in the toolbar                                     |
 
-The Quick Note editor is distraction-free: no toolbar, no buttons, just you and the text. When saving from the editor, Vaultr automatically appends a `[[source note]]` backlink so you can always trace a Short back to its origin.
+The Quick Note editor is distraction-free: no toolbar, no buttons, just you and the text. When saving from the editor, Hylo automatically appends a `[[source note]]` backlink so you can always trace a Short back to its origin.
 
 #### 📅 Viewing
 
@@ -235,7 +235,7 @@ Agent Bots are custom AI agents you define in **Settings → Agent Bots**. Each 
 
 #### 🔔 Event Triggers
 
-Add one or more triggers to an agent bot and it runs automatically whenever a matching event fires. Vaultr ships with these built-in events:
+Add one or more triggers to an agent bot and it runs automatically whenever a matching event fires. Hylo ships with these built-in events:
 
 | Event                | When it fires                                        |
 | -------------------- | ---------------------------------------------------- |
@@ -250,9 +250,9 @@ Add one or more triggers to an agent bot and it runs automatically whenever a ma
 
 #### Backing Agents
 
-> **Vaultr automatically discovers available agent CLIs from your local `PATH` with no extra configuration needed.** If you already use Claude Code, Codex, or Copilot in your terminal, Vaultr finds them at startup and makes them available as backing agents for your agent bots.
+> **Hylo automatically discovers available agent CLIs from your local `PATH` with no extra configuration needed.** If you already use Claude Code, Codex, or Copilot in your terminal, Hylo finds them at startup and makes them available as backing agents for your agent bots.
 
-Vaultr integrates **7 agent CLIs** out of the box:
+Hylo integrates **7 agent CLIs** out of the box:
 
 - Claude Code
 - OpenCode
@@ -264,7 +264,7 @@ Vaultr integrates **7 agent CLIs** out of the box:
 
 ## WeChat
 
-Vaultr can receive WeChat direct messages and route them to an agent bot automatically. Setup has two steps.
+Hylo can receive WeChat direct messages and route them to an agent bot automatically. Setup has two steps.
 
 #### Step 1: Connect WeChat in Server Config
 
@@ -352,7 +352,7 @@ Use the compile skill to compile note `{{.Path}}`, then use the index skill to u
 
 ## Personal Memory
 
-Vaultr can automatically extract personal memories from your notes into six structured memory files (identity, preferences, goals, beliefs, people, and current state) stored under `/_memory/`.
+Hylo can automatically extract personal memories from your notes into six structured memory files (identity, preferences, goals, beliefs, people, and current state) stored under `/_memory/`.
 
 **Default scan scope**: short notes (`/_shorts`) and knowledge units (`/_knowledge`). You can also specify additional directories directly in the prompt.
 
@@ -364,7 +364,7 @@ Ask any agent directly in a conversation to update your personal memory. Example
 Please update my personal memory. I'm [name], currently working on [project], … (brief self-introduction)
 ```
 
-The agent invokes the `vaultr-memory` skill and completes the extraction automatically. The first run scans the last 90 days; subsequent incremental runs scan only the last 2 days.
+The agent invokes the `hylo-memory` skill and completes the extraction automatically. The first run scans the last 90 days; subsequent incremental runs scan only the last 2 days.
 
 #### ⏰ Option 2 — Create a scheduled Agent Bot Trigger (daily auto-run)
 
@@ -392,12 +392,12 @@ From this point on, memory updates run automatically once a day with no manual a
 
 ## Skills
 
-Vaultr ships with a set of built-in skills that agents can use when running tasks. You can extend it with external skills from GitHub or your own custom skills placed in `~/.vaultr/skills/`.
+Hylo ships with a set of built-in skills that agents can use when running tasks. You can extend it with external skills from GitHub or your own custom skills placed in `~/.hylo/skills/`.
 
 Each skill is a directory containing a `SKILL.md` file:
 
 ```
-~/.vaultr/skills/
+~/.hylo/skills/
 └── your-skill/
     └── SKILL.md
 ```
@@ -407,42 +407,42 @@ Each skill is a directory containing a `SKILL.md` file:
 **List installed skills**
 
 ```sh
-vaultr skills list
+hylo skills list
 ```
 
 **Install a skill from a GitHub repository**
 
 ```sh
-vaultr skills add https://github.com/hardhackerlabs/podwise-cli --skill podwise
+hylo skills add https://github.com/hardhackerlabs/podwise-cli --skill podwise
 ```
 
-The skill is saved to `~/.vaultr/skills/podwise/`.
+The skill is saved to `~/.hylo/skills/podwise/`.
 
 Shorthand `owner/repo` form also works:
 
 ```sh
-vaultr skills add hardhackerlabs/podwise-cli --skill podwise
+hylo skills add hardhackerlabs/podwise-cli --skill podwise
 ```
 
 **Remove a skill**
 
 ```sh
-vaultr skills remove podwise
+hylo skills remove podwise
 ```
 
 Removes the skill directory and any active symlinks.
 
-Vaultr picks up all skills in `~/.vaultr/skills/` automatically on startup. Enable or disable individual skills in **Settings → Skills**.
+Hylo picks up all skills in `~/.hylo/skills/` automatically on startup. Enable or disable individual skills in **Settings → Skills**.
 
 For what each built-in skill does and example prompts, see the [Skills Guide](./docs/skills.md).
 
 ## Customizing AI Behavior
 
-Every layer of AI output in Vaultr is customizable:
+Every layer of AI output in Hylo is customizable:
 
 #### 1. Global Agent System Prompt
 
-**Settings → Server → Config → Agent** — set `agent.system_prompt` to replace the built-in default prompt that is prepended to every agent run. When left empty, Vaultr uses its built-in default which teaches agents about vault structure, wiki-link syntax, and personal memory files.
+**Settings → Server → Config → Agent** — set `agent.system_prompt` to replace the built-in default prompt that is prepended to every agent run. When left empty, Hylo uses its built-in default which teaches agents about vault structure, wiki-link syntax, and personal memory files.
 
 #### 2. Per-Agent-Bot System Prompt & Trigger Prompt
 
@@ -453,15 +453,15 @@ In **Settings → Agent Bots**, each agent bot exposes two customization points:
 
 #### 3. Rewrite the LLM-Wiki Compile Skill
 
-The LLM wiki compilation behavior is defined in `~/.vaultr/skills/vaultr-compile-note/SKILL.md`. Edit this file to change how raw notes are compiled into structured knowledge and linked into the LLM wiki network.
+The LLM wiki compilation behavior is defined in `~/.hylo/skills/hylo-compile-note/SKILL.md`. Edit this file to change how raw notes are compiled into structured knowledge and linked into the LLM wiki network.
 
 #### 4. Rewrite the Memory Extraction Skill
 
-The personal memory extraction behavior is defined in `~/.vaultr/skills/vaultr-memory/SKILL.md`. Edit this file to change what gets extracted and how memory files are structured.
+The personal memory extraction behavior is defined in `~/.hylo/skills/hylo-memory/SKILL.md`. Edit this file to change what gets extracted and how memory files are structured.
 
 #### 5. Install or Build Custom Skills
 
-Drop any skill directory into `~/.vaultr/skills/`, then enable it in **Settings → Skills**. Skills are referenced by agents via their directory name.
+Drop any skill directory into `~/.hylo/skills/`, then enable it in **Settings → Skills**. Skills are referenced by agents via their directory name.
 
 ## Shortcuts
 

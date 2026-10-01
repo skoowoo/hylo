@@ -9,7 +9,7 @@ import "bytes"
 //
 // Used by Vault.MoveNote to fix up a moved raw note's full-path reference
 // inside a dependent knowledge note's source_notes: list (see
-// skills/vaultr-compile-note): that list is what the compile plugin re-syncs
+// skills/hylo-compile-note): that list is what the compile plugin re-syncs
 // knowledge_deps from on every save, so leaving a stale path there would
 // silently undo the move's DB update the next time the note is resaved.
 //
@@ -40,7 +40,7 @@ func RewriteFrontmatterPathRef(raw []byte, oldPath, newPath string) ([]byte, boo
 //
 // Used by Vault.MoveNote to fix up a moved knowledge note's full-path
 // reference inside a dependent index note's table (see
-// skills/vaultr-index-knowledge), for the same reason as
+// skills/hylo-index-knowledge), for the same reason as
 // RewriteFrontmatterPathRef above.
 //
 // Reports whether anything changed; raw is returned unmodified otherwise.

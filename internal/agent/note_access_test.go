@@ -50,7 +50,7 @@ func TestNoteAccessTracker_RejectsOutsideVaultAndNonMarkdown(t *testing.T) {
 
 	cases := []map[string]any{
 		{"type": "tool_use", "name": "Read", "input": map[string]any{"file_path": "/etc/passwd.md"}},
-		{"type": "tool_use", "name": "Read", "input": map[string]any{"file_path": "/vault/.vaultr/meta.db"}},
+		{"type": "tool_use", "name": "Read", "input": map[string]any{"file_path": "/vault/.hylo/meta.db"}},
 		{"type": "tool_use", "name": "Read", "input": map[string]any{"file_path": "/vault/_agent_uploads/x.md"}},
 		{"type": "tool_use", "name": "Read", "input": map[string]any{"file_path": "/vault/image.png"}},
 	}

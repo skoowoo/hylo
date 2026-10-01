@@ -340,7 +340,7 @@ const searchOverlayScript = `
       modeIdx: 0,
       init() {
         this.mode = this.modes[0];
-        window.__vaultrHotkeys.register('search', 'k', () => {
+        window.__hyloHotkeys.register('search', 'k', () => {
           this.show ? this.close() : this.open();
         });
       },
@@ -381,9 +381,9 @@ const searchOverlayScript = `
       },
       open() {
         this.show = true;
-        window.__vaultrSearchOpen = true;
+        window.__hyloSearchOpen = true;
         this.activeIdx = -1;
-        if (window.__vaultrEscPush) window.__vaultrEscPush('search', () => {
+        if (window.__hyloEscPush) window.__hyloEscPush('search', () => {
           if (this.showModes) { this.closeModeMenu(); }
           else if (this.hasQuery) { this._clearQuery(); }
           else { this.close(); }
@@ -398,9 +398,9 @@ const searchOverlayScript = `
         }
       },
       close() {
-        if (window.__vaultrEscPop) window.__vaultrEscPop('search');
+        if (window.__hyloEscPop) window.__hyloEscPop('search');
         this.show = false;
-        window.__vaultrSearchOpen = false;
+        window.__hyloSearchOpen = false;
         this.activeIdx = -1;
         if (this._previewCtrl) { this._previewCtrl.abort(); this._previewCtrl = null; }
         setTimeout(() => {
@@ -498,7 +498,7 @@ const searchOverlayScript = `
         const slash = path.lastIndexOf('/');
         const stem = (slash === -1 ? path : path.slice(slash + 1)).replace(/\.(md|markdown)$/i, '');
         try { navigator.clipboard.writeText('[[' + stem + ']]'); } catch(_) {}
-        window.dispatchEvent(new CustomEvent('vaultr:reference-note', { detail: { stem } }));
+        window.dispatchEvent(new CustomEvent('hylo:reference-note', { detail: { stem } }));
         this.close();
       },
       handleInputEnter(e) {

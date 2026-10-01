@@ -7,8 +7,8 @@ import (
 	"path"
 	"strings"
 
-	"github.com/hardhacker/vaultr/internal/client"
-	"github.com/hardhacker/vaultr/internal/storage"
+	"github.com/hardhacker/hylo/internal/client"
+	"github.com/hardhacker/hylo/internal/storage"
 	"github.com/spf13/cobra"
 )
 
@@ -20,8 +20,8 @@ func newReadCmd() *cobra.Command {
 
 Pass a vault-absolute path (e.g. /journal/today.md) or a bare filename.
 If multiple notes share the same name, use the full vault path.`,
-		Example: `  vaultr read /journal/today.md
-  vaultr read today.md`,
+		Example: `  hylo read /journal/today.md
+  hylo read today.md`,
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -68,7 +68,7 @@ func runRead(arg string) error {
 	}
 }
 
-// runScopedRead reads a note filtered by knowledge/raw type; used by "vaultr knowledge read".
+// runScopedRead reads a note filtered by knowledge/raw type; used by "hylo knowledge read".
 func runScopedRead(arg string, wantKnowledge bool) error {
 	c, err := openClient()
 	if err != nil {
@@ -88,7 +88,7 @@ func runScopedRead(arg string, wantKnowledge bool) error {
 			return fmt.Errorf("%q is not a knowledge note", note.PathString())
 		}
 		if !wantKnowledge && isKnowledge {
-			return fmt.Errorf("%q is a knowledge note; use \"vaultr knowledge read\" instead", note.PathString())
+			return fmt.Errorf("%q is a knowledge note; use \"hylo knowledge read\" instead", note.PathString())
 		}
 		return streamReadFile(c, note.PathString())
 	}

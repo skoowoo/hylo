@@ -102,7 +102,7 @@ func (t *NoteAccessTracker) resolve(raw string) string {
 		return ""
 	}
 	rel = filepath.ToSlash(rel)
-	if strings.HasPrefix(rel, ".vaultr/") || strings.HasPrefix(rel, "_agent_uploads/") {
+	if strings.HasPrefix(rel, ".hylo/") || strings.HasPrefix(rel, "_agent_uploads/") {
 		return ""
 	}
 	if !strings.EqualFold(filepath.Ext(rel), ".md") {

@@ -6,8 +6,8 @@ import (
 	"math"
 	"os"
 
-	"github.com/hardhacker/vaultr/internal/client"
-	"github.com/hardhacker/vaultr/internal/util"
+	"github.com/hardhacker/hylo/internal/client"
+	"github.com/hardhacker/hylo/internal/util"
 	"github.com/spf13/cobra"
 )
 
@@ -27,10 +27,10 @@ Query syntax:
   word             match files containing "word"
   word1 word2      match either word (OR)
   "exact phrase"   phrase match`,
-		`  vaultr search "meeting notes"
-  vaultr search april --field name
-  vaultr search "TODO" --field content --limit 5
-  vaultr search "golang" --field tag`,
+		`  hylo search "meeting notes"
+  hylo search april --field name
+  hylo search "TODO" --field content --limit 5
+  hylo search "golang" --field tag`,
 		searchScopeAny,
 	)
 }

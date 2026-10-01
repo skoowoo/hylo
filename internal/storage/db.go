@@ -213,7 +213,7 @@ func addColumnIfMissing(tx *sql.Tx, table, column, columnDDL string) error {
 	return err
 }
 
-// openDB opens (or creates) the SQLite database at <vaultRoot>/.vaultr/meta.db.
+// openDB opens (or creates) the SQLite database at <vaultRoot>/.hylo/meta.db.
 // The baseline schema (all DDL uses IF NOT EXISTS) is applied unconditionally
 // first, so a brand-new database always starts at the latest structure with
 // no migrations to run. Any database that already existed at an older
@@ -730,8 +730,8 @@ func dbDelete(db *sql.DB, p Path) error {
 //
 // This only keeps the DB in sync for the moved note itself. A dependent
 // knowledge/index note's frontmatter or table may still hold old's full path
-// as a literal string (see skills/vaultr-compile-note and
-// skills/vaultr-index-knowledge) — the compile plugin resyncs knowledge_deps/
+// as a literal string (see skills/hylo-compile-note and
+// skills/hylo-index-knowledge) — the compile plugin resyncs knowledge_deps/
 // index_deps from that text on every save, so leaving it stale would
 // eventually overwrite this update. Vault.MoveNote handles that separately by
 // rewriting the literal path in whichever dependent notes reference old.

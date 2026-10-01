@@ -1,9 +1,9 @@
 ---
-name: vaultr-index-knowledge
-description: "Builds and refreshes domain-based index files for the Vaultr knowledge base. Use this skill whenever the user wants to build, rebuild, refresh, or update the knowledge index, create domain indexes, organize knowledge by domain, or index the knowledge base. Triggers on phrases like 'build knowledge index', 'rebuild index', 'refresh knowledge index', 'update domain indexes', 'index my knowledge base', 'regenerate index', or any request to create or maintain the knowledge index files."
+name: hylo-index-knowledge
+description: "Builds and refreshes domain-based index files for the Hylo knowledge base. Use this skill whenever the user wants to build, rebuild, refresh, or update the knowledge index, create domain indexes, organize knowledge by domain, or index the knowledge base. Triggers on phrases like 'build knowledge index', 'rebuild index', 'refresh knowledge index', 'update domain indexes', 'index my knowledge base', 'regenerate index', or any request to create or maintain the knowledge index files."
 ---
 
-# Vaultr Index Knowledge
+# Hylo Index Knowledge
 
 Scans the knowledge directory, finds units not yet in any index, and adds them. Running this skill repeatedly is safe and always converges — it only ever adds missing entries, never rewrites existing ones.
 
@@ -47,7 +47,7 @@ If all units are already indexed, report and stop.
 
 For each unindexed unit, read its YAML front matter and first non-heading paragraph. Build an internal list:
 
-`references/extract.md` documents partial-read commands — `vaultr extract tag` retrieves front-matter tags directly; `vaultr extract segment --head N` retrieves the opening lines. Use them instead of a full `vaultr read` when only these fragments are needed.
+`references/extract.md` documents partial-read commands — `hylo extract tag` retrieves front-matter tags directly; `hylo extract segment --head N` retrieves the opening lines. Use them instead of a full `hylo read` when only these fragments are needed.
 
 ```
 title          | entity_type | tags          | summary (≤80 chars)                              | vault-absolute path

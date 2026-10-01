@@ -20,7 +20,7 @@ func ResolveConfigWritePath(loadedPath string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("resolve default config path: %w", err)
 	}
-	dir := filepath.Join(home, ".vaultr")
+	dir := filepath.Join(home, ".hylo")
 	return filepath.Join(dir, "config.toml"), nil
 }
 

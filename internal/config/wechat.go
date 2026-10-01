@@ -3,7 +3,7 @@ package config
 import (
 	"time"
 
-	"github.com/hardhacker/vaultr/internal/wechat"
+	"github.com/hardhacker/hylo/internal/wechat"
 )
 
 // ApplyWechatAuth writes WeChat login credentials into a config root map and live cfg.

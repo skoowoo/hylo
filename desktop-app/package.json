@@ -1,10 +1,10 @@
 {
-  "name": "vaultr-desktop",
-  "productName": "Vaultr",
-  "version": "1.0.4",
-  "vaultrBuild": "0",
+  "name": "hylo-desktop",
+  "productName": "Hylo",
+  "version": "1.1.0",
+  "hyloBuild": "0",
   "private": true,
-  "description": "Desktop shell for the local Vaultr web app.",
+  "description": "Desktop shell for the local Hylo web app.",
   "main": "src/main.js",
   "scripts": {
     "start": "electron .",
@@ -13,8 +13,8 @@
     "dist": "electron-builder"
   },
   "build": {
-    "appId": "dev.hardhacker.vaultr",
-    "productName": "Vaultr",
+    "appId": "dev.hardhacker.hylo",
+    "productName": "Hylo",
     "directories": {
       "output": "dist"
     },
@@ -33,13 +33,13 @@
       ],
       "extraResources": [
         {
-          "from": "bundled/vaultr.tar.gz",
-          "to": "cli/vaultr.tar.gz"
+          "from": "bundled/hylo.tar.gz",
+          "to": "cli/hylo.tar.gz"
         }
       ]
     },
     "dmg": {
-      "title": "Vaultr"
+      "title": "Hylo"
     },
     "win": {
       "icon": "assets/icon.png",
@@ -53,8 +53,8 @@
       ],
       "extraResources": [
         {
-          "from": "bundled/vaultr.zip",
-          "to": "cli/vaultr.zip"
+          "from": "bundled/hylo.zip",
+          "to": "cli/hylo.zip"
         }
       ]
     },

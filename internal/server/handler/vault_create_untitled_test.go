@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/hardhacker/vaultr/internal/storage"
+	"github.com/hardhacker/hylo/internal/storage"
 )
 
 func TestVaultCreateUntitled(t *testing.T) {

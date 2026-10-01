@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/hardhacker/vaultr/internal/config"
+	"github.com/hardhacker/hylo/internal/config"
 )
 
 // ConfigHTTP serves GET /api/config, GET /api/config/schema, PATCH /api/config.

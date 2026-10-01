@@ -25,7 +25,7 @@ var confirmDialogJS string
 
 // frontmatterDialogCSS/HTML/JS form the "Edit metadata" dialog opened from
 // the CM6 live-preview editor's frontmatter header (content_pane.js) — a plain
-// YAML textarea + Save/Cancel, same window.vaultrOverlay shell as
+// YAML textarea + Save/Cancel, same window.hyloOverlay shell as
 // confirm_dialog/short_dialog.
 
 //go:embed assets/frontmatter_dialog.css

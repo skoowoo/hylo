@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/hardhacker/vaultr/internal/client"
+	"github.com/hardhacker/hylo/internal/client"
 	"github.com/spf13/cobra"
 )
 
@@ -15,13 +15,13 @@ func newStatusCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "status",
 		Short: "Show live status of the running server",
-		Long: `Query the running Vaultr server for live operational status.
+		Long: `Query the running Hylo server for live operational status.
 
 Displays metrics such as the total number of notes tracked in the metadata
 database and the number of notes currently indexed in the full-text search
 engine. Additional data points will be included as the server exposes them.
 
-The server must be running. Start it with: vaultr start server`,
+The server must be running. Start it with: hylo start server`,
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c, err := openClient()

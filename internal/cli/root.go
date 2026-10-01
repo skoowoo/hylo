@@ -4,16 +4,16 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/hardhacker/vaultr/internal/build"
-	"github.com/hardhacker/vaultr/internal/client"
-	"github.com/hardhacker/vaultr/internal/config"
-	"github.com/hardhacker/vaultr/internal/storage"
+	"github.com/hardhacker/hylo/internal/build"
+	"github.com/hardhacker/hylo/internal/client"
+	"github.com/hardhacker/hylo/internal/config"
+	"github.com/hardhacker/hylo/internal/storage"
 	"github.com/spf13/cobra"
 )
 
 // rootCmd is the base command. Without subcommands it prints command help.
 var rootCmd = &cobra.Command{
-	Use:           "vaultr",
+	Use:           "hylo",
 	Short:         "AI-native personal note-taking system",
 	Long:          `AI-native personal note-taking system`,
 	SilenceUsage:  true,
@@ -63,7 +63,7 @@ func Execute() {
 }
 
 // openClient loads config and returns an HTTP client connected to the running
-// Vaultr server. All data-access CLI commands use this instead of openVault.
+// Hylo server. All data-access CLI commands use this instead of openVault.
 func openClient() (*client.Client, error) {
 	cfg := config.MustLoad("")
 	return client.New(cfg)

@@ -1,9 +1,9 @@
   // Content-pane chrome: tabs, split, rename, compile, and the inbox share of this shell.
   // The editor session is editor_session.js, concatenated just before this file.
-  var __vaultrEditorTabSeq = 0;
-  function __vaultrEditorNewTabId() {
-    __vaultrEditorTabSeq = (__vaultrEditorTabSeq + 1) % 1000;
-    return Date.now() * 1000 + __vaultrEditorTabSeq;
+  var __hyloEditorTabSeq = 0;
+  function __hyloEditorNewTabId() {
+    __hyloEditorTabSeq = (__hyloEditorTabSeq + 1) % 1000;
+    return Date.now() * 1000 + __hyloEditorTabSeq;
   }
 
   // Monotonic "when was this tab last active" clock — a plain counter
@@ -11,14 +11,14 @@
   // (who's older), and a counter can't collide within the same tick the
   // way two Date.now() reads sometimes do. Stamped onto tab._lastActiveSeq
   // by _activateTab below.
-  var __vaultrEditorTabActivitySeq = 0;
+  var __hyloEditorTabActivitySeq = 0;
 
   var CONTENT_PANE_MAX_TABS = 10;
   // Oldest evictable tab index, or -1. Skips the active tab and any
   // unmaterialized tab that still has real content (_pendingContent) — an
   // empty one is free to evict, or it'd sit protected forever and push out
   // real notes instead.
-  function __vaultrOldestEvictableTabIdx(tabs, activeTab) {
+  function __hyloOldestEvictableTabIdx(tabs, activeTab) {
     var oldestIdx = -1, oldestId = Infinity;
     for (var j = 0; j < tabs.length; j++) {
       if (j !== activeTab && !tabs[j]._pendingContent && tabs[j].id < oldestId) { oldestIdx = j; oldestId = tabs[j].id; }
@@ -27,9 +27,9 @@
   }
 
   // ── Global note-card helper ───────────────────────────────────────────────────
-  function __vaultrOpenNote(el) {
+  function __hyloOpenNote(el) {
     var d = el && el.dataset; if (!d || !d.notePath) return;
-    var pane = window.__vaultrContentPane;
+    var pane = window.__hyloContentPane;
     if (pane) void pane.openNoteInContentPane(d.notePath, d.noteTitle || 'Note',
       d.noteIsKnowledge === 'true', d.notePinned === 'true', d.noteIsIndex === 'true',
       d.noteCanCompile === 'true');
@@ -39,7 +39,7 @@
   // accepted extensions (internal/util/markdown.go's markdownExts), so the
   // rename box's "bare name" and its no-op check agree with what actually
   // counts as a name change.
-  function __vaultrStripMdExt(name) {
+  function __hyloStripMdExt(name) {
     return (name || '').replace(/\.(md|markdown)$/i, '');
   }
 
@@ -47,10 +47,10 @@
   // wikilink target format (internal/util/mdhtml.go's wikilinkRe resolves by
   // stem, not full path), so this can't just reuse tab.title: a knowledge
   // note's title may come from frontmatter and differ from its filename.
-  function __vaultrNoteStem(path) {
+  function __hyloNoteStem(path) {
     var p = String(path || '');
     var slash = p.lastIndexOf('/');
-    return __vaultrStripMdExt(slash === -1 ? p : p.slice(slash + 1));
+    return __hyloStripMdExt(slash === -1 ? p : p.slice(slash + 1));
   }
 
   // ── Content-pane controller factory ────────────────────────────────────────────────
@@ -221,7 +221,7 @@
         if (before) this._flipApply(before);
       },
       // Chip widths are a function of the title, measured on a hidden
-      // probe (same classes, out of the row) and cached. __vaultrFitTabCount
+      // probe (same classes, out of the row) and cached. __hyloFitTabCount
       // then picks the count in one shot — the live row is never used as
       // a probe, so opening and resizing don't paint intermediate counts.
       _computeFit() { return 0; },
@@ -268,7 +268,7 @@
           if (el.clientWidth <= 0 || !self.tabs.length) return 0;
           var widths = [];
           for (var i = 0; i < self.tabs.length; i++) widths.push(measure(self.tabs[i]));
-          return __vaultrFitTabCount(widths, el.clientWidth, px('--cp-tab-gap', 4), overflowWidth);
+          return __hyloFitTabCount(widths, el.clientWidth, px('--cp-tab-gap', 4), overflowWidth);
         };
         function settleFromResize(reopening) {
           // Reopening fades with the pane itself. Dragging the split is
@@ -379,7 +379,7 @@
           document.body.style.userSelect = prevUserSelect;
           self.isPaneResizing = false;
           self.splitRatio = latestRatio;
-          try { localStorage.setItem('vaultr.splitRatio', String(latestRatio)); } catch(_) {}
+          try { localStorage.setItem('hylo.splitRatio', String(latestRatio)); } catch(_) {}
         }
         document.addEventListener('mousemove', onMove);
         document.addEventListener('mouseup', onUp);
@@ -387,11 +387,11 @@
 
       _persist() {
         try {
-          localStorage.setItem('vaultr.content-pane', JSON.stringify({
+          localStorage.setItem('hylo.content-pane', JSON.stringify({
             // A not-yet-materialized tab (no path) has nothing worth
             // persisting across a reload: if it's still empty, dropping it
             // is a no-op; if the user typed something,
-            // __vaultrEditorMaterializeTab already gave it a real path
+            // __hyloEditorMaterializeTab already gave it a real path
             // before this next persist call fires.
             tabs: this.tabs.filter(function(t){ return !!t.path; }).map(function(t){
               return {id:t.id, title:t.title, path:t.path, isKnowledge:!!t.isKnowledge, pinned:!!t.pinned, isIndex:!!t.isIndex, canCompile:!!t.canCompile};
@@ -403,7 +403,7 @@
 
       _restore() {
         try {
-          var raw = localStorage.getItem('vaultr.content-pane'); if (!raw) return;
+          var raw = localStorage.getItem('hylo.content-pane'); if (!raw) return;
           var data = JSON.parse(raw);
           if (!data || !Array.isArray(data.tabs) || !data.tabs.length) return;
           var tabs = data.tabs;
@@ -424,10 +424,10 @@
       },
 
       initContentPane() {
-        window.__vaultrContentPane = this;
+        window.__hyloContentPane = this;
         this._restore();
         try {
-          var savedRatio = parseFloat(localStorage.getItem('vaultr.splitRatio'));
+          var savedRatio = parseFloat(localStorage.getItem('hylo.splitRatio'));
           if (!isNaN(savedRatio) && savedRatio >= 0 && savedRatio <= 0.9) this.splitRatio = savedRatio;
         } catch(_) {}
 
@@ -454,18 +454,18 @@
             focusManager.blurActive();
             return;
           }
-          if (document.querySelector('.vaultr-search-panel')) {
-            var _s = __vaultrEditor;
-            if (_s.view && __vaultrCM) __vaultrEditorCloseSearch(_s.view);
+          if (document.querySelector('.hylo-search-panel')) {
+            var _s = __hyloEditor;
+            if (_s.view && __hyloCM) __hyloEditorCloseSearch(_s.view);
             return;
           }
         };
         this.$watch('contentPaneOpen', async function(isOpen) {
           if (!isOpen) {
-            if (window.__vaultrEscPop) window.__vaultrEscPop('content-pane');
+            if (window.__hyloEscPop) window.__hyloEscPop('content-pane');
             // Save state BEFORE blur — blur can trigger scrollIntoView which resets scrollTop
             var currentTab = self.tabs[self.activeTab];
-            if (currentTab) await __vaultrEditorSaveTabForLeave(currentTab);
+            if (currentTab) await __hyloEditorSaveTabForLeave(currentTab);
             focusManager.blurActive();
             prevOpen = false; return;
           }
@@ -478,13 +478,13 @@
             _paneOverlayEl.classList.add('content-pane-is-opening');
             setTimeout(function() { _paneOverlayEl.classList.remove('content-pane-is-opening'); }, 320);
           }
-          if (window.__vaultrEscPush) window.__vaultrEscPush('content-pane', _paneEscClose);
+          if (window.__hyloEscPush) window.__hyloEscPush('content-pane', _paneEscClose);
           if (self._skipNextOpenLoad) { self._skipNextOpenLoad = false; return; } // see _openPane()
           // Refresh key-behavior config on every open so settings changes take
           // effect immediately without restarting the app. Called before any
           // content loading so all code paths (same note, new note) pick it
           // up. No-op if the editor hasn't been created yet (handled later in
-          // __vaultrEnsureContentPaneEditor's initPromise).
+          // __hyloEnsureContentPaneEditor's initPromise).
           // Always read latest tabs from localStorage before opening — other
           // WebContentsViews (same session, different JS context) may have
           // added tabs since this view last called _restore().
@@ -492,18 +492,18 @@
           var tab = self.tabs[self.activeTab];
           if (!tab) return;
 
-          var savedState = __vaultrEditorRestoreTabState(tab.id);
+          var savedState = __hyloEditorRestoreTabState(tab.id);
           
           if (!tab.path) {
             await self._openUntitledTab(tab, savedState);
             return;
           }
-          if (__vaultrEditor.currentPath !== tab.path || !__vaultrEditor.dirty) {
-            void __vaultrContentPaneLoadNote(tab.path, tab.id, savedState);
+          if (__hyloEditor.currentPath !== tab.path || !__hyloEditor.dirty) {
+            void __hyloContentPaneLoadNote(tab.path, tab.id, savedState);
           } else if (savedState) {
             // Same note, unsaved edits: the doc is already showing, so skip
             // the synchronous write. 250ms matches this open path's 240ms slide.
-            __vaultrEditorRestoreScroll(savedState.scrollTop || 0, { frames: 1, afterMs: 250, focus: true });
+            __hyloEditorRestoreScroll(savedState.scrollTop || 0, { frames: 1, afterMs: 250, focus: true });
           }
         });
         this.$watch('tabs', function(){ self._persist(); });
@@ -514,7 +514,7 @@
         // Sync pane state from other section views (each section is a separate
         // WebContentsView with its own JS context; storage events cross view boundaries).
         window.addEventListener('storage', function(e) {
-          if (e.key !== 'vaultr.content-pane' || !e.newValue || self.contentPaneOpen) return;
+          if (e.key !== 'hylo.content-pane' || !e.newValue || self.contentPaneOpen) return;
           self._restore();
         });
       },
@@ -524,39 +524,39 @@
         if (!path) return;
         this.cancelRenameActiveNote(); // opening any note (even re-opening the active one) always discards an in-progress rename on whatever tab was showing
         var prevTab = this.tabs[this.activeTab];
-        if (this.contentPaneOpen && prevTab) await __vaultrEditorSaveTabForLeave(prevTab);
+        if (this.contentPaneOpen && prevTab) await __hyloEditorSaveTabForLeave(prevTab);
         this.upsertTab(path, title, isKnowledge, pinned, isIndex, canCompile);
-        __vaultrEditorResetCompileBtn();
+        __hyloEditorResetCompileBtn();
         this._openPane();
         // Already loaded with unsaved edits — don't clobber with a server fetch
-        if (__vaultrEditor.currentPath === path && __vaultrEditor.dirty) return;
+        if (__hyloEditor.currentPath === path && __hyloEditor.dirty) return;
         var tab = this.tabs[this.activeTab];
-        var savedState = tab ? __vaultrEditorRestoreTabState(tab.id) : null;
-        await __vaultrContentPaneLoadNote(path, tab ? tab.id : null, savedState);
+        var savedState = tab ? __hyloEditorRestoreTabState(tab.id) : null;
+        await __hyloContentPaneLoadNote(path, tab ? tab.id : null, savedState);
       },
 
       // Open the pane on a brand-new, empty tab. Nothing is created
       // server-side yet — the first real edit materializes it (see
-      // __vaultrEditorMaterializeTab) with an auto-generated name; there's
+      // __hyloEditorMaterializeTab) with an auto-generated name; there's
       // no filename to ask for up front and no draft/publish step.
       async openNewInContentPane() {
         this.cancelRenameActiveNote(); // see openNoteInContentPane
-        var s = __vaultrEditor;
+        var s = __hyloEditor;
         var prevTab = this.tabs[this.activeTab];
-        if (this.contentPaneOpen && prevTab) await __vaultrEditorSaveTabForLeave(prevTab);
-        if (s.dirty && s.currentPath) { clearTimeout(s.saveTimer); s.saveTimer = null; await __vaultrEditorDoSave(); }
+        if (this.contentPaneOpen && prevTab) await __hyloEditorSaveTabForLeave(prevTab);
+        if (s.dirty && s.currentPath) { clearTimeout(s.saveTimer); s.saveTimer = null; await __hyloEditorDoSave(); }
         else { clearTimeout(s.saveTimer); s.saveTimer = null; }
-        __vaultrEditorSaveStatus('');
+        __hyloEditorSaveStatus('');
 
-        var newTab = {id:__vaultrEditorNewTabId(), title:'Untitled', path:'', isKnowledge:false, pinned:false};
+        var newTab = {id:__hyloEditorNewTabId(), title:'Untitled', path:'', isKnowledge:false, pinned:false};
         this.tabs.push(newTab);
         var idx = this.tabs.length - 1;
 
         if (this.tabs.length > CONTENT_PANE_MAX_TABS) {
-          var oldestIdx = __vaultrOldestEvictableTabIdx(this.tabs, this.activeTab);
+          var oldestIdx = __hyloOldestEvictableTabIdx(this.tabs, this.activeTab);
           if (oldestIdx >= 0) {
             var evictedTab = this.tabs[oldestIdx];
-            __vaultrEditorClearTabState(evictedTab.id);
+            __hyloEditorClearTabState(evictedTab.id);
             this.tabs.splice(oldestIdx,1);
             if (oldestIdx < idx) idx--;
           }
@@ -565,7 +565,7 @@
         this._openPane();
 
         s.currentPath = ''; s.currentMd = ''; s.dirty = false;
-        await __vaultrEditorApplyState({ inSource: false, scrollTop: 0 }, newTab.id);
+        await __hyloEditorApplyState({ inSource: false, scrollTop: 0 }, newTab.id);
       },
 
       // Makes tabs[idx] the active tab. A tab already inside the visible
@@ -605,7 +605,7 @@
         if (!tab) return;
         var animate = animateOverride !== undefined ? animateOverride : this.contentPaneOpen;
         var before = animate ? this._flipCapture() : null;
-        tab._lastActiveSeq = ++__vaultrEditorTabActivitySeq;
+        tab._lastActiveSeq = ++__hyloEditorTabActivitySeq;
         // No real width yet (pane still closed): don't evict off the
         // placeholder count. The open resize settles the window for real.
         var measured = this._computeFit();
@@ -645,13 +645,13 @@
           if (isIndex !== undefined) this.tabs[idx].isIndex = !!isIndex;
           if (canCompile !== undefined) this.tabs[idx].canCompile = !!canCompile;
         } else {
-          this.tabs.push({id:__vaultrEditorNewTabId(), title:title||'Note', path:path, isKnowledge:!!isKnowledge, pinned:!!pinned, isIndex:!!isIndex, canCompile:!!canCompile});
+          this.tabs.push({id:__hyloEditorNewTabId(), title:title||'Note', path:path, isKnowledge:!!isKnowledge, pinned:!!pinned, isIndex:!!isIndex, canCompile:!!canCompile});
           idx = this.tabs.length - 1;
           if (this.tabs.length > CONTENT_PANE_MAX_TABS) {
-            var oldestIdx = __vaultrOldestEvictableTabIdx(this.tabs, this.activeTab);
+            var oldestIdx = __hyloOldestEvictableTabIdx(this.tabs, this.activeTab);
             if (oldestIdx >= 0) {
               var evicted = this.tabs[oldestIdx];
-              __vaultrEditorClearTabState(evicted.id);
+              __hyloEditorClearTabState(evicted.id);
               this.tabs.splice(oldestIdx,1);
               if (oldestIdx < idx) idx--;
             }
@@ -676,10 +676,10 @@
 
       // Re-open a not-yet-materialized tab: nothing to load from the server
       // (it doesn't exist there yet) — just restore whatever was typed
-      // before the user switched away (see __vaultrEditorHandleContentChange's
+      // before the user switched away (see __hyloEditorHandleContentChange's
       // tab._pendingContent) and focus the editor.
       async _openUntitledTab(tab, savedState) {
-        await __vaultrContentPaneSetContent(tab._pendingContent || '', tab.id, savedState);
+        await __hyloContentPaneSetContent(tab._pendingContent || '', tab.id, savedState);
       },
 
       async contentPaneSwitchTab(i) {
@@ -693,20 +693,20 @@
 
         // Save current tab's state
         if (prevTab) {
-          await __vaultrEditorSaveTabForLeave(prevTab);
+          await __hyloEditorSaveTabForLeave(prevTab);
         }
 
         // Switch active tab
         this._activateTab(i);
-        __vaultrEditorResetCompileBtn();
+        __hyloEditorResetCompileBtn();
 
         // Load next tab's content with saved state
-        var savedState = __vaultrEditorRestoreTabState(nextTab.id);
+        var savedState = __hyloEditorRestoreTabState(nextTab.id);
 
         if (!nextTab.path) {
           await this._openUntitledTab(nextTab, savedState);
         } else {
-          await __vaultrContentPaneLoadNote(nextTab.path, nextTab.id, savedState);
+          await __hyloContentPaneLoadNote(nextTab.path, nextTab.id, savedState);
         }
       },
 
@@ -715,9 +715,9 @@
         this.cancelRenameActiveNote(); // see openNoteInContentPane
         var wasActive = (i === this.activeTab);
         var closingTab = this.tabs[i];
-        if (wasActive && closingTab.path && __vaultrEditor.dirty && __vaultrEditor.currentPath === closingTab.path) {
-          clearTimeout(__vaultrEditor.saveTimer); __vaultrEditor.saveTimer = null;
-          await __vaultrEditorDoSave();
+        if (wasActive && closingTab.path && __hyloEditor.dirty && __hyloEditor.currentPath === closingTab.path) {
+          clearTimeout(__hyloEditor.saveTimer); __hyloEditor.saveTimer = null;
+          await __hyloEditorDoSave();
           var liveIdx = this.tabs.indexOf(closingTab);
           if (liveIdx < 0) return;
           i = liveIdx;
@@ -725,7 +725,7 @@
         }
 
         // Clear saved state for this tab
-        __vaultrEditorClearTabState(closingTab.id);
+        __hyloEditorClearTabState(closingTab.id);
 
         // Captured before the splice below — if closing this tab shifts or
         // backfills any visible chip, the survivors slide into their new
@@ -738,12 +738,12 @@
 
         if (this.tabs.length === 0) {
           this.contentPaneOpen = false; this.activeTab = -1;
-          clearTimeout(__vaultrEditor.saveTimer); __vaultrEditor.saveTimer = null;
-          __vaultrEditor.currentPath = ''; __vaultrEditor.currentMd = ''; __vaultrEditor.dirty = false;
-          __vaultrEditorSaveStatus('');
-          if (__vaultrEditor.view) {
-            __vaultrEditor.view.setState(__vaultrEditor._buildState('', false, false));
-            __vaultrEditorSetModeState(false, false);
+          clearTimeout(__hyloEditor.saveTimer); __hyloEditor.saveTimer = null;
+          __hyloEditor.currentPath = ''; __hyloEditor.currentMd = ''; __hyloEditor.dirty = false;
+          __hyloEditorSaveStatus('');
+          if (__hyloEditor.view) {
+            __hyloEditor.view.setState(__hyloEditor._buildState('', false, false));
+            __hyloEditorSetModeState(false, false);
           }
           return;
         }
@@ -760,7 +760,7 @@
           // the very next thing evicted for having gone "longest" untouched.
           this.activeTab = Math.min(i, this.tabs.length-1);
           var stamped = this.tabs[this.activeTab];
-          if (stamped) stamped._lastActiveSeq = ++__vaultrEditorTabActivitySeq;
+          if (stamped) stamped._lastActiveSeq = ++__hyloEditorTabActivitySeq;
         }
         // Fit before loading: a wider backfill can shrink the window and
         // move which tab is active.
@@ -768,9 +768,9 @@
         if (wasActive) {
           var t = this.tabs[this.activeTab];
           if (!t) return;
-          var savedState = __vaultrEditorRestoreTabState(t.id);
+          var savedState = __hyloEditorRestoreTabState(t.id);
           if (t.path) {
-            void __vaultrContentPaneLoadNote(t.path, t.id, savedState);
+            void __hyloContentPaneLoadNote(t.path, t.id, savedState);
           } else {
             void this._openUntitledTab(t, savedState);
           }
@@ -785,13 +785,13 @@
       // where that bot's chat left off) and drops a `[[stem]]` wikilink for
       // the active note into its composer. home.js is what actually owns
       // the chat panel/agentBots list, so this only dispatches an event
-      // (mirrors search_overlay.go's vaultr:reference-note) rather than
+      // (mirrors search_overlay.go's hylo:reference-note) rather than
       // reaching into window._homeData's chat internals directly.
       sendActiveNoteToAgentBot(mateId) {
         var tab = this.tabs[this.activeTab];
         if (!tab || !tab.path) return;
-        var stem = __vaultrNoteStem(tab.path);
-        window.dispatchEvent(new CustomEvent('vaultr:send-note-to-agent', { detail: { mateId: mateId, stem: stem } }));
+        var stem = __hyloNoteStem(tab.path);
+        window.dispatchEvent(new CustomEvent('hylo:send-note-to-agent', { detail: { mateId: mateId, stem: stem } }));
       },
 
       async togglePinActiveNote() {
@@ -806,7 +806,7 @@
         if (resp.status === 409) { window.showError((await resp.text()).trim() || 'Pinned notes limit reached.', 'Cannot pin'); return; }
         if (!resp.ok) return;
         tab.pinned = true;
-        if (window.__vaultrAfterVaultMutation) await window.__vaultrAfterVaultMutation();
+        if (window.__hyloAfterVaultMutation) await window.__hyloAfterVaultMutation();
       },
 
       async unpinActiveNote() {
@@ -814,7 +814,7 @@
         var resp = await fetch('/api/vault/pin', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({path:tab.path,pinned:false})});
         if (!resp.ok) return;
         tab.pinned = false;
-        if (window.__vaultrAfterVaultMutation) await window.__vaultrAfterVaultMutation();
+        if (window.__hyloAfterVaultMutation) await window.__hyloAfterVaultMutation();
       },
 
       async deleteActiveNote() {
@@ -824,18 +824,18 @@
         var reqBody = {path:tab.path};
         var resp = await fetch('/api/vault/delete', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(reqBody)});
         if (!resp.ok) return;
-        clearTimeout(__vaultrEditor.saveTimer); __vaultrEditor.saveTimer = null; __vaultrEditor.dirty = false;
+        clearTimeout(__hyloEditor.saveTimer); __hyloEditor.saveTimer = null; __hyloEditor.dirty = false;
         var cur = this.activeTab;
         var deletedTab = this.tabs[cur];
-        if (deletedTab) __vaultrEditorClearTabState(deletedTab.id);
+        if (deletedTab) __hyloEditorClearTabState(deletedTab.id);
         var beforeDelete = this.tabs.length > 1 ? this._flipCapture() : null;
         this.tabs.splice(cur, 1);
         if (this.tabs.length === 0) {
           this.contentPaneOpen = false; this.activeTab = -1;
-          __vaultrEditor.currentPath = ''; __vaultrEditor.currentMd = ''; __vaultrEditorSaveStatus('');
-          if (__vaultrEditor.view) {
-            __vaultrEditor.view.setState(__vaultrEditor._buildState('', false, false));
-            __vaultrEditorSetModeState(false, false);
+          __hyloEditor.currentPath = ''; __hyloEditor.currentMd = ''; __hyloEditorSaveStatus('');
+          if (__hyloEditor.view) {
+            __hyloEditor.view.setState(__hyloEditor._buildState('', false, false));
+            __hyloEditorSetModeState(false, false);
           }
         } else {
           this.activeTab = cur > 0 ? cur-1 : 0;
@@ -843,12 +843,12 @@
           if (this.contentPaneOpen) this._prepareEntering();
           this._flipApply(beforeDelete);
           var nextTab = this.tabs[this.activeTab];
-          if (nextTab && nextTab.path) void __vaultrContentPaneLoadNote(nextTab.path, nextTab.id, __vaultrEditorRestoreTabState(nextTab.id));
+          if (nextTab && nextTab.path) void __hyloContentPaneLoadNote(nextTab.path, nextTab.id, __hyloEditorRestoreTabState(nextTab.id));
           else if (nextTab) {
-            void this._openUntitledTab(nextTab, __vaultrEditorRestoreTabState(nextTab.id));
+            void this._openUntitledTab(nextTab, __hyloEditorRestoreTabState(nextTab.id));
           }
         }
-        if (window.__vaultrAfterVaultMutation) await window.__vaultrAfterVaultMutation();
+        if (window.__hyloAfterVaultMutation) await window.__hyloAfterVaultMutation();
       },
 
       // Moving a note is driven entirely from the home list (drag a card onto
@@ -856,20 +856,20 @@
       // here. These two are the seam that side needs into the editor:
       // flush a dirty active tab before the move (so the file that actually
       // gets renamed has the latest content) and re-point an open tab at the
-      // new path afterward (autosave targets __vaultrEditor.currentPath, not
+      // new path afterward (autosave targets __hyloEditor.currentPath, not
       // tab.path — miss that and the next edit would silently recreate the
       // note at its old spot).
       async flushPendingSaveFor(path) {
-        if (__vaultrEditor.dirty && __vaultrEditor.currentPath === path) {
-          clearTimeout(__vaultrEditor.saveTimer); __vaultrEditor.saveTimer = null;
-          await __vaultrEditorDoSave();
+        if (__hyloEditor.dirty && __hyloEditor.currentPath === path) {
+          clearTimeout(__hyloEditor.saveTimer); __hyloEditor.saveTimer = null;
+          await __hyloEditorDoSave();
         }
       },
       noteMoved(oldPath, newPath) {
         var tab = this.tabs.find(function(t) { return t.path === oldPath; });
         if (!tab) return;
         tab.path = newPath;
-        if (__vaultrEditor.currentPath === oldPath) __vaultrEditor.currentPath = newPath;
+        if (__hyloEditor.currentPath === oldPath) __hyloEditor.currentPath = newPath;
       },
 
       // Renaming only ever changes the active tab's filename, never its
@@ -882,9 +882,9 @@
         // Focus-independent fallback: @keydown.escape only fires while the
         // input has focus, which tryFocus below isn't always able to land.
         var self = this;
-        if (window.__vaultrEscPush) window.__vaultrEscPush('content-pane-rename', function() { self.cancelRenameActiveNote(); });
+        if (window.__hyloEscPush) window.__hyloEscPush('content-pane-rename', function() { self.cancelRenameActiveNote(); });
 
-        var base = __vaultrStripMdExt(tab.path.split('/').pop());
+        var base = __hyloStripMdExt(tab.path.split('/').pop());
         this.$nextTick(function() {
           // Retry a few frames: something else (an Alpine transition,
           // CodeMirror) occasionally wins the focus race right after this.
@@ -910,7 +910,7 @@
         if (!this.renaming) return;
         this.renaming = false;
         clearTimeout(this._renameCheckTimer);
-        if (window.__vaultrEscPop) window.__vaultrEscPop('content-pane-rename');
+        if (window.__hyloEscPop) window.__hyloEscPop('content-pane-rename');
       },
 
       // Advisory-only, debounced "is this name already taken?" hint while the
@@ -927,7 +927,7 @@
         if (!input || !tab || !tab.path) return;
 
         var newBase = input.value.trim();
-        var currentBase = __vaultrStripMdExt(tab.path.split('/').pop());
+        var currentBase = __hyloStripMdExt(tab.path.split('/').pop());
         if (!newBase || newBase === currentBase || /[\/\\]/.test(newBase)) {
           // Unchanged, empty, or a "/" — already handled elsewhere at submit time.
           input.classList.remove('invalid');
@@ -967,7 +967,7 @@
         if (!tab || !tab.path || !input) { this.cancelRenameActiveNote(); return; }
 
         var newBase = input.value.trim();
-        var currentBase = __vaultrStripMdExt(tab.path.split('/').pop());
+        var currentBase = __hyloStripMdExt(tab.path.split('/').pop());
         if (!newBase || newBase === currentBase) { this.cancelRenameActiveNote(); return; }
         if (/[\/\\]/.test(newBase)) {
           window.showError('A file name cannot contain "/".', 'Cannot rename');
@@ -998,8 +998,8 @@
           input.disabled = false; // undo the disable a few lines up — left true after a successful rename, the *next* rename could never focus this same <input> node again
           this.noteRenamed(tab.path, data.path);
           this.cancelRenameActiveNote(); // renamed successfully — same box-closing path as a cancel, just after committing
-          if (window.__vaultrAfterVaultMutation) await window.__vaultrAfterVaultMutation();
-          if (data.renameJobId) void __vaultrPollRenameJob(data.renameJobId);
+          if (window.__hyloAfterVaultMutation) await window.__hyloAfterVaultMutation();
+          if (data.renameJobId) void __hyloPollRenameJob(data.renameJobId);
         } catch (e) {
           window.showError((e && e.message) || 'Network error.', 'Cannot rename');
           input.disabled = false;
@@ -1012,9 +1012,9 @@
         var tab = this.tabs.find(function(t) { return t.path === oldPath; });
         if (!tab) return;
         tab.path = newPath;
-        tab.title = __vaultrStripMdExt(newPath.split('/').pop()) || newPath;
+        tab.title = __hyloStripMdExt(newPath.split('/').pop()) || newPath;
         tab._chipWKey = '';
-        if (__vaultrEditor.currentPath === oldPath) __vaultrEditor.currentPath = newPath;
+        if (__hyloEditor.currentPath === oldPath) __hyloEditor.currentPath = newPath;
         this._settleTabstrip(this.contentPaneOpen);
       },
     };
@@ -1026,7 +1026,7 @@
   // by the time this runs. Silent on success (matches Pin/Unpin's existing
   // no-toast convention here); only speaks up if the sweep itself failed, so
   // the user knows some [[wikilinks]] elsewhere may still say the old name.
-  async function __vaultrPollRenameJob(jobId) {
+  async function __hyloPollRenameJob(jobId) {
     var deadline = Date.now() + 5 * 60 * 1000;
     await new Promise(function(r) { setTimeout(r, 600); });
     while (Date.now() < deadline) {
@@ -1046,41 +1046,41 @@
   }
 
   // ── Compile raw note from pane ─────────────────────────────────────────────
-  function __vaultrEditorCompileLabel(btn, text) {
+  function __hyloEditorCompileLabel(btn, text) {
     var label = btn.querySelector('.content-pane-compile-label');
     if (label) label.textContent = text;
   }
-  function __vaultrEditorCloseMoreMenu() {
+  function __hyloEditorCloseMoreMenu() {
     document.dispatchEvent(new CustomEvent('content-pane:close-more'));
   }
-  function __vaultrEditorResetCompileBtn() {
+  function __hyloEditorResetCompileBtn() {
     var btn = document.querySelector('.content-pane-compile-btn');
     if (!btn) return;
     btn.classList.remove('is-compiling', 'success');
     btn.disabled = false;
     btn.title = 'Compile to knowledge note';
-    __vaultrEditorCompileLabel(btn, 'Compile');
+    __hyloEditorCompileLabel(btn, 'Compile');
   }
 
   async function compileContentPaneNote(event) {
     var btn = event && event.currentTarget;
     if (!btn || btn.disabled) return;
-    var pane = window.__vaultrContentPane;
+    var pane = window.__hyloContentPane;
     var tab = pane ? pane.tabs[pane.activeTab] : null;
     if (!tab || !tab.path || !tab.canCompile) return;
     var rawPath = tab.path;
 
-    if (__vaultrEditor.dirty && __vaultrEditor.currentPath === rawPath) {
-      clearTimeout(__vaultrEditor.saveTimer);
-      __vaultrEditor.saveTimer = null;
-      await __vaultrEditorDoSave();
+    if (__hyloEditor.dirty && __hyloEditor.currentPath === rawPath) {
+      clearTimeout(__hyloEditor.saveTimer);
+      __hyloEditor.saveTimer = null;
+      await __hyloEditorDoSave();
     }
 
     var originalTitle = btn.title;
     btn.disabled = true;
     btn.classList.add('is-compiling');
     btn.title = 'Compiling…';
-    __vaultrEditorCompileLabel(btn, 'Compiling…');
+    __hyloEditorCompileLabel(btn, 'Compiling…');
 
     try {
       var resp = await fetch('/api/compile/trigger', {
@@ -1096,7 +1096,7 @@
       if (resp.status === 409) {
         btn.disabled = false;
         btn.title = originalTitle;
-        __vaultrEditorCompileLabel(btn, 'Compile');
+        __hyloEditorCompileLabel(btn, 'Compile');
         return;
       }
 
@@ -1111,14 +1111,14 @@
             if (pane && pane.markTabCompiled) pane.markTabCompiled(rawPath);
             btn.classList.add('success');
             btn.title = 'Compiled';
-            __vaultrEditorCompileLabel(btn, 'Compiled');
+            __hyloEditorCompileLabel(btn, 'Compiled');
             setTimeout(function() {
               btn.disabled = false;
               btn.classList.remove('success');
-              __vaultrEditorCompileLabel(btn, 'Compile');
-              __vaultrEditorCloseMoreMenu();
+              __hyloEditorCompileLabel(btn, 'Compile');
+              __hyloEditorCloseMoreMenu();
             }, 1500);
-            if (window.__vaultrAfterVaultMutation) await window.__vaultrAfterVaultMutation();
+            if (window.__hyloAfterVaultMutation) await window.__hyloAfterVaultMutation();
             return;
           }
           if (st.status === 'failed' || st.status === 'canceled') {
@@ -1131,7 +1131,7 @@
     } catch (err) {
       btn.disabled = false;
       btn.title = err && err.message ? err.message : 'Compile failed';
-      __vaultrEditorCompileLabel(btn, 'Compile');
+      __hyloEditorCompileLabel(btn, 'Compile');
     } finally {
       btn.classList.remove('is-compiling');
     }
@@ -1139,42 +1139,42 @@
 
   // Global undo/redo called by Electron main process via executeJavaScript.
   // Calls CodeMirror undo directly, bypassing browser native undo.
-  window.__vaultrUndo = function() {
-    var s = __vaultrEditor;
-    if (s.view && __vaultrCM) __vaultrCM.cmUndo(s.view);
+  window.__hyloUndo = function() {
+    var s = __hyloEditor;
+    if (s.view && __hyloCM) __hyloCM.cmUndo(s.view);
   };
-  window.__vaultrRedo = function() {
-    var s = __vaultrEditor;
-    if (s.view && __vaultrCM) __vaultrCM.cmRedo(s.view);
+  window.__hyloRedo = function() {
+    var s = __hyloEditor;
+    if (s.view && __hyloCM) __hyloCM.cmRedo(s.view);
   };
 
-  window.__vaultrEditorShellHref = function() {
+  window.__hyloEditorShellHref = function() {
     try {
       var seg = location.pathname.replace(/^\/+/,'').split('/')[0];
       return '/'+(seg||'home');
     } catch(_) { return '/home'; }
   };
 
-  window.__vaultrHotkeys.register('content-pane', 'o', function() {
-    if (window.__vaultrContentPane) window.__vaultrContentPane.contentPaneOpen = !window.__vaultrContentPane.contentPaneOpen;
+  window.__hyloHotkeys.register('content-pane', 'o', function() {
+    if (window.__hyloContentPane) window.__hyloContentPane.contentPaneOpen = !window.__hyloContentPane.contentPaneOpen;
   });
 
-  window.__vaultrHotkeys.register('new-note', 'n', function() {
-    if (window.__vaultrContentPane) void window.__vaultrContentPane.openNewInContentPane();
+  window.__hyloHotkeys.register('new-note', 'n', function() {
+    if (window.__hyloContentPane) void window.__hyloContentPane.openNewInContentPane();
   });
 
-  window.__vaultrHotkeys.register('content-pane-maximize', '\\', function() {
-    var _pane = window.__vaultrContentPane;
+  window.__hyloHotkeys.register('content-pane-maximize', '\\', function() {
+    var _pane = window.__hyloContentPane;
     if (_pane && _pane.contentPaneOpen) _pane.toggleMaximizeEditor();
   });
 
-  window.__vaultrHotkeys.registerRaw('content-pane-scroll', function(e, mod) {
+  window.__hyloHotkeys.registerRaw('content-pane-scroll', function(e, mod) {
     if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
     if (mod || e.altKey) return;
     var ae = document.activeElement;
     var tag = ae && ae.tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA') return;
-    var _pane = window.__vaultrContentPane;
+    var _pane = window.__hyloContentPane;
     if (!_pane || !_pane.contentPaneOpen) return;
     var _editArea = document.getElementById('content-pane-edit-area');
     if (_editArea && _editArea.contains(ae)) return;
@@ -1184,9 +1184,9 @@
     return true;
   });
 
-  window.__vaultrHotkeys.registerRaw('content-pane-close-tab', function(e, mod) {
+  window.__hyloHotkeys.registerRaw('content-pane-close-tab', function(e, mod) {
     if (!mod || e.shiftKey || e.altKey || e.key.toLowerCase() !== 'w') return;
-    var pane = window.__vaultrContentPane;
+    var pane = window.__hyloContentPane;
     if (!pane || !pane.contentPaneOpen || pane.activeTab < 0) return;
     e.preventDefault();
     var at = pane.tabs[pane.activeTab];
@@ -1196,20 +1196,20 @@
 
   // Shared by the Mod-F hotkey below and the editor's "more" menu (Find
   // item, content_pane.html) so there's one place that knows how to open it.
-  function __vaultrEditorOpenFind() {
-    var s = __vaultrEditor;
-    if (!__vaultrCM || !s.view) return;
+  function __hyloEditorOpenFind() {
+    var s = __hyloEditor;
+    if (!__hyloCM || !s.view) return;
     // Cancel a still-pending animated close and snap any fading-out panel
     // back to visible first — otherwise that stale timer would go on to
     // close the panel this call is about to (re)open.
     if (s._searchCloseTimer) { clearTimeout(s._searchCloseTimer); s._searchCloseTimer = null; }
     var panel = document.querySelector('#content-pane-edit-area .cm-panels-top');
     if (panel) panel.classList.remove('is-closing');
-    __vaultrCM.openSearchPanel(s.view);
+    __hyloCM.openSearchPanel(s.view);
   }
 
-  async function __vaultrEditorCopyMarkdown() {
-    var s = __vaultrEditor;
+  async function __hyloEditorCopyMarkdown() {
+    var s = __hyloEditor;
     var text = s.view ? s.view.state.doc.toString() : s.currentMd;
     try {
       await navigator.clipboard.writeText(text);
@@ -1222,40 +1222,40 @@
 
   // Plain Mod-L now (no Shift needed) — .register() handles that, unlike
   // the Mod-Shift-E it replaced which needed registerRaw's manual check.
-  window.__vaultrHotkeys.register('content-pane-reading-toggle', 'l', function() {
-    var pane = window.__vaultrContentPane;
-    if (!pane || !pane.contentPaneOpen || !__vaultrEditor.view) return;
+  window.__hyloHotkeys.register('content-pane-reading-toggle', 'l', function() {
+    var pane = window.__hyloContentPane;
+    if (!pane || !pane.contentPaneOpen || !__hyloEditor.view) return;
     var tab = pane.tabs[pane.activeTab];
     if (!tab || !tab.path) return;
     editorMode.toggleReading();
   });
 
-  window.__vaultrHotkeys.registerRaw('content-pane-find', function(e, mod) {
+  window.__hyloHotkeys.registerRaw('content-pane-find', function(e, mod) {
     if (!mod || e.shiftKey || e.altKey || e.key.toLowerCase() !== 'f') return;
-    var _fContentPane = window.__vaultrContentPane;
+    var _fContentPane = window.__hyloContentPane;
     if (!_fContentPane || !_fContentPane.contentPaneOpen) return;
-    if (!__vaultrCM || !__vaultrEditor.view) return;
+    if (!__hyloCM || !__hyloEditor.view) return;
     e.preventDefault();
-    __vaultrEditorOpenFind();
+    __hyloEditorOpenFind();
     return true;
   });
 
   // The tabs dropdown's own open/highlight state lives in its local x-data
-  // (content_pane.html's #content-pane-tabs-wrap) rather than on window.__vaultrContentPane —
+  // (content_pane.html's #content-pane-tabs-wrap) rather than on window.__hyloContentPane —
   // same "small local x-data for a popover" pattern as .content-pane-more-wrap.
   // Alpine.$data bridges into it for these plain-JS hotkey handlers.
-  function __vaultrContentPaneTabsMenuScope() {
+  function __hyloContentPaneTabsMenuScope() {
     var el = document.getElementById('content-pane-tabs-wrap');
     return (el && window.Alpine) ? window.Alpine.$data(el) : null;
   }
 
   // Mod-T opens/closes the tabs dropdown (mirrors the "switch tabs" meaning
   // Cmd/Ctrl+T carries in most apps).
-  window.__vaultrHotkeys.registerRaw('content-pane-tabs-menu-toggle', function(e, mod) {
+  window.__hyloHotkeys.registerRaw('content-pane-tabs-menu-toggle', function(e, mod) {
     if (!mod || e.shiftKey || e.altKey || e.key.toLowerCase() !== 't') return;
-    var _pane = window.__vaultrContentPane;
+    var _pane = window.__hyloContentPane;
     if (!_pane || !_pane.contentPaneOpen) return;
-    var scope = __vaultrContentPaneTabsMenuScope();
+    var scope = __hyloContentPaneTabsMenuScope();
     if (!scope) return;
     e.preventDefault();
     scope.toggleTabsMenu();
@@ -1267,13 +1267,13 @@
   // switches to it. Registered after content-pane-scroll (below) so it's checked
   // first — see keysJS's reverse-registration-order dispatch — and takes
   // over plain arrow keys instead of letting them scroll the editor.
-  window.__vaultrHotkeys.registerRaw('content-pane-tabs-menu-nav', function(e, mod) {
+  window.__hyloHotkeys.registerRaw('content-pane-tabs-menu-nav', function(e, mod) {
     if (mod || e.shiftKey || e.altKey) return;
     if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown' && e.key !== 'Enter') return;
     var menu = document.querySelector('.content-pane-tabs-menu');
     if (!menu || menu.style.display === 'none') return;
-    var scope = __vaultrContentPaneTabsMenuScope();
-    var _pane = window.__vaultrContentPane;
+    var scope = __hyloContentPaneTabsMenuScope();
+    var _pane = window.__hyloContentPane;
     if (!scope || !scope.tabsMenuOpen || !_pane) return;
     var n = _pane.tabs.length;
     if (!n) return;
@@ -1292,7 +1292,7 @@
 
   // Intercept mouse back/forward buttons (button 3/4) to switch pane tabs.
   window.addEventListener('mousedown', function(e) {
-    var _pane = window.__vaultrContentPane;
+    var _pane = window.__hyloContentPane;
     if (!_pane || !_pane.contentPaneOpen || _pane.tabs.length <= 1) return;
     if (e.button === 3) {
       e.preventDefault();

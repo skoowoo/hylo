@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/hardhacker/vaultr/internal/skills"
+	"github.com/hardhacker/hylo/internal/skills"
 )
 
 // SkillsHTTP handles /api/skills endpoints.

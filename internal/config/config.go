@@ -141,7 +141,7 @@ type ServerConfig struct {
 	CertFile string `mapstructure:"cert_file" json:"cert_file" toml:"cert_file"`
 	KeyFile  string `mapstructure:"key_file" json:"key_file" toml:"key_file"`
 
-	// APIKey enables token-based authentication via the X-Vaultr-API-Key header.
+	// APIKey enables token-based authentication via the X-Hylo-API-Key header.
 	APIKey string `mapstructure:"api_key" json:"api_key" toml:"api_key"`
 
 	ReadTimeout  int `mapstructure:"read_timeout" json:"read_timeout" toml:"read_timeout"`    // seconds
@@ -236,8 +236,8 @@ func Load(cfgFile string) (*Config, string, error) {
 		v.SetConfigName("config")
 		v.SetConfigType("toml")
 		v.AddConfigPath(".")
-		v.AddConfigPath("$HOME/.vaultr")
-		v.AddConfigPath("/etc/vaultr")
+		v.AddConfigPath("$HOME/.hylo")
+		v.AddConfigPath("/etc/hylo")
 	}
 
 	configFileUsed := ""
@@ -297,7 +297,7 @@ func MergedFromOptionalFile(absPath string) (*Config, error) {
 // DefaultAgentSystemPrompt is the built-in global system prompt used when no
 // custom prompt has been set in the config file. Exported so the settings UI
 // can display it as a placeholder without writing it to disk.
-const DefaultAgentSystemPrompt = `You are operating inside Vaultr, an AI-native personal note-taking system that stores notes as plain markdown files in a vault directory.
+const DefaultAgentSystemPrompt = `You are operating inside Hylo, an AI-native personal note-taking system that stores notes as plain markdown files in a vault directory.
 
 Knowledge base: compiled knowledge live under /_knowledge/. The index of all knowledge units is at /_knowledge/_index/.
 
@@ -320,7 +320,7 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("log.level", "info")
 	v.SetDefault("log.format", "text")
 
-	v.SetDefault("vault.path", "~/.vaultr/root")
+	v.SetDefault("vault.path", "~/.hylo/root")
 	v.SetDefault("vault.shorts_dir", "_shorts")
 	v.SetDefault("vault.knowledge_dir", "_knowledge")
 
@@ -333,7 +333,7 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("plugins.git_sync.auto_commit", true)
 	v.SetDefault("plugins.git_sync.debounce", "5m")
 	v.SetDefault("plugins.git_sync.sync_interval", "24h")
-	v.SetDefault("plugins.git_sync.commit_message", "vaultr: sync {{.Time}}")
+	v.SetDefault("plugins.git_sync.commit_message", "hylo: sync {{.Time}}")
 	v.SetDefault("plugins.git_sync.init_if_missing", true)
 
 	// search plugin defaults (always active; configure behaviour here)

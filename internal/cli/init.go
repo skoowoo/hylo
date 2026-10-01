@@ -6,10 +6,10 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/hardhacker/vaultr/internal/config"
-	"github.com/hardhacker/vaultr/internal/logger"
-	"github.com/hardhacker/vaultr/internal/plugins/search"
-	"github.com/hardhacker/vaultr/internal/storage"
+	"github.com/hardhacker/hylo/internal/config"
+	"github.com/hardhacker/hylo/internal/logger"
+	"github.com/hardhacker/hylo/internal/plugins/search"
+	"github.com/hardhacker/hylo/internal/storage"
 	"github.com/spf13/cobra"
 )
 
@@ -23,13 +23,13 @@ var (
 func newInitCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "init [path]",
-		Short: "Initialize a directory as a Vaultr vault (like git init)",
-		Long: `Initialize the current working directory, or an optional path, as a Vaultr vault.
+		Short: "Initialize a directory as a Hylo vault (like git init)",
+		Long: `Initialize the current working directory, or an optional path, as a Hylo vault.
 
 The vault root is chosen from your filesystem — not from vault.path in config.toml.
 Run this inside the directory that contains your Markdown notes (or pass the path).
 
-If .vaultr/ already exists, the command exits without changing anything.
+If .hylo/ already exists, the command exits without changing anything.
 
 Config is optional: without a config file, built-in defaults apply for compile output
 directory and search indexing behaviour.`,
@@ -38,13 +38,13 @@ directory and search indexing behaviour.`,
 		RunE:         runVaultInit,
 	}
 	cmd.Flags().BoolVar(&vaultInitLinkImagesOnly, "link-images-only", false,
-		"only rebuild image–note associations (requires an existing .vaultr/ in the vault)")
+		"only rebuild image–note associations (requires an existing .hylo/ in the vault)")
 	cmd.Flags().BoolVar(&vaultInitReindex, "reindex", false,
-		"delete and rebuild the full-text search index from scratch (requires an existing .vaultr/ in the vault)")
+		"delete and rebuild the full-text search index from scratch (requires an existing .hylo/ in the vault)")
 	cmd.Flags().BoolVar(&vaultInitRebuildGraph, "rebuild-graph", false,
-		"rebuild the knowledge graph link index from scratch (requires an existing .vaultr/ in the vault)")
+		"rebuild the knowledge graph link index from scratch (requires an existing .hylo/ in the vault)")
 	cmd.Flags().BoolVar(&vaultInitPreviewOnly, "preview-only", false,
-		"recompute every note's preview (content excerpt + checklist/image/code flags) (requires an existing .vaultr/ in the vault)")
+		"recompute every note's preview (content excerpt + checklist/image/code flags) (requires an existing .hylo/ in the vault)")
 	return cmd
 }
 
@@ -73,7 +73,7 @@ func runVaultInit(_ *cobra.Command, args []string) error {
 
 	if vaultInitLinkImagesOnly {
 		if !initd {
-			fmt.Fprintf(os.Stderr, "Not a Vaultr vault (missing %s); run vaultr init first.\n", filepath.Join(root, ".vaultr"))
+			fmt.Fprintf(os.Stderr, "Not a Hylo vault (missing %s); run hylo init first.\n", filepath.Join(root, ".hylo"))
 			return fmt.Errorf("vault not initialized")
 		}
 		vault, err := storage.New(root)
@@ -86,7 +86,7 @@ func runVaultInit(_ *cobra.Command, args []string) error {
 
 	if vaultInitReindex {
 		if !initd {
-			fmt.Fprintf(os.Stderr, "Not a Vaultr vault (missing %s); run vaultr init first.\n", filepath.Join(root, ".vaultr"))
+			fmt.Fprintf(os.Stderr, "Not a Hylo vault (missing %s); run hylo init first.\n", filepath.Join(root, ".hylo"))
 			return fmt.Errorf("vault not initialized")
 		}
 		vault, err := storage.New(root)
@@ -99,7 +99,7 @@ func runVaultInit(_ *cobra.Command, args []string) error {
 
 	if vaultInitRebuildGraph {
 		if !initd {
-			fmt.Fprintf(os.Stderr, "Not a Vaultr vault (missing %s); run vaultr init first.\n", filepath.Join(root, ".vaultr"))
+			fmt.Fprintf(os.Stderr, "Not a Hylo vault (missing %s); run hylo init first.\n", filepath.Join(root, ".hylo"))
 			return fmt.Errorf("vault not initialized")
 		}
 		vault, err := storage.New(root)
@@ -112,7 +112,7 @@ func runVaultInit(_ *cobra.Command, args []string) error {
 
 	if vaultInitPreviewOnly {
 		if !initd {
-			fmt.Fprintf(os.Stderr, "Not a Vaultr vault (missing %s); run vaultr init first.\n", filepath.Join(root, ".vaultr"))
+			fmt.Fprintf(os.Stderr, "Not a Hylo vault (missing %s); run hylo init first.\n", filepath.Join(root, ".hylo"))
 			return fmt.Errorf("vault not initialized")
 		}
 		vault, err := storage.New(root)
@@ -124,7 +124,7 @@ func runVaultInit(_ *cobra.Command, args []string) error {
 	}
 
 	if initd {
-		fmt.Printf("Already initialized (%s exists); skipping.\n", filepath.Join(root, ".vaultr"))
+		fmt.Printf("Already initialized (%s exists); skipping.\n", filepath.Join(root, ".hylo"))
 		return nil
 	}
 
@@ -211,7 +211,7 @@ func runReindex(root string, vault *storage.Vault) error {
 	log := logger.New(cfg.Log)
 
 	// Delete the existing bleve index so it is rebuilt with the current schema.
-	idxPath := filepath.Join(root, ".vaultr", "data.idx")
+	idxPath := filepath.Join(root, ".hylo", "data.idx")
 	fmt.Printf("Removing existing search index: %s\n", idxPath)
 	if err := os.RemoveAll(idxPath); err != nil {
 		return fmt.Errorf("remove index: %w", err)

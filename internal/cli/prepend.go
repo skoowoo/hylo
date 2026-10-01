@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/hardhacker/vaultr/internal/util"
+	"github.com/hardhacker/hylo/internal/util"
 	"github.com/spf13/cobra"
 )
 
@@ -21,9 +21,9 @@ func newPrependCmd() *cobra.Command {
 <path> is a vault-absolute path starting with "/" (e.g. /journal/today.md).
 If [heading] is given, content is inserted at the start of that section (case-insensitive match).
 Content can be provided via --content or stdin.`,
-		Example: `  vaultr prepend /journal/today.md --content "## Morning"
-  vaultr prepend /journal/today.md "## Morning" --content "- woke up early"
-  echo "- urgent" | vaultr prepend /shopping.md`,
+		Example: `  hylo prepend /journal/today.md --content "## Morning"
+  hylo prepend /journal/today.md "## Morning" --content "- woke up early"
+  echo "- urgent" | hylo prepend /shopping.md`,
 		Args:         cobra.RangeArgs(1, 2),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {

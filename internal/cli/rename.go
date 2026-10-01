@@ -13,7 +13,7 @@ func newRenameCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "rename <path> <new-name>",
 		Short: "Rename a note's filename, keeping it in the same directory",
-		Long: `Rename the note at <path> to <new-name>, without moving it (use "vaultr move" for that).
+		Long: `Rename the note at <path> to <new-name>, without moving it (use "hylo move" for that).
 
 <path> is vault-absolute, starting with "/" (e.g. /journal/today.md).
 <new-name> is a bare filename with no path separators; ".md" is appended if omitted.
@@ -24,8 +24,8 @@ renamed, since other subsystems assume their filenames stay stable.
 
 Fixing up [[wikilinks]] elsewhere in the vault that point to the old name happens
 asynchronously after this command returns; it prints the rename job id so you can
-check on it with "vaultr rename-status <job-id>".`,
-		Example:      `  vaultr rename /journal/draft.md final.md`,
+check on it with "hylo rename-status <job-id>".`,
+		Example:      `  hylo rename /journal/draft.md final.md`,
 		Args:         cobra.ExactArgs(2),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {

@@ -51,7 +51,7 @@ async function saveMarkdownToVault(
     Accept: "application/json",
   };
   if (settings.apiKey.trim()) {
-    headers["X-Vaultr-API-Key"] = settings.apiKey.trim();
+    headers["X-Hylo-API-Key"] = settings.apiKey.trim();
   }
 
   const res = await fetch(writeUrl, {

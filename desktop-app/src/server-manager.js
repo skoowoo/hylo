@@ -19,8 +19,8 @@ function getShellDiagPaths() {
   const base = app.getPath("userData");
   return {
     userData: base,
-    diagnostics: path.join(base, "vaultr-shell-diagnostics.log"),
-    serverOutput: path.join(base, "vaultr-server-output.log"),
+    diagnostics: path.join(base, "hylo-shell-diagnostics.log"),
+    serverOutput: path.join(base, "hylo-server-output.log"),
   };
 }
 
@@ -33,7 +33,7 @@ function appendDiagFile(line) {
 
 function diagLog(...parts) {
   const text = `[${new Date().toISOString()}] ${parts.join(" ")}\n`;
-  console.error("[vaultr-shell]", ...parts);
+  console.error("[hylo-shell]", ...parts);
   appendDiagFile(text);
 }
 
@@ -49,12 +49,12 @@ function diagLogCheckFailThrottled(url, reason) {
 // ── PATH expansion for GUI launch ────────────────────────────────────────────
 // On macOS, apps launched from Finder/Dock don't source ~/.zshrc, so
 // process.env.PATH is the minimal system PATH.  Expand it with common
-// user-level tool directories so Electron can locate the vaultr binary.
+// user-level tool directories so Electron can locate the hylo binary.
 // Full shell env (http_proxy, tokens, etc.) is captured by the Go server
 // at startup via agent.WarmShellEnv — no need to do it here.
 
 // Computed once and cached — process.env.PATH doesn't change over the app's
-// lifetime, and this is recomputed on every resolveVaultrBin() candidate and
+// lifetime, and this is recomputed on every resolveHyloBin() candidate and
 // every spawn, which added up to redundant work on the same static inputs.
 let cachedExpandedEnv = null;
 
@@ -79,7 +79,7 @@ function expandedEnv() {
   return cachedExpandedEnv;
 }
 
-// ── Vaultr binary resolution ──────────────────────────────────────────────────
+// ── Hylo binary resolution ──────────────────────────────────────────────────
 
 /**
  * Runs `bin --version` without blocking the main thread (unlike spawnSync,
@@ -98,11 +98,11 @@ function checkBinWorks(bin) {
   });
 }
 
-/** Returns the first working vaultr binary path, or null if none found. */
-async function resolveVaultrBin() {
+/** Returns the first working hylo binary path, or null if none found. */
+async function resolveHyloBin() {
   const candidates = [
-    path.join(os.homedir(), ".local", "bin", "vaultr"),
-    "vaultr",
+    path.join(os.homedir(), ".local", "bin", "hylo"),
+    "hylo",
   ];
   for (const bin of candidates) {
     if (await checkBinWorks(bin)) return bin;
@@ -113,7 +113,7 @@ async function resolveVaultrBin() {
 // ── PID / process helpers ─────────────────────────────────────────────────────
 
 function getServerPIDFilePath() {
-  return path.join(app.getPath("userData"), "vaultr-server.pid");
+  return path.join(app.getPath("userData"), "hylo-server.pid");
 }
 
 function readServerPID() {
@@ -131,32 +131,32 @@ function isProcessAlive(pid) {
 }
 
 /**
- * Best-effort check that `pid` actually looks like a vaultr process, not an
+ * Best-effort check that `pid` actually looks like a hylo process, not an
  * unrelated process that reused this PID after the real server exited
  * without cleaning up its PID file (isProcessAlive only checks existence).
  * Returns true (assume it's ours) if the platform lookup itself fails —
  * a failed check shouldn't be treated as proof it's NOT ours.
  */
-function looksLikeVaultrProcess(pid) {
+function looksLikeHyloProcess(pid) {
   try {
     const r = process.platform === "win32"
       ? spawnSync("wmic", ["process", "where", `ProcessId=${pid}`, "get", "ExecutablePath"], { encoding: "utf8", timeout: 3000, windowsHide: true })
       : spawnSync("ps", ["-p", String(pid), "-o", "comm="], { encoding: "utf8", timeout: 3000 });
     if (r.error || r.status !== 0) return true; // couldn't verify — don't block on it
-    return /vaultr/i.test((r.stdout || "").trim());
+    return /hylo/i.test((r.stdout || "").trim());
   } catch {
     return true;
   }
 }
 
-/** Combines existence + identity: is `pid` alive AND does it look like our vaultr server? */
-function pidIsVaultrServer(pid) {
-  return isProcessAlive(pid) && looksLikeVaultrProcess(pid);
+/** Combines existence + identity: is `pid` alive AND does it look like our hylo server? */
+function pidIsHyloServer(pid) {
+  return isProcessAlive(pid) && looksLikeHyloProcess(pid);
 }
 
 // ── Server spawn ──────────────────────────────────────────────────────────────
 
-/** PID of the vaultr server process most recently spawned by this Electron instance. */
+/** PID of the hylo server process most recently spawned by this Electron instance. */
 let managedServerChildPid = 0;
 
 /** Callbacks registered via register() — used by restartServerAfterCliUpdate. */
@@ -164,7 +164,7 @@ let _registeredOpts = {};
 
 /** Shared SIGTERM → wait → optional SIGKILL logic. Returns true when the process is gone. */
 async function killProcess(pid) {
-  if (!pidIsVaultrServer(pid)) return true;
+  if (!pidIsHyloServer(pid)) return true;
   try { process.kill(pid, "SIGTERM"); } catch { return false; }
   const deadline = Date.now() + 8000;
   while (Date.now() < deadline) {
@@ -180,36 +180,36 @@ async function killProcess(pid) {
 /**
  * Detached subprocess; stdout/stderr go to userData log. Survives after Electron exits.
  *
- * If no `vaultr` binary can be resolved, this falls back to a forced re-install of the
+ * If no `hylo` binary can be resolved, this falls back to a forced re-install of the
  * bundled CLI (bypassing the sentinel — the sentinel may say this version+build is
  * already installed even though the binary itself has since gone missing) and retries
  * resolution once before giving up.
  */
-async function startVaultrServerDetached() {
+async function startHyloServerDetached() {
   const { serverOutput } = getShellDiagPaths();
   try {
     fs.mkdirSync(path.dirname(serverOutput), { recursive: true });
     fs.appendFileSync(
       serverOutput,
-      `\n--- ${new Date().toISOString()} spawn vaultr start server ---\n`
+      `\n--- ${new Date().toISOString()} spawn hylo start server ---\n`
     );
   } catch (e) {
     diagLog("server output log preamble failed:", e.message);
   }
 
-  let bin = await resolveVaultrBin();
+  let bin = await resolveHyloBin();
   if (!bin) {
-    diagLog("start-server: vaultr binary not found, attempting fallback CLI install");
+    diagLog("start-server: hylo binary not found, attempting fallback CLI install");
     let installResult;
     try {
       installResult = await installCli((msg) => diagLog(msg), { force: true });
     } catch (e) {
-      return { ok: false, error: `\`vaultr\` not found, and fallback install threw: ${e.message}` };
+      return { ok: false, error: `\`hylo\` not found, and fallback install threw: ${e.message}` };
     }
     if (!installResult.ok) {
-      return { ok: false, error: `\`vaultr\` not found, and fallback install failed: ${installResult.error || "unknown error"}` };
+      return { ok: false, error: `\`hylo\` not found, and fallback install failed: ${installResult.error || "unknown error"}` };
     }
-    bin = await resolveVaultrBin();
+    bin = await resolveHyloBin();
     // A freshly-written binary can occasionally fail its first exec attempt
     // (e.g. macOS briefly scanning a newly-extracted executable before
     // allowing it to run) even though the install itself succeeded. Give it
@@ -219,7 +219,7 @@ async function startVaultrServerDetached() {
     if (!bin && !installResult.skipped) {
       for (const delayMs of [300, 600]) {
         await new Promise((r) => setTimeout(r, delayMs));
-        bin = await resolveVaultrBin();
+        bin = await resolveHyloBin();
         if (bin) break;
       }
     }
@@ -227,9 +227,9 @@ async function startVaultrServerDetached() {
       const reason = installResult.skipped
         ? "no bundled CLI archive available to install (dev mode?)"
         : "reinstalling the bundled CLI did not produce a working binary";
-      return { ok: false, error: `\`vaultr\` not found in PATH, /usr/local/bin, or ~/.local/bin (${reason}).` };
+      return { ok: false, error: `\`hylo\` not found in PATH, /usr/local/bin, or ~/.local/bin (${reason}).` };
     }
-    diagLog("start-server: fallback install succeeded, resolved vaultr at", bin);
+    diagLog("start-server: fallback install succeeded, resolved hylo at", bin);
   }
 
   return new Promise((resolve) => {
@@ -260,7 +260,7 @@ async function startVaultrServerDetached() {
       });
     } catch (e) {
       try { fs.closeSync(logFd); } catch (_) { /* noop */ }
-      diagLog("spawn vaultr start server threw:", e.message);
+      diagLog("spawn hylo start server threw:", e.message);
       finish({ ok: false, error: e.message });
       return;
     }
@@ -268,7 +268,7 @@ async function startVaultrServerDetached() {
     try { fs.closeSync(logFd); } catch (_) { /* noop */ }
 
     child.once("error", (err) => {
-      diagLog("spawn vaultr start server event error:", err.message);
+      diagLog("spawn hylo start server event error:", err.message);
       finish({ ok: false, error: err.message });
     });
     child.unref();
@@ -277,7 +277,7 @@ async function startVaultrServerDetached() {
       if (settled) return;
       const pid = child.pid;
       if (typeof pid === "number" && pid > 0) {
-        diagLog("started vaultr server, pid=", pid, "logs append to", serverOutput);
+        diagLog("started hylo server, pid=", pid, "logs append to", serverOutput);
         finish({ ok: true, pid });
       } else {
         diagLog("spawn produced no pid");
@@ -341,9 +341,9 @@ function register(opts = {}) {
     });
   });
 
-  // ── start-vaultr-server-detached ────────────────────────────────────────────
+  // ── start-hylo-server-detached ────────────────────────────────────────────
 
-  ipcMain.handle("start-vaultr-server-detached", async (_event, invokeOpts = {}) => {
+  ipcMain.handle("start-hylo-server-detached", async (_event, invokeOpts = {}) => {
     const { userInitiated = false } = invokeOpts;
 
     // Block automatic start when the user intentionally stopped the server.
@@ -358,11 +358,11 @@ function register(opts = {}) {
 
     // If Electron already spawned a server that is still initialising, skip the
     // duplicate spawn and let the start screen keep polling.
-    if (managedServerChildPid > 0 && pidIsVaultrServer(managedServerChildPid)) {
+    if (managedServerChildPid > 0 && pidIsHyloServer(managedServerChildPid)) {
       diagLog("start-server: managed server pid=%d alive, skip duplicate spawn", managedServerChildPid);
       return { ok: true };
     }
-    const result = await startVaultrServerDetached();
+    const result = await startHyloServerDetached();
     if (result.ok && result.pid) managedServerChildPid = result.pid;
     return result;
   });
@@ -378,13 +378,13 @@ function register(opts = {}) {
     return {
       managed: pid !== null,
       pid,
-      alive: pid !== null && pidIsVaultrServer(pid),
+      alive: pid !== null && pidIsHyloServer(pid),
     };
   });
 
-  // ── stop-vaultr-server ──────────────────────────────────────────────────────
+  // ── stop-hylo-server ──────────────────────────────────────────────────────
 
-  ipcMain.handle("stop-vaultr-server", async () => {
+  ipcMain.handle("stop-hylo-server", async () => {
     const pid = readServerPID();
     if (!pid) {
       return { ok: false, reason: "no_pid", error: "No managed server process found" };
@@ -403,9 +403,9 @@ function register(opts = {}) {
     return { ok: true };
   });
 
-  // ── restart-vaultr-server ───────────────────────────────────────────────────
+  // ── restart-hylo-server ───────────────────────────────────────────────────
 
-  ipcMain.handle("restart-vaultr-server", async () => {
+  ipcMain.handle("restart-hylo-server", async () => {
     const pid = readServerPID();
     if (!pid) {
       return { ok: false, reason: "no_pid", error: "No valid PID file — server was not started by the desktop app" };
@@ -414,7 +414,7 @@ function register(opts = {}) {
     // Close persistent connections before SIGTERM for the same reason as stop.
     if (onBeforeStop) onBeforeStop();
 
-    if (pidIsVaultrServer(pid)) {
+    if (pidIsHyloServer(pid)) {
       diagLog("restart-server: stopping pid", pid);
       const killed = await killProcess(pid);
       if (!killed) {
@@ -424,9 +424,9 @@ function register(opts = {}) {
       diagLog("restart-server: pid", pid, "already not running, spawning fresh");
     }
 
-    diagLog("restart-server: spawning new vaultr server");
+    diagLog("restart-server: spawning new hylo server");
     managedServerChildPid = 0;
-    const spawnResult = await startVaultrServerDetached();
+    const spawnResult = await startHyloServerDetached();
     if (!spawnResult.ok) {
       return { ok: false, reason: "spawn_failed", error: spawnResult.error };
     }
@@ -444,7 +444,7 @@ function register(opts = {}) {
 async function restartServerAfterCliUpdate() {
   const { onBeforeStop, onServerStopped } = _registeredOpts;
   const pid = readServerPID();
-  if (!pid || !pidIsVaultrServer(pid)) return; // no server running — nothing to do
+  if (!pid || !pidIsHyloServer(pid)) return; // no server running — nothing to do
   diagLog("cli-upgrade: killing old server pid", pid, "to pick up new binary");
   if (onBeforeStop) onBeforeStop();
   await killProcess(pid);

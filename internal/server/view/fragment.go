@@ -9,8 +9,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/hardhacker/vaultr/internal/storage"
-	"github.com/hardhacker/vaultr/internal/util"
+	"github.com/hardhacker/hylo/internal/storage"
+	"github.com/hardhacker/hylo/internal/util"
 )
 
 // NoteFragment handles GET /notes/fragment?path=... or ?name=...

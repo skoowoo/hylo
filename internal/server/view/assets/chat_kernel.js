@@ -3,13 +3,13 @@
 // stopping) is the only busy flag. The view attaches only while the pane is
 // in the DOM; a run keeps going when the pane is swapped away.
 (function (root) {
-  var R = root.__vaultrChatReduce;
+  var R = root.__hyloChatReduce;
 
   function rank(mode) {
     return mode === 'jump' ? 2 : mode === 'maybe' ? 1 : 0;
   }
 
-  root.__vaultrChatCreate = function (host) {
+  root.__hyloChatCreate = function (host) {
     host = host || {};
     var mates = [];
     var eventDefs = [];
@@ -437,8 +437,8 @@
 
     function attach(el) {
       detach();
-      if (!el || !root.__vaultrChatMount) return;
-      view = root.__vaultrChatMount(el, facade);
+      if (!el || !root.__hyloChatMount) return;
+      view = root.__hyloChatMount(el, facade);
       var mode = heldScroll;
       heldScroll = 'none';
       if (mode === 'none' && stick && messages.length) mode = 'jump';
@@ -472,7 +472,7 @@
         refreshSeq++;
       }
       mateId = id;
-      try { sessionStorage.setItem('vaultr_agent_bot_id', id); } catch (e) { /* ignore */ }
+      try { sessionStorage.setItem('hylo_agent_bot_id', id); } catch (e) { /* ignore */ }
       if (host.onMate) host.onMate(id);
       requestRender('none');
       return true;
@@ -632,12 +632,12 @@
         await matesReady;
         if (mateId) return;
         var last = null;
-        try { last = sessionStorage.getItem('vaultr_agent_bot_id'); } catch (e) { /* ignore */ }
+        try { last = sessionStorage.getItem('hylo_agent_bot_id'); } catch (e) { /* ignore */ }
         var target = last ? mateById(last) : null;
         var id = (target || mates[0] || {}).id || '';
         if (!id) return;
         mateId = id;
-        try { sessionStorage.setItem('vaultr_agent_bot_id', id); } catch (e) { /* ignore */ }
+        try { sessionStorage.setItem('hylo_agent_bot_id', id); } catch (e) { /* ignore */ }
         if (host.onMate) host.onMate(id);
         await refresh();
       },

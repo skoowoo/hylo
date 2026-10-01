@@ -5,8 +5,8 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/hardhacker/vaultr/internal/build"
-	"github.com/hardhacker/vaultr/internal/config"
+	"github.com/hardhacker/hylo/internal/build"
+	"github.com/hardhacker/hylo/internal/config"
 )
 
 // Handler holds shared dependencies available to all HTTP handlers.

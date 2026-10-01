@@ -1,17 +1,17 @@
 ---
-name: vaultr-recap
-description: "Reviews content against the Vaultr knowledge base (_knowledge/) and surfaces what's related and what's in tension. Covers two scenarios: (1) associative recap — cross-check a single short note, daily note, draft, or pasted text against the knowledge base right now, while the thought is fresh; (2) periodic review — recap everything created or updated over a recent window (e.g. the past week). Trigger on phrases like 'recap this', 'what do I already know that relates to this', 'does this conflict with anything I've written', 'weekly review', 'review this week's notes', '联想', '回顾一下', '和我的知识库对照一下', '有没有矛盾的观点', '实时联想', '本周回顾', '周回顾', or any request to recall related or conflicting knowledge, either for a piece of writing or for a recent time window."
+name: hylo-recap
+description: "Reviews content against the Hylo knowledge base (_knowledge/) and surfaces what's related and what's in tension. Covers two scenarios: (1) associative recap — cross-check a single short note, daily note, draft, or pasted text against the knowledge base right now, while the thought is fresh; (2) periodic review — recap everything created or updated over a recent window (e.g. the past week). Trigger on phrases like 'recap this', 'what do I already know that relates to this', 'does this conflict with anything I've written', 'weekly review', 'review this week's notes', '联想', '回顾一下', '和我的知识库对照一下', '有没有矛盾的观点', '实时联想', '本周回顾', '周回顾', or any request to recall related or conflicting knowledge, either for a piece of writing or for a recent time window."
 ---
 
-# Vaultr Recap — Router
+# Hylo Recap — Router
 
 ## Environment check
 
 ```bash
-vaultr --help
+hylo --help
 ```
 
-If `vaultr` is not found, inform the user and stop.
+If `hylo` is not found, inform the user and stop.
 
 ---
 

@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/hardhacker/vaultr/internal/plugin"
+	"github.com/hardhacker/hylo/internal/plugin"
 )
 
 func TestTranslateWechatMessage(t *testing.T) {

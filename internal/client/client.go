@@ -1,4 +1,4 @@
-// Package client provides an HTTP client for the Vaultr server API.
+// Package client provides an HTTP client for the Hylo server API.
 // It uses TCP transport to communicate with the server.
 package client
 
@@ -16,16 +16,16 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hardhacker/vaultr/internal/agent"
-	"github.com/hardhacker/vaultr/internal/config"
-	"github.com/hardhacker/vaultr/internal/storage"
+	"github.com/hardhacker/hylo/internal/agent"
+	"github.com/hardhacker/hylo/internal/config"
+	"github.com/hardhacker/hylo/internal/storage"
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/text"
 	"github.com/yuin/goldmark/util"
 )
 
-// Client is an HTTP client that communicates with the Vaultr server.
+// Client is an HTTP client that communicates with the Hylo server.
 type Client struct {
 	http    *http.Client
 	baseURL string
@@ -39,7 +39,7 @@ type DirListing struct {
 	All   bool           `json:"all,omitempty"`
 }
 
-// New creates a Client connected to the running Vaultr server using TCP.
+// New creates a Client connected to the running Hylo server using TCP.
 // If the TCP transport is not enabled an actionable error is returned.
 func New(cfg *config.Config) (*Client, error) {
 	if cfg.Server.TCPEnabled() {
@@ -55,9 +55,9 @@ func New(cfg *config.Config) (*Client, error) {
 	}
 
 	return nil, fmt.Errorf(
-		"cannot connect to vaultr server\n" +
+		"cannot connect to hylo server\n" +
 			"  TCP: not configured\n\n" +
-			"Start the server first: vaultr serve",
+			"Start the server first: hylo serve",
 	)
 }
 
@@ -634,7 +634,7 @@ func (c *Client) SkillsRemove(name string) error {
 }
 
 // SkillsInstall calls POST /api/skills/install to clone a GitHub repository
-// and extract the named skill into ~/.vaultr/skills/.
+// and extract the named skill into ~/.hylo/skills/.
 // subPath is the directory inside the repo that contains SKILL.md; pass an
 // empty string to use automatic heuristic search.
 // Uses a 5-minute timeout because git clone can be slow on large repositories.
@@ -653,7 +653,7 @@ func (c *Client) SkillsInstall(repoURL, subPath, skillName string) error {
 	}
 	req.Header.Set("Content-Type", "application/json")
 	if c.apiKey != "" {
-		req.Header.Set("X-Vaultr-API-Key", c.apiKey)
+		req.Header.Set("X-Hylo-API-Key", c.apiKey)
 	}
 	installClient := &http.Client{Timeout: 5 * time.Minute}
 	resp, err := installClient.Do(req)
@@ -717,7 +717,7 @@ func (c *Client) AgentsList(ctx context.Context) ([]agent.AgentInfo, error) {
 		return nil, err
 	}
 	if c.apiKey != "" {
-		req.Header.Set("X-Vaultr-API-Key", c.apiKey)
+		req.Header.Set("X-Hylo-API-Key", c.apiKey)
 	}
 	// Use a longer client timeout than the default 30s: server probes many CLIs.
 	longClient := &http.Client{Timeout: 120 * time.Second}
@@ -770,7 +770,7 @@ func (c *Client) AgentChatSSE(ctx context.Context, req AgentChatRequest, onEvent
 	hreq.Header.Set("Content-Type", "application/json")
 	hreq.Header.Set("Accept", "text/event-stream")
 	if c.apiKey != "" {
-		hreq.Header.Set("X-Vaultr-API-Key", c.apiKey)
+		hreq.Header.Set("X-Hylo-API-Key", c.apiKey)
 	}
 	base := c.http
 	if base == nil {
@@ -944,7 +944,7 @@ func (c *Client) postJSON(url string, body any) (*http.Response, error) {
 
 func (c *Client) do(req *http.Request) (*http.Response, error) {
 	if c.apiKey != "" {
-		req.Header.Set("X-Vaultr-API-Key", c.apiKey)
+		req.Header.Set("X-Hylo-API-Key", c.apiKey)
 	}
 	return c.http.Do(req)
 }
@@ -958,13 +958,13 @@ func statusMsg(code int, body []byte) string {
 }
 
 func wrapConnErr(err error) error {
-	return fmt.Errorf("cannot reach vaultr server (%w)\nIs the server running? Try: vaultr start server", err)
+	return fmt.Errorf("cannot reach hylo server (%w)\nIs the server running? Try: hylo start server", err)
 }
 
 // ── Formatting helpers ────────────────────────────────────────────────────────
 
 // Format returns a human-readable multi-line representation of a Link,
-// matching the output produced by `vaultr extract link`.
+// matching the output produced by `hylo extract link`.
 func (l Link) Format() string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "%s\n  %s", l.Kind, l.URL)

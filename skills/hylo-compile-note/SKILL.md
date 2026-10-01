@@ -1,9 +1,9 @@
 ---
-name: vaultr-compile-note
-description: "Compiles a single raw Vaultr note into knowledge units using a two-phase AI process (triage → compile). Use this skill whenever the user wants to compile a note into knowledge, extract knowledge from a note, update the knowledge base from a note, merge note content into knowledge units, or run knowledge compilation. Triggers on phrases like 'compile this note', 'compile note into knowledge', 'extract knowledge from note', 'update knowledge base', 'run compile on', or any request to turn a raw note into structured knowledge units."
+name: hylo-compile-note
+description: "Compiles a single raw Hylo note into knowledge units using a two-phase AI process (triage → compile). Use this skill whenever the user wants to compile a note into knowledge, extract knowledge from a note, update the knowledge base from a note, merge note content into knowledge units, or run knowledge compilation. Triggers on phrases like 'compile this note', 'compile note into knowledge', 'extract knowledge from note', 'update knowledge base', 'run compile on', or any request to turn a raw note into structured knowledge units."
 ---
 
-# Vaultr Compile Note
+# Hylo Compile Note
 
 Compiles a single raw note into **knowledge units** — wiki-style pages that capture the author's accumulating understanding of the entities and concepts that matter to them.
 
@@ -29,7 +29,7 @@ Read the full content of the target note. Note its path and **original publicati
 List available domain indexes:
 
 ```bash
-vaultr knowledge list-indexes
+hylo knowledge list-indexes
 ```
 
 This returns a JSON array of `{"domain": "...", "path": "..."}` objects. Based on the note's content, select the 1–2 domains most relevant to what the note covers. Read only those index files to obtain the unit table for this compilation.
@@ -96,7 +96,7 @@ For each unit in the manifest, check its `operation` and read the corresponding 
 - **`create`** → read `references/create.md` and follow it completely.
 - **`update`** → read `references/update.md` and follow it completely.
 
-`references/extract.md` documents partial-read commands (`vaultr extract outline / section / segment / …`). Use them at any step when reading the full note is not necessary.
+`references/extract.md` documents partial-read commands (`hylo extract outline / section / segment / …`). Use them at any step when reading the full note is not necessary.
 
 Complete one unit fully before moving to the next. After all units are done, confirm in prose: which were created, which updated, and what changed in each.
 

@@ -18,8 +18,8 @@ Given a piece of freshly written content, cross-check it against the knowledge b
 ## Step 1 — Get the source content
 
 - **Inline text**: use it directly as `source_text`.
-- **A named note**: `vaultr read <path-or-name>`. If it's long (a draft, article), don't load it all — `vaultr extract outline <path>` first, then pull only the sections carrying the main claims via `vaultr extract section` or `vaultr extract segment --head/--tail`. `references/extract.md` documents these commands.
-- **"My latest short note" / "today's shorts"**: `vaultr short list --latest 1 --limit 1` — the entry's `content` is returned inline, no file read needed.
+- **A named note**: `hylo read <path-or-name>`. If it's long (a draft, article), don't load it all — `hylo extract outline <path>` first, then pull only the sections carrying the main claims via `hylo extract section` or `hylo extract segment --head/--tail`. `references/extract.md` documents these commands.
+- **"My latest short note" / "today's shorts"**: `hylo short list --latest 1 --limit 1` — the entry's `content` is returned inline, no file read needed.
 
 ---
 
@@ -33,12 +33,12 @@ Skip generic words and boilerplate. If the source content has no clear claim (pu
 
 ## Step 3 — Search the knowledge base
 
-If the domain is obviously unclear or the vault is large, run `vaultr knowledge list-indexes --table` first to see the domain landscape and narrow scope. Otherwise skip straight to search.
+If the domain is obviously unclear or the vault is large, run `hylo knowledge list-indexes --table` first to see the domain landscape and narrow scope. Otherwise skip straight to search.
 
 For each search phrase:
 
 ```bash
-vaultr knowledge search "<phrase>"
+hylo knowledge search "<phrase>"
 ```
 
 Collect and deduplicate candidate unit paths across all phrase searches.
@@ -49,8 +49,8 @@ Collect and deduplicate candidate unit paths across all phrase searches.
 
 For each candidate unit:
 
-1. `vaultr extract outline <unit>` — quick structural check; drop units that are obviously off-topic.
-2. For plausible matches, read enough to judge the actual stance: `vaultr extract section <unit> "<heading>"` if the outline pinpoints it, otherwise `vaultr knowledge read <unit>`.
+1. `hylo extract outline <unit>` — quick structural check; drop units that are obviously off-topic.
+2. For plausible matches, read enough to judge the actual stance: `hylo extract section <unit> "<heading>"` if the outline pinpoints it, otherwise `hylo knowledge read <unit>`.
 
 Classify each surviving unit against the source content:
 

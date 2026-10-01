@@ -282,7 +282,7 @@ func AttachACP(
 		"clientCapabilities": map[string]any{
 			"terminal": false,
 		},
-		"clientInfo": map[string]string{"name": "vaultr", "version": "agent"},
+		"clientInfo": map[string]string{"name": "hylo", "version": "agent"},
 	})
 
 	return sess

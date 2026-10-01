@@ -12,11 +12,11 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/hardhacker/vaultr/internal/agent"
-	"github.com/hardhacker/vaultr/internal/config"
-	"github.com/hardhacker/vaultr/internal/mate"
-	"github.com/hardhacker/vaultr/internal/plugin"
-	"github.com/hardhacker/vaultr/internal/storage"
+	"github.com/hardhacker/hylo/internal/agent"
+	"github.com/hardhacker/hylo/internal/config"
+	"github.com/hardhacker/hylo/internal/mate"
+	"github.com/hardhacker/hylo/internal/plugin"
+	"github.com/hardhacker/hylo/internal/storage"
 )
 
 // AgentAPI serves Open Design–compatible /api/agents, /api/chat, and /api/runs.

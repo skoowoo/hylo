@@ -9,9 +9,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hardhacker/vaultr/internal/config"
-	"github.com/hardhacker/vaultr/internal/plugin"
-	"github.com/hardhacker/vaultr/internal/wechat"
+	"github.com/hardhacker/hylo/internal/config"
+	"github.com/hardhacker/hylo/internal/plugin"
+	"github.com/hardhacker/hylo/internal/wechat"
 )
 
 // DispatchFunc fans out plugin events (typically plugin.Manager.Dispatch).

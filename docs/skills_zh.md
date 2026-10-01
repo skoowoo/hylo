@@ -1,6 +1,6 @@
 # Skills 使用指南
 
-Vaultr 内置了一套 skill，agent 会根据你的请求内容自动选择合适的 skill 来执行——不需要你显式指定 skill 名字，用中文或英文直接描述需求就行（每个 skill 都同时支持中英文触发）。
+Hylo 内置了一套 skill，agent 会根据你的请求内容自动选择合适的 skill 来执行——不需要你显式指定 skill 名字，用中文或英文直接描述需求就行（每个 skill 都同时支持中英文触发）。
 
 本文介绍每个内置 skill 的功能和用法。关于 skill 的安装、管理和自定义方式，见主 README 的 [Skills](../README_ZH.md#skills) 章节。
 
@@ -8,15 +8,15 @@ Vaultr 内置了一套 skill，agent 会根据你的请求内容自动选择合�
 
 - [Skills 使用指南](#skills-使用指南)
   - [目录](#目录)
-  - [vaultr-notes —— 日常笔记操作](#vaultr-notes--日常笔记操作)
-  - [vaultr-compile-note —— 把笔记编译成知识](#vaultr-compile-note--把笔记编译成知识)
-  - [vaultr-index-knowledge —— 构建知识索引](#vaultr-index-knowledge--构建知识索引)
-  - [vaultr-memory —— 提取个人记忆](#vaultr-memory--提取个人记忆)
-  - [vaultr-quote-extract —— 提取重点引文](#vaultr-quote-extract--提取重点引文)
-  - [vaultr-recap —— 联想回顾与周期性回顾](#vaultr-recap--联想回顾与周期性回顾)
-  - [vaultr-writing —— 逐段式文章写作](#vaultr-writing--逐段式文章写作)
+  - [hylo-notes —— 日常笔记操作](#hylo-notes--日常笔记操作)
+  - [hylo-compile-note —— 把笔记编译成知识](#hylo-compile-note--把笔记编译成知识)
+  - [hylo-index-knowledge —— 构建知识索引](#hylo-index-knowledge--构建知识索引)
+  - [hylo-memory —— 提取个人记忆](#hylo-memory--提取个人记忆)
+  - [hylo-quote-extract —— 提取重点引文](#hylo-quote-extract--提取重点引文)
+  - [hylo-recap —— 联想回顾与周期性回顾](#hylo-recap--联想回顾与周期性回顾)
+  - [hylo-writing —— 逐段式文章写作](#hylo-writing--逐段式文章写作)
 
-## vaultr-notes —— 日常笔记操作
+## hylo-notes —— 日常笔记操作
 
 日常笔记操作的通用入口：创建、读取、修改、删除、搜索普通笔记，记录 Short Notes 速记，以及查询知识库。大部分对话式的笔记请求会先落到这个 skill，如果需要更专门的处理（比如编译知识或联想回顾），它会自动转交给对应的 skill。
 
@@ -31,7 +31,7 @@ Vaultr 内置了一套 skill，agent 会根据你的请求内容自动选择合�
 我关于网络效应都记了些什么？
 ```
 
-## vaultr-compile-note —— 把笔记编译成知识
+## hylo-compile-note —— 把笔记编译成知识
 
 把一条原始笔记（网页剪藏、日记、播客转录等）编译成一个或多个**知识单元**——针对笔记中提到的人物、概念、公司或想法建立的持久化 wiki 页面。已有的知识单元会被更新而不是重复创建；只有真正有沉淀价值的实体才会成为知识单元，一次性的细节仍然留在原始笔记里。
 
@@ -45,7 +45,7 @@ Vaultr 内置了一套 skill，agent 会根据你的请求内容自动选择合�
 对 /journal/2026-07-01.md 跑一下 compile
 ```
 
-## vaultr-index-knowledge —— 构建知识索引
+## hylo-index-knowledge —— 构建知识索引
 
 扫描知识库，找出还没被收录进任何领域索引的知识单元，并把它们归入合适的索引（必要时创建新的领域索引）。可以反复运行，每次只会新增缺失的条目，不会重复处理。
 
@@ -59,7 +59,7 @@ Vaultr 内置了一套 skill，agent 会根据你的请求内容自动选择合�
 把知识索引里漏掉的都补上
 ```
 
-## vaultr-memory —— 提取个人记忆
+## hylo-memory —— 提取个人记忆
 
 从你的 Short Notes 速记和知识库中提取个人记忆，写入 `/_memory/` 下的六个结构化文件：身份、偏好、目标、信念、人际关系、当前状态。首次运行会扫描最近 90 天，之后每次只做增量扫描。长期没有被强化的记忆会逐渐淡出直至删除。
 
@@ -75,7 +75,7 @@ Vaultr 内置了一套 skill，agent 会根据你的请求内容自动选择合�
 刷新一下我的个人记忆库。
 ```
 
-## vaultr-quote-extract —— 提取重点引文
+## hylo-quote-extract —— 提取重点引文
 
 从一条笔记中提取高价值的原文段落——像杂志里的 pull quote 一样，不只是一句结论，而是带着足够的上下文让洞见本身站得住脚——然后把每一段都存成一条带反向链接的 Short Note。
 
@@ -89,7 +89,7 @@ Vaultr 内置了一套 skill，agent 会根据你的请求内容自动选择合�
 把今天这篇文章的划重点摘录出来
 ```
 
-## vaultr-recap —— 联想回顾与周期性回顾
+## hylo-recap —— 联想回顾与周期性回顾
 
 拿一段内容和你的知识库做对照，找出相关或者有矛盾的地方。有两种模式：
 
@@ -108,7 +108,7 @@ Vaultr 内置了一套 skill，agent 会根据你的请求内容自动选择合�
 帮我回顾一下这周记的笔记。
 ```
 
-## vaultr-writing —— 逐段式文章写作
+## hylo-writing —— 逐段式文章写作
 
 引导一场"选择你自己的冒险"式写作过程：你说明主题、目标读者和立场，skill 会扫描知识库找出相关的知识单元，先给你一份候选来源清单确认，然后逐段（每段是一个自然段大小的推进）撰写文章，每写完一段就给出几个候选的下一段方向供你挑选。文章写完后，还可以选择把它重新编译回知识库，形成闭环。
 

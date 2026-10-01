@@ -18,9 +18,9 @@ func newResolveCmd() *cobra.Command {
 		Long: `Look up every vault path for the given filename.
 
 Pass a filename with or without .md. Use --json for full metadata.`,
-		Example: `  vaultr resolve today.md
-  vaultr resolve today
-  vaultr resolve today --json`,
+		Example: `  hylo resolve today.md
+  hylo resolve today
+  hylo resolve today --json`,
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {

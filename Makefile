@@ -1,11 +1,11 @@
-MODULE  := github.com/hardhacker/vaultr
-BINARY  := vaultr
-CMD_DIR := ./cmd/vaultr
+MODULE  := github.com/hardhacker/hylo
+BINARY  := hylo
+CMD_DIR := ./cmd/hylo
 CLIP_DIR := extensions/clip
 
-# Clip extension zip (manifest version → dist/vaultr-clip-v*.zip at repo root).
+# Clip extension zip (manifest version → dist/hylo-clip-v*.zip at repo root).
 CLIP_VER := $(shell node -p "require('./$(CLIP_DIR)/manifest.json').version" 2>/dev/null || echo "0.0.0")
-CLIP_ZIP := dist/vaultr-clip-v$(CLIP_VER).zip
+CLIP_ZIP := dist/hylo-clip-v$(CLIP_VER).zip
 
 # Per-platform goreleaser config (auto-detected from current OS).
 GORELEASER_CONFIG := .goreleaser-$(shell go env GOOS).yaml
@@ -22,7 +22,7 @@ LDFLAGS := -s -w \
 
 .PHONY: build run serve lint test test-js clean tidy clip-zip icons editor dist-all dist-clean dist-cli dist-cli-snapshot dist-clip dist-dmg dist-win-app dist-checksum
 
-## build: compile the binary into ./bin/vaultr
+## build: compile the binary into ./bin/hylo
 build:
 	@mkdir -p bin
 	go build -ldflags "$(LDFLAGS)" -o bin/$(BINARY) $(CMD_DIR)
@@ -73,7 +73,7 @@ dist-clean:
 	rm -rf dist/ desktop-app/dist/ desktop-app/bundled/
 	@mkdir -p dist
 
-## dist-cli: build vaultr CLI for the current platform only (via goreleaser, requires git tag)
+## dist-cli: build hylo CLI for the current platform only (via goreleaser, requires git tag)
 dist-cli:
 	goreleaser release --clean --config $(GORELEASER_CONFIG)
 
@@ -90,10 +90,10 @@ dist-clip:
 ## dist-dmg: build Electron desktop app DMG into ./dist (macOS only)
 dist-dmg: dist-cli-snapshot
 	@mkdir -p desktop-app/bundled
-	@TAR_GZ=$$(find dist -maxdepth 1 -name "vaultr_$$(go env GOOS)_$$(go env GOARCH).tar.gz" | head -1); \
-	  test -n "$$TAR_GZ" || (echo "Error: dist/vaultr_$$(go env GOOS)_$$(go env GOARCH).tar.gz not found"; exit 1); \
+	@TAR_GZ=$$(find dist -maxdepth 1 -name "hylo_$$(go env GOOS)_$$(go env GOARCH).tar.gz" | head -1); \
+	  test -n "$$TAR_GZ" || (echo "Error: dist/hylo_$$(go env GOOS)_$$(go env GOARCH).tar.gz not found"; exit 1); \
 	  echo "==> Bundling $$TAR_GZ into Electron app..."; \
-	  cp "$$TAR_GZ" desktop-app/bundled/vaultr.tar.gz
+	  cp "$$TAR_GZ" desktop-app/bundled/hylo.tar.gz
 	rm -f desktop-app/dist/*.dmg desktop-app/dist/*.zip
 	cd desktop-app && npm install && npm run dist -- --mac
 	cp desktop-app/dist/*.dmg dist/
@@ -102,10 +102,10 @@ dist-dmg: dist-cli-snapshot
 ## dist-win-app: build Electron desktop app NSIS installer into ./dist (Windows only)
 dist-win-app: dist-cli-snapshot
 	@mkdir -p desktop-app/bundled
-	@ZIP=$$(find dist -maxdepth 1 -name "vaultr_$$(go env GOOS)_$$(go env GOARCH).zip" | head -1); \
-	  test -n "$$ZIP" || (echo "Error: dist/vaultr_$$(go env GOOS)_$$(go env GOARCH).zip not found"; exit 1); \
+	@ZIP=$$(find dist -maxdepth 1 -name "hylo_$$(go env GOOS)_$$(go env GOARCH).zip" | head -1); \
+	  test -n "$$ZIP" || (echo "Error: dist/hylo_$$(go env GOOS)_$$(go env GOARCH).zip not found"; exit 1); \
 	  echo "==> Bundling $$ZIP into Electron app..."; \
-	  cp "$$ZIP" desktop-app/bundled/vaultr.zip
+	  cp "$$ZIP" desktop-app/bundled/hylo.zip
 	cd desktop-app && npm install && npm run dist -- --win
 	cp desktop-app/dist/*.exe dist/ 2>/dev/null || true
 	@rm -rf desktop-app/bundled

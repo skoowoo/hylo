@@ -3,7 +3,7 @@ package search
 import (
 	"testing"
 
-	"github.com/hardhacker/vaultr/internal/util"
+	"github.com/hardhacker/hylo/internal/util"
 )
 
 func TestExtractSearchTags(t *testing.T) {

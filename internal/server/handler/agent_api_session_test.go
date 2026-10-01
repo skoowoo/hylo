@@ -3,7 +3,7 @@ package handler
 import (
 	"testing"
 
-	"github.com/hardhacker/vaultr/internal/agent"
+	"github.com/hardhacker/hylo/internal/agent"
 )
 
 func TestComposePromptResumeSession(t *testing.T) {

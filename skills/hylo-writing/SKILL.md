@@ -1,5 +1,5 @@
 ---
-name: vaultr-writing
+name: hylo-writing
 description: Write an article beat-by-beat, drawing from the vault's knowledge base. The user states what to write, who it's for, and what stance to take — the skill discovers relevant knowledge units and leads a choose-your-own-adventure writing journey. Use when the user wants to write something grounded in their accumulated understanding, not assemble raw notes.
 ---
 
@@ -18,8 +18,8 @@ If the user didn't say where to save the article, ask now. Remember the path.
 Once you have those three, scan the knowledge base:
 
 ```bash
-vaultr knowledge --help
-vaultr knowledge list-indexes
+hylo knowledge --help
+hylo knowledge list-indexes
 ```
 
 Select 1–3 domain indexes most relevant to the topic. Read those index files to find matching units. If no indexes exist, scan `_knowledge/` directly.
@@ -36,10 +36,10 @@ Select 1–3 domain indexes most relevant to the topic. Read those index files t
 
 **Possible gaps:** list anything you think the article needs that the knowledge base doesn't cover (if any).
 
-> That's everything I found. Does this palette cover what you need, or should we add more? If something's missing, compile the relevant notes with `vaultr-compile-note` first and I'll re-scan.
+> That's everything I found. Does this palette cover what you need, or should we add more? If something's missing, compile the relevant notes with `hylo-compile-note` first and I'll re-scan.
 ---
 
-Wait for the user to confirm, remove units, or tell you what's missing before moving on. If the user wants to add coverage: suggest they run `vaultr-compile-note` on the relevant source, then re-scan and re-present the updated palette. Do not continue to Phase 1 with a palette the user hasn't confirmed.
+Wait for the user to confirm, remove units, or tell you what's missing before moving on. If the user wants to add coverage: suggest they run `hylo-compile-note` on the relevant source, then re-scan and re-present the updated palette. Do not continue to Phase 1 with a palette the user hasn't confirmed.
 
 ---
 
@@ -68,7 +68,7 @@ Loop until the article reaches a natural end:
 
 When the article reaches its natural end, write the final beat and stop.
 
-Then ask: **Do you want to compile this article back into the knowledge base?** If yes, trigger the `vaultr-compile-note` skill on the article file. The article itself becomes a source — its argument, its synthesis, its publication date feed back as new knowledge.
+Then ask: **Do you want to compile this article back into the knowledge base?** If yes, trigger the `hylo-compile-note` skill on the article file. The article itself becomes a source — its argument, its synthesis, its publication date feed back as new knowledge.
 
 Finally, output the article's wiki link — derive it from the saved path by taking the filename without the `.md` extension:
 
@@ -102,7 +102,7 @@ Pull material from knowledge units to populate the beat. You can paraphrase, spl
 
 **Drilling into source notes.** Knowledge units carry backlinks to the original notes they were compiled from. When the unit-level material feels thin — missing a concrete example, a specific quote, a vivid detail — follow the backlinks and read the source note directly. The source note is the unprocessed quarry; the knowledge unit is the refined extract. Use whichever layer serves the beat. If you pull something from a source note that isn't captured in its unit, note the gap — it may be worth compiling later.
 
-**Partial reads.** `references/extract.md` documents `vaultr extract` commands for reading outlines, sections, or line ranges without loading the full note. Use them when you don't need the whole file.
+**Partial reads.** `references/extract.md` documents `hylo extract` commands for reading outlines, sections, or line ranges without loading the full note. Use them when you don't need the whole file.
 
 ## Handling knowledge gaps
 

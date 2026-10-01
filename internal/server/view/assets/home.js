@@ -21,8 +21,8 @@ window.handleSearchResultSelection = function (el) {
 
   var nameEl = el.querySelector('.sr-name');
   var title = nameEl ? nameEl.textContent.trim() : (path.split('/').pop().replace(/\.md$/, '') || 'Note');
-  if (window.__vaultrContentPane) {
-    void window.__vaultrContentPane.openNoteInContentPane(path, title,
+  if (window.__hyloContentPane) {
+    void window.__hyloContentPane.openNoteInContentPane(path, title,
       el.dataset.noteIsKnowledge === 'true', false, el.dataset.noteIsIndex === 'true',
       el.dataset.noteCanCompile === 'true');
     return true;
@@ -71,7 +71,7 @@ window.agentBotColorFor = function(name, bots) {
 function loadListViewModes() {
   var defaults = { knowledge: 'list', memory: 'list', pinned: 'list', folder: 'list', tags: 'list' };
   try {
-    return Object.assign(defaults, JSON.parse(localStorage.getItem('vaultr-list-view') || '{}'));
+    return Object.assign(defaults, JSON.parse(localStorage.getItem('hylo-list-view') || '{}'));
   } catch (_) {
     return defaults;
   }
@@ -104,11 +104,11 @@ window.openImageLightbox = function (el) {
 };
 
 // ── Shorts composer: clipboard image extraction ────────────────────────────
-// Like editor_session.js's __vaultrEditorFindImageFile, but collects every
+// Like editor_session.js's __hyloEditorFindImageFile, but collects every
 // image file in the clipboard instead of just the first — a short's
 // composer accepts pasting several images at once (e.g. copying multiple
 // files in Finder), unlike the note editor's single inline-insert paste.
-function __vaultrImageFilesFromClipboard(dt) {
+function __hyloImageFilesFromClipboard(dt) {
   if (!dt) return [];
   var items = Array.from(dt.items || []);
   var files = [];
@@ -212,10 +212,10 @@ function homeCtrl() {
       window._homeData = this;
       // First render isn't an htmx swap (home.html, not htmx:afterSwap
       // below), so the drag-to-move cards need their initial pass here too.
-      __vaultrUpdateDraggableCards();
-      window.__vaultrHotkeys.register('refresh', 'r', function () {
-        if (typeof window.__vaultrBackgroundRefresh === 'function') {
-          window.__vaultrBackgroundRefresh();
+      __hyloUpdateDraggableCards();
+      window.__hyloHotkeys.register('refresh', 'r', function () {
+        if (typeof window.__hyloBackgroundRefresh === 'function') {
+          window.__hyloBackgroundRefresh();
         } else {
           window.location.reload();
         }
@@ -227,8 +227,8 @@ function homeCtrl() {
       // and swallows Escape whenever the editor's content pane (or any other
       // stack entry) is open, so window never sees the key.
       this.$watch('lightbox', (val) => {
-        if (val) { if (window.__vaultrEscPush) window.__vaultrEscPush('lightbox', () => { this.lightbox = null; }); }
-        else if (window.__vaultrEscPop) window.__vaultrEscPop('lightbox');
+        if (val) { if (window.__hyloEscPush) window.__hyloEscPush('lightbox', () => { this.lightbox = null; }); }
+        else if (window.__hyloEscPop) window.__hyloEscPop('lightbox');
       });
       // No longer pushed onto the shared ESC stack — the inbox detail is a
       // docked pane (content_pane.html's inbox-detail-panel), not a floating
@@ -279,7 +279,7 @@ function homeCtrl() {
         try { cytoscape.use(cytoscapeFcose); } catch (_) { /* already registered */ }
       }
       this._graphTooltip = document.getElementById('graph-tooltip');
-      window.addEventListener('vaultr:accent', () => {
+      window.addEventListener('hylo:accent', () => {
         if (!this.cy) return;
         var c = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
         if (c) this.cy.style().selector('node:selected').style({ 'border-color': c }).update();
@@ -292,7 +292,7 @@ function homeCtrl() {
       // Bot list lives in the sidebar, so it loads even when Chats is closed.
       // The kernel keeps a run alive if the pane is swapped away.
       var self = this;
-      this._chat = window.__vaultrChatCreate({
+      this._chat = window.__hyloChatCreate({
         onMates: function (mates) { self.agentBots = mates; },
         onMate: function (id) {
           self.selectedAgentBotId = id;
@@ -307,15 +307,15 @@ function homeCtrl() {
       this._chat.start();
       if (document.getElementById('chat-root')) this.initChatSection();
       // Home is always safe: partial HTMX refresh is non-destructive.
-      window.__vaultrShellSafeForBackgroundReload = function () { return true; };
+      window.__hyloShellSafeForBackgroundReload = function () { return true; };
       // Electron main calls this instead of wc.reload() when syncing sections.
-      window.__vaultrBackgroundRefresh = doHomeRefresh;
+      window.__hyloBackgroundRefresh = doHomeRefresh;
       // Same as the shared default (shared_theme.go), except the no-Electron
       // fallback refreshes the active section in place instead of reloading
       // the whole page — otherwise saving a short via the dialog would kick
       // the user back to Pinned.
-      window.__vaultrAfterVaultMutation = async function () {
-        var api = window.vaultrDesktop;
+      window.__hyloAfterVaultMutation = async function () {
+        var api = window.hyloDesktop;
         if (api && api.syncVaultDataAcrossSections) { await api.syncVaultDataAcrossSections(); return; }
         if (window._homeData) window._homeData.reloadActiveSection();
       };
@@ -335,7 +335,7 @@ function homeCtrl() {
     setListView(mode) {
       var key = this.listViewKey();
       this.listViewModes[key] = mode;
-      try { localStorage.setItem('vaultr-list-view', JSON.stringify(this.listViewModes)); } catch (_) { /* ignore */ }
+      try { localStorage.setItem('hylo-list-view', JSON.stringify(this.listViewModes)); } catch (_) { /* ignore */ }
       // Unlike list<->grid (same rows, CSS-only), graph is a different
       // markup shape entirely and has to come from the server.
       if (key === 'knowledge') this._load(this._knowledgeURL());
@@ -450,8 +450,8 @@ function homeCtrl() {
         var n = matches[0];
         var notePath = n.dir === '/' ? '/' + n.name : n.dir + '/' + n.name;
         await new Promise(function (r) { setTimeout(r, 180); });
-        if (window.__vaultrContentPane) {
-          void window.__vaultrContentPane.openNoteInContentPane(notePath, noteName, false, !!n.pinned);
+        if (window.__hyloContentPane) {
+          void window.__hyloContentPane.openNoteInContentPane(notePath, noteName, false, !!n.pinned);
         }
       } catch (e) { /* ignore */ }
     },
@@ -523,7 +523,7 @@ function homeCtrl() {
     closeNodePanel() { this._clearFocus(); },
 
     openNodeInContentPane(path, label) {
-      var pane = window.__vaultrContentPane;
+      var pane = window.__hyloContentPane;
       if (!pane) return;
       pane.openNoteInContentPane(path, label || path, true, false, false, false);
     },
@@ -808,7 +808,7 @@ function homeCtrl() {
       this.lightbox = null;
       if (this.selectMode) this.exitSelectMode();
       if (this.cy) { this.cy.destroy(); this.cy = null; }
-      if (__vaultrTagCloudObserver) { __vaultrTagCloudObserver.disconnect(); __vaultrTagCloudObserver = null; }
+      if (__hyloTagCloudObserver) { __hyloTagCloudObserver.disconnect(); __hyloTagCloudObserver = null; }
       this.nodePanel = null;
       var pane = document.getElementById('home-list-pane');
       if (pane) pane.scrollTop = 0;
@@ -920,10 +920,10 @@ function homeCtrl() {
       try { return new Date(iso).toLocaleString(); } catch (e) { return iso; }
     },
     renderMarkdown(text) {
-      return window.__vaultrRenderMarkdown(text);
+      return window.__hyloRenderMarkdown(text);
     },
 
-    autoResize(el) { window.__vaultrAutoResize(el); },
+    autoResize(el) { window.__hyloAutoResize(el); },
 
     toggleChats() { this.chatsOpen = !this.chatsOpen; },
 
@@ -988,7 +988,7 @@ function homeCtrl() {
     // Only intercepts the paste when it actually carries image file(s) —
     // a plain text paste (the common case) falls through untouched.
     handleShortComposePaste(e) {
-      var files = __vaultrImageFilesFromClipboard(e.clipboardData);
+      var files = __hyloImageFilesFromClipboard(e.clipboardData);
       if (!files.length) return;
       e.preventDefault();
       files.forEach((f) => this.addShortComposeImage(f));
@@ -1013,7 +1013,7 @@ function homeCtrl() {
       // push, and writing to it directly bypasses Alpine's reactive proxy
       // (silently — no error, the data really does change), so x-show on
       // img.uploading never re-renders and the spinner never stops.
-      __vaultrEditorUploadImage(file).then((src) => {
+      __hyloEditorUploadImage(file).then((src) => {
         var cur = this.shortComposeImages.find((i) => i.id === item.id);
         if (!cur) return; // removed while the upload was still in flight
         cur.src = src;
@@ -1061,7 +1061,7 @@ function homeCtrl() {
         this.shortComposeText = '';
         this.shortComposeImages.forEach((i) => { if (i.previewUrl) URL.revokeObjectURL(i.previewUrl); });
         this.shortComposeImages = [];
-        if (window.__vaultrAfterVaultMutation) await window.__vaultrAfterVaultMutation();
+        if (window.__hyloAfterVaultMutation) await window.__hyloAfterVaultMutation();
       } catch (err) {
         window.showError('Failed to save: ' + (err && err.message ? err.message : String(err)), 'Save failed');
       } finally {
@@ -1103,7 +1103,7 @@ document.body.addEventListener('htmx:beforeSwap', function (e) {
 document.body.addEventListener('htmx:afterSwap', function (e) {
   var target = e.detail && e.detail.target;
   if (!target || target.id !== 'home-list-pane' || !window._homeData) return;
-  __vaultrUpdateDraggableCards();
+  __hyloUpdateDraggableCards();
   var xhr = e.detail.xhr;
   if (!xhr || !xhr.responseURL) return;
   try {
@@ -1120,7 +1120,7 @@ document.body.addEventListener('htmx:afterSwap', function (e) {
       window._homeData.initChatSection();
     }
     if (document.getElementById('tag-cloud')) {
-      __vaultrRenderTagCloud();
+      __hyloRenderTagCloud();
     }
   } catch (err) { /* ignore */ }
 });
@@ -1138,15 +1138,15 @@ document.body.addEventListener('htmx:afterSwap', function (e) {
 // Re-laid-out on panel resize (split-pane drag, reading-pane toggle, window
 // resize) via a ResizeObserver on #home-list-body — never on #tag-cloud
 // itself, since this function sets #tag-cloud's own height as part of every
-// run, which would just retrigger the observer on itself. __vaultrTagCloudGen
+// run, which would just retrigger the observer on itself. __hyloTagCloudGen
 // guards against a slow, still-running layout (d3-cloud places words in
 // timed async batches) finishing after a newer resize already started a
 // fresh one and clearing the container first.
-var __vaultrTagCloudObserver = null;
-var __vaultrTagCloudResizeTimer = null;
-var __vaultrTagCloudGen = 0;
+var __hyloTagCloudObserver = null;
+var __hyloTagCloudResizeTimer = null;
+var __hyloTagCloudGen = 0;
 
-function __vaultrRenderTagCloud() {
+function __hyloRenderTagCloud() {
   var el = document.getElementById('tag-cloud');
   if (!el || typeof d3 === 'undefined' || !d3.layout || !d3.layout.cloud) return;
   var tags;
@@ -1169,7 +1169,7 @@ function __vaultrRenderTagCloud() {
   var fontFamily = (getComputedStyle(document.documentElement).getPropertyValue('--font-ui') || 'sans-serif').trim();
 
   function layoutAndRender() {
-    var gen = ++__vaultrTagCloudGen;
+    var gen = ++__hyloTagCloudGen;
     var width = el.clientWidth || 800;
     // Rough glyph-area estimate (avg glyph ~0.6x its font-size square) to
     // size the box. The multiplier controls the cloud's silhouette, not
@@ -1196,7 +1196,7 @@ function __vaultrRenderTagCloud() {
       .fontWeight(function (d) { return d.weight; })
       .fontSize(function (d) { return d.size; })
       .on('end', function (placed) {
-        if (gen !== __vaultrTagCloudGen) return; // a newer resize already re-ran this
+        if (gen !== __hyloTagCloudGen) return; // a newer resize already re-ran this
         placed.forEach(function (d) {
           var btn = document.createElement('button');
           btn.type = 'button';
@@ -1232,18 +1232,18 @@ function __vaultrRenderTagCloud() {
     layoutAndRender();
   }
 
-  if (__vaultrTagCloudObserver) { __vaultrTagCloudObserver.disconnect(); __vaultrTagCloudObserver = null; }
+  if (__hyloTagCloudObserver) { __hyloTagCloudObserver.disconnect(); __hyloTagCloudObserver = null; }
   var body = el.parentElement;
   if (body && typeof ResizeObserver !== 'undefined') {
     var lastWidth = body.clientWidth;
-    __vaultrTagCloudObserver = new ResizeObserver(function () {
+    __hyloTagCloudObserver = new ResizeObserver(function () {
       var w = body.clientWidth;
       if (Math.abs(w - lastWidth) < 4) return; // sub-pixel/height-only noise
       lastWidth = w;
-      clearTimeout(__vaultrTagCloudResizeTimer);
-      __vaultrTagCloudResizeTimer = setTimeout(layoutAndRender, 150);
+      clearTimeout(__hyloTagCloudResizeTimer);
+      __hyloTagCloudResizeTimer = setTimeout(layoutAndRender, 150);
     });
-    __vaultrTagCloudObserver.observe(body);
+    __hyloTagCloudObserver.observe(body);
   }
 }
 
@@ -1262,11 +1262,11 @@ document.addEventListener('click', function (e) {
       var u = new URL(href, window.location.origin);
       var name = u.searchParams.get('name') || '';
       var path = u.searchParams.get('path') || '';
-      if (path && window.__vaultrContentPane) {
+      if (path && window.__hyloContentPane) {
         var title = a.textContent.trim() || path.split('/').pop().replace(/\.md$/, '');
-        void window.__vaultrContentPane.openNoteInContentPane(path, title, false, false);
+        void window.__hyloContentPane.openNoteInContentPane(path, title, false, false);
       } else if (name) {
-        void __vaultrContentPaneOpenWikiLink(name.replace(/\.md$/, ''));
+        void __hyloContentPaneOpenWikiLink(name.replace(/\.md$/, ''));
       }
     } catch (_) { /* ignore */ }
   } else if (/^https?:\/\//.test(href)) {
@@ -1281,11 +1281,11 @@ document.addEventListener('click', function (e) {
 // of #home-list-pane on every section/page change, so this is delegated on
 // document rather than bound per-card — a per-card listener would silently
 // stop working the moment htmx replaces the card it was attached to.
-var __vaultrDragSourcePath = null;
-var __vaultrDragSourceCard = null;
-var __vaultrDragOverTarget = null;
+var __hyloDragSourcePath = null;
+var __hyloDragSourceCard = null;
+var __hyloDragOverTarget = null;
 
-function __vaultrDragNoteEligible(card) {
+function __hyloDragNoteEligible(card) {
   return !!(card && card.dataset.notePath &&
     card.dataset.noteIsKnowledge !== 'true' && card.dataset.noteIsIndex !== 'true');
 }
@@ -1297,11 +1297,11 @@ function __vaultrDragNoteEligible(card) {
 // attribute, so home.css's [draggable="true"] selectors track this for free.
 // Called after every #home-list-pane swap (htmx:afterSwap, below) and once
 // on init for the page's first, non-htmx render.
-function __vaultrUpdateDraggableCards() {
+function __hyloUpdateDraggableCards() {
   var isFolderView = !!(window._homeData && String(window._homeData.activeKey || '').indexOf('dir:') === 0);
   var cards = document.querySelectorAll('.home-note-row');
   for (var i = 0; i < cards.length; i++) {
-    cards[i].draggable = isFolderView && __vaultrDragNoteEligible(cards[i]);
+    cards[i].draggable = isFolderView && __hyloDragNoteEligible(cards[i]);
   }
 }
 
@@ -1311,10 +1311,10 @@ document.addEventListener('dragstart', function (e) {
   // A card mid-move (is-move-pending) is also pointer-events:none (home.css),
   // so it can't be the drag source here — this check is defense in depth.
   if (!card.draggable || card.classList.contains('is-move-pending')) { e.preventDefault(); return; }
-  __vaultrDragSourcePath = card.dataset.notePath;
-  __vaultrDragSourceCard = card;
+  __hyloDragSourcePath = card.dataset.notePath;
+  __hyloDragSourceCard = card;
   e.dataTransfer.effectAllowed = 'move';
-  try { e.dataTransfer.setData('text/plain', __vaultrDragSourcePath); } catch (_) { /* ignore */ }
+  try { e.dataTransfer.setData('text/plain', __hyloDragSourcePath); } catch (_) { /* ignore */ }
   card.classList.add('is-dragging');
   // Without this, the drag image defaults to a full-size snapshot of the
   // card (as wide as the whole list) — swap in a small title-only chip that
@@ -1332,60 +1332,60 @@ document.addEventListener('dragend', function () {
   // Only clears the *gesture* state — if drop actually kicked off a move,
   // the card keeps is-move-pending (added there) until the request settles,
   // so a second drag can't fire a second move on the same file mid-flight.
-  var card = __vaultrDragSourceCard;
+  var card = __hyloDragSourceCard;
   if (card && !card.classList.contains('is-move-pending')) card.classList.remove('is-dragging');
-  if (__vaultrDragOverTarget) { __vaultrDragOverTarget.classList.remove('drag-over'); __vaultrDragOverTarget = null; }
-  __vaultrDragSourcePath = null;
-  __vaultrDragSourceCard = null;
+  if (__hyloDragOverTarget) { __hyloDragOverTarget.classList.remove('drag-over'); __hyloDragOverTarget = null; }
+  __hyloDragSourcePath = null;
+  __hyloDragSourceCard = null;
 });
 
 // Per spec, both dragenter and dragover need preventDefault() for an element
 // to register as a valid drop target — dragover alone is enough in most
 // browsers but not guaranteed, so both get the same handling.
 document.addEventListener('dragenter', function (e) {
-  if (!__vaultrDragSourcePath) return;
+  if (!__hyloDragSourcePath) return;
   var target = e.target.closest ? e.target.closest('.home-drop-target') : null;
   if (target) e.preventDefault();
 });
 
 document.addEventListener('dragover', function (e) {
-  if (!__vaultrDragSourcePath) return;
+  if (!__hyloDragSourcePath) return;
   var target = e.target.closest ? e.target.closest('.home-drop-target') : null;
-  if (target !== __vaultrDragOverTarget) {
-    if (__vaultrDragOverTarget) __vaultrDragOverTarget.classList.remove('drag-over');
+  if (target !== __hyloDragOverTarget) {
+    if (__hyloDragOverTarget) __hyloDragOverTarget.classList.remove('drag-over');
     if (target) target.classList.add('drag-over');
-    __vaultrDragOverTarget = target;
+    __hyloDragOverTarget = target;
   }
   if (target) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }
 });
 
 document.addEventListener('drop', function (e) {
-  if (!__vaultrDragSourcePath) return;
+  if (!__hyloDragSourcePath) return;
   // Always suppress the browser's own drop handling while our drag is live —
   // dropping outside a valid target (e.g. onto the open editor) would
   // otherwise insert the dragged path as plain text into it.
   e.preventDefault();
   var target = e.target.closest ? e.target.closest('.home-drop-target') : null;
-  var sourcePath = __vaultrDragSourcePath;
-  var card = __vaultrDragSourceCard;
-  var hoverTarget = __vaultrDragOverTarget;
-  __vaultrDragOverTarget = null;
-  __vaultrDragSourcePath = null;
-  if (!target) { if (hoverTarget) hoverTarget.classList.remove('drag-over'); __vaultrShakeCard(card, false); return; }
+  var sourcePath = __hyloDragSourcePath;
+  var card = __hyloDragSourceCard;
+  var hoverTarget = __hyloDragOverTarget;
+  __hyloDragOverTarget = null;
+  __hyloDragSourcePath = null;
+  if (!target) { if (hoverTarget) hoverTarget.classList.remove('drag-over'); __hyloShakeCard(card, false); return; }
   var targetDir = target.dataset.dropDir;
   var slash = sourcePath.lastIndexOf('/');
   var currentDir = slash <= 0 ? '/' : sourcePath.slice(0, slash);
-  if (currentDir === targetDir) { target.classList.remove('drag-over'); __vaultrShakeCard(card, false); return; }
+  if (currentDir === targetDir) { target.classList.remove('drag-over'); __hyloShakeCard(card, false); return; }
   if (card) { card.classList.remove('is-dragging'); card.classList.add('is-move-pending'); }
   // .drag-over stays through the request itself (its breathing glow doubles
-  // as "still working on it") — __vaultrDragMoveNote swaps it for a receipt
+  // as "still working on it") — __hyloDragMoveNote swaps it for a receipt
   // bounce on success or clears it on failure.
-  void __vaultrDragMoveNote(sourcePath, targetDir, card, target);
+  void __hyloDragMoveNote(sourcePath, targetDir, card, target);
 });
 
 // Plain "that didn't do anything" feedback — dropped outside any folder, or
 // back into the folder the note is already in. rejected=false, no color.
-function __vaultrShakeCard(card, rejected) {
+function __hyloShakeCard(card, rejected) {
   if (!card) return;
   card.classList.remove('is-dragging', 'is-move-pending');
   var cls = rejected ? 'is-move-rejected' : 'is-move-noop';
@@ -1401,7 +1401,7 @@ function __vaultrShakeCard(card, rejected) {
 // reloadActiveSection()'s round trip to do it. Also gives the target a quick
 // receipt bounce. Safe to no-op if either element isn't in the document any
 // more (e.g. the section changed mid-request).
-function __vaultrFlyCardToTarget(card, targetEl) {
+function __hyloFlyCardToTarget(card, targetEl) {
   if (targetEl && targetEl.isConnected) {
     targetEl.classList.remove('drag-over');
     targetEl.classList.add('just-received');
@@ -1424,8 +1424,8 @@ function __vaultrFlyCardToTarget(card, targetEl) {
   setTimeout(remove, 400);
 }
 
-async function __vaultrDragMoveNote(sourcePath, targetDir, card, targetEl) {
-  if (window.__vaultrContentPane) await window.__vaultrContentPane.flushPendingSaveFor(sourcePath);
+async function __hyloDragMoveNote(sourcePath, targetDir, card, targetEl) {
+  if (window.__hyloContentPane) await window.__hyloContentPane.flushPendingSaveFor(sourcePath);
   var resp;
   try {
     resp = await fetch('/api/vault/move', {
@@ -1434,20 +1434,20 @@ async function __vaultrDragMoveNote(sourcePath, targetDir, card, targetEl) {
     });
   } catch (e) {
     if (targetEl) targetEl.classList.remove('drag-over');
-    if (card) { card.classList.remove('is-move-pending'); __vaultrShakeCard(card, true); }
+    if (card) { card.classList.remove('is-move-pending'); __hyloShakeCard(card, true); }
     if (window.showError) window.showError((e && e.message) || 'Network error.', 'Cannot move');
     return;
   }
   if (!resp.ok) {
     if (targetEl) targetEl.classList.remove('drag-over');
-    if (card) { card.classList.remove('is-move-pending'); __vaultrShakeCard(card, true); }
+    if (card) { card.classList.remove('is-move-pending'); __hyloShakeCard(card, true); }
     var msg = (await resp.text()).trim() || 'Move failed.';
     if (window.showError) window.showError(resp.status === 409 ? 'A note already exists at that location.' : msg, 'Cannot move');
     return;
   }
   var data = await resp.json();
-  if (window.__vaultrContentPane) window.__vaultrContentPane.noteMoved(sourcePath, data.path);
-  __vaultrFlyCardToTarget(card, targetEl);
-  if (window.__vaultrAfterVaultMutation) await window.__vaultrAfterVaultMutation();
+  if (window.__hyloContentPane) window.__hyloContentPane.noteMoved(sourcePath, data.path);
+  __hyloFlyCardToTarget(card, targetEl);
+  if (window.__hyloAfterVaultMutation) await window.__hyloAfterVaultMutation();
 }
 

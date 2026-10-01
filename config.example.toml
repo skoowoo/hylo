@@ -4,9 +4,9 @@ host = "127.0.0.1"
 port = 54321
 
 [vault]
-# Root directory of the Vault (Vaultr's personal data store).
+# Root directory of the Vault (Hylo's personal data store).
 # Supports ~ for the home directory.
-path = "~/.vaultr/root"
+path = "~/.hylo/root"
 
 [log]
 level = "info"  # debug | info | warn | error

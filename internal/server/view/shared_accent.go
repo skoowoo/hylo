@@ -44,22 +44,22 @@ var accentPresets = []accentPreset{
 // default preset clears them instead of writing them.
 //
 // The Settings → Appearance "Accent Color" picker stores the preset id under
-// 'vaultr-accent' and calls window.__vaultrApplyAccent. Hover depends on the
-// resolved light/dark theme, so __vaultrApplyTheme re-invokes it, and the
+// 'hylo-accent' and calls window.__hyloApplyAccent. Hover depends on the
+// resolved light/dark theme, so __hyloApplyTheme re-invokes it, and the
 // 'storage' listener keeps other same-origin views (desktop shell) in step.
 var accentBootstrapScript = func() string {
 	presets, _ := json.Marshal(accentPresets)
 	return strings.NewReplacer("__PRESETS__", string(presets), "__DEFAULT__", accentDefaultID).Replace(`  <script>(function(){
   var presets=__PRESETS__;
-  window.__vaultrAccentPresets=presets;
-  var KEY='vaultr-accent',PROPS=['--accent','--accent-rgb','--accent-hov','--accent-text'];
+  window.__hyloAccentPresets=presets;
+  var KEY='hylo-accent',PROPS=['--accent','--accent-rgb','--accent-hov','--accent-text'];
   function isLight(){
     var t=document.documentElement.getAttribute('data-theme');
     if(t==='light')return true;
     if(t==='dark')return false;
     return !!(window.matchMedia&&window.matchMedia('(prefers-color-scheme: light)').matches);
   }
-  window.__vaultrApplyAccent=function(id){
+  window.__hyloApplyAccent=function(id){
     try{
       if(id==null)id=localStorage.getItem(KEY);
       var p=null;
@@ -74,12 +74,12 @@ var accentBootstrapScript = func() string {
         st.setProperty('--accent-hov',light?p.hl:p.hd);
         if(light)st.removeProperty('--accent-text');else st.setProperty('--accent-text',p.td);
       }
-      window.dispatchEvent(new CustomEvent('vaultr:accent'));
+      window.dispatchEvent(new CustomEvent('hylo:accent'));
     }catch(_){}
   };
-  window.__vaultrApplyAccent();
+  window.__hyloApplyAccent();
   window.addEventListener('storage',function(e){
-    if(e.key===KEY)window.__vaultrApplyAccent(e.newValue);
+    if(e.key===KEY)window.__hyloApplyAccent(e.newValue);
   });
 })()</script>`)
 }()

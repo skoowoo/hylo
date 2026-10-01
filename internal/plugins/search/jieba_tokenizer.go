@@ -15,7 +15,7 @@ import (
 
 const jiebaTokenizerName = "jieba"
 
-// jiebaDictFS embeds the cppjieba dictionary files into the Vaultr binary.
+// jiebaDictFS embeds the cppjieba dictionary files into the Hylo binary.
 //
 // gojieba.NewJieba() with no arguments resolves dictionary paths relative to
 // the source file location recorded at *compile* time (via runtime.Caller),
@@ -52,7 +52,7 @@ func initJieba() error {
 }
 
 // extractJiebaDicts writes the embedded dictionary files to a stable
-// directory under the user's home (~/.vaultr/jieba-dict/) and returns their
+// directory under the user's home (~/.hylo/jieba-dict/) and returns their
 // paths in the order gojieba.NewJieba expects:
 // dict, hmm, user dict, idf, stop words. Files already present with the
 // expected size are left untouched.
@@ -63,7 +63,7 @@ func extractJiebaDicts() ([5]string, error) {
 	if err != nil {
 		return paths, err
 	}
-	destDir := filepath.Join(home, ".vaultr", "jieba-dict")
+	destDir := filepath.Join(home, ".hylo", "jieba-dict")
 	if err := os.MkdirAll(destDir, 0o755); err != nil {
 		return paths, err
 	}

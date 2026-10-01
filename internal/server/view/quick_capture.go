@@ -6,10 +6,10 @@ import "net/http"
 // Alt+Shift+C shortcut) as a plain, framework-free page — no Tailwind/
 // Alpine/HTMX, since quickCaptureJS is vanilla DOM code with no reactive
 // state. themeBootstrapScript/accentBootstrapScript are included (both are
-// pure localStorage/matchMedia, no window.vaultrDesktop dependency) so the
+// pure localStorage/matchMedia, no window.hyloDesktop dependency) so the
 // panel picks up the user's in-app theme/accent choice instead of only the
 // OS prefers-color-scheme; electronBootstrapScript/electronShellSafeReloadScript
-// are skipped since both branch on window.vaultrDesktop, which this panel's
+// are skipped since both branch on window.hyloDesktop, which this panel's
 // preload (quick-capture/preload.js, exposing only window.quickCapture)
 // doesn't provide.
 //

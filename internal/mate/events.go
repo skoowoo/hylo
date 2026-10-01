@@ -3,7 +3,7 @@ package mate
 import (
 	"time"
 
-	"github.com/hardhacker/vaultr/internal/plugin"
+	"github.com/hardhacker/hylo/internal/plugin"
 )
 
 // MateEventType is a high-level semantic event exposed to trigger matching.

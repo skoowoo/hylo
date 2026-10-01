@@ -1,6 +1,6 @@
 const { app, BaseWindow, WebContentsView, shell, ipcMain, nativeImage, nativeTheme, Menu, dialog, Notification } = require("electron");
 
-app.setName("Vaultr");
+app.setName("Hylo");
 
 // Single-instance guard. Without this, anything that asks macOS to
 // (re)launch this exact app — a stray `open -b <bundleId>` (this is what a
@@ -395,7 +395,7 @@ function createWindow() {
     height: 960,
     minWidth: 960,
     minHeight: 640,
-    title: "Vaultr",
+    title: "Hylo",
     // On macOS the window itself supplies a native vibrant (blurred,
     // see-through-to-other-windows) fill instead of a flat colour; home.css's
     // html.macos rules leave the sidebar transparent so this actually shows
@@ -464,10 +464,10 @@ async function syncVaultDataAcrossSectionViews() {
     if (wc.isDestroyed()) continue;
     try {
       // Returns 'reload' | 'custom' | 'skip'.
-      // If the page defines __vaultrBackgroundRefresh, call it instead of wc.reload().
+      // If the page defines __hyloBackgroundRefresh, call it instead of wc.reload().
       const action = await wc.executeJavaScript(`(function(){
-        if(!window.__vaultrShellSafeForBackgroundReload||!window.__vaultrShellSafeForBackgroundReload())return'skip';
-        if(typeof window.__vaultrBackgroundRefresh==='function'){window.__vaultrBackgroundRefresh();return'custom';}
+        if(!window.__hyloShellSafeForBackgroundReload||!window.__hyloShellSafeForBackgroundReload())return'skip';
+        if(typeof window.__hyloBackgroundRefresh==='function'){window.__hyloBackgroundRefresh();return'custom';}
         return'reload';
       })()`, true);
       if (action === 'reload') { wc.reload(); reloaded.push(section); }
@@ -517,7 +517,7 @@ function scheduleSyncVaultDataAcrossSectionViews() {
 }
 
 // Reload each section WebContentsView whose page reports it is safe to full-reload
-// (see window.__vaultrShellSafeForBackgroundReload in server HTML).
+// (see window.__hyloShellSafeForBackgroundReload in server HTML).
 ipcMain.handle("sync-vault-data-across-sections", () => {
   return scheduleSyncVaultDataAcrossSectionViews();
 });
@@ -559,7 +559,7 @@ ipcMain.on("set-view-bg-color", (event, color, theme) => {
   // so their HTML is already correct when they are next made visible.
   //
   // `theme` is exactly the data-theme value shared_theme.go's
-  // window.__vaultrApplyTheme just set on the originating view: 'light',
+  // window.__hyloApplyTheme just set on the originating view: 'light',
   // 'dark', or '' for auto (attribute removed, bare :root default +
   // prefers-color-scheme fallback takes over). Passed through as-is rather
   // than re-derived from `color`, since color alone can't distinguish an
@@ -621,7 +621,7 @@ function buildAppMenu() {
           registerAccelerator: false,
           click: () => {
             const wc = getActiveWebContents();
-            if (wc) wc.executeJavaScript("window.__vaultrUndo && window.__vaultrUndo()").catch(() => { });
+            if (wc) wc.executeJavaScript("window.__hyloUndo && window.__hyloUndo()").catch(() => { });
           },
         },
         {
@@ -630,7 +630,7 @@ function buildAppMenu() {
           registerAccelerator: false,
           click: () => {
             const wc = getActiveWebContents();
-            if (wc) wc.executeJavaScript("window.__vaultrRedo && window.__vaultrRedo()").catch(() => { });
+            if (wc) wc.executeJavaScript("window.__hyloRedo && window.__hyloRedo()").catch(() => { });
           },
         },
         { type: "separator" },
@@ -658,7 +658,7 @@ app.whenReady().then(() => {
     try {
       app.dock.setIcon(dockIconPath);
     } catch (e) {
-      console.error("[vaultr-shell] app.dock.setIcon failed:", e);
+      console.error("[hylo-shell] app.dock.setIcon failed:", e);
     }
   }
 
@@ -668,12 +668,12 @@ app.whenReady().then(() => {
   // Install bundled CLI to system PATH in the background — does not block window startup.
   // On a real upgrade (not skipped), kill the old running server so the start screen's
   // auto-restart loop picks up the new binary.
-  installCli((msg) => console.error("[vaultr-shell]", msg))
+  installCli((msg) => console.error("[hylo-shell]", msg))
     .then(async (r) => {
-      if (!r.ok) { console.error("[vaultr-shell] cli auto-install failed:", r.error); return; }
+      if (!r.ok) { console.error("[hylo-shell] cli auto-install failed:", r.error); return; }
       if (!r.skipped) await serverManager.restartServerAfterCliUpdate();
     })
-    .catch((e) => console.error("[vaultr-shell] cli auto-install threw:", e));
+    .catch((e) => console.error("[hylo-shell] cli auto-install threw:", e));
 
   app.on("activate", () => {
     if (!win || win.isDestroyed()) {
@@ -689,7 +689,7 @@ app.whenReady().then(() => {
   });
 
   // 'activate' only fires for a Dock-icon click / relaunch. Switching to
-  // Vaultr via ⌘-Tab (or any other way of activating the app) doesn't go
+  // Hylo via ⌘-Tab (or any other way of activating the app) doesn't go
   // through that at all — it needs this separate, broader event instead.
   // Guarded on !isCapturePanelOpen(): the capture panel intentionally hides
   // this window while it's open (see quick-capture.js), and an activation

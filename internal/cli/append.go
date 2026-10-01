@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/hardhacker/vaultr/internal/util"
+	"github.com/hardhacker/hylo/internal/util"
 	"github.com/spf13/cobra"
 )
 
@@ -21,9 +21,9 @@ func newAppendCmd() *cobra.Command {
 <path> is a vault-absolute path starting with "/" (e.g. /journal/today.md).
 If [heading] is given, content is appended after that section (case-insensitive match).
 Content can be provided via --content or stdin.`,
-		Example: `  vaultr append /journal/today.md --content "## Evening"
-  vaultr append /journal/today.md "## Morning" --content "- woke up early"
-  echo "- buy milk" | vaultr append /shopping.md`,
+		Example: `  hylo append /journal/today.md --content "## Evening"
+  hylo append /journal/today.md "## Morning" --content "- woke up early"
+  echo "- buy milk" | hylo append /shopping.md`,
 		Args:         cobra.RangeArgs(1, 2),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {

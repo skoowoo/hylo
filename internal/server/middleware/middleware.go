@@ -47,7 +47,7 @@ func Logger(logger *slog.Logger) func(http.Handler) http.Handler {
 	}
 }
 
-// Authenticator requires a valid X-Vaultr-API-Key header if apiKey is set.
+// Authenticator requires a valid X-Hylo-API-Key header if apiKey is set.
 func Authenticator(apiKey string, logger *slog.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -58,7 +58,7 @@ func Authenticator(apiKey string, logger *slog.Logger) func(http.Handler) http.H
 			}
 
 			if apiKey != "" {
-				token := r.Header.Get("X-Vaultr-API-Key")
+				token := r.Header.Get("X-Hylo-API-Key")
 				if token == "" || token != apiKey {
 					logger.Warn("unauthorized request",
 						"remote_addr", r.RemoteAddr,

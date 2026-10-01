@@ -24,7 +24,7 @@ related_notes:
   - /foo/bar-note-eleven.md
 ---
 
-# Vaultr Live Preview 架构 POC
+# Hylo Live Preview 架构 POC
 
 这段文字包含 **加粗**、*斜体*、~~删除线~~ 和 \`行内代码\`，用来验证光标进入/离开节点时标记符号的隐藏与还原（把光标点进任意一处试试）。
 
@@ -108,7 +108,7 @@ const view = new EditorView({
         resolveImageSrc: (filename) =>
           'https://placehold.co/320x160?text=' + encodeURIComponent(filename), // stand-in for /api/images/serve?name=...
         onWikiLinkClick: (target, alias) => {
-          // Phase 3: replace this log with window.__vaultrContentPaneOpenWikiLink(target).
+          // Phase 3: replace this log with window.__hyloContentPaneOpenWikiLink(target).
           logEvent('wikilink click → target="' + target + '" alias="' + (alias ?? '') + '"');
         },
         // Stand-in for content_pane.js's dialog (frontmatter_dialog.html/js) —

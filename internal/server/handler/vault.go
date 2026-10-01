@@ -6,7 +6,7 @@ import (
 	"path"
 	"strings"
 
-	"github.com/hardhacker/vaultr/internal/storage"
+	"github.com/hardhacker/hylo/internal/storage"
 )
 
 // VaultHandler serves REST operations on vault paths.

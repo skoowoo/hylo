@@ -51,7 +51,7 @@ Set `created_at` and `last_compiled_at` to today. `compile_count: 1`.
 Before assigning tags, run:
 
 ```bash
-vaultr tag list
+hylo tag list
 ```
 
 First determine the tags that accurately describe the unit. Then, for each tag, check the existing list for a semantically equivalent entry (same concept, different language or spelling — e.g. `独立开发` ↔ `indie-dev`). If one exists, replace your tag with it. Only keep a new tag when no equivalent exists.

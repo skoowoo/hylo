@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/hardhacker/vaultr/internal/mate"
+	"github.com/hardhacker/hylo/internal/mate"
 )
 
 // MateAPI handles /api/mates endpoints.

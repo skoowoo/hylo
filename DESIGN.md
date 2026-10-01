@@ -1,7 +1,7 @@
 ---
 version: 1.0
-name: Vaultr-design-system
-description: "Vaultr's own dark-first UI system: a near-black canvas (#08080b), soft-white ink, and a single lavender-blue accent (#5e6ad2) used scarcely — primary actions, focus rings, selected-state text, link emphasis. Depth comes from a surface ladder (bg → surface-soft → surface-2) and hairline borders, not shadows, except for a small set of floating layers (dialogs, popovers, the search overlay) that opt into a restrained lift-off shadow. Inter carries every weight of text, chrome-density type scale, tuned for a dense notes/agent app rather than a marketing page. A theme-invariant four-color identity palette marks people/entities; three semantic colors (ok/err/warn) mark status."
+name: Hylo-design-system
+description: "Hylo's own dark-first UI system: a near-black canvas (#08080b), soft-white ink, and a single lavender-blue accent (#5e6ad2) used scarcely — primary actions, focus rings, selected-state text, link emphasis. Depth comes from a surface ladder (bg → surface-soft → surface-2) and hairline borders, not shadows, except for a small set of floating layers (dialogs, popovers, the search overlay) that opt into a restrained lift-off shadow. Inter carries every weight of text, chrome-density type scale, tuned for a dense notes/agent app rather than a marketing page. A theme-invariant four-color identity palette marks people/entities; three semantic colors (ok/err/warn) mark status."
 
 colors:
   accent: "#5e6ad2"
@@ -212,13 +212,13 @@ components:
 
 ## Overview
 
-Vaultr's UI runs on a near-black canvas (`{colors.bg-dark}` #08080b — lifted just off true black to avoid a flat, harsh void) with soft-white ink (`{colors.fg-dark}` #eef0f4) and a single chromatic accent, lavender-blue (`{colors.accent}` #5e6ad2). The accent is scarce by design: primary actions, focus rings, list/tab selected-state text, and link emphasis — never a section background or card fill.
+Hylo's UI runs on a near-black canvas (`{colors.bg-dark}` #08080b — lifted just off true black to avoid a flat, harsh void) with soft-white ink (`{colors.fg-dark}` #eef0f4) and a single chromatic accent, lavender-blue (`{colors.accent}` #5e6ad2). The accent is scarce by design: primary actions, focus rings, list/tab selected-state text, and link emphasis — never a section background or card fill.
 
 Depth is carried almost entirely by a **surface ladder** (`--bg` → `--surface-soft` → `--surface-2`) plus 1px hairline borders, not box-shadow. The one deliberate exception is a small set of floating layers — confirm/info dialogs, the settings modal, the search overlay, drawer popovers — which opt into a restrained lift-off shadow (`--shadow-{xs,sm,md,lg}` paired with `--shadow-color`) so a card reads as "off the surface" rather than a flat bordered rectangle. Everything else stays flat.
 
 Inter carries every weight of text, from modal titles down to 10px meta labels — there is no separate display/body family split; the type scale is tuned for a dense, chrome-heavy product (notes list, agent chat, graph, image grid) rather than a marketing page, so it tops out around 22px rather than a hero-sized display cut. JetBrains Mono covers code blocks and inline code.
 
-Dark is the shipped default (bare `:root`). Light is Vaultr's own from-scratch adaptation of the same hue/radius/spacing system — cool near-neutral grays, not a warm cream/pure-black pairing — kept alive because a notes app (unlike a marketing page) needs a comfortable reading surface in bright rooms. The theme toggle (light/dark/auto) lives in Settings → Editor and is applied via `data-theme` on `<html>`, with an `auto` mode that follows the OS `prefers-color-scheme` live.
+Dark is the shipped default (bare `:root`). Light is Hylo's own from-scratch adaptation of the same hue/radius/spacing system — cool near-neutral grays, not a warm cream/pure-black pairing — kept alive because a notes app (unlike a marketing page) needs a comfortable reading surface in bright rooms. The theme toggle (light/dark/auto) lives in Settings → Editor and is applied via `data-theme` on `<html>`, with an `auto` mode that follows the OS `prefers-color-scheme` live.
 
 **Key Characteristics:**
 - **Dark-first, near-black canvas** (`{colors.bg-dark}` #08080b) with a from-scratch light counterpart, not an afterthought palette swap.

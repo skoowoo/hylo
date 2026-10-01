@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hardhacker/vaultr/internal/util"
+	"github.com/hardhacker/hylo/internal/util"
 )
 
 // PathParts splits a vault-absolute path into (dir, name).

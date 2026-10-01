@@ -5,8 +5,8 @@ import (
 	"io"
 	"strings"
 
-	"github.com/hardhacker/vaultr/internal/client"
-	"github.com/hardhacker/vaultr/internal/util"
+	"github.com/hardhacker/hylo/internal/client"
+	"github.com/hardhacker/hylo/internal/util"
 	"github.com/spf13/cobra"
 	"github.com/yuin/goldmark/ast"
 )
@@ -22,8 +22,8 @@ func newExtractCmd() *cobra.Command {
 	outlineCmd := &cobra.Command{
 		Use:   "outline <path-or-name>",
 		Short: "Print the heading outline of a note",
-		Example: `  vaultr extract outline /journal/2026/today.md
-  vaultr extract outline today.md`,
+		Example: `  hylo extract outline /journal/2026/today.md
+  hylo extract outline today.md`,
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -38,8 +38,8 @@ func newExtractCmd() *cobra.Command {
 		Long: `Extract a named section from a note.
 
 <heading> is matched case-insensitively. The section ends at the next heading of the same or higher level.`,
-		Example: `  vaultr extract section /journal/today.md "Goals"
-  vaultr extract section today.md "## meeting notes"`,
+		Example: `  hylo extract section /journal/today.md "Goals"
+  hylo extract section today.md "## meeting notes"`,
 		Args:         cobra.ExactArgs(2),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -50,7 +50,7 @@ func newExtractCmd() *cobra.Command {
 	codeCmd := &cobra.Command{
 		Use:          "code <path-or-name>",
 		Short:        "Extract all fenced code blocks from a markdown note",
-		Example:      "  vaultr extract code /notes/recipe.md\n  vaultr extract code snippet.md",
+		Example:      "  hylo extract code /notes/recipe.md\n  hylo extract code snippet.md",
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -61,7 +61,7 @@ func newExtractCmd() *cobra.Command {
 	linkCmd := &cobra.Command{
 		Use:   "link <path-or-name>",
 		Short: "Extract all links from a note",
-		Example:      "  vaultr extract link /notes/research.md\n  vaultr extract link research.md",
+		Example:      "  hylo extract link /notes/research.md\n  hylo extract link research.md",
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -72,7 +72,7 @@ func newExtractCmd() *cobra.Command {
 	listCmd := &cobra.Command{
 		Use:          "list <path-or-name>",
 		Short:        "Extract all lists from a markdown note",
-		Example:      "  vaultr extract list /notes/todo.md\n  vaultr extract list todo.md",
+		Example:      "  hylo extract list /notes/todo.md\n  hylo extract list todo.md",
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -92,9 +92,9 @@ func newExtractCmd() *cobra.Command {
 		Long: `Extract lines from a note by range.
 
 Use --head N, --tail N, or --start/--end for a specific line range (1-based, inclusive).`,
-		Example: `  vaultr extract segment /notes/today.md --head 10
-  vaultr extract segment today.md --tail 5
-  vaultr extract segment today.md --start 3 --end 12`,
+		Example: `  hylo extract segment /notes/today.md --head 10
+  hylo extract segment today.md --tail 5
+  hylo extract segment today.md --start 3 --end 12`,
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -109,8 +109,8 @@ Use --head N, --tail N, or --start/--end for a specific line range (1-based, inc
 	tagCmd := &cobra.Command{
 		Use:   "tag <path-or-name>",
 		Short: "Print tags from a note's front matter",
-		Example: `  vaultr extract tag /notes/article.md
-  vaultr extract tag article.md`,
+		Example: `  hylo extract tag /notes/article.md
+  hylo extract tag article.md`,
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {

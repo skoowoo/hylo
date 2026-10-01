@@ -1,6 +1,6 @@
 
   function infoDialogCtrl() {
-    return window.vaultrOverlay('info', {
+    return window.hyloOverlay('info', {
       title: '',
       bodyHTML: '',
       closeLabel: 'Got it',

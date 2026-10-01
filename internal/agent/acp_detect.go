@@ -76,7 +76,7 @@ func DetectACPModels(ctx context.Context, o ACPDetectOpts) ([]ModelOption, error
 		o.DefaultOption = DefaultModelOption
 	}
 	if o.ClientName == "" {
-		o.ClientName = "vaultr-detect"
+		o.ClientName = "hylo-detect"
 	}
 	if o.ClientVersion == "" {
 		o.ClientVersion = "agent"

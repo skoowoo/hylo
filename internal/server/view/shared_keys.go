@@ -4,20 +4,20 @@ package view
 // It sets up two capture-phase listeners so both run before any element
 // handler and fire regardless of which element currently has focus.
 //
-// Global hotkeys — window.__vaultrHotkeys
+// Global hotkeys — window.__hyloHotkeys
 //   Features register shortcuts via .register(id, key, fn) and remove them
 //   with .unregister(id). Last-registered wins when two entries share a key.
 //   Handlers own their own open/close state; this registry just dispatches.
 //
-// ESC stack — window.__vaultrEscPush / __vaultrEscPop
+// ESC stack — window.__hyloEscPush / __hyloEscPop
 //   Overlays push a named closer when they open and pop it when they close.
 //   Escape dismisses only the topmost entry (strict LIFO order).
 //
-// Overlay base — window.vaultrOverlay(escId, extra)
+// Overlay base — window.hyloOverlay(escId, extra)
 //   Shared Alpine x-data factory for every dialog/overlay (confirm, info,
 //   short note, …): bundles an `open` flag with the ESC-stack bookkeeping so
 //   a dialog can't leave a stale entry on the stack by forgetting to call
-//   __vaultrEscPush/Pop by hand. openOverlay()/closeOverlay() always move
+//   __hyloEscPush/Pop by hand. openOverlay()/closeOverlay() always move
 //   both together; extra's own methods are merged on top and may still read/
 //   write `open` directly for cases (e.g. an animated close) where hiding
 //   needs to lag behind the ESC-stack pop.
@@ -26,7 +26,7 @@ const keysJS = `
     var _isMac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
     var _reg = [];
     var _rawReg = [];
-    window.__vaultrHotkeys = {
+    window.__hyloHotkeys = {
       isMac: _isMac,
       register: function(id, key, fn) {
         _reg = _reg.filter(function(r) { return r.id !== id; });
@@ -63,14 +63,14 @@ const keysJS = `
 
   (function() {
     var _stk = [];
-    window.__vaultrEscPush = function(id, fn) {
+    window.__hyloEscPush = function(id, fn) {
       _stk = _stk.filter(function(e) { return e.id !== id; });
       _stk.push({ id: id, close: fn });
     };
-    window.__vaultrEscPop = function(id) {
+    window.__hyloEscPop = function(id) {
       _stk = _stk.filter(function(e) { return e.id !== id; });
     };
-    window.__vaultrAnyModalOpen = function() { return _stk.length > 0; };
+    window.__hyloAnyModalOpen = function() { return _stk.length > 0; };
     document.addEventListener('keydown', function(e) {
       if (e.key !== 'Escape' || !_stk.length) return;
       e.preventDefault();
@@ -79,19 +79,19 @@ const keysJS = `
     }, true);
   })();
 
-  window.vaultrOverlay = function(escId, extra) {
+  window.hyloOverlay = function(escId, extra) {
     var base = {
       open: false,
       openOverlay: function(onEscClose) {
         this.open = true;
         var self = this;
-        if (window.__vaultrEscPush) {
-          window.__vaultrEscPush(escId, onEscClose || function() { self.closeOverlay(); });
+        if (window.__hyloEscPush) {
+          window.__hyloEscPush(escId, onEscClose || function() { self.closeOverlay(); });
         }
       },
       closeOverlay: function() {
         this.open = false;
-        if (window.__vaultrEscPop) window.__vaultrEscPop(escId);
+        if (window.__hyloEscPop) window.__hyloEscPop(escId);
       },
     };
     for (var k in extra) base[k] = extra[k];

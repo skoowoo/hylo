@@ -87,15 +87,15 @@ func newSkillsAddCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "add <github-url>",
 		Short: "Install a skill from a GitHub repository",
-		Long: `Install a skill from a GitHub repository into ~/.vaultr/skills/.
+		Long: `Install a skill from a GitHub repository into ~/.hylo/skills/.
 
 The repository URL can be a full HTTPS URL or the shorthand owner/repo form.
 --skill is required and sets the local directory name for the installed skill.
 The skill directory inside the repository is discovered automatically.
 
 Examples:
-  vaultr skills add https://github.com/hardhackerlabs/podwise-cli --skill podwise
-  vaultr skills add hardhackerlabs/podwise-cli --skill podwise`,
+  hylo skills add https://github.com/hardhackerlabs/podwise-cli --skill podwise
+  hylo skills add hardhackerlabs/podwise-cli --skill podwise`,
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -113,7 +113,7 @@ Examples:
 			if err := c.SkillsInstall(repoURL, "", skillName); err != nil {
 				return err
 			}
-			fmt.Printf("Skill %q installed to ~/.vaultr/skills/%s\n", skillName, skillName)
+			fmt.Printf("Skill %q installed to ~/.hylo/skills/%s\n", skillName, skillName)
 			return nil
 		},
 	}
