@@ -35,8 +35,28 @@ type shortsStreamPageData struct {
 }
 
 type shortRenderedEntry struct {
-	Time string
-	HTML template.HTML
+	Time   string
+	HTML   template.HTML
+	Images []imageItem // attachments, rendered as a grid below HTML — see resolveShortImages
+}
+
+// resolveShortImages looks up attachment metadata (for the lightbox's
+// data-img-* attributes — same imageItem the /images gallery uses) for each
+// ![[name]] embed a short carries. Names that don't resolve (deleted since
+// the short was saved) are silently dropped rather than shown broken.
+func (vh *ViewHandler) resolveShortImages(names []string) []imageItem {
+	if len(names) == 0 {
+		return nil
+	}
+	items := make([]imageItem, 0, len(names))
+	for _, name := range names {
+		imgs, err := vh.vault.GetImagesByName(name)
+		if err != nil || len(imgs) == 0 {
+			continue
+		}
+		items = append(items, imageItemFrom(imgs[0]))
+	}
+	return items
 }
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
@@ -80,9 +100,10 @@ func (vh *ViewHandler) loadStreamGroups(before time.Time, limit int) ([]shortsSt
 
 	for _, e := range entries {
 		content := stripShortContent(e.Content)
-		rendered, renderErr := util.MarkdownToHTMLFragment([]byte(content))
+		text, imageNames := util.ExtractShortImages([]byte(content))
+		rendered, renderErr := util.MarkdownToHTMLFragment(text)
 		if renderErr != nil {
-			rendered = []byte(template.HTMLEscapeString(content))
+			rendered = []byte(template.HTMLEscapeString(string(text)))
 		}
 
 		date := e.CreatedAt.Format("2006-01-02")
@@ -101,8 +122,9 @@ func (vh *ViewHandler) loadStreamGroups(before time.Time, limit int) ([]shortsSt
 			})
 		}
 		groups[idx].Entries = append(groups[idx].Entries, shortRenderedEntry{
-			Time: e.CreatedAt.Format("15:04"),
-			HTML: template.HTML(rendered), //nolint:gosec // server-rendered markdown
+			Time:   e.CreatedAt.Format("15:04"),
+			HTML:   template.HTML(rendered), //nolint:gosec // server-rendered markdown
+			Images: vh.resolveShortImages(imageNames),
 		})
 	}
 

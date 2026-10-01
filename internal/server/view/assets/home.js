@@ -103,6 +103,24 @@ window.openImageLightbox = function (el) {
   });
 };
 
+// ── Shorts composer: clipboard image extraction ────────────────────────────
+// Like editor_session.js's __vaultrEditorFindImageFile, but collects every
+// image file in the clipboard instead of just the first — a short's
+// composer accepts pasting several images at once (e.g. copying multiple
+// files in Finder), unlike the note editor's single inline-insert paste.
+function __vaultrImageFilesFromClipboard(dt) {
+  if (!dt) return [];
+  var items = Array.from(dt.items || []);
+  var files = [];
+  for (var i = 0; i < items.length; i++) {
+    if (items[i].kind === 'file' && items[i].type.indexOf('image/') === 0) {
+      var f = items[i].getAsFile();
+      if (f) files.push(f);
+    }
+  }
+  return files;
+}
+
 function extToType(ext) {
   var m = {
     '.jpg': 'JPEG Image', '.jpeg': 'JPEG Image', '.png': 'PNG Image',
@@ -184,6 +202,11 @@ function homeCtrl() {
     // ── Shorts: inline composer (replaces the old short_dialog.js overlay) ──
     shortComposeText: '',
     shortComposeSaving: false,
+    // Attachments, uploaded out-of-band of typed text (Weibo/Twitter-style —
+    // order in shortComposeText never matters, see saveShortCompose). Each:
+    // {id, name, previewUrl (local, for instant feedback), src (server path
+    // once uploaded), uploading, failed}.
+    shortComposeImages: [],
     init() {
       this.initContentPane();
       window._homeData = this;
@@ -962,21 +985,82 @@ function homeCtrl() {
         void this.saveShortCompose();
       }
     },
+    // Only intercepts the paste when it actually carries image file(s) —
+    // a plain text paste (the common case) falls through untouched.
+    handleShortComposePaste(e) {
+      var files = __vaultrImageFilesFromClipboard(e.clipboardData);
+      if (!files.length) return;
+      e.preventDefault();
+      files.forEach((f) => this.addShortComposeImage(f));
+    },
+    handleShortComposeFilePick(e) {
+      var files = Array.from((e.target && e.target.files) || []);
+      files.forEach((f) => { if (f.type.indexOf('image/') === 0) this.addShortComposeImage(f); });
+      e.target.value = ''; // same file re-pickable next time
+    },
+    addShortComposeImage(file) {
+      var item = {
+        id: 'si-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
+        name: file.name || 'image',
+        previewUrl: URL.createObjectURL(file),
+        src: '',
+        uploading: true,
+        failed: false,
+      };
+      this.shortComposeImages.push(item);
+      // Mutate the item through this.shortComposeImages, not the closed-over
+      // `item` var — that still points at the plain object from before the
+      // push, and writing to it directly bypasses Alpine's reactive proxy
+      // (silently — no error, the data really does change), so x-show on
+      // img.uploading never re-renders and the spinner never stops.
+      __vaultrEditorUploadImage(file).then((src) => {
+        var cur = this.shortComposeImages.find((i) => i.id === item.id);
+        if (!cur) return; // removed while the upload was still in flight
+        cur.src = src;
+        cur.name = src.split('/').pop();
+        cur.uploading = false;
+      }).catch((err) => {
+        var cur = this.shortComposeImages.find((i) => i.id === item.id);
+        if (cur) { cur.uploading = false; cur.failed = true; }
+        window.showError((err && err.message) || 'Image upload failed.', 'Upload error');
+      });
+    },
+    removeShortComposeImage(id) {
+      var idx = this.shortComposeImages.findIndex((i) => i.id === id);
+      if (idx < 0) return;
+      if (this.shortComposeImages[idx].previewUrl) URL.revokeObjectURL(this.shortComposeImages[idx].previewUrl);
+      this.shortComposeImages.splice(idx, 1);
+    },
     async saveShortCompose() {
       var text = this.shortComposeText.trim();
-      if (!text || this.shortComposeSaving) return;
+      var images = this.shortComposeImages.filter((i) => i.src && !i.failed);
+      if ((!text && !images.length) || this.shortComposeSaving) return;
+      if (this.shortComposeImages.some((i) => i.uploading)) {
+        window.showError('Images are still uploading — hang on a moment.', 'Please wait');
+        return;
+      }
       this.shortComposeSaving = true;
       try {
+        // Images are stored as trailing wikilinks regardless of where they
+        // were attached — rendering (shorts.go's ExtractShortImages) always
+        // shows text first and images in a grid below, Weibo/Twitter-style.
+        var content = text;
+        if (images.length) {
+          var wikilinks = images.map((i) => '![[' + i.name + ']]').join('\n');
+          content = content ? content + '\n\n' + wikilinks : wikilinks;
+        }
         var resp = await fetch('/api/vault/shorts', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ content: text }),
+          body: JSON.stringify({ content: content }),
         });
         if (!resp.ok) {
           var msg = await resp.text();
           throw new Error(msg || 'Save failed');
         }
         this.shortComposeText = '';
+        this.shortComposeImages.forEach((i) => { if (i.previewUrl) URL.revokeObjectURL(i.previewUrl); });
+        this.shortComposeImages = [];
         if (window.__vaultrAfterVaultMutation) await window.__vaultrAfterVaultMutation();
       } catch (err) {
         window.showError('Failed to save: ' + (err && err.message ? err.message : String(err)), 'Save failed');

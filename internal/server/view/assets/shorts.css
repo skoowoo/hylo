@@ -73,9 +73,15 @@
     .shorts-compose-footer {
       display: flex;
       align-items: center;
-      justify-content: flex-end;
+      justify-content: space-between;
       gap: var(--space-sm);
       padding: var(--space-xs) var(--space-md) var(--space-sm);
+    }
+
+    .shorts-compose-footer-right {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
     }
 
     .shorts-compose-hint {
@@ -84,6 +90,75 @@
       user-select: none;
       white-space: nowrap;
     }
+
+    /* ── Attach-image button + hidden file input ─────────────────────
+       Same ghost-icon treatment as .icon-btn-ghost (base.css) but sized to
+       sit flush in this footer's compact row instead of that class's fixed
+       32px box. */
+    .shorts-compose-file-input { display: none; }
+    .shorts-compose-attach {
+      display: flex; align-items: center; justify-content: center;
+      width: var(--btn-h-xs); height: var(--btn-h-xs);
+      background: transparent; color: var(--muted);
+      border: none; border-radius: var(--r-sm);
+      cursor: pointer;
+      transition: background-color var(--motion-fast), color var(--motion-fast);
+    }
+    .shorts-compose-attach svg { width: 15px; height: 15px; flex-shrink: 0; }
+    .shorts-compose-attach:hover:not(:disabled) { background: var(--icon-hov); color: var(--fg); }
+    .shorts-compose-attach:disabled { opacity: 0.35; cursor: not-allowed; }
+
+    /* ── Composer image attachments — thumbnail strip between the text
+       field and the footer. Pasted/picked images upload immediately
+       (shortComposeImages in home.js); order here never affects the saved
+       note, since they're appended as trailing wikilinks regardless. ── */
+    .shorts-compose-images {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-xs);
+      padding: 0 var(--space-md) var(--space-xs);
+    }
+    .shorts-compose-img {
+      position: relative;
+      width: 56px; height: 56px;
+      border-radius: var(--r-md);
+      overflow: hidden;
+      background: var(--surface-soft);
+      flex-shrink: 0;
+    }
+    .shorts-compose-img img {
+      width: 100%; height: 100%; object-fit: cover; display: block;
+      transition: opacity var(--motion-fast);
+    }
+    .shorts-compose-img.is-uploading img { opacity: 0.45; }
+    .shorts-compose-img.is-failed { outline: var(--bd-w) solid var(--s-err-bd); }
+    .shorts-compose-img.is-failed img { opacity: 0.45; }
+
+    .shorts-compose-img-spin {
+      position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(0,0,0,0.25);
+    }
+    .shorts-compose-img-spin::after {
+      content: ''; width: 16px; height: 16px;
+      border: 2px solid #fff; border-top-color: transparent;
+      border-radius: var(--r-full);
+      animation: shorts-img-spin 0.7s linear infinite;
+    }
+    @keyframes shorts-img-spin { to { transform: rotate(360deg); } }
+
+    .shorts-compose-img-remove {
+      position: absolute; top: 2px; right: 2px;
+      width: 16px; height: 16px;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(0,0,0,0.55); color: #fff;
+      border: none; border-radius: var(--r-full);
+      cursor: pointer; padding: 0;
+      opacity: 0.85;
+      transition: opacity var(--motion-fast);
+    }
+    .shorts-compose-img-remove:hover { opacity: 1; }
+    .shorts-compose-img-remove svg { width: 9px; height: 9px; flex-shrink: 0; }
 
     .shorts-compose-send {
       height: var(--btn-h-xs);
@@ -162,6 +237,51 @@
       text-transform: uppercase;
       color: var(--muted);
       margin: 0.7em 0 0.2em;
+    }
+
+    /* ── Entry image attachments — a Weibo/Twitter-style grid below the
+       text, independent of where ![[...]] sits in the stored markdown
+       (shorts.go's ExtractShortImages always pulls images out and renders
+       them here). A lone image keeps its own aspect ratio, capped in
+       height; two or more fall into equal square tiles, three per row,
+       wrapping into further rows past six — deliberately not a fixed
+       1/2/3/4-cell Twitter layout, to keep this simple for an unbounded
+       photo count. */
+    .shorts-img-grid {
+      margin-top: var(--space-sm);
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 3px;
+      border-radius: var(--r-lg);
+      overflow: hidden;
+    }
+    .shorts-img-cell {
+      position: relative;
+      aspect-ratio: 1 / 1;
+      overflow: hidden;
+      background: var(--surface-soft);
+      cursor: pointer;
+    }
+    .shorts-img-cell img {
+      width: 100%; height: 100%; object-fit: cover; display: block;
+      transition: filter var(--motion-fast);
+    }
+    .shorts-img-cell:hover img { filter: brightness(0.92); }
+
+    .shorts-img-grid--one {
+      display: block;
+      border-radius: 0; /* the single cell below carries its own radius */
+    }
+    .shorts-img-grid--one .shorts-img-cell {
+      aspect-ratio: auto;
+      width: fit-content;
+      max-width: 100%;
+      border-radius: var(--r-lg);
+    }
+    .shorts-img-grid--one .shorts-img-cell img {
+      width: auto; height: auto;
+      max-width: 100%; max-height: 320px;
+      display: block;
     }
 
     /* ── Load more ────────────────────────────────────── */

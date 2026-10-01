@@ -8,6 +8,18 @@
       <span class="shorts-entry-time">{{.Time}}</span>
     </div>
     <div class="prose shorts-entry-prose">{{.HTML}}</div>
+    {{if .Images}}
+    <div class="shorts-img-grid{{if eq (len .Images) 1}} shorts-img-grid--one{{end}}">
+      {{range .Images}}
+      <div class="shorts-img-cell" onclick="openImageLightbox(this)"
+           data-img-src="{{.ThumbURL}}" data-img-name="{{.Name}}" data-img-dir="{{.Dir}}"
+           data-img-size="{{.Size}}" data-img-time="{{.UpdatedAt}}" data-img-ext="{{.Ext}}"
+           data-img-notes="{{.LinkedNotesJSON}}">
+        <img src="{{.ThumbURL}}" alt="{{.Name}}" loading="lazy" decoding="async">
+      </div>
+      {{end}}
+    </div>
+    {{end}}
   </div>
   {{end}}
 </div>

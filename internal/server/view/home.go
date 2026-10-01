@@ -728,12 +728,34 @@ const homeShortsSectionHTML = `<div class="shorts-view">
                   placeholder="Write a short…" spellcheck="false" x-model="shortComposeText"
                   :disabled="shortComposeSaving"
                   @keydown="handleShortComposeKeydown($event)"
+                  @paste="handleShortComposePaste($event)"
                   @input="autoResize($event.target)"></textarea>
+        <div class="shorts-compose-images" x-show="shortComposeImages.length" x-cloak>
+          <template x-for="img in shortComposeImages" :key="img.id">
+            <div class="shorts-compose-img" :class="{'is-uploading': img.uploading, 'is-failed': img.failed}">
+              <img :src="img.previewUrl || img.src" :alt="img.name">
+              <div class="shorts-compose-img-spin" x-show="img.uploading"></div>
+              <button type="button" class="shorts-compose-img-remove" title="Remove image" aria-label="Remove image"
+                      @click="removeShortComposeImage(img.id)">
+                <svg fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" viewBox="0 0 24 24"><path d="M18 6L6 18"/><path d="M6 6l12 12"/></svg>
+              </button>
+            </div>
+          </template>
+        </div>
         <div class="shorts-compose-footer">
-          <span class="shorts-compose-hint" x-text="(isMac ? '⌘' : 'Ctrl+') + '↵ to save'"></span>
-          <button type="button" class="shorts-compose-send"
-                  :disabled="!shortComposeText.trim() || shortComposeSaving"
-                  @click="saveShortCompose()">Save</button>
+          <input type="file" id="shorts-compose-file-input" class="shorts-compose-file-input"
+                 accept="image/*" multiple @change="handleShortComposeFilePick($event)">
+          <button type="button" class="shorts-compose-attach" title="Add image" aria-label="Add image"
+                  :disabled="shortComposeSaving"
+                  onclick="document.getElementById('shorts-compose-file-input').click()">
+            <svg fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+          </button>
+          <div class="shorts-compose-footer-right">
+            <span class="shorts-compose-hint" x-text="(isMac ? '⌘' : 'Ctrl+') + '↵ to save'"></span>
+            <button type="button" class="shorts-compose-send"
+                    :disabled="(!shortComposeText.trim() && !shortComposeImages.length) || shortComposeSaving || shortComposeImages.some(i => i.uploading)"
+                    @click="saveShortCompose()">Save</button>
+          </div>
         </div>
       </div>
       <div id="shorts-stream-groups">
@@ -747,6 +769,18 @@ const homeShortsSectionHTML = `<div class="shorts-view">
               <span class="shorts-entry-time">{{.Time}}</span>
             </div>
             <div class="prose shorts-entry-prose">{{.HTML}}</div>
+            {{if .Images}}
+            <div class="shorts-img-grid{{if eq (len .Images) 1}} shorts-img-grid--one{{end}}">
+              {{range .Images}}
+              <div class="shorts-img-cell" onclick="openImageLightbox(this)"
+                   data-img-src="{{.ThumbURL}}" data-img-name="{{.Name}}" data-img-dir="{{.Dir}}"
+                   data-img-size="{{.Size}}" data-img-time="{{.UpdatedAt}}" data-img-ext="{{.Ext}}"
+                   data-img-notes="{{.LinkedNotesJSON}}">
+                <img src="{{.ThumbURL}}" alt="{{.Name}}" loading="lazy" decoding="async">
+              </div>
+              {{end}}
+            </div>
+            {{end}}
           </div>
           {{end}}
         </div>
