@@ -7,7 +7,7 @@
   </defs>
   <rect x="102" y="102" width="820" height="820" rx="184.5" fill="url(#plate)"/>
   <rect x="103" y="103" width="818" height="818" rx="183.5" fill="none" stroke="#FFFFFF" stroke-opacity="0.07" stroke-width="2"/>
-  <rect x="332.0" y="294.0" width="360" height="320" rx="56" fill="#55555B"/>
-  <rect x="297.0" y="352.0" width="430" height="320" rx="56" fill="#9A9AA0"/>
-  <rect x="262.0" y="410.0" width="500" height="320" rx="56" fill="#E8E8E6"/>
+  <rect x="277.0" y="344.0" width="470" height="76" rx="38.0" fill="#E8E8E6"/>
+  <rect x="277.0" y="474.0" width="300" height="76" rx="38.0" fill="#9A9AA0"/>
+  <rect x="277.0" y="604.0" width="400" height="76" rx="38.0" fill="#55555B"/>
 </svg>
