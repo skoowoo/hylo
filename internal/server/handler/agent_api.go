@@ -543,7 +543,7 @@ func (a *AgentAPI) executeChat(ctx context.Context, run *agent.Run, body chatBod
 		// A killed process surfaces as a non-zero/-1 exit code indistinguishable
 		// from a real crash, so RunCancelPOST's flag is what tells them apart.
 		st = "canceled"
-	} else if code != 0 || (cp.ACP != nil && cp.ACP.HasFatalError()) {
+	} else if code != 0 || (cp.ACP != nil && cp.ACP.HasFatalError()) || (cp.Pi != nil && cp.Pi.HasFatalError()) {
 		st = "failed"
 	}
 	if assistantMsgID != "" && a.store != nil {

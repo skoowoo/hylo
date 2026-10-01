@@ -6,7 +6,7 @@ import "github.com/google/uuid"
 const AgentEventSession = "session"
 
 // HostAssignsSessionID reports agents where the host should pre-assign a session
-// id on the first turn (--session-id / --session) rather than waiting for capture.
+// id on the first turn (--session-id) rather than waiting for capture.
 func HostAssignsSessionID(agentID string) bool {
 	switch agentID {
 	case "claude", "pi":

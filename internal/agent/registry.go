@@ -9,7 +9,7 @@ import (
 // Mechanisms:
 //   - CLI flags: claude, codex, opencode, cursor-agent, copilot
 //   - ACP session/load|resume|prompt: hermes
-//   - Pi RPC prompt/switch_session (+ --session/--continue on CLI): pi
+//   - Pi RPC --session-id (open or create): pi
 var supportsNativeSession = map[string]struct{}{
 	"claude":       {},
 	"codex":        {},
@@ -39,6 +39,7 @@ func definitions() []*AgentDef {
 		{ID: "medium", Label: "Medium"},
 		{ID: "high", Label: "High"},
 		{ID: "xhigh", Label: "XHigh"},
+		{ID: "max", Label: "Max"},
 	}
 	defs := []*AgentDef{
 		{
@@ -79,7 +80,7 @@ func definitions() []*AgentDef {
 		},
 		{
 			ID: "opencode", Name: "OpenCode", Bin: "opencode",
-			VersionArgs: []string{"--version"},
+			VersionArgs:    []string{"--version"},
 			listModelsArgs: []string{"models"}, listModelsTimeout: 8000,
 			listModelsParse: parseLineSeparatedModels,
 			FallbackModels: []ModelOption{
@@ -105,7 +106,7 @@ func definitions() []*AgentDef {
 		},
 		{
 			ID: "cursor-agent", Name: "Cursor Agent", Bin: "cursor-agent",
-			VersionArgs: []string{"--version"},
+			VersionArgs:    []string{"--version"},
 			listModelsArgs: []string{"models"}, listModelsTimeout: 5000,
 			listModelsParse: parseCursorModels,
 			FallbackModels: []ModelOption{
@@ -132,7 +133,7 @@ func definitions() []*AgentDef {
 		{
 			ID: "pi", Name: "Pi", Bin: "pi",
 			VersionArgs: []string{"--version"},
-			fetchModels:  fetchPiModels,
+			fetchModels: fetchPiModels,
 			FallbackModels: []ModelOption{
 				DefaultModelOption,
 				{ID: "anthropic/claude-sonnet-4-5", Label: "Claude Sonnet 4.5 (anthropic)"},
@@ -143,9 +144,9 @@ func definitions() []*AgentDef {
 				{ID: "google/gemini-2.5-flash", Label: "Gemini 2.5 Flash (google)"},
 			},
 			ReasoningOptions: reasonPi,
-			StreamFormat: StreamPiRPC, PromptViaStdin: true,
+			StreamFormat:     StreamPiRPC, PromptViaStdin: true,
 			SupportsImagePaths: true,
-			build: buildPi,
+			build:              buildPi,
 		},
 	}
 	for _, d := range defs {

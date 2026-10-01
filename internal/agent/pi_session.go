@@ -8,15 +8,17 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"time"
 )
 
-// PiSession wraps Pi `--mode rpc` stdin/stdout (apps/daemon/src/pi-rpc.ts).
+// PiSession wraps `pi --mode rpc` JSONL: commands on stdin, events on stdout.
 type PiSession struct {
-	fatal bool
+	fatal   atomic.Bool
+	errText string
 }
 
-func (p *PiSession) HasFatalError() bool { return p.fatal }
+func (p *PiSession) HasFatalError() bool { return p.fatal.Load() }
 
 const (
 	piMaxImages     = 10
@@ -28,7 +30,8 @@ var piImageExt = map[string]string{
 	".gif": "image/gif", ".webp": "image/webp",
 }
 
-// AttachPiRPC sends `prompt` over Pi's line protocol and maps stdout events.
+// AttachPiRPC sends a `prompt` command over Pi's JSONL protocol and maps stdout events.
+// A raw text prompt is rejected (`Unexpected token ... is not valid JSON`).
 func AttachPiRPC(
 	stdin io.WriteCloser,
 	stdout io.Reader,
@@ -40,8 +43,6 @@ func AttachPiRPC(
 ) *PiSession {
 	s := &PiSession{}
 	emit("agent", map[string]any{"type": "status", "label": "initializing", "model": model})
-
-	nextID := 1
 
 	var images []map[string]any
 	var total int
@@ -88,7 +89,7 @@ func AttachPiRPC(
 		})
 	}
 
-	msg := map[string]any{"id": nextID, "type": "prompt", "message": prompt}
+	msg := map[string]any{"id": "1", "type": "prompt", "message": prompt}
 	if len(images) > 0 {
 		msg["images"] = images
 	}
@@ -99,6 +100,12 @@ func AttachPiRPC(
 	sentFirst := false
 
 	go func() {
+		defer func() {
+			_ = stdin.Close()
+			if onDone != nil {
+				onDone()
+			}
+		}()
 		sc := bufio.NewScanner(stdout)
 		buf := make([]byte, 0, 64*1024)
 		sc.Buffer(buf, 8<<20)
@@ -108,20 +115,85 @@ func AttachPiRPC(
 			if err := json.Unmarshal(line, &raw); err != nil {
 				continue
 			}
-			if raw["type"] == "response" {
-				continue
-			}
-			if t, _ := raw["type"].(string); t == "agent_end" {
-				_ = stdin.Close()
-				if onDone != nil {
-					onDone()
-				}
+			if handlePiRecord(s, raw, stdin, emit, started, &sentFirst) {
 				return
 			}
-			mapPi(raw, emit, started, &sentFirst)
 		}
 	}()
 	return s
+}
+
+// handlePiRecord maps one RPC stdout record. done means the reader should close stdin.
+func handlePiRecord(s *PiSession, raw map[string]any, stdin io.Writer, emit func(string, any), started time.Time, sentFirst *bool) (done bool) {
+	t, _ := raw["type"].(string)
+	switch t {
+	case "response":
+		if success, _ := raw["success"].(bool); success {
+			return false
+		}
+		s.fatal.Store(true)
+		msg, _ := raw["error"].(string)
+		if msg == "" {
+			msg = "pi command failed"
+		}
+		emit("agent", map[string]any{"type": "error", "message": msg})
+		return true
+	case "agent_settled":
+		// agent_end can still be followed by retries, compaction, or queued prompts.
+		if s.errText != "" {
+			s.fatal.Store(true)
+		}
+		return true
+	case "extension_ui_request":
+		// Dialog methods block until the client answers. This host has no UI for them.
+		replyPiDialog(stdin, raw, emit)
+		return false
+	default:
+		if t == "message_end" {
+			notePiAssistant(s, raw)
+		}
+		mapPi(raw, emit, started, sentFirst)
+		return false
+	}
+}
+
+func notePiAssistant(s *PiSession, raw map[string]any) {
+	msg, _ := raw["message"].(map[string]any)
+	if msg["role"] != "assistant" {
+		return
+	}
+	if em, _ := msg["errorMessage"].(string); em != "" {
+		s.errText = em
+		return
+	}
+	s.errText = ""
+}
+
+func replyPiDialog(stdin io.Writer, raw map[string]any, emit func(string, any)) {
+	method, _ := raw["method"].(string)
+	switch method {
+	case "notify":
+		if raw["notifyType"] == "error" {
+			if msg, _ := raw["message"].(string); msg != "" {
+				emit("agent", map[string]any{"type": "error", "message": msg})
+			}
+		}
+		return
+	case "select", "confirm", "input", "editor":
+	default:
+		return
+	}
+	id, _ := raw["id"].(string)
+	if id == "" || stdin == nil {
+		return
+	}
+	b, err := json.Marshal(map[string]any{
+		"type": "extension_ui_response", "id": id, "cancelled": true,
+	})
+	if err != nil {
+		return
+	}
+	_, _ = stdin.Write(append(b, '\n'))
 }
 
 func mapPi(raw map[string]any, emit func(string, any), started time.Time, sentFirst *bool) {
@@ -136,6 +208,14 @@ func mapPi(raw map[string]any, emit func(string, any), started time.Time, sentFi
 			if u, ok := msg["usage"].(map[string]any); ok {
 				emit("agent", map[string]any{"type": "usage", "usage": u, "durationMs": time.Since(started).Milliseconds()})
 			}
+		}
+	case "message_end":
+		msg, _ := raw["message"].(map[string]any)
+		if msg["role"] != "assistant" {
+			return
+		}
+		if em, _ := msg["errorMessage"].(string); em != "" {
+			emit("agent", map[string]any{"type": "error", "message": em})
 		}
 	case "message_update":
 		ev, _ := raw["assistantMessageEvent"].(map[string]any)
@@ -159,14 +239,50 @@ func mapPi(raw map[string]any, emit func(string, any), started time.Time, sentFi
 		case "thinking_start":
 			emit("agent", map[string]any{"type": "thinking_start"})
 		case "error":
-			reason, _ := ev["reason"].(string)
-			emit("agent", map[string]any{"type": "error", "message": reason})
+			emit("agent", map[string]any{"type": "error", "message": piStreamError(ev)})
 		}
 	case "tool_execution_start":
 		emit("agent", map[string]any{"type": "tool_use", "id": raw["toolCallId"], "name": raw["toolName"], "input": raw["args"]})
 	case "tool_execution_end":
-		emit("agent", map[string]any{"type": "tool_result", "toolUseId": raw["toolCallId"], "content": ""})
+		emit("agent", map[string]any{
+			"type": "tool_result", "toolUseId": raw["toolCallId"],
+			"content": piResultText(raw["result"]), "isError": raw["isError"] == true,
+		})
 	case "extension_error":
 		emit("agent", map[string]any{"type": "error", "message": raw["error"]})
 	}
+}
+
+func piStreamError(ev map[string]any) string {
+	if errObj, ok := ev["error"].(map[string]any); ok {
+		if m, _ := errObj["errorMessage"].(string); m != "" {
+			return m
+		}
+	}
+	if m, _ := ev["reason"].(string); m != "" && m != "error" {
+		return m
+	}
+	return "pi stream error"
+}
+
+func piResultText(result any) string {
+	m, ok := result.(map[string]any)
+	if !ok || m == nil {
+		return ""
+	}
+	content, ok := m["content"].([]any)
+	if !ok {
+		return ""
+	}
+	var parts []string
+	for _, c := range content {
+		cm, ok := c.(map[string]any)
+		if !ok {
+			continue
+		}
+		if text, _ := cm["text"].(string); text != "" {
+			parts = append(parts, text)
+		}
+	}
+	return strings.Join(parts, "\n")
 }

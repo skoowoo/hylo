@@ -163,7 +163,8 @@ func buildCopilot(_ *AgentDef, c BuildArgsContext) []string {
 func buildPi(_ *AgentDef, c BuildArgsContext) []string {
 	args := []string{"--mode", "rpc"}
 	if c.SessionID != "" {
-		args = append(args, "--session", c.SessionID)
+		// --session exits when the id is missing. --session-id opens it or creates it.
+		args = append(args, "--session-id", c.SessionID)
 	}
 	if c.Model != "" && c.Model != "default" {
 		args = append(args, "--model", c.Model)
@@ -204,6 +205,15 @@ func CLIExample(def *AgentDef) string {
 		}
 	}
 	argCtx.Caps = Capabilities(def.ID)
+	// RPC stdin is JSONL commands. A raw prompt is rejected as invalid JSON.
+	// JSON mode is the one-shot form of the same event stream.
+	if def.StreamFormat == StreamPiRPC {
+		argv := []string{def.Bin, "--mode", "json", "--no-session", "-p", "Hello"}
+		if argCtx.Model != "" {
+			argv = append(argv, "--model", argCtx.Model)
+		}
+		return shellJoin(argv)
+	}
 	argv := def.build(def, argCtx)
 	parts := make([]string, 0, 1+len(argv))
 	parts = append(parts, def.Bin)

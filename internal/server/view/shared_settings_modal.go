@@ -113,12 +113,20 @@ const settingsModalCSS = `
 
     /* ── Server config ────────────────────────────────────────── */
     .cfg-content { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
+    /* Docked, not sticky — a flex sibling *outside* .cfg-pane-area's
+       scroll viewport, not a sticky child inside it. Plain sticky here
+       measured against the wrong box in this nested absolute+flex
+       layout (it settled short of the real bottom edge, leaving the
+       last line of content peeking out below the bar) — a non-scrolling
+       footer row sidesteps that whole class of bug instead of chasing it. */
     .cfg-action-bar {
       flex-shrink: 0; display: flex; align-items: center;
       justify-content: space-between; flex-wrap: wrap;
-      gap: 0.75rem 1rem; margin-top: 2rem; padding-top: 1.25rem;
-      border-top: var(--bd-w) solid var(--hairline); max-width: 640px;
+      gap: 0.75rem 1rem; padding: 1rem 1.5rem;
+      background: var(--bg);
+      border-top: var(--bd-w) solid var(--hairline);
     }
+    .cfg-action-bar-inner { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem 1rem; width: 100%; max-width: 640px; }
     .cfg-action-left { display: flex; align-items: center; gap: 0.75rem; flex: 1; min-width: 0; }
     .cfg-action-right { display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0; }
     .cfg-status-ok { font-size: var(--text-xs); color: var(--s-ok); font-weight: 500; }
@@ -128,56 +136,34 @@ const settingsModalCSS = `
       border-radius: 0;
     }
     .cfg-restart-note { font-size: var(--text-xs); color: var(--muted); }
-    /* .cfg-dirty-badge now uses the shared .badge (base.css) exactly —
-       its extra 1px outline had no functional reason to exist, so it's
-       gone rather than kept as a one-off. */
-    /* .cfg-discard-btn now uses the shared .btn-outline (base.css). */
     .cfg-pane-area { flex: 1; min-height: 0; position: relative; overflow: hidden; }
     .cfg-pane {
       position: absolute; inset: 0; overflow-y: auto;
-      padding: 1.75rem 1.5rem 3rem;
+      padding: 1.75rem 1.5rem;
     }
     .cfg-fields { max-width: 640px; display: flex; flex-direction: column; }
-    /* No border — a card reads as a card from its background against the
-       pane behind it (same idiom as home-note-row/img-card), not a line. */
-    .cfg-section {
-      max-width: 640px; margin-bottom: 0.45rem;
-      border-radius: var(--r-lg);
-      background: var(--surface-soft); overflow: hidden;
+
+    /* Section picker — a grid of cards, not a stacked accordion, so every
+       section is one click away instead of sitting behind however many
+       other sections happen to come before it in scroll order. */
+    .cfg-section-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; max-width: 640px; }
+    /* Box/hover/cursor from the shared .list-card.list-card--clickable
+       (base.css) — same recipe as .agent-bot-template-card below. */
+    .cfg-section-card {
+      display: flex; flex-direction: column; gap: 0.3rem; text-align: left;
+      border-color: transparent; background: var(--surface-soft);
     }
-    /* Neutral, not card-hov — is-open is a structural state, hover (below)
-       is transient interaction feedback; keeping them on different tokens
-       means glancing at a closed row mid-hover can't be mistaken for one
-       that's actually expanded. */
-    .cfg-section.is-open { background: var(--surface-2); }
-    .cfg-section-head {
-      display: flex; align-items: flex-start; justify-content: space-between;
-      gap: 0.75rem; width: 100%; margin: 0; padding: 0.7rem 0.9rem;
-      border: none; background: transparent; cursor: pointer;
-      text-align: left; color: inherit;
-    }
-    .cfg-section-head:hover { background: var(--card-hov); }
-    .cfg-section.is-open .cfg-section-head { border-bottom: var(--bd-w) solid var(--hairline); }
-    .cfg-section-head-text { min-width: 0; flex: 1; }
-    .cfg-section-title {
-      font-size: var(--text-sm); font-weight: 600; letter-spacing: -0.01em;
-      color: var(--fg); margin: 0; padding: 0; display: block;
-    }
-    .cfg-section-head-desc {
-      display: block; font-size: var(--text-xs); color: var(--muted);
-      margin: 0.28rem 0 0; line-height: 1.5;
-    }
-    .cfg-section-head-meta {
-      display: flex; align-items: center; gap: 0.4rem; flex-shrink: 0; margin-top: 0.1rem;
-    }
-    /* .cfg-section-dirty-dot now uses the shared .dot / .dot--accent (base.css). */
-    .cfg-section-chev {
-      flex-shrink: 0; color: var(--muted); display: flex; align-items: center; margin-top: 0.15rem;
-    }
-    .cfg-section-chev svg { width: 14px; height: 14px; }
-    .cfg-section-chev.open svg { transform: rotate(90deg); }
-    .cfg-section-body { padding: 0; }
-    .cfg-section.is-open .cfg-section-body { padding: 0 0.9rem 0.9rem; }
+    .cfg-section-card-top { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+    .cfg-section-card-title { font-size: var(--text-sm); font-weight: 600; color: var(--fg); }
+    .cfg-section-card-desc { font-size: var(--text-xs); color: var(--muted); line-height: 1.5; }
+
+    /* Section detail — replaces the grid (list ↔ detail, same swap Agent
+       Bots uses) instead of expanding in place, so opening one section
+       never pushes the others further down the page. */
+    .cfg-detail { max-width: 640px; }
+    .cfg-detail-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.1rem; }
+    .cfg-detail-title { font-size: var(--text-base); font-weight: 600; color: var(--fg); }
+    .cfg-detail-desc { font-size: var(--text-sm); color: var(--muted); line-height: 1.5; margin: -0.6rem 0 1.25rem; }
     .cfg-field {
       display: grid;
       grid-template-columns: 1fr 220px;
@@ -191,7 +177,7 @@ const settingsModalCSS = `
       align-items: start;
     }
     .cfg-field.multiline .cfg-field-ctrl { justify-content: stretch; margin-top: 0.5rem; }
-    .cfg-section.is-open .cfg-field:last-of-type { border-bottom: none; }
+    .cfg-fields .cfg-field:last-of-type { border-bottom: none; }
     .cfg-field.dirty .cfg-field-label::before {
       content: ''; display: inline-block; width: 5px; height: 5px;
       border-radius: 50%; background: var(--accent);
@@ -369,7 +355,12 @@ const settingsModalCSS = `
        (base.css) — see that rule for why. */
 
     /* ── Agent Bots pane ───────────────────────────────────────────── */
-    .agent-bots-pane { flex: 1; overflow-y: auto; padding: 1.75rem 1.5rem 3rem; }
+    /* Outer flex column: .agent-bots-scroll (flex:1, the only scroller)
+       plus the footer as a non-scrolling sibling — same docked-footer
+       reasoning as .cfg-action-bar above, not a sticky child of the
+       scroller. */
+    .agent-bots-pane { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+    .agent-bots-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 1.75rem 1.5rem 0.5rem; }
     .agent-bots-toolbar { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; }
     .agent-bots-list { display: flex; flex-direction: column; gap: 0.45rem; }
     .agent-bots-empty { font-size: var(--text-sm); color: var(--muted); padding: 1.5rem 0; }
@@ -394,6 +385,17 @@ const settingsModalCSS = `
     /* Row actions (move/edit/delete) now use the shared .btn-outline /
        .btn-solid.btn-solid--danger with the .btn--xs size modifier. */
     .agent-bot-form-wrap { max-width: 780px; }
+    .agent-bot-template-list { display: flex; flex-direction: column; gap: 0.45rem; max-width: 640px; }
+    /* Box/hover/cursor come from the shared .list-card.list-card--clickable
+       (base.css) — unlike .agent-bot-card, the whole row IS the click
+       target here (pick a template), not just a container for its own
+       action buttons. */
+    .agent-bot-template-card {
+      display: flex; flex-direction: column; gap: 0.2rem; text-align: left;
+      border-color: transparent; background: var(--surface-soft);
+    }
+    .agent-bot-template-name { font-size: var(--text-sm); font-weight: 600; color: var(--fg); }
+    .agent-bot-template-desc { font-size: var(--text-xs); color: var(--muted); line-height: 1.5; }
     .agent-bot-form-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 2rem; }
     .agent-bot-back-btn {
       display: inline-flex; align-items: center; gap: 0.3rem;
@@ -471,14 +473,28 @@ const settingsModalCSS = `
       padding: 1rem 1.15rem 1.15rem;
       display: flex; flex-direction: column; gap: 1rem;
     }
+    /* Clickable — collapsed by default (see .agent-bot-trigger-summary),
+       so N triggers costs N header rows of scroll instead of N full
+       editors. Border only shows once expanded (below), so a row of
+       collapsed cards reads as a plain stacked list, not a half-drawn
+       accordion. */
     .agent-bot-trigger-hdr {
       display: flex; align-items: center; justify-content: space-between;
-      /* Header-to-body seam inside .agent-bot-trigger-card, which reads as
-         a card from its own surface-soft background (above), not a line. */
+      gap: 0.75rem; cursor: pointer;
+    }
+    .agent-bot-trigger-card.is-open .agent-bot-trigger-hdr {
       padding-bottom: 0.75rem; border-bottom: var(--bd-w) solid var(--hairline);
     }
-    .agent-bot-trigger-label { font-size: var(--text-sm); font-weight: 600; color: var(--fg); }
-    .agent-bot-trigger-hdr-actions { display: flex; align-items: center; gap: 0.65rem; }
+    .agent-bot-trigger-hdr-main { display: flex; align-items: center; gap: 0.55rem; min-width: 0; }
+    .agent-bot-trigger-chev { flex-shrink: 0; color: var(--muted); display: flex; align-items: center; transition: transform var(--motion-fast); }
+    .agent-bot-trigger-chev svg { width: 14px; height: 14px; }
+    .agent-bot-trigger-chev.open { transform: rotate(90deg); }
+    .agent-bot-trigger-label { font-size: var(--text-sm); font-weight: 600; color: var(--fg); flex-shrink: 0; }
+    .agent-bot-trigger-summary {
+      font-size: var(--text-xs); color: var(--muted);
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
+    }
+    .agent-bot-trigger-hdr-actions { display: flex; align-items: center; gap: 0.65rem; flex-shrink: 0; }
     .agent-bot-trigger-del {
       background: none; border: none; color: var(--s-err); font-size: var(--text-xs);
       font-weight: 500; cursor: pointer; padding: 0;
@@ -497,9 +513,15 @@ const settingsModalCSS = `
     .agent-bot-weekday-toggles { align-items: center; margin-bottom: 0.4rem; }
     .agent-bot-schedule-kind-seg { margin-bottom: 0.85rem; }
     .agent-bot-schedule-kind-body { margin-bottom: 0.85rem; }
+    /* Docked, not sticky — a flex sibling *outside* .agent-bots-scroll's
+       scroll viewport (same reasoning as .cfg-action-bar above), so Save
+       stays reachable no matter how many trigger cards are expanded. */
     .agent-bot-form-footer {
-      display: flex; align-items: center; gap: 0.5rem;
-      margin-top: 0.25rem; padding-top: 1.1rem; border-top: var(--bd-w) solid var(--hairline);
+      flex-shrink: 0; display: flex; align-items: center; gap: 0.5rem;
+      padding: 1.1rem 1.5rem;
+      background: var(--bg);
+      border-top: var(--bd-w) solid var(--hairline);
+      max-width: 780px;
     }
     /* Save/Cancel now use the shared .btn-solid / .btn-outline (base.css). */
     .agent-bot-form-err { flex: 1; font-size: var(--text-xs); color: var(--s-err); }
@@ -549,6 +571,19 @@ const settingsModalCSS = `
        .cfg-input/-textarea, .settings-input) now comes from the shared
        .field-input::placeholder (base.css) — they all carry that class
        already, so this no longer needs its own copy. */`
+
+// agentBotCompilerPrompt is the shared trigger prompt for the Compiler
+// template's two triggers (compile_requested and note_created+/Web Clips/).
+// Built as a Go string (not inline in the JS below) because it contains
+// backticks, which can't appear inside the raw-string-delimited JS blob.
+// \\n (not \n) so the *generated JS source* carries a literal backslash-n
+// for the browser to interpret, not a raw newline that would break the
+// single-quoted JS string literal it's spliced into.
+const agentBotCompilerPrompt = "Compile note `{Path}` into structured knowledge under `/_knowledge`. Steps:\\n\\n1. Use the `hylo-compile-note` skill to compile the note\\n2. Once compiled, use the `hylo-index-knowledge` skill to create or update the index\\n3. Finally, use the `humanizer` skill to polish the wording of the newly generated knowledge unit(s) — you must preserve the `frontmatter`, `link`, `wiki link`, and paragraph structure."
+
+// agentBotRecapShortNotePrompt is the Recap template's short_note_created
+// trigger prompt — same backtick-splice reason as agentBotCompilerPrompt above.
+const agentBotRecapShortNotePrompt = "Use the hylo-recap skill to cross-check this short note against my knowledge base — anything related or conflicting?\\n\\nShort note content: `{Content}`"
 
 // settingsModalHTML returns the settings modal DOM. Include once per page —
 // opened via the sidebar's bottom-row Settings button (see home.html).
@@ -739,198 +774,210 @@ func settingsModalHTML() string {
                   <p class="settings-field-desc">Server process started and managed by this desktop app.</p>
                 </div>
 
-                <label class="settings-field-label" x-show="!cfgLoading && !cfgError" style="margin-bottom:0.75rem;">Config</label>
                 <div x-show="cfgLoading" class="cfg-loader">Loading configuration…</div>
                 <div x-show="cfgError && !cfgLoading" class="cfg-err-msg" x-text="'Error: ' + cfgError"></div>
 
-                <template x-for="section in sectionTabs" :key="section">
-                  <section class="cfg-section" :class="{ 'is-open': openSection === section }" x-show="!cfgLoading && !cfgError">
-                    <button type="button" class="cfg-section-head hairline" @click="toggleSection(section)">
-                      <div class="cfg-section-head-text">
-                        <span class="cfg-section-title" x-text="sectionLabel(section)"></span>
-                        <span class="cfg-section-head-desc"
-                              x-show="sectionIntro(section)"
-                              x-text="sectionIntro(section)"></span>
-                      </div>
-                      <div class="cfg-section-head-meta">
-                        <span class="dot dot--accent" x-show="sectionHasDirty(section)" title="Unsaved changes in this section"></span>
-                        <span class="cfg-section-chev" :class="{open: openSection === section}">
-                          <svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24" aria-hidden="true">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
-                          </svg>
-                        </span>
-                      </div>
-                    </button>
-                    <div class="cfg-section-body" x-show="openSection === section">
-                      <div class="cfg-fields">
-                        <template x-for="field in fieldsForSection(section)" :key="field.key">
-                          <div class="cfg-field hairline" :class="{dirty: isDirty(field.key), multiline: field.multiline}">
-                            <div class="cfg-field-meta">
-                              <span class="cfg-field-label" x-text="field.label"></span>
-                              <code class="cfg-field-key" x-text="field.key"></code>
-                            </div>
-                            <div class="cfg-field-ctrl">
-                              <template x-if="field.type === 'bool'">
-                                <div class="seg">
-                                  <button type="button" class="seg-btn" :class="{active: !getVal(field.key)}" @click="setVal(field.key, false)">Off</button>
-                                  <button type="button" class="seg-btn" :class="{active: !!getVal(field.key)}" @click="setVal(field.key, true)">On</button>
-                                </div>
-                              </template>
-                              <template x-if="field.type === 'string' && field.enum && field.enum.length">
-                                <select class="field-input cfg-input" @change="setVal(field.key, $event.target.value)">
-                                  <template x-for="opt in (field.enum || [])" :key="opt">
-                                    <option :value="opt" :selected="getVal(field.key) === opt" x-text="opt"></option>
-                                  </template>
-                                </select>
-                              </template>
-                              <template x-if="field.type === 'int'">
-                                <input type="number" class="field-input cfg-input"
-                                       :value="getVal(field.key)"
-                                       @change="setVal(field.key, Number($event.target.value))"
-                                       :min="field.constraints ? field.constraints.min : undefined"
-                                       :max="field.constraints ? field.constraints.max : undefined">
-                              </template>
-                              <template x-if="field.type === 'string_list'">
-                                <textarea class="field-input cfg-textarea" rows="3" placeholder="One entry per line"
-                                          :value="listToText(getVal(field.key))"
-                                          @change="setVal(field.key, textToList($event.target.value))"></textarea>
-                              </template>
-                              <template x-if="field.sensitive && field.type !== 'bool' && field.type !== 'string_list'">
-                                <div class="cfg-reveal-wrap">
-                                  <input class="field-input cfg-input"
-                                         :type="revealed[field.key] ? 'text' : 'password'"
-                                         :value="getVal(field.key) || ''"
-                                         :placeholder="(secrets[field.key] && !getVal(field.key)) ? '••• set •••' : (field.default != null ? String(field.default) : '')"
-                                         @input="setVal(field.key, $event.target.value)">
-                                  <button type="button" class="icon-btn icon-btn--lg"
-                                          @click.stop="toggleReveal(field.key)"
-                                          :title="revealed[field.key] ? 'Hide' : 'Reveal'">
-                                    <svg x-show="!revealed[field.key]" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
-                                      <path stroke-linecap="round" stroke-linejoin="round" d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/>
-                                    </svg>
-                                    <svg x-show="revealed[field.key]" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
-                                      <path stroke-linecap="round" stroke-linejoin="round" d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"/>
-                                      <path stroke-linecap="round" stroke-linejoin="round" d="M14.084 14.158a3 3 0 0 1-4.242-4.242"/>
-                                      <path stroke-linecap="round" stroke-linejoin="round" d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"/>
-                                      <path stroke-linecap="round" stroke-linejoin="round" d="m2 2 20 20"/>
-                                    </svg>
-                                  </button>
-                                </div>
-                              </template>
-                              <template x-if="!field.sensitive && field.type === 'string' && field.multiline && !(field.enum && field.enum.length)">
-                                <textarea class="field-input cfg-textarea" rows="6"
-                                          :value="getVal(field.key) ?? ''"
-                                          :placeholder="field.default != null ? String(field.default) : ''"
-                                          @input="setVal(field.key, $event.target.value)"></textarea>
-                              </template>
-                              <template x-if="!field.sensitive && (field.type === 'string' || field.type === 'duration') && !field.multiline && !(field.enum && field.enum.length)">
-                                <div style="display:flex;gap:0.375rem;align-items:center;width:100%;">
-                                  <input type="text" class="field-input cfg-input" style="flex:1;min-width:0;"
-                                         :value="getVal(field.key) ?? ''"
-                                         :placeholder="field.default != null ? String(field.default) : ''"
-                                         @input="setVal(field.key, $event.target.value)">
-                                  <template x-if="field.key === 'vault.path' && isElectron">
-                                    <button type="button" class="icon-btn icon-btn--lg"
-                                            title="Browse for folder"
-                                            style="font-size:13px;letter-spacing:0.05em;padding:0 6px;width:auto;"
-                                            @click="pickFolder(field.key, getVal(field.key))">···</button>
-                                  </template>
-                                </div>
-                              </template>
-                            </div>
-                            <p class="cfg-field-desc" x-text="field.description"></p>
+                <!-- Section picker — every section is a card, one click away,
+                     instead of a stacked accordion you scroll past. -->
+                <template x-if="!cfgLoading && !cfgError && !openSection">
+                  <div>
+                    <label class="settings-field-label" style="margin-bottom:0.75rem;display:block;">Config</label>
+                    <div class="cfg-section-grid">
+                      <template x-for="section in sectionTabs" :key="section">
+                        <button type="button" class="list-card list-card--clickable cfg-section-card" @click="openSectionDetail(section)">
+                          <div class="cfg-section-card-top">
+                            <span class="cfg-section-card-title" x-text="sectionLabel(section)"></span>
+                            <span class="dot dot--accent" x-show="sectionHasDirty(section)" title="Unsaved changes in this section"></span>
                           </div>
-                        </template>
-                      </div>
-
-                      <div class="cfg-wechat-auth hairline" x-show="section === 'plugins.wechat'">
-                        <div class="cfg-wechat-auth-head">
-                          <span class="cfg-wechat-auth-title">WeChat login</span>
-                          <span class="badge"
-                                :class="{ 'badge--ok': wechatStatus.connected }"
-                                x-text="wechatStatus.connected ? 'Connected' : 'Not connected'"></span>
-                        </div>
-                        <p class="cfg-wechat-meta">
-                          Scan with WeChat to obtain an iLink bot token. Credentials are saved to
-                          <code>config.toml</code>. Create an agent bot with a <code>wechat_message</code> trigger to handle replies.
-                        </p>
-                        <template x-if="wechatStatus.connected">
-                          <div>
-                            <p class="cfg-wechat-meta" x-show="wechatStatus.account_id">
-                              Bot ID: <code x-text="wechatStatus.account_id"></code>
-                              <span x-show="wechatStatus.saved_at"> · saved <span x-text="wechatStatus.saved_at"></span></span>
-                            </p>
-                            <div class="cfg-wechat-actions">
-                              <button type="button" class="btn-solid btn-solid--danger"
-                                      @click="wechatLogout()"
-                                      :disabled="wechatAuthBusy"
-                                      x-text="wechatAuthBusy ? 'Disconnecting…' : 'Disconnect'"></button>
-                            </div>
-                          </div>
-                        </template>
-                        <template x-if="!wechatStatus.connected">
-                          <div>
-                            <div class="cfg-wechat-actions">
-                              <button type="button" class="btn-solid"
-                                      @click="startWechatLogin()"
-                                      :disabled="wechatAuthBusy || wechatLoginBusy"
-                                      x-text="wechatLoginBusy ? 'Waiting for scan…' : 'Scan QR to log in'"></button>
-                              <button type="button" class="btn-solid"
-                                      x-show="wechatLoginBusy"
-                                      @click="cancelWechatLogin()">Cancel</button>
-                            </div>
-                            <div class="cfg-wechat-qr" x-show="wechatQrcodeImg">
-                              <img :src="wechatQrcodeImg" alt="WeChat login QR code">
-                              <p class="cfg-wechat-status" x-show="wechatLoginStatus" x-text="wechatLoginStatus"></p>
-                            </div>
-                          </div>
-                        </template>
-                        <p class="cfg-wechat-err" x-show="wechatAuthError" x-text="wechatAuthError"></p>
-                        <p class="cfg-wechat-ok" x-show="wechatLoginOk">Connected — restart the server to start the bridge.</p>
-                      </div>
-
-                      <div class="cfg-wechat-auth hairline" x-show="section === 'plugins.discord'">
-                        <div class="cfg-wechat-auth-head">
-                          <span class="cfg-wechat-auth-title">Discord Bot status</span>
-                          <span class="badge"
-                                :class="{ 'badge--ok': !!getVal('plugins.discord.bot_token') }"
-                                x-text="getVal('plugins.discord.bot_token') ? 'Token set' : 'Not configured'"></span>
-                        </div>
-                        <p class="cfg-wechat-meta">
-                          Paste your Bot token above, then restart the server. Create an agent bot with a
-                          <code>discord_message</code> trigger to handle replies. The bot must share a server
-                          with you before it can send proactive DMs.
-                        </p>
-                        <template x-if="getVal('plugins.discord.user_id')">
-                          <p class="cfg-wechat-meta">
-                            Owner ID: <code x-text="getVal('plugins.discord.user_id')"></code>
-                          </p>
-                        </template>
-                      </div>
+                          <span class="cfg-section-card-desc" x-text="sectionIntro(section)"></span>
+                        </button>
+                      </template>
                     </div>
-                  </section>
+                  </div>
                 </template>
 
-                <div class="cfg-action-bar hairline" x-show="!cfgLoading && !cfgError">
-                  <div class="cfg-action-left">
-                    <span class="cfg-status-ok" x-show="cfgSaveOk && !hasDirty">Saved — restart server to apply</span>
-                    <span class="cfg-status-err" x-show="cfgSaveError" x-text="cfgSaveError"></span>
-                    <span class="cfg-status-err" x-show="cfgRestartError" x-text="cfgRestartError"></span>
-                    <span class="cfg-restart-note" x-show="cfgRestarting">Restarting server…</span>
-                    <span class="badge" x-show="hasDirty"
-                          x-text="Object.keys(patch).length + ' unsaved change' + (Object.keys(patch).length !== 1 ? 's' : '')"></span>
-                    <span class="cfg-restart-note"
-                          x-show="!hasDirty && !cfgSaveOk && !cfgSaveError && !cfgRestartError && !cfgRestarting">
-                      Expand sections above to edit. Save once when done; restart server to apply.
-                    </span>
+                <!-- Section detail — replaces the picker (same list↔detail
+                     swap Agent Bots uses) so opening one section never
+                     pushes the others further down the page. -->
+                <template x-if="!cfgLoading && !cfgError && openSection">
+                  <div class="cfg-detail">
+                    <div class="cfg-detail-header">
+` + agentBotBackBtnHTML("openSection = ''", "Config") + `
+                      <span class="cfg-detail-title" x-text="sectionLabel(openSection)"></span>
+                    </div>
+                    <p class="cfg-detail-desc" x-show="sectionIntro(openSection)" x-text="sectionIntro(openSection)"></p>
+
+                    <div class="cfg-fields">
+                      <template x-for="field in fieldsForSection(openSection)" :key="field.key">
+                        <div class="cfg-field hairline" :class="{dirty: isDirty(field.key), multiline: field.multiline}">
+                          <div class="cfg-field-meta">
+                            <span class="cfg-field-label" x-text="field.label"></span>
+                            <code class="cfg-field-key" x-text="field.key"></code>
+                          </div>
+                          <div class="cfg-field-ctrl">
+                            <template x-if="field.type === 'bool'">
+                              <div class="seg">
+                                <button type="button" class="seg-btn" :class="{active: !getVal(field.key)}" @click="setVal(field.key, false)">Off</button>
+                                <button type="button" class="seg-btn" :class="{active: !!getVal(field.key)}" @click="setVal(field.key, true)">On</button>
+                              </div>
+                            </template>
+                            <template x-if="field.type === 'string' && field.enum && field.enum.length">
+                              <select class="field-input cfg-input" @change="setVal(field.key, $event.target.value)">
+                                <template x-for="opt in (field.enum || [])" :key="opt">
+                                  <option :value="opt" :selected="getVal(field.key) === opt" x-text="opt"></option>
+                                </template>
+                              </select>
+                            </template>
+                            <template x-if="field.type === 'int'">
+                              <input type="number" class="field-input cfg-input"
+                                     :value="getVal(field.key)"
+                                     @change="setVal(field.key, Number($event.target.value))"
+                                     :min="field.constraints ? field.constraints.min : undefined"
+                                     :max="field.constraints ? field.constraints.max : undefined">
+                            </template>
+                            <template x-if="field.type === 'string_list'">
+                              <textarea class="field-input cfg-textarea" rows="3" placeholder="One entry per line"
+                                        :value="listToText(getVal(field.key))"
+                                        @change="setVal(field.key, textToList($event.target.value))"></textarea>
+                            </template>
+                            <template x-if="field.sensitive && field.type !== 'bool' && field.type !== 'string_list'">
+                              <div class="cfg-reveal-wrap">
+                                <input class="field-input cfg-input"
+                                       :type="revealed[field.key] ? 'text' : 'password'"
+                                       :value="getVal(field.key) || ''"
+                                       :placeholder="(secrets[field.key] && !getVal(field.key)) ? '••• set •••' : (field.default != null ? String(field.default) : '')"
+                                       @input="setVal(field.key, $event.target.value)">
+                                <button type="button" class="icon-btn icon-btn--lg"
+                                        @click.stop="toggleReveal(field.key)"
+                                        :title="revealed[field.key] ? 'Hide' : 'Reveal'">
+                                  <svg x-show="!revealed[field.key]" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/>
+                                  </svg>
+                                  <svg x-show="revealed[field.key]" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"/>
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M14.084 14.158a3 3 0 0 1-4.242-4.242"/>
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"/>
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="m2 2 20 20"/>
+                                  </svg>
+                                </button>
+                              </div>
+                            </template>
+                            <template x-if="!field.sensitive && field.type === 'string' && field.multiline && !(field.enum && field.enum.length)">
+                              <textarea class="field-input cfg-textarea" rows="6"
+                                        :value="getVal(field.key) ?? ''"
+                                        :placeholder="field.default != null ? String(field.default) : ''"
+                                        @input="setVal(field.key, $event.target.value)"></textarea>
+                            </template>
+                            <template x-if="!field.sensitive && (field.type === 'string' || field.type === 'duration') && !field.multiline && !(field.enum && field.enum.length)">
+                              <div style="display:flex;gap:0.375rem;align-items:center;width:100%;">
+                                <input type="text" class="field-input cfg-input" style="flex:1;min-width:0;"
+                                       :value="getVal(field.key) ?? ''"
+                                       :placeholder="field.default != null ? String(field.default) : ''"
+                                       @input="setVal(field.key, $event.target.value)">
+                                <template x-if="field.key === 'vault.path' && isElectron">
+                                  <button type="button" class="icon-btn icon-btn--lg"
+                                          title="Browse for folder"
+                                          style="font-size:13px;letter-spacing:0.05em;padding:0 6px;width:auto;"
+                                          @click="pickFolder(field.key, getVal(field.key))">···</button>
+                                </template>
+                              </div>
+                            </template>
+                          </div>
+                          <p class="cfg-field-desc" x-text="field.description"></p>
+                        </div>
+                      </template>
+                    </div>
+
+                    <div class="cfg-wechat-auth hairline" x-show="openSection === 'plugins.wechat'">
+                      <div class="cfg-wechat-auth-head">
+                        <span class="cfg-wechat-auth-title">WeChat login</span>
+                        <span class="badge"
+                              :class="{ 'badge--ok': wechatStatus.connected }"
+                              x-text="wechatStatus.connected ? 'Connected' : 'Not connected'"></span>
+                      </div>
+                      <p class="cfg-wechat-meta">
+                        Scan with WeChat to obtain an iLink bot token. Credentials are saved to
+                        <code>config.toml</code>. Create an agent bot with a <code>wechat_message</code> trigger to handle replies.
+                      </p>
+                      <template x-if="wechatStatus.connected">
+                        <div>
+                          <p class="cfg-wechat-meta" x-show="wechatStatus.account_id">
+                            Bot ID: <code x-text="wechatStatus.account_id"></code>
+                            <span x-show="wechatStatus.saved_at"> · saved <span x-text="wechatStatus.saved_at"></span></span>
+                          </p>
+                          <div class="cfg-wechat-actions">
+                            <button type="button" class="btn-solid btn-solid--danger"
+                                    @click="wechatLogout()"
+                                    :disabled="wechatAuthBusy"
+                                    x-text="wechatAuthBusy ? 'Disconnecting…' : 'Disconnect'"></button>
+                          </div>
+                        </div>
+                      </template>
+                      <template x-if="!wechatStatus.connected">
+                        <div>
+                          <div class="cfg-wechat-actions">
+                            <button type="button" class="btn-solid"
+                                    @click="startWechatLogin()"
+                                    :disabled="wechatAuthBusy || wechatLoginBusy"
+                                    x-text="wechatLoginBusy ? 'Waiting for scan…' : 'Scan QR to log in'"></button>
+                            <button type="button" class="btn-solid"
+                                    x-show="wechatLoginBusy"
+                                    @click="cancelWechatLogin()">Cancel</button>
+                          </div>
+                          <div class="cfg-wechat-qr" x-show="wechatQrcodeImg">
+                            <img :src="wechatQrcodeImg" alt="WeChat login QR code">
+                            <p class="cfg-wechat-status" x-show="wechatLoginStatus" x-text="wechatLoginStatus"></p>
+                          </div>
+                        </div>
+                      </template>
+                      <p class="cfg-wechat-err" x-show="wechatAuthError" x-text="wechatAuthError"></p>
+                      <p class="cfg-wechat-ok" x-show="wechatLoginOk">Connected — restart the server to start the bridge.</p>
+                    </div>
+
+                    <div class="cfg-wechat-auth hairline" x-show="openSection === 'plugins.discord'">
+                      <div class="cfg-wechat-auth-head">
+                        <span class="cfg-wechat-auth-title">Discord Bot status</span>
+                        <span class="badge"
+                              :class="{ 'badge--ok': !!getVal('plugins.discord.bot_token') }"
+                              x-text="getVal('plugins.discord.bot_token') ? 'Token set' : 'Not configured'"></span>
+                      </div>
+                      <p class="cfg-wechat-meta">
+                        Paste your Bot token above, then restart the server. Create an agent bot with a
+                        <code>discord_message</code> trigger to handle replies. The bot must share a server
+                        with you before it can send proactive DMs.
+                      </p>
+                      <template x-if="getVal('plugins.discord.user_id')">
+                        <p class="cfg-wechat-meta">
+                          Owner ID: <code x-text="getVal('plugins.discord.user_id')"></code>
+                        </p>
+                      </template>
+                    </div>
                   </div>
-                  <div class="cfg-action-right">
-                    <button class="btn-outline" x-show="hasDirty" @click="discardAll()">Discard</button>
-                    <button class="btn-solid"
-                            @click="saveConfig()"
-                            :disabled="!hasDirty || cfgSaving || cfgRestarting"
-                            x-text="cfgRestarting ? 'Restarting…' : cfgSaving ? 'Saving…' : 'Save all'"></button>
-                  </div>
+                </template>
+
+              </div>
+            </div>
+
+            <div class="cfg-action-bar hairline" x-show="!cfgLoading && !cfgError">
+              <div class="cfg-action-bar-inner">
+                <div class="cfg-action-left">
+                  <span class="cfg-status-ok" x-show="cfgSaveOk && !hasDirty">Saved — restart server to apply</span>
+                  <span class="cfg-status-err" x-show="cfgSaveError" x-text="cfgSaveError"></span>
+                  <span class="cfg-status-err" x-show="cfgRestartError" x-text="cfgRestartError"></span>
+                  <span class="cfg-restart-note" x-show="cfgRestarting">Restarting server…</span>
+                  <span class="badge" x-show="hasDirty"
+                        x-text="Object.keys(patch).length + ' unsaved change' + (Object.keys(patch).length !== 1 ? 's' : '')"></span>
+                  <span class="cfg-restart-note"
+                        x-show="!hasDirty && !cfgSaveOk && !cfgSaveError && !cfgRestartError && !cfgRestarting">
+                    Pick a section to edit. Save once when done; restart server to apply.
+                  </span>
+                </div>
+                <div class="cfg-action-right">
+                  <button class="btn-outline" x-show="hasDirty" @click="discardAll()">Discard</button>
+                  <button class="btn-solid"
+                          @click="saveConfig()"
+                          :disabled="!hasDirty || cfgSaving || cfgRestarting"
+                          x-text="cfgRestarting ? 'Restarting…' : cfgSaving ? 'Saving…' : 'Save all'"></button>
                 </div>
               </div>
             </div>
@@ -1028,8 +1075,9 @@ func settingsModalHTML() string {
 
           <!-- Agent Bots tab -->
           <div class="agent-bots-pane" x-show="tab === 'agent-bots'">
+           <div class="agent-bots-scroll">
 
-            <template x-if="!agentBotFormMode && !agentBotsSubPage">
+            <template x-if="!agentBotFormMode && !agentBotsSubPage && !agentBotTemplatePicker">
               <div>
                 <div class="agent-bots-toolbar">
                   <button class="btn-outline" @click="newAgentBot()">
@@ -1081,6 +1129,27 @@ func settingsModalHTML() string {
               </div>
             </template>
 
+            <template x-if="agentBotTemplatePicker">
+              <div class="agent-bot-form-wrap">
+                <div class="agent-bot-form-header">
+` + agentBotBackBtnHTML("agentBotTemplatePicker = false", "Agent Bots") + `
+                </div>
+                <p class="agent-bot-section-desc" style="margin-bottom:1.1rem;">Start from a template, or build one from scratch.</p>
+                <div class="agent-bot-template-list">
+                  <template x-for="tpl in agentBotTemplates" :key="tpl.id">
+                    <button type="button" class="list-card list-card--clickable agent-bot-template-card" @click="chooseAgentBotTemplate(tpl)">
+                      <span class="agent-bot-template-name" x-text="tpl.name"></span>
+                      <span class="agent-bot-template-desc" x-text="tpl.description"></span>
+                    </button>
+                  </template>
+                  <button type="button" class="list-card list-card--clickable agent-bot-template-card"
+                          @click="chooseAgentBotTemplate({id: 'blank', name: '', description: '', triggers: []})">
+                    <span class="agent-bot-template-name">Blank</span>
+                    <span class="agent-bot-template-desc">Start from an empty agent bot and configure everything yourself.</span>
+                  </button>
+                </div>
+              </div>
+            </template>
 
             <template x-if="agentBotFormMode">
               <div class="agent-bot-form-wrap">
@@ -1148,14 +1217,22 @@ func settingsModalHTML() string {
                     </div>
                     <div class="agent-bot-trigger-list">
                       <template x-for="(t, ti) in agentBotTriggers" :key="ti">
-                        <div class="agent-bot-trigger-card">
-                          <div class="agent-bot-trigger-hdr hairline">
-                            <span class="agent-bot-trigger-label">Trigger <span x-text="ti+1"></span></span>
+                        <div class="agent-bot-trigger-card" :class="{'is-open': t._open}">
+                          <div class="agent-bot-trigger-hdr hairline" @click="t._open = !t._open">
+                            <div class="agent-bot-trigger-hdr-main">
+                              <span class="agent-bot-trigger-chev" :class="{open: t._open}">
+                                <svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24" aria-hidden="true">
+                                  <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
+                                </svg>
+                              </span>
+                              <span class="agent-bot-trigger-label">Trigger <span x-text="ti+1"></span></span>
+                              <span class="agent-bot-trigger-summary" x-show="!t._open" x-text="agentBotTriggerSummary(t)"></span>
+                            </div>
                             <div class="agent-bot-trigger-hdr-actions">
-                              <button class="agent-bot-trigger-del" type="button" @click="removeAgentBotTrigger(ti)">Remove</button>
+                              <button class="agent-bot-trigger-del" type="button" @click.stop="removeAgentBotTrigger(ti)">Remove</button>
                             </div>
                           </div>
-                          <div class="agent-bot-trigger-body">
+                          <div class="agent-bot-trigger-body" x-show="t._open">
                             <div class="agent-bot-trigger-block agent-bot-trigger-events">
                               <div class="agent-bot-block-label">
                                 <span class="agent-bot-block-title">Event</span>
@@ -1278,18 +1355,20 @@ func settingsModalHTML() string {
                     </div>
                     <button class="agent-bot-trigger-add" type="button" @click="addAgentBotTrigger()" style="margin-top:0.25rem;">+ Add trigger</button>
                   </section>
-
-                  <div class="agent-bot-form-footer hairline">
-                    <button class="btn-solid" type="button"
-                            :disabled="!agentBotDraft.name.trim() || agentBotSaving"
-                            @click="saveAgentBot()"
-                            x-text="agentBotSaving ? 'Saving…' : 'Save'"></button>
-                    <button class="btn-outline" type="button" @click="agentBotFormMode = null">Cancel</button>
-                    <span class="agent-bot-form-err" x-text="agentBotSaveError"></span>
-                  </div>
                 </div>
               </div>
             </template>
+
+           </div><!-- .agent-bots-scroll -->
+
+            <div class="agent-bot-form-footer hairline" x-show="agentBotFormMode">
+              <button class="btn-solid" type="button"
+                      :disabled="!agentBotDraft.name.trim() || agentBotSaving"
+                      @click="saveAgentBot()"
+                      x-text="agentBotSaving ? 'Saving…' : 'Save'"></button>
+              <button class="btn-outline" type="button" @click="agentBotFormMode = null">Cancel</button>
+              <span class="agent-bot-form-err" x-text="agentBotSaveError"></span>
+            </div>
 
           </div><!-- .agent-bots-pane -->
 
@@ -1458,6 +1537,7 @@ const settingsCtrlJS = `
       agentBotsError: '',
       agentBotFormMode: null,
       agentBotsSubPage: null,
+      agentBotTemplatePicker: false,
       agentBotEditId: '',
       agentBotDraft: {},
       agentBotTriggers: [],
@@ -1504,6 +1584,39 @@ const settingsCtrlJS = `
         { abbr: 'fri', label: 'Fri' },
         { abbr: 'sat', label: 'Sat' },
         { abbr: 'sun', label: 'Sun' },
+      ],
+      // Trigger objects here are partial — chooseAgentBotTemplate() fills in
+      // the id/mateId/pathPrefixes/enabled defaults addAgentBotTrigger() also sets.
+      agentBotTemplates: [
+        {
+          id: 'compiler',
+          name: 'Compiler',
+          description: 'Compile notes into knowledge units — on demand, and automatically for new Web Clips.',
+          systemPrompt: 'Always use the hylo-compile-note and hylo-index-knowledge skills to compile and index notes.',
+          triggers: [
+            { eventTypes: ['compile_requested'], prompt: '` + agentBotCompilerPrompt + `' },
+            { eventTypes: ['note_created'], pathPrefixes: ['/Web Clips/'], prompt: '` + agentBotCompilerPrompt + `' },
+          ],
+        },
+        {
+          id: 'memory',
+          name: 'Daily Memory',
+          description: 'Extract personal memory from recent notes once a day.',
+          triggers: [
+            { eventTypes: ['scheduled'], schedule: 'daily 09:00',
+              prompt: "Please update my personal memory. I'm [name], currently working on [project]." },
+          ],
+        },
+        {
+          id: 'recap',
+          name: 'Recap',
+          description: 'Cross-check new short notes against the knowledge base as you capture them, and review everything written each week.',
+          triggers: [
+            { eventTypes: ['short_note_created'], prompt: '` + agentBotRecapShortNotePrompt + `' },
+            { eventTypes: ['scheduled'], schedule: 'weekly mon 09:00',
+              prompt: 'Use the hylo-recap skill to review everything I wrote this past week.' },
+          ],
+        },
       ],
       skillsList: [],
       skillsLoading: false,
@@ -1610,10 +1723,9 @@ const settingsCtrlJS = `
 
       fieldsForSection(s) { return this.schema.filter(f => f.section === s); },
 
-      toggleSection(s) {
-        const opening = this.openSection !== s;
-        this.openSection = opening ? s : '';
-        if (opening && s === 'plugins.wechat') this.loadWechatStatus();
+      openSectionDetail(s) {
+        this.openSection = s;
+        if (s === 'plugins.wechat') this.loadWechatStatus();
       },
 
       sectionHasDirty(s) { return this.fieldsForSection(s).some(f => this.isDirty(f.key)); },
@@ -1790,12 +1902,19 @@ const settingsCtrlJS = `
       },
 
       newAgentBot() {
-        const first = this.agents.find(function(a){ return a.available; });
-        const firstModel = (first && first.models && first.models.length) ? first.models[0].id : '';
-        this.agentBotDraft = { name: '', description: '', agentId: first ? first.id : '', model: firstModel, cwd: '', systemPrompt: '', enabled: true };
-        this.agentBotTriggers = [];
         this.agentBotEditId = '';
         this.agentBotSaveError = '';
+        this.agentBotTemplatePicker = true;
+      },
+
+      chooseAgentBotTemplate(tpl) {
+        const first = this.agents.find(function(a){ return a.available; });
+        const firstModel = (first && first.models && first.models.length) ? first.models[0].id : '';
+        this.agentBotDraft = { name: tpl.name, description: tpl.description, agentId: first ? first.id : '', model: firstModel, cwd: '', systemPrompt: tpl.systemPrompt || '', enabled: true };
+        this.agentBotTriggers = (tpl.triggers || []).map(function(t) {
+          return Object.assign({ id: '', mateId: '', schedule: '', pathPrefixes: [], enabled: true, _open: false }, t);
+        });
+        this.agentBotTemplatePicker = false;
         this.agentBotFormMode = 'create';
       },
 
@@ -1821,6 +1940,7 @@ const settingsCtrlJS = `
               }),
               schedule: t.schedule || '',
               pathPrefixes: t.pathPrefixes || [],
+              _open: false,
             });
           });
           this.agentBotEditId = m.id;
@@ -1844,7 +1964,11 @@ const settingsCtrlJS = `
         this.agentBotSaving = true;
         this.agentBotSaveError = '';
         try {
-          const payload = Object.assign({}, this.agentBotDraft, { triggers: this.agentBotTriggers });
+          const payload = Object.assign({}, this.agentBotDraft, { triggers: this.agentBotTriggers.map(function(t) {
+            const copy = Object.assign({}, t);
+            delete copy._open;
+            return copy;
+          }) });
           const url = this.agentBotFormMode === 'create' ? '/api/mates' : '/api/mates/' + this.agentBotEditId;
           const method = this.agentBotFormMode === 'create' ? 'POST' : 'PUT';
           const r = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
@@ -1890,10 +2014,21 @@ const settingsCtrlJS = `
       },
 
       addAgentBotTrigger() {
-        this.agentBotTriggers.push({ id: '', mateId: '', eventTypes: ['note_created'], schedule: '', prompt: '', pathPrefixes: [], enabled: true });
+        this.agentBotTriggers.push({ id: '', mateId: '', eventTypes: ['note_created'], schedule: '', prompt: '', pathPrefixes: [], enabled: true, _open: true });
       },
 
       removeAgentBotTrigger(idx) { this.agentBotTriggers.splice(idx, 1); },
+
+      // Collapsed-state label: event + the one extra detail (schedule, or
+      // path/source-bot filter) that distinguishes it from another trigger
+      // on the same event, so a glance at the closed card is still useful.
+      agentBotTriggerSummary(t) {
+        const def = this.agentBotEventDefs.find(function(d){ return d.type === (t.eventTypes[0] || ''); });
+        const label = def ? def.label : (t.eventTypes[0] || 'Select event…');
+        if (this.isScheduledTrigger(t)) return t.schedule ? label + ' · ' + t.schedule : label;
+        if ((t.pathPrefixes || []).length) return label + ' · ' + t.pathPrefixes.join(', ');
+        return label;
+      },
 
       isScheduledTrigger(t) { return (t.eventTypes || []).indexOf('scheduled') >= 0; },
       isWechatTrigger(t) { return (t.eventTypes || []).indexOf('wechat_message') >= 0; },
