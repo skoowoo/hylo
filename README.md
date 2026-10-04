@@ -1,4 +1,4 @@
-# Hylo: AI-native note-taking app compatible with Obsidian. AI agents organize and help you use your notes.
+# Hylo: AI-native note space compatible with Obsidian. AI agents organize and help you use your notes.
 
 [中文文档](./README_ZH.md)
 

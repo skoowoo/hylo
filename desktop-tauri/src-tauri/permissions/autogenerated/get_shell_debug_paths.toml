@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-get-shell-debug-paths"
+description = "Enables the get_shell_debug_paths command without any pre-configured scope."
+commands.allow = ["get_shell_debug_paths"]
+
+[[permission]]
+identifier = "deny-get-shell-debug-paths"
+description = "Denies the get_shell_debug_paths command without any pre-configured scope."
+commands.deny = ["get_shell_debug_paths"]

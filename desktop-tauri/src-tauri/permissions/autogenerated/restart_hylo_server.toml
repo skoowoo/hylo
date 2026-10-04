@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-restart-hylo-server"
+description = "Enables the restart_hylo_server command without any pre-configured scope."
+commands.allow = ["restart_hylo_server"]
+
+[[permission]]
+identifier = "deny-restart-hylo-server"
+description = "Denies the restart_hylo_server command without any pre-configured scope."
+commands.deny = ["restart_hylo_server"]

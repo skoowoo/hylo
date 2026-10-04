@@ -65,12 +65,12 @@ editor:
 clean:
 	rm -rf bin/
 
-## dist-all: build CLI tar.gz, Clip extension zip, and Electron DMG into ./dist, then checksum
+## dist-all: build CLI archive, Clip extension zip, and the desktop DMG into ./dist, then checksum
 dist-all: dist-clean dist-dmg dist-clip dist-checksum
 
 ## dist-clean: remove all previous dist artifacts before a fresh release build
 dist-clean:
-	rm -rf dist/ desktop-app/dist/ desktop-app/bundled/
+	rm -rf dist/ desktop-tauri/bundled/ desktop-tauri/src-tauri/target/release/bundle
 	@mkdir -p dist
 
 ## dist-cli: build hylo CLI for the current platform only (via goreleaser, requires git tag)
@@ -87,28 +87,35 @@ dist-clip:
 	cd $(CLIP_DIR) && npm ci && npm run build
 	cd $(CLIP_DIR)/dist && zip -r "$(CURDIR)/$(CLIP_ZIP)" .
 
-## dist-dmg: build Electron desktop app DMG into ./dist (macOS only)
+## dist-dmg: build the Tauri desktop DMG into ./dist (macOS only)
 dist-dmg: dist-cli-snapshot
-	@mkdir -p desktop-app/bundled
+	@mkdir -p desktop-tauri/bundled
 	@TAR_GZ=$$(find dist -maxdepth 1 -name "hylo_$$(go env GOOS)_$$(go env GOARCH).tar.gz" | head -1); \
 	  test -n "$$TAR_GZ" || (echo "Error: dist/hylo_$$(go env GOOS)_$$(go env GOARCH).tar.gz not found"; exit 1); \
-	  echo "==> Bundling $$TAR_GZ into Electron app..."; \
-	  cp "$$TAR_GZ" desktop-app/bundled/hylo.tar.gz
-	rm -f desktop-app/dist/*.dmg desktop-app/dist/*.zip
-	cd desktop-app && npm install && npm run dist -- --mac
-	cp desktop-app/dist/*.dmg dist/
-	@rm -rf desktop-app/bundled
+	  echo "==> Bundling $$TAR_GZ into Hylo.app..."; \
+	  cp "$$TAR_GZ" desktop-tauri/bundled/hylo.tar.gz
+	@IDENTITY=$$(sh desktop-tauri/scripts/signing-identity.sh); \
+	  echo "==> Signing with $$IDENTITY; notarization is not configured"; \
+	  cd desktop-tauri && APPLE_SIGNING_IDENTITY="$$IDENTITY" npm install && APPLE_SIGNING_IDENTITY="$$IDENTITY" npm run build -- --bundles dmg --config src-tauri/tauri.dist.macos.json
+	@VER=$$(node -p "require('./desktop-tauri/src-tauri/tauri.conf.json').version"); \
+	  DMG=$$(find desktop-tauri/src-tauri/target/release/bundle/dmg -name '*.dmg' | head -1); \
+	  test -n "$$DMG" || (echo "Error: Tauri DMG not found"; exit 1); \
+	  cp "$$DMG" "dist/Hylo-$$VER.dmg"
+	@rm -rf desktop-tauri/bundled
 
-## dist-win-app: build Electron desktop app NSIS installer into ./dist (Windows only)
+## dist-win-app: build the Tauri NSIS installer into ./dist (Windows only)
 dist-win-app: dist-cli-snapshot
-	@mkdir -p desktop-app/bundled
+	@mkdir -p desktop-tauri/bundled
 	@ZIP=$$(find dist -maxdepth 1 -name "hylo_$$(go env GOOS)_$$(go env GOARCH).zip" | head -1); \
 	  test -n "$$ZIP" || (echo "Error: dist/hylo_$$(go env GOOS)_$$(go env GOARCH).zip not found"; exit 1); \
-	  echo "==> Bundling $$ZIP into Electron app..."; \
-	  cp "$$ZIP" desktop-app/bundled/hylo.zip
-	cd desktop-app && npm install && npm run dist -- --win
-	cp desktop-app/dist/*.exe dist/ 2>/dev/null || true
-	@rm -rf desktop-app/bundled
+	  echo "==> Bundling $$ZIP into Hylo..."; \
+	  cp "$$ZIP" desktop-tauri/bundled/hylo.zip
+	cd desktop-tauri && npm install && npm run build -- --bundles nsis --config src-tauri/tauri.dist.windows.json
+	@VER=$$(node -p "require('./desktop-tauri/src-tauri/tauri.conf.json').version"); \
+	  EXE=$$(find desktop-tauri/src-tauri/target/release/bundle/nsis -name '*-setup.exe' | head -1); \
+	  test -n "$$EXE" || (echo "Error: Tauri NSIS installer not found"; exit 1); \
+	  cp "$$EXE" "dist/Hylo-$$VER.exe"
+	@rm -rf desktop-tauri/bundled
 
 ## dist-checksum: generate SHA-256 checksums for all dist artifacts into dist/checksums.txt
 dist-checksum:

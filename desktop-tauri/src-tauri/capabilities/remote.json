@@ -1,0 +1,28 @@
+{
+  "identifier": "remote-hylo",
+  "windows": ["main"],
+  "remote": {
+    "urls": ["http://*:*", "https://*:*"]
+  },
+  "permissions": [
+    "core:default",
+    "core:window:allow-start-dragging",
+    "core:window:allow-set-theme",
+    "dialog:default",
+    "notification:default",
+    "allow-check-server",
+    "allow-start-hylo-server-detached",
+    "allow-stop-hylo-server",
+    "allow-get-server-process-status",
+    "allow-get-shell-debug-paths",
+    "allow-get-server-url",
+    "allow-set-server-url",
+    "allow-restart-hylo-server",
+    "allow-pick-folder",
+    "allow-set-view-bg-color",
+    "allow-set-window-button-visibility",
+    "allow-inbox-notify-get-settings",
+    "allow-inbox-notify-set-settings",
+    "allow-inbox-notify-preview-sound"
+  ]
+}

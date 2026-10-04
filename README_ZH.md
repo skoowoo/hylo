@@ -1,4 +1,4 @@
-# Hylo：一个兼容 Obsidian 的 AI native 笔记系统，使用 AI agent 帮你整理、使用笔记。
+# Hylo：一个兼容 Obsidian 的 AI native 个人笔记空间，使用 AI agent 帮你整理、使用笔记。
 
 1. 从 AI 知识图中选择知识点，直接打开编辑器浏览编辑知识笔记
 

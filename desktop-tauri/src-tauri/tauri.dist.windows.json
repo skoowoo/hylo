@@ -1,0 +1,7 @@
+{
+  "bundle": {
+    "resources": {
+      "../bundled/hylo.zip": "cli/hylo.zip"
+    }
+  }
+}

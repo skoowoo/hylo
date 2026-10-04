@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Hylo</title>
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html,
+    body {
+      height: 100%;
+    }
+
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #010102;
+      color: #f7f8f8;
+      font-family: -apple-system, "SF Pro Display", system-ui, "Segoe UI", sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -webkit-app-region: drag;
+    }
+
+    .shell {
+      -webkit-app-region: no-drag;
+      width: min(420px, 88vw);
+      padding: 2.75rem 2.25rem 2.25rem;
+      border: 1px solid #23252a;
+      border-radius: 16px;
+      background: #0f1011;
+    }
+
+    /* Logo */
+    .logo {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: #f7f8f8;
+      letter-spacing: 0.2em;
+      user-select: none;
+      line-height: 1;
+      margin-bottom: 2.25rem;
+    }
+
+    /* URL input row */
+    .url-row {
+      display: flex;
+      margin-bottom: 1rem;
+    }
+
+    .url-input {
+      flex: 1;
+      min-width: 0;
+      background: #141516;
+      border: 1px solid #34343a;
+      border-radius: 8px;
+      outline: none;
+      padding: 0.55rem 0.75rem;
+      font-size: 0.8125rem;
+      font-weight: 400;
+      color: #f7f8f8;
+      font-family: inherit;
+    }
+
+    .url-input:focus {
+      border-color: #5e6ad2;
+    }
+
+    .url-input::placeholder {
+      color: #62666d;
+    }
+
+    /* Status row */
+    .status-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      min-height: 1.1rem;
+      margin-top: 0.25rem;
+    }
+
+    .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      background: #62666d;
+    }
+
+    .dot.ok {
+      background: #3ddc8f;
+    }
+
+    .dot.error {
+      background: #f87171;
+    }
+
+    .dot.pulse {
+      background: #5e6ad2;
+    }
+
+    @keyframes blink {
+
+      0%,
+      49% {
+        opacity: 1
+      }
+
+      50%,
+      100% {
+        opacity: 0
+      }
+    }
+
+    .dot.pulse {
+      animation: blink 0.85s step-start infinite;
+    }
+
+    .status-txt {
+      font-size: 0.625rem;
+      font-weight: 600;
+      color: #8a8f98;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    .status-txt.error {
+      color: #f87171;
+    }
+
+    .status-txt.ok {
+      color: #3ddc8f;
+    }
+
+    /* Hint */
+    .hint {
+      margin-top: 0.875rem;
+      font-size: 0.625rem;
+      font-weight: 400;
+      line-height: 1.7;
+      color: #8a8f98;
+      border-left: 2px solid #23252a;
+      padding-left: 0.625rem;
+      word-break: break-all;
+      white-space: pre-wrap;
+    }
+
+    .hint[hidden] {
+      display: none;
+    }
+
+    /* Start server button */
+    .start-btn {
+      margin-top: 1.25rem;
+      width: 100%;
+      padding: 0.6rem 1rem;
+      background: #5e6ad2;
+      border: none;
+      border-radius: 8px;
+      color: #ffffff;
+      font-family: inherit;
+      font-size: 0.75rem;
+      font-weight: 500;
+      letter-spacing: 0.04em;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      user-select: none;
+    }
+
+    .start-btn:hover:not(:disabled) {
+      background: #828fff;
+    }
+
+    .start-btn:active:not(:disabled) {
+      background: #5e69d1;
+    }
+
+    .start-btn[hidden] {
+      display: none;
+    }
+
+    .start-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .start-btn svg {
+      width: 13px;
+      height: 13px;
+      flex-shrink: 0;
+    }
+
+  </style>
+</head>
+
+<body data-tauri-drag-region>
+  <div class="shell">
+    <p class="logo">HYLO</p>
+
+    <div class="url-row">
+      <input id="url-input" type="url" class="url-input" placeholder="http://localhost:54321" spellcheck="false"
+        autocomplete="off">
+    </div>
+
+    <div class="status-row">
+      <span id="dot" class="dot pulse"></span>
+      <span id="status" class="status-txt">connecting</span>
+    </div>
+    <p id="hint" class="hint" hidden></p>
+
+    <button id="start-btn" class="start-btn" hidden>
+      <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14m-7-7 7 7-7 7" />
+      </svg>
+      Start Server
+    </button>
+
+  </div>
+
+  <script>
+    (function () {
+      const input = document.getElementById('url-input');
+      const dotEl = document.getElementById('dot');
+      const statusEl = document.getElementById('status');
+      const hintEl = document.getElementById('hint');
+      const startBtn = document.getElementById('start-btn');
+
+      let retryTimer = null;
+      let busy = false;
+      let isRetrying = false; // true after first failure — suppresses "connecting" flash on bg retries
+
+      function setUI(state, msg, hint) {
+        // Don't flash "connecting" during silent background retries
+        if (isRetrying && state === 'connecting') return;
+
+        dotEl.className = 'dot ' + (
+          state === 'ok' ? 'ok' :
+            state === 'error' ? 'error' : 'pulse'
+        );
+        statusEl.textContent = msg;
+        statusEl.className = 'status-txt' + (
+          state === 'error' ? ' error' :
+            state === 'ok' ? ' ok' : ''
+        );
+
+        const h = (hint || '').trim();
+        if (!h) {
+          hintEl.hidden = true;
+        } else if (hintEl.textContent !== h) {
+          hintEl.textContent = h;
+          hintEl.hidden = false;
+        } else {
+          hintEl.hidden = false;
+        }
+      }
+
+      function showStart(v) {
+        startBtn.hidden = !v;
+      }
+
+      function isLocal(raw) {
+        try {
+          const h = new URL(raw).hostname.toLowerCase();
+          return h === 'localhost' || h === '127.0.0.1' || h === '::1';
+        } catch { return false; }
+      }
+
+      let detachStartConsumed = false;
+      let spawnedLocalServerOk = false;
+
+      async function debugPaths() {
+        try {
+          if (window.hyloDesktop?.getShellDebugPaths)
+            return await window.hyloDesktop.getShellDebugPaths();
+        } catch { }
+        return {};
+      }
+
+      async function attempt(urlRaw, { userInitiated = false } = {}) {
+        if (busy) return;
+        const url = urlRaw.trim().replace(/\/$/, '');
+        clearTimeout(retryTimer);
+        busy = true;
+        startBtn.disabled = true;
+        setUI('connecting', 'connecting');
+
+        let ok = false;
+        if (window.hyloDesktop) {
+          try { ok = await window.hyloDesktop.checkServer(url); } catch { }
+        }
+
+        if (ok) {
+          isRetrying = false;
+          detachStartConsumed = false;
+          spawnedLocalServerOk = false;
+          busy = false;
+          showStart(false);
+          setUI('ok', 'connected');
+          if (window.hyloDesktop) await window.hyloDesktop.setServerUrl(url);
+          return;
+        }
+
+        const paths = await debugPaths();
+        let retryMs = 3000;
+        let pendingStart = false;
+        let showRetry = false;
+        let headline = '', hint = '';
+
+        if (!window.hyloDesktop) {
+          headline = 'preload api unavailable';
+          hint = 'Desktop API not found. Check DevTools.';
+        } else if (isLocal(url) && !detachStartConsumed) {
+          try {
+            detachStartConsumed = true;
+            const st = await window.hyloDesktop.startHyloServerDetached({ userInitiated });
+            if (st.ok) {
+              spawnedLocalServerOk = true;
+              pendingStart = true;
+              retryMs = 1400;
+            } else if (st.reason === 'stopped_by_user') {
+              isRetrying = false;
+              busy = false;
+              startBtn.disabled = false;
+              showStart(true);
+              setUI('error', 'server stopped');
+              return;
+            } else {
+              spawnedLocalServerOk = false;
+              // Let the next automatic retry attempt spawning again instead of
+              // dead-ending in a checkServer-only poll loop forever.
+              detachStartConsumed = false;
+              showRetry = true;
+              headline = 'server start failed';
+              hint = (st.error ? st.error + '\n\n' : '') +
+                'Server output:\n' + (paths.serverOutput || '');
+            }
+          } catch (e) {
+            detachStartConsumed = false;
+            showRetry = true;
+            headline = 'connection error';
+            hint = String(e?.message ?? e);
+          }
+        } else if (spawnedLocalServerOk && isLocal(url)) {
+          headline = 'waiting for server';
+          hint = (paths.serverOutput || '') +
+            (paths.diagnostics ? '\n\nElectron log:\n' + paths.diagnostics : '');
+        } else if (isLocal(url) && detachStartConsumed && !spawnedLocalServerOk) {
+          // Defensive fallback — shouldn't normally be reached now that a failed
+          // spawn resets detachStartConsumed above, but keep it recoverable too.
+          detachStartConsumed = false;
+          showRetry = true;
+          headline = 'server start failed';
+          hint = (paths.serverOutput || '') +
+            (paths.diagnostics ? '\n\nElectron log:\n' + paths.diagnostics : '');
+        } else {
+          headline = 'cannot connect';
+          if (paths.diagnostics) hint = 'Shell log:\n' + paths.diagnostics;
+        }
+
+        busy = false;
+        startBtn.disabled = pendingStart;
+        isRetrying = true;
+        showStart(showRetry);
+        setUI(
+          pendingStart ? 'starting' : 'error',
+          pendingStart ? 'starting server' : headline,
+          pendingStart ? '' : hint
+        );
+        retryTimer = setTimeout(() => attempt(url), retryMs);
+      }
+
+      async function init() {
+        let url = 'http://localhost:54321';
+        if (window.hyloDesktop) {
+          try { url = await window.hyloDesktop.getServerUrl() || url; } catch { }
+        }
+        input.value = url;
+        attempt(url);
+      }
+
+      function userConnect() {
+        isRetrying = false;
+        detachStartConsumed = false;
+        spawnedLocalServerOk = false;
+        attempt(input.value.trim().replace(/\/$/, ''), { userInitiated: true });
+      }
+
+      input.addEventListener('keydown', e => { if (e.key === 'Enter') userConnect(); });
+      startBtn.addEventListener('click', userConnect);
+
+      init();
+    })();
+  </script>
+</body>
+
+</html>

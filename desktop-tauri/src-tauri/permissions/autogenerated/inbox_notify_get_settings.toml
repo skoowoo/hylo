@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-inbox-notify-get-settings"
+description = "Enables the inbox_notify_get_settings command without any pre-configured scope."
+commands.allow = ["inbox_notify_get_settings"]
+
+[[permission]]
+identifier = "deny-inbox-notify-get-settings"
+description = "Denies the inbox_notify_get_settings command without any pre-configured scope."
+commands.deny = ["inbox_notify_get_settings"]

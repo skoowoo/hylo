@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-stop-hylo-server"
+description = "Enables the stop_hylo_server command without any pre-configured scope."
+commands.allow = ["stop_hylo_server"]
+
+[[permission]]
+identifier = "deny-stop-hylo-server"
+description = "Denies the stop_hylo_server command without any pre-configured scope."
+commands.deny = ["stop_hylo_server"]

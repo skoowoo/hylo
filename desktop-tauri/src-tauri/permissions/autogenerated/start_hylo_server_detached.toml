@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-start-hylo-server-detached"
+description = "Enables the start_hylo_server_detached command without any pre-configured scope."
+commands.allow = ["start_hylo_server_detached"]
+
+[[permission]]
+identifier = "deny-start-hylo-server-detached"
+description = "Denies the start_hylo_server_detached command without any pre-configured scope."
+commands.deny = ["start_hylo_server_detached"]
