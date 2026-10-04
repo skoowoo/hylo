@@ -3,7 +3,7 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const outDir = join(__dirname, '../../internal/server/static');
+const outDir = join(__dirname, '../internal/server/static');
 
 // outdir + splitting (was a single outfile) — cm-live/index.js's
 // codeLanguages: languages (@codemirror/language-data) pulls in ~140

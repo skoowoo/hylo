@@ -20,7 +20,7 @@ import { HorizontalRuleWidget } from './widgets.js';
 // so once the walk enters a Paragraph, a heading, a fenced/indented code
 // block, a table cell, etc., there's no need to descend into its inline
 // marks/text to rule out a nested HorizontalRule; it structurally can't be
-// there. Verified against the actual parser (desktop-app/editor/probe_tree.mjs)
+// there. Verified against the actual parser (editor/probe_tree.mjs)
 // against a HorizontalRule nested in a blockquote, a list item, past a table,
 // and past a fenced code block containing a literal "---" comment line — same
 // positions as the unpruned walk, ~55% fewer nodes visited on that fixture

@@ -5,7 +5,7 @@ package view
 // be customized/extended independently later (values below are unchanged
 // from before the split). Backs:
 //   - the note reader (.prose, note_shared_prose.css)
-//   - the CM6 live-preview editor (desktop-app/editor/src/cm-live/theme.js —
+//   - the CM6 live-preview editor (editor/src/cm-live/theme.js —
 //     same var() names, read at runtime via EditorView.theme())
 //   - every other surface that reuses .prose: agent chat (.msg-body),
 //     inbox (.inbox-sheet-body), shorts (.short-entry-prose)

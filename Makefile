@@ -45,7 +45,7 @@ test:
 
 ## test-js: run the editor's and static assets' JS test suites (node --test, no deps)
 test-js:
-	cd desktop-app/editor && npm test
+	cd editor && npm test
 	node --test "internal/server/view/assets/**/*.test.js"
 
 ## tidy: tidy and verify go modules
@@ -55,11 +55,11 @@ tidy:
 
 ## icons: regenerate internal/server/view/shared_icons_pixel.go from pixelarticons
 icons:
-	cd desktop-app/editor && node gen-icons.mjs
+	cd editor && node gen-icons.mjs
 
 ## editor: bundle editor JS into internal/server/static/editor.js
 editor:
-	cd desktop-app/editor && npm run build
+	cd editor && npm run build
 
 ## clean: remove build artifacts
 clean:
