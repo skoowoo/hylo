@@ -155,9 +155,10 @@ func runVaultInit(_ *cobra.Command, args []string) error {
 	}
 	fmt.Printf("Registered %d images in metadata database\n", imgRegistered)
 
-	// Phase 1c: build note→image link associations (single walk over all .md files).
+	// Phase 1c: backfill note→image link associations (single walk over all .md files).
+	// Day-to-day updates are kept current incrementally by the assets plugin.
 	fmt.Println("Building image–note associations...")
-	if err := vault.BuildImageNoteLinks(); err != nil {
+	if err := vault.BackfillBodyImageLinks(); err != nil {
 		fmt.Printf("Warning: image–note links: %v\n", err)
 	}
 
@@ -179,7 +180,7 @@ func runVaultInit(_ *cobra.Command, args []string) error {
 func runLinkImagesWork(vault *storage.Vault) error {
 	fmt.Printf("Scanning vault: %s\n", vault.Root())
 	fmt.Println("Building image–note associations...")
-	if err := vault.BuildImageNoteLinks(); err != nil {
+	if err := vault.BackfillBodyImageLinks(); err != nil {
 		return fmt.Errorf("link images: %w", err)
 	}
 	fmt.Println("Done.")

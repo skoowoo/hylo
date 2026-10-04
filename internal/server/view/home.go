@@ -323,9 +323,10 @@ func (vh *ViewHandler) renderHomeImagesSection(r *http.Request) (template.HTML, 
 		imgs = imgs[:imagesPageSize]
 	}
 
+	linksByImage, preview, rank := resolveImageLinks(vh.vault, imgs)
 	items := make([]imageItem, 0, len(imgs))
 	for _, img := range imgs {
-		items = append(items, imageItemFrom(img))
+		items = append(items, imageItemFrom(img, linksByImage[img.Name], preview, rank))
 	}
 
 	var nextNs int64
@@ -925,10 +926,13 @@ const homeImagesLightboxHTML = `
           <div class="lb-section-label">Linked Notes</div>
           <template x-if="lightbox && lightbox.notes && lightbox.notes.length > 0">
             <div>
-              <template x-for="note in lightbox.notes" :key="note">
-                <div class="lb-note-card" @click="openLinkedNote(note)">
+              <template x-for="note in lightbox.notes" :key="note.name">
+                <div class="lb-note-card" @click="openLinkedNote(note.name)">
                   <svg class="lb-note-card-icon" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path stroke-linecap="round" stroke-linejoin="round" d="M14 2v5a1 1 0 0 0 1 1h5"/></svg>
-                  <span class="lb-note-card-name" x-text="note"></span>
+                  <div class="lb-note-card-body">
+                    <span class="lb-note-card-name" x-text="note.name"></span>
+                    <span class="lb-note-card-preview" x-show="note.preview" x-text="note.preview"></span>
+                  </div>
                   <svg class="lb-note-card-arrow" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M9 18l6-6-6-6"/>
                   </svg>

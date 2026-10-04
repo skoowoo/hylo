@@ -5,6 +5,7 @@ import (
 	"html/template"
 	"net/http"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -23,9 +24,53 @@ type imageItem struct {
 	ThumbURL        string
 	CursorNs        int64
 	LinkedNotes     []string
-	LinkedNotesJSON string // JSON array for data attribute, e.g. ["note1","note2"]
-	// Caption is linked note titles joined for the card (2-line clamp in CSS); empty → use Name in template.
+	LinkedNotesJSON string // JSON array of {name,preview} for data attribute, e.g. [{"name":"note1","preview":"..."}]
+	// Caption is the most recently updated linked note's preview text (2-line
+	// clamp in CSS); empty → use Name in template (no links, or that note has
+	// no excerpt text of its own, e.g. an image-only note).
 	Caption string
+}
+
+// linkedNoteRef is one entry of imageItem's LinkedNotesJSON — the lightbox's
+// "Linked Notes" cards render a note's content excerpt, not just its title,
+// so the client needs the preview text alongside the name.
+type linkedNoteRef struct {
+	Name    string `json:"name"`
+	Preview string `json:"preview,omitempty"`
+}
+
+// notesPreviewLookup batch-resolves a set of linked-note basenames (without
+// ".md") to their cached preview text and recency rank, reusing
+// Vault.GetNotesByNames (already ordered by updated_at desc) instead of one
+// lookup per image.
+func notesPreviewLookup(vault *storage.Vault, basenames []string) (preview map[string]string, rank map[string]int) {
+	preview = map[string]string{}
+	rank = map[string]int{}
+	if len(basenames) == 0 {
+		return
+	}
+	fileNames := make([]string, 0, len(basenames))
+	seen := map[string]bool{}
+	for _, b := range basenames {
+		if b == "" || seen[b] {
+			continue
+		}
+		seen[b] = true
+		fileNames = append(fileNames, b+".md")
+	}
+	notes, err := vault.GetNotesByNames(fileNames)
+	if err != nil {
+		return
+	}
+	for i, n := range notes {
+		base := strings.TrimSuffix(n.Name, ".md")
+		if _, ok := rank[base]; ok {
+			continue // duplicate basename across dirs — keep the freshest (first) one
+		}
+		preview[base] = n.Preview.Text
+		rank[base] = i
+	}
+	return
 }
 
 type imagesGridData struct {
@@ -37,20 +82,38 @@ type imagesGridData struct {
 	Count int
 }
 
-func imageItemFrom(img storage.Image) imageItem {
-	notes := img.LinkedNotes
+func imageItemFrom(img storage.Image, notes []string, preview map[string]string, rank map[string]int) imageItem {
 	if notes == nil {
 		notes = []string{}
 	}
-	notesJSON, _ := json.Marshal(notes)
-	var captionParts []string
+
+	refs := make([]linkedNoteRef, 0, len(notes))
+	bestRank := -1
+	caption := ""
 	for _, n := range notes {
 		n = strings.TrimSpace(n)
-		if n != "" {
-			captionParts = append(captionParts, n)
+		if n == "" {
+			continue
+		}
+		refs = append(refs, linkedNoteRef{Name: n, Preview: preview[n]})
+		if r, ok := rank[n]; ok && (bestRank == -1 || r < bestRank) {
+			bestRank = r
+			caption = preview[n]
 		}
 	}
-	caption := strings.Join(captionParts, " · ")
+	sort.SliceStable(refs, func(i, j int) bool {
+		ri, oki := rank[refs[i].Name]
+		rj, okj := rank[refs[j].Name]
+		if !oki {
+			ri = len(rank) + 1
+		}
+		if !okj {
+			rj = len(rank) + 1
+		}
+		return ri < rj
+	})
+	notesJSON, _ := json.Marshal(refs)
+
 	return imageItem{
 		Dir:             img.Dir,
 		Name:            img.Name,
@@ -63,6 +126,29 @@ func imageItemFrom(img storage.Image) imageItem {
 		LinkedNotesJSON: string(notesJSON),
 		Caption:         caption,
 	}
+}
+
+// resolveImageLinks batch-fetches, for a set of images, which notes embed
+// each one (Vault.NoteNamesForImages, backed by note_assets kind=image) and
+// those notes' cached preview text + recency rank (notesPreviewLookup) — the
+// two things imageItemFrom needs to show content instead of file metadata.
+// A single pair of queries for the whole batch, not one per image.
+func resolveImageLinks(vault *storage.Vault, imgs []storage.Image) (linksByImage map[string][]string, preview map[string]string, rank map[string]int) {
+	names := make([]string, 0, len(imgs))
+	for _, img := range imgs {
+		names = append(names, img.Name)
+	}
+	linksByImage, err := vault.NoteNamesForImages(names)
+	if err != nil {
+		linksByImage = map[string][]string{}
+	}
+
+	var allNotes []string
+	for _, notes := range linksByImage {
+		allNotes = append(allNotes, notes...)
+	}
+	preview, rank = notesPreviewLookup(vault, allNotes)
+	return
 }
 
 func imageThumbURL(img storage.Image) string {
@@ -102,9 +188,10 @@ func (vh *ViewHandler) ImagesGrid(w http.ResponseWriter, r *http.Request) {
 		imgs = imgs[:imagesPageSize]
 	}
 
+	linksByImage, preview, rank := resolveImageLinks(vh.vault, imgs)
 	items := make([]imageItem, 0, len(imgs))
 	for _, img := range imgs {
-		items = append(items, imageItemFrom(img))
+		items = append(items, imageItemFrom(img, linksByImage[img.Name], preview, rank))
 	}
 
 	var nextNs int64

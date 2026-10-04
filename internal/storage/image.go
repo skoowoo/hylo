@@ -62,14 +62,16 @@ type NoteAsset struct {
 }
 
 // Image is the metadata for a single image file inside a Vault.
+//
+// Which notes embed an image lives in note_assets (kind=image), not here —
+// see Vault.NoteNamesForImages.
 type Image struct {
-	Dir         string // vault-absolute directory path, e.g. "/_assets/202501" or "/attachments"
-	Name        string // filename with extension, e.g. "photo.png"
-	Ext         string // lowercase extension including dot, e.g. ".png"
-	Size        int64
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
-	LinkedNotes []string // note basenames (without .md) that embed this image via ![[name]]
+	Dir       string // vault-absolute directory path, e.g. "/_assets/202501" or "/attachments"
+	Name      string // filename with extension, e.g. "photo.png"
+	Ext       string // lowercase extension including dot, e.g. ".png"
+	Size      int64
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 // wikiImageLinkRe matches Obsidian wiki-style image embeds: ![[filename.ext]] or ![[filename.ext|hint]]
@@ -242,15 +244,61 @@ func (g *Vault) CountImages() (int, error) {
 	return dbImageCount(g.db)
 }
 
-// BuildImageNoteLinks walks all markdown notes in a single pass, finds every
-// ![[image.ext]] wiki embed, and writes the note→image associations back to the DB.
+// NoteNamesForImages batch-resolves, for each image filename in names, the
+// basenames (without ".md") of every note that currently embeds it via
+// ![[name]] — backed by note_assets' kind=image rows (see ParseImageEmbeds
+// and the assets plugin, which keeps them current on every save).
+func (g *Vault) NoteNamesForImages(names []string) (map[string][]string, error) {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+	return dbNoteNamesByAssetFilenames(g.db, names, AssetKindImage)
+}
+
+// ParseImageEmbeds returns the ordered, deduplicated list of image filenames
+// referenced via Obsidian-style ![[image.ext]] (or ![[image.ext|hint]]) wiki
+// embeds in note content. Used both by BackfillBodyImageLinks (vault-wide,
+// at startup) and by the assets plugin's per-save extractor
+// (internal/plugins/assets), which is what keeps note_assets' kind=image
+// rows current day to day.
+func ParseImageEmbeds(data []byte) []string {
+	if !bytes.Contains(data, []byte("![[")) {
+		return nil
+	}
+	var out []string
+	seen := map[string]bool{}
+	for _, m := range wikiImageLinkRe.FindAllSubmatch(data, -1) {
+		if len(m) < 2 {
+			continue
+		}
+		target := filepath.Base(strings.TrimSpace(string(m[1])))
+		if !IsImagePath(target) || seen[target] {
+			continue
+		}
+		seen[target] = true
+		out = append(out, target)
+	}
+	return out
+}
+
+// BackfillBodyImageLinks walks every markdown note in the vault and
+// (re)writes its note_assets rows of kind=image to match the ![[image]]
+// embeds currently in its body — a global reconciliation pass, run once at
+// startup/init (see internal/cli/start.go, init.go) to pick up notes that
+// predate this feature or haven't been saved since. Day-to-day updates are
+// kept current incrementally by the assets plugin's extractBodyImages,
+// which runs on every save and (via ReplaceNoteAssets) correctly handles
+// embeds a note has since removed too — this backfill exists only to catch
+// notes the plugin hasn't seen yet.
 //
-// The function holds the write lock only during the DB update phase, not during
-// the filesystem walk, so it does not block concurrent reads.
-func (g *Vault) BuildImageNoteLinks() error {
-	// Phase 1: walk all .md files (no lock held — read-only).
-	// links: imageName → []noteBasename (from ![[]] embeds)
-	links := make(map[string][]string)
+// The walk itself holds no lock (read-only); each note's ReplaceNoteAssets
+// call takes the lock individually, mirroring how notes are registered in
+// ScanAndRegisterFull.
+func (g *Vault) BackfillBodyImageLinks() error {
+	type noteImages struct {
+		path   Path
+		images []string
+	}
+	var notes []noteImages
 
 	err := filepath.WalkDir(g.root, func(absPath string, d os.DirEntry, walkErr error) error {
 		if walkErr != nil {
@@ -271,47 +319,29 @@ func (g *Vault) BuildImageNoteLinks() error {
 			return nil
 		}
 
-		noteName := strings.TrimSuffix(d.Name(), ".md")
-
-		if bytes.Contains(data, []byte("![[")) {
-			for _, m := range wikiImageLinkRe.FindAllSubmatch(data, -1) {
-				if len(m) < 2 {
-					continue
-				}
-				target := filepath.Base(strings.TrimSpace(string(m[1])))
-				if !IsImagePath(target) {
-					continue
-				}
-				links[target] = appendUniqueStr(links[target], noteName)
-			}
+		rel, err := filepath.Rel(g.root, absPath)
+		if err != nil {
+			return nil
 		}
+		dir, name := PathParts("/" + filepath.ToSlash(rel))
 
+		notes = append(notes, noteImages{path: Path(JoinPath(dir, name)), images: ParseImageEmbeds(data)})
 		return nil
 	})
 	if err != nil {
 		return fmt.Errorf("storage: walk notes for image links: %w", err)
 	}
 
-	// Phase 2: write results to DB (exclusive lock).
-	g.mu.Lock()
-	defer g.mu.Unlock()
-
-	if err := dbImageClearAllLinkedNotes(g.db); err != nil {
-		return fmt.Errorf("storage: clear image linked notes: %w", err)
-	}
-	for imgName, noteNames := range links {
-		_ = dbImageSetLinkedNotes(g.db, imgName, strings.Join(noteNames, "\n"))
-	}
-	return nil
-}
-
-func appendUniqueStr(slice []string, s string) []string {
-	for _, v := range slice {
-		if v == s {
-			return slice
+	for _, n := range notes {
+		assets := make([]NoteAsset, len(n.images))
+		for i, name := range n.images {
+			assets[i] = NoteAsset{Kind: AssetKindImage, Filename: name, Ord: i}
+		}
+		if err := g.ReplaceNoteAssets(n.path, AssetKindImage, assets); err != nil {
+			return fmt.Errorf("storage: backfill image links for %q: %w", n.path, err)
 		}
 	}
-	return append(slice, s)
+	return nil
 }
 
 // OsImagePath resolves the vault-relative Image back to an absolute OS path.

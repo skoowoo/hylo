@@ -48,13 +48,19 @@ func (vh *ViewHandler) resolveShortImages(names []string) []imageItem {
 	if len(names) == 0 {
 		return nil
 	}
-	items := make([]imageItem, 0, len(names))
+	resolved := make([]storage.Image, 0, len(names))
 	for _, name := range names {
 		imgs, err := vh.vault.GetImagesByName(name)
 		if err != nil || len(imgs) == 0 {
 			continue
 		}
-		items = append(items, imageItemFrom(imgs[0]))
+		resolved = append(resolved, imgs[0])
+	}
+
+	linksByImage, preview, rank := resolveImageLinks(vh.vault, resolved)
+	items := make([]imageItem, 0, len(resolved))
+	for _, img := range resolved {
+		items = append(items, imageItemFrom(img, linksByImage[img.Name], preview, rank))
 	}
 	return items
 }

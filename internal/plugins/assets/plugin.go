@@ -13,9 +13,11 @@ import (
 	"github.com/hardhacker/hylo/internal/util"
 )
 
-// Plugin extracts note-attached resources on create/write.
-// Currently resolves cover images; later kinds (audio, video, body images)
-// can be added as extra extractors without changing the note_assets table.
+// Plugin extracts note-attached resources on create/write: the cover image
+// and every ![[image]] body embed (kind=image — this is what backs the
+// Images gallery's "Linked Notes", see Vault.NoteNamesForImages). Later
+// kinds (audio, video) can be added as extra extractors without changing
+// the note_assets table.
 type Plugin struct {
 	vault   *storage.Vault
 	logger  *slog.Logger
@@ -79,7 +81,7 @@ func (p *Plugin) handle(e plugin.Event) {
 	}
 
 	note, err := p.vault.StatNote(sp)
-	if err != nil || note.Kind == storage.KindShort {
+	if err != nil {
 		return
 	}
 
@@ -88,11 +90,33 @@ func (p *Plugin) handle(e plugin.Event) {
 		p.logger.Debug("assets: read failed", "path", pathStr, "err", err)
 		return
 	}
-	if util.IsShortNote(raw) {
+
+	// Body-image links apply to every note, shorts included — a short that
+	// embeds an image is as much a "linked note" for that image as any
+	// other (mirrors the legacy vault-wide scan this replaced). Cover
+	// extraction stays cover-only: a day's short-note file has no single
+	// "cover" to speak of.
+	p.extractBodyImages(sp, pathStr, raw)
+
+	if note.Kind == storage.KindShort || util.IsShortNote(raw) {
 		return
 	}
-
 	p.extractCover(sp, pathStr, raw)
+}
+
+// extractBodyImages records which images a note embeds via ![[name]], as
+// note_assets rows of kind=image — ReplaceNoteAssets atomically swaps the
+// whole set, so an embed the note has since removed is correctly dropped
+// too (unlike a naive additive update).
+func (p *Plugin) extractBodyImages(sp storage.Path, pathStr string, raw []byte) {
+	names := storage.ParseImageEmbeds(raw)
+	assets := make([]storage.NoteAsset, len(names))
+	for i, name := range names {
+		assets[i] = storage.NoteAsset{Kind: storage.AssetKindImage, Filename: name, Ord: i}
+	}
+	if err := p.vault.ReplaceNoteAssets(sp, storage.AssetKindImage, assets); err != nil {
+		p.logger.Warn("assets: body image links failed", "path", pathStr, "err", err)
+	}
 }
 
 func (p *Plugin) extractCover(sp storage.Path, pathStr string, raw []byte) {

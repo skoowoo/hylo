@@ -11,7 +11,7 @@ import (
 	_ "modernc.org/sqlite" // pure-Go SQLite driver
 )
 
-const currentDBVersion = 25
+const currentDBVersion = 26
 
 // schema is the notes table DDL.
 //
@@ -128,7 +128,6 @@ CREATE TABLE IF NOT EXISTS images (
     size         INTEGER NOT NULL DEFAULT 0,
     created_at   INTEGER NOT NULL,
     updated_at   INTEGER NOT NULL,
-    linked_notes TEXT    NOT NULL DEFAULT '',
     UNIQUE(dir, name)
 );
 `
@@ -174,6 +173,9 @@ var migrations = []struct {
 	{25, "add notes.preview", func(tx *sql.Tx) error {
 		return addColumnIfMissing(tx, "notes", "preview", "TEXT NOT NULL DEFAULT '{}'")
 	}},
+	{26, "drop images.linked_notes (superseded by note_assets kind=image)", func(tx *sql.Tx) error {
+		return dropColumnIfPresent(tx, "images", "linked_notes")
+	}},
 }
 
 // columnExists reports whether table has the given column, via PRAGMA
@@ -210,6 +212,20 @@ func addColumnIfMissing(tx *sql.Tx, table, column, columnDDL string) error {
 		return nil
 	}
 	_, err = tx.Exec(fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s", table, column, columnDDL))
+	return err
+}
+
+// dropColumnIfPresent runs ALTER TABLE ... DROP COLUMN only when column is
+// still present, so migrations stay safe to re-run.
+func dropColumnIfPresent(tx *sql.Tx, table, column string) error {
+	exists, err := columnExists(tx, table, column)
+	if err != nil {
+		return fmt.Errorf("check column %s.%s: %w", table, column, err)
+	}
+	if !exists {
+		return nil
+	}
+	_, err = tx.Exec(fmt.Sprintf("ALTER TABLE %s DROP COLUMN %s", table, column))
 	return err
 }
 
@@ -1192,6 +1208,50 @@ func dbReplaceNoteAssets(db *sql.DB, p Path, kind NoteAssetKind, assets []NoteAs
 	return tx.Commit()
 }
 
+// dbNoteNamesByAssetFilenames batch-resolves, for each filename, the
+// basenames (without ".md") of every note with a note_assets row of the
+// given kind referencing it — the reverse of dbGetNoteAssetsByKind, backed
+// by the same idx_note_assets_filename index. Used to show an image's
+// "linked notes" (kind=image) without a per-image query.
+func dbNoteNamesByAssetFilenames(db *sql.DB, filenames []string, kind NoteAssetKind) (map[string][]string, error) {
+	out := make(map[string][]string, len(filenames))
+	for start := 0; start < len(filenames); start += noteAssetLookupBatchSize {
+		end := start + noteAssetLookupBatchSize
+		if end > len(filenames) {
+			end = len(filenames)
+		}
+		batch := filenames[start:end]
+		placeholders := strings.Repeat("?,", len(batch))
+		placeholders = placeholders[:len(placeholders)-1]
+		args := make([]any, 0, len(batch)+1)
+		for _, f := range batch {
+			args = append(args, f)
+		}
+		args = append(args, string(kind))
+
+		rows, err := db.Query(`
+			SELECT DISTINCT filename, note_name FROM note_assets
+			WHERE filename IN (`+placeholders+`) AND kind = ?`, args...)
+		if err != nil {
+			return nil, fmt.Errorf("storage: note names by asset filenames: %w", err)
+		}
+		for rows.Next() {
+			var filename, noteName string
+			if err := rows.Scan(&filename, &noteName); err != nil {
+				rows.Close()
+				return nil, err
+			}
+			out[filename] = append(out[filename], strings.TrimSuffix(noteName, ".md"))
+		}
+		if err := rows.Err(); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		rows.Close()
+	}
+	return out, nil
+}
+
 func dbDeleteNoteAssetsByFilename(db *sql.DB, filename string) error {
 	_, err := db.Exec(`DELETE FROM note_assets WHERE filename = ?`, filename)
 	return err
@@ -1298,7 +1358,6 @@ func dbGetNoteAssetsByKind(db *sql.DB, paths []Path, kind NoteAssetKind) (map[st
 // ── image DB helpers ──────────────────────────────────────────────────────────
 
 // dbImageUpsert inserts or updates the metadata row for an image.
-// linked_notes is preserved on conflict — only explicit calls to dbImageSetLinkedNotes change it.
 func dbImageUpsert(db *sql.DB, img Image) error {
 	now := time.Now().UnixNano()
 	updNs := now
@@ -1310,8 +1369,8 @@ func dbImageUpsert(db *sql.DB, img Image) error {
 		createdNs = img.CreatedAt.UnixNano()
 	}
 	_, err := db.Exec(`
-		INSERT INTO images(dir, name, ext, size, created_at, updated_at, linked_notes)
-		VALUES (?, ?, ?, ?, ?, ?, '')
+		INSERT INTO images(dir, name, ext, size, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?)
 		ON CONFLICT(dir, name) DO UPDATE SET
 		    ext        = excluded.ext,
 		    size       = excluded.size,
@@ -1325,7 +1384,7 @@ func dbImageUpsert(db *sql.DB, img Image) error {
 // ordered by updated_at DESC.
 func dbImageGetByName(db *sql.DB, name string) ([]Image, error) {
 	rows, err := db.Query(`
-		SELECT dir, name, ext, size, created_at, updated_at, linked_notes
+		SELECT dir, name, ext, size, created_at, updated_at
 		FROM images
 		WHERE name = ?
 		ORDER BY updated_at DESC`, name)
@@ -1334,19 +1393,6 @@ func dbImageGetByName(db *sql.DB, name string) ([]Image, error) {
 	}
 	defer rows.Close()
 	return dbImageScan(rows)
-}
-
-// dbImageSetLinkedNotes sets the linked_notes column for every image with the given name.
-// notes is a newline-separated list of note basenames (without .md extension).
-func dbImageSetLinkedNotes(db *sql.DB, name, notes string) error {
-	_, err := db.Exec(`UPDATE images SET linked_notes = ? WHERE name = ?`, notes, name)
-	return err
-}
-
-// dbImageClearAllLinkedNotes resets linked_notes to ” for every image row.
-func dbImageClearAllLinkedNotes(db *sql.DB) error {
-	_, err := db.Exec(`UPDATE images SET linked_notes = ''`)
-	return err
 }
 
 // dbImageDelete removes the metadata row for the image identified by (dir, name).
@@ -1364,7 +1410,7 @@ func dbImageClearAll(db *sql.DB) error {
 // dbImageListPaged returns images ordered by updated_at DESC with optional cursor.
 // If beforeNs > 0, only images with updated_at < beforeNs are returned.
 func dbImageListPaged(db *sql.DB, beforeNs int64, limit int) ([]Image, error) {
-	query := `SELECT dir, name, ext, size, created_at, updated_at, linked_notes FROM images`
+	query := `SELECT dir, name, ext, size, created_at, updated_at FROM images`
 	var args []any
 	if beforeNs > 0 {
 		query += ` WHERE updated_at < ?`
@@ -1686,15 +1732,11 @@ func dbImageScan(rows *sql.Rows) ([]Image, error) {
 	for rows.Next() {
 		var img Image
 		var createdNs, updNs int64
-		var linkedNotes string
-		if err := rows.Scan(&img.Dir, &img.Name, &img.Ext, &img.Size, &createdNs, &updNs, &linkedNotes); err != nil {
+		if err := rows.Scan(&img.Dir, &img.Name, &img.Ext, &img.Size, &createdNs, &updNs); err != nil {
 			return nil, fmt.Errorf("storage: scan image: %w", err)
 		}
 		img.CreatedAt = time.Unix(0, createdNs)
 		img.UpdatedAt = time.Unix(0, updNs)
-		if linkedNotes != "" {
-			img.LinkedNotes = strings.Split(linkedNotes, "\n")
-		}
 		imgs = append(imgs, img)
 	}
 	return imgs, rows.Err()

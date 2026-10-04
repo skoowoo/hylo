@@ -96,15 +96,13 @@ func runServe(_ *cobra.Command, _ []string) error {
 		}
 	}
 
-	// Rebuild image–note associations on every start, not just the first-ever
-	// init. RegisterImage (vault_image.go) keeps the images table itself
-	// current as images are uploaded, but linked_notes is only recomputed
-	// here — this is the only point that picks up image references added to
-	// notes since the last restart (previously this only ran once, inside
-	// autoInitVault, so it never refreshed on a normal restart of an
-	// already-initialized vault).
-	if err := vault.BuildImageNoteLinks(); err != nil {
-		log.Warn("image-note links: rebuild failed", "err", err)
+	// Reconcile note→image links on every start, not just the first-ever
+	// init. The assets plugin (internal/plugins/assets) keeps note_assets'
+	// kind=image rows current incrementally on every save going forward;
+	// this backfill only exists to catch notes that predate the feature or
+	// haven't been saved since the last restart.
+	if err := vault.BackfillBodyImageLinks(); err != nil {
+		log.Warn("image-note links: backfill failed", "err", err)
 	}
 
 	pidFile := strings.TrimSpace(servePIDFile)
