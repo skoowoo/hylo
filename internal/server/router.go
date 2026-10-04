@@ -173,7 +173,6 @@ func newRouter(
 	mux.HandleFunc("GET /api/graph/data", vh.KnowledgeGraphData)
 	mux.HandleFunc("POST /api/graph/rebuild", vh.KnowledgeGraphRebuild)
 	mux.HandleFunc("GET /notes/fragment", vh.NoteFragment)
-	mux.HandleFunc("GET /quick-capture", vh.QuickCapture)
 
 	mux.Handle("POST /api/notes/resolve", handler.NewNoteResolve(vault))
 	mux.Handle("POST /api/notes/exist", handler.NewNoteExist(vault))

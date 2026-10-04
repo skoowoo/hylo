@@ -1155,7 +1155,7 @@
     } catch(_) { return '/home'; }
   };
 
-  window.__hyloHotkeys.register('content-pane', 'o', function() {
+  window.__hyloHotkeys.register('toggle-editor', 'o', function() {
     if (window.__hyloContentPane) window.__hyloContentPane.contentPaneOpen = !window.__hyloContentPane.contentPaneOpen;
   });
 
@@ -1163,7 +1163,7 @@
     if (window.__hyloContentPane) void window.__hyloContentPane.openNewInContentPane();
   });
 
-  window.__hyloHotkeys.register('content-pane-maximize', '\\', function() {
+  window.__hyloHotkeys.register('expand-editor', '\\', function() {
     var _pane = window.__hyloContentPane;
     if (_pane && _pane.contentPaneOpen) _pane.toggleMaximizeEditor();
   });
@@ -1184,14 +1184,12 @@
     return true;
   });
 
-  window.__hyloHotkeys.registerRaw('content-pane-close-tab', function(e, mod) {
-    if (!mod || e.shiftKey || e.altKey || e.key.toLowerCase() !== 'w') return;
+  // Returning false leaves the event alone so the native close-window still works.
+  window.__hyloHotkeys.register('close-tab', 'w', function() {
     var pane = window.__hyloContentPane;
-    if (!pane || !pane.contentPaneOpen || pane.activeTab < 0) return;
-    e.preventDefault();
+    if (!pane || !pane.contentPaneOpen || pane.activeTab < 0) return false;
     var at = pane.tabs[pane.activeTab];
     if (at && at.path) pane.contentPaneCloseTab(pane.activeTab);
-    return true;
   });
 
   // Shared by the Mod-F hotkey below and the editor's "more" menu (Find
@@ -1222,7 +1220,7 @@
 
   // Plain Mod-L now (no Shift needed) — .register() handles that, unlike
   // the Mod-Shift-E it replaced which needed registerRaw's manual check.
-  window.__hyloHotkeys.register('content-pane-reading-toggle', 'l', function() {
+  window.__hyloHotkeys.register('reading-mode', 'l', function() {
     var pane = window.__hyloContentPane;
     if (!pane || !pane.contentPaneOpen || !__hyloEditor.view) return;
     var tab = pane.tabs[pane.activeTab];

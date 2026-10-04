@@ -118,11 +118,3 @@ var graphCSS string
 //go:embed assets/cselect.css
 var cselectCSS string
 
-//go:embed assets/quick_capture.css
-var quickCaptureCSS string
-
-//go:embed assets/quick_capture.html
-var quickCaptureHTML string
-
-//go:embed assets/quick_capture.js
-var quickCaptureJS string

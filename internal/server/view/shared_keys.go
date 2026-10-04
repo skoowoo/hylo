@@ -5,8 +5,10 @@ package view
 // handler and fire regardless of which element currently has focus.
 //
 // Global hotkeys — window.__hyloHotkeys
-//   Features register shortcuts via .register(id, key, fn) and remove them
-//   with .unregister(id). Last-registered wins when two entries share a key.
+//   Features register shortcuts via .register(id, defaultKey, fn) and remove
+//   them with .unregister(id). The id is looked up in the user's custom
+//   bindings (localStorage) before falling back to Mod+defaultKey.
+//   Last-registered wins when two entries share a combo.
 //   Handlers own their own open/close state; this registry just dispatches.
 //
 // ESC stack — window.__hyloEscPush / __hyloEscPop
@@ -26,11 +28,46 @@ const keysJS = `
     var _isMac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
     var _reg = [];
     var _rawReg = [];
+    var _cap = null;
+    var _custom = {};
+    try { _custom = JSON.parse(localStorage.getItem('hylo-custom-keys') || '{}') || {}; } catch (_) {}
+    var _punct = {
+      Backslash: '\\', Comma: ',', Period: '.', Slash: '/', Minus: '-', Equal: '=',
+      Semicolon: ';', Quote: "'", BracketLeft: '[', BracketRight: ']', Backquote: '\x60',
+    };
+    // Combos are platform-neutral ("Mod+Shift+K"); derived from e.code so
+    // Alt/Shift can't change the key name.
+    function _combo(e) {
+      var c = e.code || '', key = '';
+      if (/^Key[A-Z]$/.test(c)) key = c.slice(3);
+      else if (/^Digit\d$/.test(c)) key = c.slice(5);
+      else if (_punct[c]) key = _punct[c];
+      else if (c === 'Escape') key = 'Esc';
+      else if (/^(F\d+|Arrow\w+|Enter|Space|Tab|Backspace)$/.test(c)) key = c;
+      if (!key) return null;
+      var parts = [];
+      if (_isMac ? e.metaKey : e.ctrlKey) parts.push('Mod');
+      if (_isMac ? e.ctrlKey : e.metaKey) parts.push(_isMac ? 'Ctrl' : 'Meta');
+      if (e.altKey) parts.push('Alt');
+      if (e.shiftKey) parts.push('Shift');
+      parts.push(key);
+      return parts.join('+');
+    }
     window.__hyloHotkeys = {
       isMac: _isMac,
+      custom: _custom,
+      comboOf: _combo,
+      setCustom: function(id, combo) {
+        if (combo) _custom[id] = combo; else delete _custom[id];
+        try { localStorage.setItem('hylo-custom-keys', JSON.stringify(_custom)); } catch (_) {}
+      },
+      // While set, every keydown goes to cb(event, combo|null) and nothing else
+      // sees it. combo is null for bare modifier presses.
+      capture: function(cb) { _cap = cb; },
+      // fn may return false to decline the event (it then propagates untouched).
       register: function(id, key, fn) {
         _reg = _reg.filter(function(r) { return r.id !== id; });
-        _reg.push({ id: id, key: key, fn: fn });
+        _reg.push({ id: id, def: 'Mod+' + key.toUpperCase(), fn: fn });
       },
       unregister: function(id) {
         _reg = _reg.filter(function(r) { return r.id !== id; });
@@ -46,15 +83,23 @@ const keysJS = `
       },
     };
     document.addEventListener('keydown', function(e) {
+      if (_cap) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        _cap(e, _combo(e));
+        return;
+      }
       var mod = _isMac ? e.metaKey : e.ctrlKey;
       for (var i = _rawReg.length - 1; i >= 0; i--) {
         if (_rawReg[i].fn(e, mod) === true) return;
       }
-      if (!mod || e.shiftKey || e.altKey) return;
+      if (!mod) return;
+      var combo = _combo(e);
+      if (!combo) return;
       for (var i = _reg.length - 1; i >= 0; i--) {
-        if (e.key === _reg[i].key) {
+        if ((_custom[_reg[i].id] || _reg[i].def) === combo) {
+          if (_reg[i].fn(e) === false) return;
           e.preventDefault();
-          _reg[i].fn(e);
           return;
         }
       }

@@ -13,7 +13,6 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2.5", features = [] }
 
 [dependencies]
-base64 = "0.22"
 libc = "0.2"
 open = "4"
 reqwest = { version = "0.12", default-features = false, features = ["native-tls", "charset"] }
@@ -21,7 +20,6 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tauri = { version = "2.12", features = ["macos-private-api"] }
 tauri-plugin-dialog = "2"
-tauri-plugin-global-shortcut = "2"
 tauri-plugin-notification = "2"
 tauri-plugin-opener = "2"
 tauri-plugin-single-instance = "2"
@@ -30,9 +28,8 @@ url = "2"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 block2 = "0.6"
-objc2 = "0.6"
-objc2-app-kit = { version = "0.3.2", default-features = false, features = ["NSApplication", "NSRunningApplication", "NSWindow", "NSWorkspace", "block2"] }
-objc2-foundation = { version = "0.3.2", default-features = false, features = ["NSBundle", "NSNotification", "NSString", "NSOperation", "block2"] }
+objc2-app-kit = { version = "0.3.2", default-features = false, features = ["NSApplication", "block2"] }
+objc2-foundation = { version = "0.3.2", default-features = false, features = ["NSNotification", "NSString", "NSOperation", "block2"] }
 
 [features]
 default = ["custom-protocol"]

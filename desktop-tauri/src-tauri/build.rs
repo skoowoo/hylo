@@ -15,9 +15,6 @@ fn main() {
             "inbox_notify_get_settings",
             "inbox_notify_set_settings",
             "inbox_notify_preview_sound",
-            "quick_capture_submit",
-            "quick_capture_save",
-            "quick_capture_cancel",
         ]),
     ))
     .expect("failed to run tauri-build");

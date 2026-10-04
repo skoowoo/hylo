@@ -21,6 +21,16 @@ const settingsShortcutsCSS = `
       font-family: var(--font-mono);
       font-size: var(--text-xs); color: var(--fg); white-space: nowrap; line-height: 1.4;
     }
+    button.kbd { cursor: pointer; }
+    button.kbd:hover { border-color: var(--fg); }
+    .kbd-recording { border-color: var(--accent, var(--fg)); color: var(--muted); }
+    .shortcuts-btn {
+      background: none; border: none; padding: 0; cursor: pointer;
+      font-size: var(--text-xs); color: var(--muted);
+    }
+    .shortcuts-btn:hover { color: var(--fg); }
+    .shortcuts-error { flex-basis: 100%; text-align: right; font-size: var(--text-xs); color: var(--danger, #d33); }
+    .shortcuts-row { flex-wrap: wrap; }
     /* .kbd-cmd sizing/alignment now comes from the shared .kbd-combo
        (base.css) — see that rule for why. */
 `
@@ -37,11 +47,17 @@ func settingsShortcutsTabHTML() string {
                       <span class="shortcuts-label" x-text="s.label"></span>
                       <span class="shortcuts-desc" x-text="s.desc"></span>
                     </div>
-                    <div class="shortcuts-keys">
-                      <template x-for="k in getEffectiveKeys(s)" :key="k">
-                        <span class="kbd kbd-combo" x-html="hyloKbdHTML(k)"></span>
+                    <div class="shortcuts-keys" @click.outside="recordingId === s.id && cancelRecord()">
+                      <template x-if="s.editable && customKeys[s.id] && recordingId !== s.id">
+                        <button type="button" class="shortcuts-btn" @click="resetCombo(s)">Reset</button>
                       </template>
+                      <button type="button" class="kbd kbd-combo" x-show="s.editable"
+                              :class="{ 'kbd-recording': recordingId === s.id }"
+                              @click="recordingId === s.id ? cancelRecord() : startRecord(s)"
+                              x-html="recordingId === s.id ? 'Press shortcut…' : hyloKbdHTML(fmtCombo(getCombo(s)))"></button>
+                      <span class="kbd kbd-combo" x-show="!s.editable" x-html="hyloKbdHTML(fmtCombo(getCombo(s)))"></span>
                     </div>
+                    <div class="shortcuts-error" x-show="recordingId === s.id && shortcutError" x-text="shortcutError"></div>
                   </div>
                 </template>
               </div>
@@ -53,22 +69,65 @@ func settingsShortcutsTabHTML() string {
 
 const settingsShortcutsJS = `
       isMac: /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent),
-      customKeys: JSON.parse(localStorage.getItem('hylo-custom-keys') || '{}'),
+      customKeys: Object.assign({}, window.__hyloHotkeys.custom),
+      recordingId: null,
+      shortcutError: '',
       shortcutDefs: [
-        { id: 'dismiss',        label: 'Dismiss',                desc: 'Close any open overlay or dialog',          mac: 'Esc',  win: 'Esc' },
-        { id: 'toggle-search',  label: 'Search',                 desc: 'Open the quick search overlay',             mac: '⌘K',   win: 'Ctrl+K' },
-        { id: 'new-note',       label: 'New Note',               desc: 'Open a new blank note in the editor',       mac: '⌘N',   win: 'Ctrl+N' },
-        { id: 'toggle-editor',  label: 'Toggle Editor',          desc: 'Open or close the editor panel',            mac: '⌘O',   win: 'Ctrl+O' },
-        { id: 'close-tab',      label: 'Close Editor Tab',       desc: 'Close the active tab in the editor',        mac: '⌘W',   win: 'Ctrl+W' },
-        { id: 'expand-editor',  label: 'Expand / Shrink Editor', desc: 'Toggle editor between 80% and 100% width',  mac: '⌘\\',  win: 'Ctrl+\\' },
-        { id: 'reading-mode',   label: 'Reading Mode',           desc: 'Toggle read-only view for saved notes',     mac: '⌘L',   win: 'Ctrl+L' },
-        { id: 'refresh',        label: 'Refresh',               desc: 'Reload the current page',                   mac: '⌘R',   win: 'Ctrl+R' },
-        { id: 'open-settings',  label: 'Settings',               desc: 'Open the settings dialog',                  mac: '⌘,',   win: 'Ctrl+,' },
+        { id: 'dismiss',        label: 'Dismiss',                desc: 'Close any open overlay or dialog',          key: 'Esc' },
+        { id: 'toggle-search',  label: 'Search',                 desc: 'Open the quick search overlay',             key: 'Mod+K' },
+        { id: 'new-note',       label: 'New Note',               desc: 'Open a new blank note in the editor',       key: 'Mod+N', editable: true },
+        { id: 'toggle-editor',  label: 'Toggle Editor',          desc: 'Open or close the editor panel',            key: 'Mod+O', editable: true },
+        { id: 'close-tab',      label: 'Close Editor Tab',       desc: 'Close the active tab in the editor',        key: 'Mod+W', editable: true },
+        { id: 'expand-editor',  label: 'Expand / Shrink Editor', desc: 'Toggle editor between 80% and 100% width',  key: 'Mod+\\', editable: true },
+        { id: 'reading-mode',   label: 'Reading Mode',           desc: 'Toggle read-only view for saved notes',     key: 'Mod+L', editable: true },
+        { id: 'refresh',        label: 'Refresh',                desc: 'Reload the current page',                   key: 'Mod+R' },
+        { id: 'open-settings',  label: 'Settings',               desc: 'Open the settings dialog',                  key: 'Mod+,' },
       ],
-      getEffectiveKeys(s) {
-        const custom = this.customKeys[s.id];
-        const key = this.isMac ? (custom?.mac ?? s.mac) : (custom?.win ?? s.win);
-        return key.split('/').map(k => k.trim());
+      // Taken by the OS/webview menus or hard-wired elsewhere (find).
+      reservedKeys: ['Mod+Q', 'Mod+H', 'Mod+Alt+H', 'Mod+M', 'Mod+X', 'Mod+C', 'Mod+V', 'Mod+A', 'Mod+Z', 'Mod+Y', 'Mod+Shift+Z', 'Mod+F'],
+      getCombo(s) { return this.customKeys[s.id] || s.key; },
+      fmtCombo(combo) {
+        const parts = combo.split('+');
+        const key = parts.pop();
+        if (!this.isMac) return parts.map(p => p === 'Mod' ? 'Ctrl' : p).concat(key).join('+');
+        const sym = { Mod: '⌘', Alt: '⌥', Shift: '⇧', Ctrl: '⌃' };
+        const order = ['Ctrl', 'Alt', 'Shift', 'Mod'];
+        return order.filter(p => parts.includes(p)).map(p => sym[p]).join('') + key.replace('Arrow', '');
+      },
+      startRecord(s) {
+        this.shortcutError = '';
+        this.recordingId = s.id;
+        window.__hyloHotkeys.capture((e, combo) => this.onRecorded(s, combo));
+      },
+      cancelRecord() {
+        this.recordingId = null;
+        window.__hyloHotkeys.capture(null);
+      },
+      onRecorded(s, combo) {
+        if (!combo || /^(Mod|Alt|Shift|Ctrl|Meta)$/.test(combo)) return;
+        if (combo === 'Esc') return this.cancelRecord();
+        const err = this.validateCombo(s, combo);
+        if (err) { this.shortcutError = err; return; }
+        this.cancelRecord();
+        this.setCombo(s, combo);
+      },
+      validateCombo(s, combo) {
+        if (!combo.startsWith('Mod+') && !/^F\d+$/.test(combo)) return 'Include ' + (this.isMac ? '⌘' : 'Ctrl') + ' or use a function key';
+        if (/(^|\+)(Ctrl|Meta)\+/.test(combo)) return 'Unsupported modifier';
+        if (this.reservedKeys.includes(combo)) return this.fmtCombo(combo) + ' is reserved by the system';
+        const other = this.shortcutDefs.find(d => d.id !== s.id && this.getCombo(d) === combo);
+        if (other) return this.fmtCombo(combo) + ' is already used by ' + other.label;
+        return '';
+      },
+      setCombo(s, combo) {
+        const next = Object.assign({}, this.customKeys);
+        if (combo && combo !== s.key) next[s.id] = combo; else delete next[s.id];
+        this.customKeys = next;
+        window.__hyloHotkeys.setCustom(s.id, next[s.id] || null);
+      },
+      resetCombo(s) {
+        this.shortcutError = '';
+        this.setCombo(s, null);
       },
 
 `

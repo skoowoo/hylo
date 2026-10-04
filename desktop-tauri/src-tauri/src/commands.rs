@@ -504,8 +504,5 @@ pub fn invoke_handler() -> impl Fn(tauri::ipc::Invoke<tauri::Wry>) -> bool + Sen
         inbox_notify_get_settings,
         inbox_notify_set_settings,
         inbox_notify_preview_sound,
-        crate::capture::quick_capture_submit,
-        crate::capture::quick_capture_save,
-        crate::capture::quick_capture_cancel,
     ]
 }

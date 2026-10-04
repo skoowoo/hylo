@@ -340,7 +340,7 @@ const searchOverlayScript = `
       modeIdx: 0,
       init() {
         this.mode = this.modes[0];
-        window.__hyloHotkeys.register('search', 'k', () => {
+        window.__hyloHotkeys.register('toggle-search', 'k', () => {
           this.show ? this.close() : this.open();
         });
       },

@@ -1,4 +1,3 @@
-mod capture;
 mod cli;
 mod commands;
 mod config;
@@ -26,7 +25,6 @@ pub fn run() {
             }
         }))
         .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_opener::init());
 
@@ -98,7 +96,6 @@ pub fn run() {
             }
 
             let app_handle = app.handle().clone();
-            capture::register(&app_handle);
             #[cfg(target_os = "macos")]
             watch_app_activation(app_handle.clone());
             std::thread::spawn(move || commands::install_cli_on_launch(&app_handle));
@@ -111,17 +108,9 @@ pub fn run() {
                     if window.label() == "main" {
                         let _ = window.hide();
                         api.prevent_close();
-                    } else if window.label() == capture::WINDOW_LABEL {
-                        // destroy() from close_panel does not emit this. A menu
-                        // close should still hand focus back like Cancel.
-                        api.prevent_close();
-                        capture::quick_capture_cancel(window.app_handle().clone());
                     }
                     #[cfg(not(target_os = "macos"))]
                     let _ = (window, api);
-                }
-                WindowEvent::Focused(false) if window.label() == capture::WINDOW_LABEL => {
-                    capture::on_panel_blur(window.app_handle());
                 }
                 _ => {}
             }
@@ -167,11 +156,6 @@ fn watch_app_activation(app: tauri::AppHandle) {
 #[cfg(target_os = "macos")]
 fn show_main_if_hidden(app: &tauri::AppHandle) {
     use tauri::Manager;
-    // The capture panel hides the main window on purpose. Showing it here
-    // would undo that the moment the panel activates the app.
-    if capture::panel_open() {
-        return;
-    }
     let Some(window) = app.get_webview_window("main") else {
         return;
     };
