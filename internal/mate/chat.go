@@ -296,6 +296,41 @@ func (s *Store) ListMessages(conversationID string) ([]Message, error) {
 	return msgs, nil
 }
 
+// ListMessagesPage returns up to limit messages older than beforeID (the newest
+// ones when beforeID is empty), oldest first, plus whether older ones remain.
+// rowid breaks created_at ties so the cursor never skips or repeats a row.
+func (s *Store) ListMessagesPage(conversationID, beforeID string, limit int) ([]Message, bool, error) {
+	q := `SELECT id, conversation_id, role, content, agent_id, mate_id, model_id, run_id, status, trigger_event, created_at, updated_at
+		 FROM chat_messages WHERE conversation_id = ?`
+	args := []any{conversationID}
+	if beforeID != "" {
+		q += ` AND (created_at, rowid) < (SELECT created_at, rowid FROM chat_messages WHERE id = ?)`
+		args = append(args, beforeID)
+	}
+	q += ` ORDER BY created_at DESC, rowid DESC LIMIT ?`
+	args = append(args, limit+1)
+	rows, err := s.db.Query(q, args...)
+	if err != nil {
+		return nil, false, fmt.Errorf("mate: list messages page: %w", err)
+	}
+	defer rows.Close()
+	msgs, err := scanMessages(rows)
+	if err != nil {
+		return nil, false, err
+	}
+	more := len(msgs) > limit
+	if more {
+		msgs = msgs[:limit]
+	}
+	for i, j := 0, len(msgs)-1; i < j; i, j = i+1, j-1 {
+		msgs[i], msgs[j] = msgs[j], msgs[i]
+	}
+	if err := s.attachNoteAccess(msgs); err != nil {
+		return nil, false, err
+	}
+	return msgs, more, nil
+}
+
 // ListMessagesSince returns messages in a conversation whose updated_at is after sinceMs (Unix ms).
 // Using updated_at (not created_at) ensures that assistant placeholders inserted as "running"
 // are re-returned after UpdateMessageDone advances their updated_at on completion.

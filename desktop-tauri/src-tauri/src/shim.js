@@ -124,6 +124,26 @@
     }
   }
 
+  // Tauri's drag.js maximizes through NSWindow zoom:, whose animation
+  // WKWebView doesn't repaint during. Take the double-click before it does.
+  function onDragRegion(e) {
+    return e.target instanceof HTMLElement && e.target.hasAttribute("data-tauri-drag-region");
+  }
+  var dblX = 0;
+  var dblY = 0;
+  if (platform === "darwin") {
+    window.addEventListener("mousedown", function (e) {
+      if (e.button !== 0 || e.detail !== 2 || !onDragRegion(e)) return;
+      dblX = e.clientX;
+      dblY = e.clientY;
+    }, true);
+    window.addEventListener("mouseup", function (e) {
+      if (e.button !== 0 || e.detail !== 2 || !onDragRegion(e)) return;
+      e.stopImmediatePropagation();
+      if (e.clientX === dblX && e.clientY === dblY) invoke("toggle_maximize");
+    }, true);
+  }
+
   var scheduled = false;
   function scheduleDrag() {
     if (scheduled) return;

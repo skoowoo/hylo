@@ -4,6 +4,7 @@ mod config;
 mod nav;
 mod notify;
 mod server;
+mod zoom;
 
 use std::sync::Mutex;
 
@@ -222,13 +223,14 @@ fn install_menu(app: &tauri::AppHandle) -> tauri::Result<()> {
                     &PredefinedMenuItem::quit(app, None)?,
                 ],
             )?;
+            let zoom = MenuItem::with_id(app, "zoom", "Zoom", true, None::<&str>)?;
             let window_menu = Submenu::with_items(
                 app,
                 "Window",
                 true,
                 &[
                     &PredefinedMenuItem::minimize(app, None)?,
-                    &PredefinedMenuItem::maximize(app, None)?,
+                    &zoom,
                     &PredefinedMenuItem::separator(app)?,
                     &PredefinedMenuItem::close_window(app, None)?,
                 ],
@@ -242,6 +244,12 @@ fn install_menu(app: &tauri::AppHandle) -> tauri::Result<()> {
     };
     app.set_menu(menu)?;
     app.on_menu_event(|app, event| {
+        if event.id().0 == "zoom" {
+            if let Some(window) = app.get_webview_window("main") {
+                zoom::toggle(&window);
+            }
+            return;
+        }
         let script = match event.id().0.as_str() {
             "undo" => "window.__hyloUndo && window.__hyloUndo()",
             "redo" => "window.__hyloRedo && window.__hyloRedo()",

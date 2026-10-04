@@ -356,6 +356,11 @@ fn set_view_bg_color(app: AppHandle, color: String, theme: String) {
 }
 
 #[tauri::command]
+fn toggle_maximize(window: tauri::WebviewWindow) {
+    crate::zoom::toggle(&window);
+}
+
+#[tauri::command]
 fn set_window_button_visibility(_visible: bool) {
     // The Go UI exposes this and never calls it. Kept so the shim matches Electron.
 }
@@ -504,5 +509,6 @@ pub fn invoke_handler() -> impl Fn(tauri::ipc::Invoke<tauri::Wry>) -> bool + Sen
         inbox_notify_get_settings,
         inbox_notify_set_settings,
         inbox_notify_preview_sound,
+        toggle_maximize,
     ]
 }

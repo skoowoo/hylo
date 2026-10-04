@@ -26,6 +26,12 @@
     var convTypeByMate = {};
     var conversationId = '';
     var messages = [];
+    // Only the newest PAGE messages load on open; scrolling up pages in older
+    // ones. Rendering a whole long trigger log made every bot switch stall.
+    var PAGE = 50;
+    var hasOlder = false;
+    var loadingOlder = false;
+    var prependSeq = 0;
     var lastMsgMs = 0;
     var draft = '';
     var stick = true;
@@ -141,6 +147,7 @@
         runId: run ? run.id : null,
         stoppingId: activeStoppingId(),
         stick: stick,
+        prependSeq: prependSeq,
         triggerLabel: triggerLabel,
         mateName: mateName,
       };
@@ -269,6 +276,13 @@
         }
         clearPoll('sync');
         var msgs = data2.messages || [];
+        // Older rows outside the loaded window would land at the tail.
+        if (hasOlder && messages.length) {
+          var floor = messages[0].createdAt || 0;
+          msgs = msgs.filter(function (m) {
+            return findMsg(m.id) || (m.createdAt ? new Date(m.createdAt).getTime() : 0) > floor;
+          });
+        }
         if (msgs.length > 0) {
           var changed = R.mergeSynced(messages, msgs);
           var lastTs = 0;
@@ -285,12 +299,14 @@
 
     async function loadMessages(convId, seq) {
       try {
-        var resp = await fetch('/api/conversations/' + convId, { cache: 'no-store' });
+        var resp = await fetch('/api/conversations/' + convId + '?limit=' + PAGE, { cache: 'no-store' });
         if (!resp.ok) { notify("Couldn't load the conversation"); return; }
         if (seq !== refreshSeq || convId !== conversationId) return;
-        var msgs = (await resp.json()).messages || [];
+        var data = await resp.json();
         if (seq !== refreshSeq || convId !== conversationId) return;
+        var msgs = data.messages || [];
         messages = R.formatStoredMessages(msgs);
+        hasOlder = !!data.hasMore;
         var lastMs = 0;
         for (var i = 0; i < msgs.length; i++) {
           var t = msgs[i].updatedAt ? new Date(msgs[i].updatedAt).getTime() : 0;
@@ -316,15 +332,36 @@
           await loadMessages(conversationId, seq);
         } else {
           messages = [];
+          hasOlder = false;
           cancelSync();
           requestRender('none');
         }
       } catch (e) { notify("Couldn't load the conversation"); }
     }
 
+    async function loadOlder() {
+      if (!hasOlder || loadingOlder || !conversationId || !messages.length) return;
+      var convId = conversationId;
+      var seq = refreshSeq;
+      loadingOlder = true;
+      try {
+        var resp = await fetch('/api/conversations/' + convId + '?limit=' + PAGE + '&before=' + encodeURIComponent(messages[0].id), { cache: 'no-store' });
+        if (!resp.ok) { notify("Couldn't load earlier messages"); return; }
+        var data = await resp.json();
+        if (seq !== refreshSeq || convId !== conversationId) return;
+        var older = R.formatStoredMessages(data.messages || []).filter(function (m) { return !findMsg(m.id); });
+        hasOlder = !!data.hasMore;
+        if (!older.length) return;
+        messages = older.concat(messages);
+        prependSeq++;
+        requestRender('none');
+      } catch (e) { notify("Couldn't load earlier messages"); }
+      finally { loadingOlder = false; }
+    }
+
     async function syncLastFromDB(convId, msg) {
       try {
-        var resp = await fetch('/api/conversations/' + convId, { cache: 'no-store' });
+        var resp = await fetch('/api/conversations/' + convId + '?limit=' + PAGE, { cache: 'no-store' });
         if (!resp.ok) { notify("Couldn't sync the reply"); return; }
         var dbMsgs = (await resp.json()).messages || [];
         var dbMsg = null;
@@ -493,6 +530,7 @@
       cancel: function () { return cancel(); },
       retry: function (id) { return retry(id); },
       newChat: function () { return newChat(); },
+      loadOlder: function () { return loadOlder(); },
       setConvType: function (t) { return setConvType(t); },
     };
 
@@ -529,6 +567,7 @@
         cancelSync();
         conversationId = '';
         messages = [];
+        hasOlder = false;
         stoppingMsgId = '';
         refreshSeq++;
         convType = convTypeByMate[id] || 'chat';
@@ -569,6 +608,7 @@
       if (mateId) convTypeByMate[mateId] = t;
       conversationId = '';
       messages = [];
+      hasOlder = false;
       stoppingMsgId = '';
       refreshSeq++;
       requestRender('none');
@@ -597,6 +637,7 @@
           var data = await resp.json();
           conversationId = data.conversation.id;
           messages = [];
+          hasOlder = false;
           stoppingMsgId = '';
           lastMsgMs = 0;
           cancelSync();

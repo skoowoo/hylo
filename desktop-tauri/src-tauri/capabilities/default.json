@@ -22,6 +22,7 @@
     "allow-set-window-button-visibility",
     "allow-inbox-notify-get-settings",
     "allow-inbox-notify-set-settings",
-    "allow-inbox-notify-preview-sound"
+    "allow-inbox-notify-preview-sound",
+    "allow-toggle-maximize"
   ]
 }

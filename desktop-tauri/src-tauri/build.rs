@@ -15,6 +15,7 @@ fn main() {
             "inbox_notify_get_settings",
             "inbox_notify_set_settings",
             "inbox_notify_preview_sound",
+            "toggle_maximize",
         ]),
     ))
     .expect("failed to run tauri-build");

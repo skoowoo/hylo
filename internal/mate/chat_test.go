@@ -108,3 +108,51 @@ func TestInsertMessageTriggerEvent(t *testing.T) {
 		t.Fatalf("got %+v", msgs)
 	}
 }
+
+func TestListMessagesPage(t *testing.T) {
+	store, err := Open(filepath.Join(t.TempDir(), "vault"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+
+	conv, err := store.CreateConversation("mate-1", "Test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Same-millisecond inserts are common, so the cursor must not rely on created_at alone.
+	var ids []string
+	for i := 0; i < 7; i++ {
+		m, err := store.InsertMessage(Message{ConversationID: conv.ID, Role: "user", Content: "m"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		ids = append(ids, m.ID)
+	}
+
+	var got []string
+	before := ""
+	for {
+		page, more, err := store.ListMessagesPage(conv.ID, before, 3)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var pageIDs []string
+		for _, m := range page {
+			pageIDs = append(pageIDs, m.ID)
+		}
+		got = append(pageIDs, got...)
+		if !more {
+			break
+		}
+		before = page[0].ID
+	}
+	if len(got) != len(ids) {
+		t.Fatalf("got %d messages, want %d", len(got), len(ids))
+	}
+	for i := range ids {
+		if got[i] != ids[i] {
+			t.Fatalf("order mismatch at %d: got %v want %v", i, got, ids)
+		}
+	}
+}

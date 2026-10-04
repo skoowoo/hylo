@@ -28,8 +28,8 @@ url = "2"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 block2 = "0.6"
-objc2-app-kit = { version = "0.3.2", default-features = false, features = ["NSApplication", "block2"] }
-objc2-foundation = { version = "0.3.2", default-features = false, features = ["NSNotification", "NSString", "NSOperation", "block2"] }
+objc2-app-kit = { version = "0.3.2", default-features = false, features = ["NSAnimation", "NSAnimationContext", "NSApplication", "NSResponder", "NSScreen", "NSWindow", "block2"] }
+objc2-foundation = { version = "0.3.2", default-features = false, features = ["NSGeometry", "NSNotification", "NSString", "NSOperation", "block2"] }
 
 [features]
 default = ["custom-protocol"]

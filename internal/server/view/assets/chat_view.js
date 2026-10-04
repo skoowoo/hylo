@@ -752,6 +752,7 @@
     var scrollRaf = 0;
     var timeTimer = 0;
     var emptyKind = '';
+    var lastPrependSeq = api.state().prependSeq;
 
     if (shortcut) shortcut.textContent = isMac ? '⌘↵' : 'Ctrl+↵';
 
@@ -923,7 +924,12 @@
     function render(mode) {
       var snap = api.state();
       renderChrome(snap);
+      var prepended = snap.prependSeq !== lastPrependSeq && scrollEl;
+      lastPrependSeq = snap.prependSeq;
+      var fromBottom = prepended ? scrollEl.scrollHeight - scrollEl.scrollTop : 0;
       renderThread(snap);
+      // Keep the reader's place when older messages land above them.
+      if (prepended) scrollEl.scrollTop = scrollEl.scrollHeight - fromBottom;
       syncRetry(snap);
       if (mode === 'jump' || (mode === 'maybe' && snap.stick)) scrollToBottom();
       updateJump(snap);
@@ -937,6 +943,7 @@
         var dist = scrollEl.scrollHeight - scrollEl.scrollTop - scrollEl.clientHeight;
         api.setStick(dist <= 64);
         updateJump();
+        if (scrollEl.scrollTop < 400) void api.loadOlder();
       });
     }
 

@@ -93,7 +93,7 @@ test('phase, cancel, and cursor finisher', async function () {
     if (u.indexOf('/api/conversations?') === 0) {
       return jsonResponse(200, { conversations: [{ id: 'c1' }] });
     }
-    if (u === '/api/conversations/c1' && (!opts || opts.method !== 'POST')) {
+    if (u.split('?')[0] === '/api/conversations/c1' && (!opts || opts.method !== 'POST')) {
       convFetches++;
       var content = convFetches > 1 ? 'from-db' : '';
       return jsonResponse(200, { messages: content ? [{ id: 'db', role: 'assistant', content: content, status: 'succeeded' }] : [] });
@@ -180,7 +180,7 @@ test('retry on a failed trigger-originated message goes through retry-trigger, n
     if (u.indexOf('/api/conversations?') === 0) {
       return jsonResponse(200, { conversations: [{ id: 'c1' }] });
     }
-    if (u === '/api/conversations/c1') {
+    if (u.split('?')[0] === '/api/conversations/c1') {
       return jsonResponse(200, {
         messages: [
           { id: 'u1', role: 'user', content: 'do the thing', createdAt: 1 },

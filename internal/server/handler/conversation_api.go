@@ -58,7 +58,9 @@ func (c *ConversationAPI) ConversationsPOST(w http.ResponseWriter, r *http.Reque
 }
 
 // ConversationGET handles GET /api/conversations/{id}.
-// Returns conversation metadata + all messages.
+// Returns conversation metadata + messages: all of them by default, those
+// updated after ?since=<ms>, or a ?limit=N page ending before ?before=<msgId>
+// (hasMore tells whether older ones remain).
 func (c *ConversationAPI) ConversationGET(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if id == "" {
@@ -70,11 +72,15 @@ func (c *ConversationAPI) ConversationGET(w http.ResponseWriter, r *http.Request
 		http.Error(w, "not found", http.StatusNotFound)
 		return
 	}
+	q := r.URL.Query()
 	var msgs []mate.Message
-	if sinceStr := r.URL.Query().Get("since"); sinceStr != "" {
+	hasMore := false
+	if sinceStr := q.Get("since"); sinceStr != "" {
 		if sinceMs, err2 := strconv.ParseInt(sinceStr, 10, 64); err2 == nil {
 			msgs, err = c.store.ListMessagesSince(id, sinceMs)
 		}
+	} else if limit, err2 := strconv.Atoi(q.Get("limit")); err2 == nil && limit > 0 {
+		msgs, hasMore, err = c.store.ListMessagesPage(id, q.Get("before"), min(limit, 500))
 	} else {
 		msgs, err = c.store.ListMessages(id)
 	}
@@ -88,6 +94,7 @@ func (c *ConversationAPI) ConversationGET(w http.ResponseWriter, r *http.Request
 	respondJSON(w, http.StatusOK, map[string]any{
 		"conversation": conv,
 		"messages":     msgs,
+		"hasMore":      hasMore,
 	})
 }
 
