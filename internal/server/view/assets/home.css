@@ -954,14 +954,23 @@
        the pane's own slide/fade/split-pane mechanics live in content_pane.css/
        home.css's .content-pane-panel/.home-shell rules, not here.
 
+       The body's rendered markdown already carries the real heading, so this
+       bar's own title is just a low-key label, not a second title — hence
+       the muted, unbolded text and the shrunk bar/meta heights (own values
+       instead of the note editor's taller --toolbar-h default, which this
+       panel doesn't need since it has no editor actions to fit).
+
        Horizontal rhythm: title bar, meta row, and body all share the same
        --space-lg left/right inset (the editor toolbar's own tighter
        default, meant for its icon buttons, is overridden here so this
        header's text lines up with the content below it instead of sitting
        half an inset to the left of it). */
-    .inbox-detail-panel .content-pane-tool-bar { padding-left: var(--space-lg); padding-right: var(--space-lg); }
+    .inbox-detail-panel .content-pane-tool-bar {
+      padding-left: var(--space-lg); padding-right: var(--space-lg);
+      height: var(--topbar-h);
+    }
     .inbox-sheet-title {
-      flex: 1; min-width: 0; font-size: var(--text-title-sm); font-weight: var(--fw-semibold); color: var(--fg);
+      flex: 1; min-width: 0; font-size: var(--text-sm); font-weight: var(--fw-medium); color: var(--muted);
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
     /* Base shape/hover comes from the shared .icon-btn-ghost component
@@ -970,7 +979,7 @@
     .inbox-sheet-close svg { width: 15px; height: 15px; }
     .inbox-sheet-meta {
       flex-shrink: 0; display: flex; align-items: center; gap: 0.5rem;
-      padding: var(--space-sm) var(--space-lg) var(--space-md); font-size: var(--text-xs); color: var(--muted);
+      padding: var(--space-xxs) var(--space-lg) var(--space-sm); font-size: var(--text-xs); color: var(--muted);
     }
     .inbox-sheet-scroll { flex: 1; overflow-y: auto; padding: var(--space-xs) var(--space-lg) var(--space-xxl); }
     /* Capped so lines don't run edge-to-edge when the split pane is wide —

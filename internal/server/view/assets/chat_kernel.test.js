@@ -155,6 +155,150 @@ test('phase, cancel, and cursor finisher', async function () {
   }
 });
 
+test('retry on a failed trigger-originated message goes through retry-trigger, not /api/chat', async function () {
+  var matesReady;
+  var matesP = new Promise(function (resolve) { matesReady = resolve; });
+  var api;
+  global.__hyloChatMount = function (el, facade) {
+    api = facade;
+    return {
+      render: function () {},
+      destroy: function () {},
+      draftValue: function () { return facade.draft(); },
+      clearComposer: function () {},
+      focusComposer: function () {},
+    };
+  };
+
+  var retryCalls = [];
+  global.fetch = async function (url, opts) {
+    var u = String(url);
+    if (u === '/api/mates') {
+      return jsonResponse(200, { mates: [{ id: 'm1', name: 'Ada', enabled: true, agentId: 'cursor-agent' }] });
+    }
+    if (u === '/api/mate-events') return jsonResponse(200, { events: [] });
+    if (u.indexOf('/api/conversations?') === 0) {
+      return jsonResponse(200, { conversations: [{ id: 'c1' }] });
+    }
+    if (u === '/api/conversations/c1') {
+      return jsonResponse(200, {
+        messages: [
+          { id: 'u1', role: 'user', content: 'do the thing', createdAt: 1 },
+          {
+            id: 'a1', role: 'assistant', status: 'failed', triggerEvent: 'vault_file_changed',
+            content: '', mateId: 'm1', agentId: 'cursor-agent', updatedAt: 2,
+          },
+        ],
+      });
+    }
+    if (u === '/api/runs/retry-trigger') {
+      retryCalls.push(JSON.parse(opts.body));
+      return jsonResponse(202, { runId: 'r9' });
+    }
+    if (u === '/api/chat') throw new Error('retry of a trigger message must not use /api/chat');
+    throw new Error('unmocked ' + u);
+  };
+
+  var chat = global.__hyloChatCreate({ onMates: function () { matesReady(); } });
+  try {
+    chat.start();
+    await matesP;
+    chat.attach({});
+    chat.tryOpen('m1');
+    await tick();
+
+    var before = api.state();
+    var failed = before.messages[before.messages.length - 1];
+    assert.equal(failed.status, 'failed');
+    assert.equal(failed.triggerEvent, 'vault_file_changed');
+
+    await api.retry(failed.id);
+
+    assert.equal(retryCalls.length, 1);
+    assert.deepEqual(retryCalls[0].mateId, 'm1');
+    assert.deepEqual(retryCalls[0].conversationId, 'c1');
+    assert.deepEqual(retryCalls[0].prompt, 'do the thing');
+    assert.deepEqual(retryCalls[0].triggerEvent, 'vault_file_changed');
+
+    var after = api.state();
+    assert.equal(after.phase, 'idle');
+    var retried = after.messages[after.messages.length - 1];
+    assert.equal(retried.triggerEvent, 'vault_file_changed');
+    assert.equal(retried.status, 'running');
+  } finally {
+    disarm();
+  }
+});
+
+test('convType (chat/trigger tab) is remembered per mate, not globally', async function () {
+  var matesReady;
+  var matesP = new Promise(function (resolve) { matesReady = resolve; });
+  var api;
+  global.__hyloChatMount = function (el, facade) {
+    api = facade;
+    return {
+      render: function () {},
+      destroy: function () {},
+      draftValue: function () { return facade.draft(); },
+      clearComposer: function () {},
+      focusComposer: function () {},
+    };
+  };
+
+  var convReqs = [];
+  global.fetch = async function (url) {
+    var u = String(url);
+    if (u === '/api/mates') {
+      return jsonResponse(200, {
+        mates: [
+          { id: 'm1', name: 'Ada', enabled: true, agentId: 'cursor-agent' },
+          { id: 'm2', name: 'Bob', enabled: true, agentId: 'cursor-agent' },
+        ],
+      });
+    }
+    if (u === '/api/mate-events') return jsonResponse(200, { events: [] });
+    if (u.indexOf('/api/conversations?') === 0) {
+      convReqs.push(u);
+      return jsonResponse(200, { conversations: [] });
+    }
+    throw new Error('unmocked ' + u);
+  };
+
+  var chat = global.__hyloChatCreate({ onMates: function () { matesReady(); } });
+  try {
+    chat.start();
+    await matesP;
+    chat.attach({});
+
+    chat.tryOpen('m1');
+    await tick();
+    assert.equal(api.state().convType, 'chat');
+
+    api.setConvType('trigger');
+    await tick();
+    assert.equal(api.state().convType, 'trigger');
+
+    // Switching to a different bot must not inherit m1's tab choice.
+    chat.tryOpen('m2');
+    await tick();
+    assert.equal(api.state().convType, 'chat');
+
+    // Switching back to m1 must restore its own remembered choice.
+    chat.tryOpen('m1');
+    await tick();
+    assert.equal(api.state().convType, 'trigger');
+
+    assert.deepEqual(convReqs, [
+      '/api/conversations?mateId=m1&type=chat',
+      '/api/conversations?mateId=m1&type=trigger',
+      '/api/conversations?mateId=m2&type=chat',
+      '/api/conversations?mateId=m1&type=trigger',
+    ]);
+  } finally {
+    disarm();
+  }
+});
+
 test('a failed mate list toasts once', async function () {
   var toasts = [];
   global.fetch = async function (url) {

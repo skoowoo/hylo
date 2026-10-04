@@ -19,6 +19,11 @@
 
     var mateId = '';
     var convType = 'chat';
+    // Remembers each mate's own chat/trigger tab choice (keyed by mateId) —
+    // convType itself stays a single live variable (everything below reads
+    // it directly), this is just what switchMate restores it from so
+    // flipping the tab for one bot doesn't leak into the next bot you open.
+    var convTypeByMate = {};
     var conversationId = '';
     var messages = [];
     var lastMsgMs = 0;
@@ -420,6 +425,62 @@
       }
     }
 
+    // Re-fires a failed/canceled trigger-originated message through
+    // /api/runs/retry-trigger instead of runTurn's /api/chat — that endpoint
+    // goes through mate.Runner.RetryRun, so the retried run's completion
+    // still reaches the mate runner's onDone hook (inbox message on
+    // completion) the way the original automatic trigger fire did. There's
+    // no SSE stream for this path (it's a background run, like /api/runs),
+    // so it leans on the same runId poller + conversation resync runTurn
+    // already uses to recover from a dropped SSE connection.
+    async function retryTriggerRun(text, userMsgId, triggerEvent, mate) {
+      if (!mate) return;
+      var assistant = {
+        id: R.genId(),
+        role: 'assistant', agentId: mate.agentId, agentBotId: mate.id,
+        triggerEvent: triggerEvent,
+        segments: [], status: 'running',
+        startTime: Date.now(), duration: 0, completedAt: 0,
+        rev: 1,
+      };
+      messages.push(assistant);
+      phase = 'streaming';
+      requestRender('jump');
+      try {
+        var resp = await fetch('/api/runs/retry-trigger', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            mateId: mate.id,
+            conversationId: conversationId,
+            prompt: text,
+            triggerEvent: triggerEvent,
+            userMessageId: userMsgId,
+            assistantMessageId: assistant.id,
+          }),
+        });
+        if (!resp.ok) {
+          var errText = await resp.text();
+          assistant.segments.push({ type: 'error', message: errText || 'Request failed' });
+          assistant.status = 'failed';
+          R.touch(assistant);
+          return;
+        }
+        var data = await resp.json();
+        if (data && data.runId) spawnRunPoller(data.runId, assistant.id);
+      } catch (e) {
+        if (messages.indexOf(assistant) !== -1) {
+          assistant.segments.push({ type: 'error', message: (e && e.message) || 'Connection error' });
+          assistant.status = 'failed';
+          R.touch(assistant);
+        }
+      } finally {
+        phase = 'idle';
+        ensureSync(conversationId);
+        requestRender('maybe');
+      }
+    }
+
     var facade = {
       state: state,
       busy: busy,
@@ -470,6 +531,7 @@
         messages = [];
         stoppingMsgId = '';
         refreshSeq++;
+        convType = convTypeByMate[id] || 'chat';
       }
       mateId = id;
       try { sessionStorage.setItem('hylo_agent_bot_id', id); } catch (e) { /* ignore */ }
@@ -504,6 +566,7 @@
       cancelRunPoller();
       cancelSync();
       convType = t;
+      if (mateId) convTypeByMate[mateId] = t;
       conversationId = '';
       messages = [];
       stoppingMsgId = '';
@@ -593,10 +656,22 @@
         if (messages[j].role === 'user') { text = messages[j].content; break; }
       }
       if (!text) return;
+      var triggerEvent = msg.triggerEvent || '';
+      var mate = mateById(mateId);
       messages.splice(idx, 1);
       var userMsgId = R.genId();
       messages.push({ id: userMsgId, role: 'user', content: text, createdAt: Date.now(), rev: 1 });
-      await runTurn(text, userMsgId, mateById(mateId));
+      // wechat_message/discord_message runs reply externally and resume a
+      // persistent agent session (resolveAgentSession) in the same conv a
+      // human types into — only a non-reply trigger (vault/schedule/
+      // agent_run_completed, confined to the mate's separate "Auto runs"
+      // conv) is retried through the trigger pipeline, so its completion
+      // still reaches the inbox the way the original fire did.
+      if (triggerEvent && triggerEvent !== 'wechat_message' && triggerEvent !== 'discord_message') {
+        await retryTriggerRun(text, userMsgId, triggerEvent, mate);
+      } else {
+        await runTurn(text, userMsgId, mate);
+      }
     }
 
     async function cancel() {

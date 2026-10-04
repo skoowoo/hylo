@@ -30,11 +30,19 @@ type AgentAPI struct {
 	active     sync.Map // runID -> *agent.ChatProcess
 	canceled   sync.Map // runID -> true; set by RunCancelPOST so executeChat can report "canceled" instead of "failed" for a user-initiated stop
 	pathRuns   sync.Map // vault path -> runID; set by FireTriggerRun for path-bearing events
+	runner     *mate.Runner // optional; set via SetMateRunner once the mate runner exists, so TriggerRetryPOST can re-fire through its onDone pipeline
 }
 
 // NewAgentAPI constructs the agent HTTP surface.
 func NewAgentAPI(logger *slog.Logger, cfg *config.Config, vault *storage.Vault, hub *agent.Hub, store *mate.Store, cache *agent.AgentCache) *AgentAPI {
 	return &AgentAPI{logger: logger, cfg: cfg, vault: vault, hub: hub, store: store, agentCache: cache}
+}
+
+// SetMateRunner wires in the mate runner so TriggerRetryPOST can re-fire a
+// trigger run through the same onDone pipeline (inbox, agent_run_completed
+// fan-out) an automatic trigger fire uses.
+func (a *AgentAPI) SetMateRunner(r *mate.Runner) {
+	a.runner = r
 }
 
 func (a *AgentAPI) uploadRoot() string {
@@ -210,6 +218,52 @@ func (a *AgentAPI) RunCancelPOST(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
+type triggerRetryBody struct {
+	MateID             string `json:"mateId"`
+	ConversationID     string `json:"conversationId"`
+	Prompt             string `json:"prompt"`
+	TriggerEvent       string `json:"triggerEvent"`
+	UserMessageID      string `json:"userMessageId"`
+	AssistantMessageID string `json:"assistantMessageId"`
+}
+
+// RunsRetryTriggerPOST handles POST /api/runs/retry-trigger — re-fires a
+// trigger-originated message the UI is retrying (a failed/canceled
+// assistant message with triggerEvent set) through mate.Runner.RetryRun,
+// instead of the plain /api/chat path a normal chat retry uses. That
+// distinction matters: /api/chat's executeChat call has no onDone hook, so
+// it never reaches the mate runner's RunDoneHook — which is what creates the
+// inbox message on completion. Routing trigger retries through RetryRun
+// keeps that behavior identical to an automatic trigger fire.
+// Returns 202 + runId; the client watches it the same way it already
+// recovers from a dropped SSE stream (poll GET /api/runs/:id, then resync
+// the conversation to pick up the persisted content).
+func (a *AgentAPI) RunsRetryTriggerPOST(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if a.runner == nil {
+		http.Error(w, "trigger retry unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	var body triggerRetryBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, "invalid json", http.StatusBadRequest)
+		return
+	}
+	if body.MateID == "" || body.ConversationID == "" || strings.TrimSpace(body.Prompt) == "" {
+		http.Error(w, "mateId, conversationId and prompt are required", http.StatusBadRequest)
+		return
+	}
+	runID, err := a.runner.RetryRun(body.MateID, body.ConversationID, body.Prompt, body.UserMessageID, body.AssistantMessageID, mate.MateEventType(body.TriggerEvent))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusServiceUnavailable)
+		return
+	}
+	respondJSON(w, http.StatusAccepted, map[string]any{"runId": runID})
+}
+
 // RunByRefGET handles GET /api/runs/by-ref?path=VAULT_PATH.
 // Returns the status of the most-recent run registered for a vault path, or
 // {"status":"idle"} when no run is found. Callers can poll this endpoint after
@@ -270,6 +324,41 @@ func (a *AgentAPI) FireTriggerRun(ctx context.Context, m *mate.Mate, convID, pro
 			onDone(result)
 		}
 	}()
+}
+
+// FireTriggerRetry is the mate.RetryFunc registered with the mate runner —
+// it re-fires a trigger run the UI is retrying. It mirrors FireTriggerRun
+// (same fresh-session, TriggerRun execution path) except the message IDs
+// come from the caller instead of being generated fresh, so the UI's
+// optimistic placeholders land on the exact rows this run persists. A retry
+// is always a manual UI action, so unlike FireTriggerRun there is no
+// ev.Reply to wire up.
+func (a *AgentAPI) FireTriggerRetry(ctx context.Context, m *mate.Mate, convID, prompt, userMsgID, assistantMsgID string, ev mate.MateEvent, onDone func(mate.RunResult)) string {
+	meta := map[string]string{
+		"mateId": m.ID, "conversationId": convID,
+	}
+	run := a.hub.CreateRun(meta)
+	run.AgentID = m.AgentID
+	body := chatBody{
+		MateID:             m.ID,
+		AgentID:            m.AgentID,
+		Message:            prompt,
+		SystemPrompt:       m.SystemPrompt,
+		Model:              m.Model,
+		Cwd:                m.Cwd,
+		ConversationID:     convID,
+		UserMessageID:      userMsgID,
+		AssistantMessageID: assistantMsgID,
+		TriggerRun:         true,
+		TriggerEvent:       string(ev.Type),
+	}
+	go func() {
+		result := a.executeChat(ctx, run, body)
+		if onDone != nil {
+			onDone(result)
+		}
+	}()
+	return run.ID
 }
 
 func (a *AgentAPI) executeChat(ctx context.Context, run *agent.Run, body chatBody) mate.RunResult {

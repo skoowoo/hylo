@@ -64,7 +64,9 @@ func newRouter(
 	// Trigger run completions become inbox messages; inboxStore.Create fans out
 	// to /api/inbox/notifications on its own, so no separate push is needed here.
 	if mateRunner != nil {
+		ah.SetMateRunner(mateRunner)
 		mateRunner.SetRunFunc(ah.FireTriggerRun)
+		mateRunner.SetRetryFunc(ah.FireTriggerRetry)
 		mateRunner.SetRunDoneHook(func(m *mate.Mate, result mate.RunResult) {
 			if result.EventType == mate.MateEventWechatMessage || result.EventType == mate.MateEventDiscordMessage {
 				return
@@ -117,6 +119,7 @@ func newRouter(
 	mux.HandleFunc("GET /api/runs/{id}/events", ah.RunEventsGET)
 	mux.HandleFunc("GET /api/runs/{id}", ah.RunGET)
 	mux.HandleFunc("POST /api/runs/{id}/cancel", ah.RunCancelPOST)
+	mux.HandleFunc("POST /api/runs/retry-trigger", ah.RunsRetryTriggerPOST)
 
 	if mateStore != nil {
 		ch := handler.NewConversationAPI(mateStore)
