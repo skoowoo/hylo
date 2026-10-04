@@ -1616,6 +1616,31 @@ func dbGetAllKnowledgeLinks(db *sql.DB) ([]KnowledgeEdge, error) {
 	return dbScanEdges(rows)
 }
 
+// dbGetKnowledgeEntityTypes maps each knowledge note PathString to the
+// entity_type recorded on its outgoing links (or its leaf self-loop).
+func dbGetKnowledgeEntityTypes(db *sql.DB) (map[string]string, error) {
+	rows, err := db.Query(`
+		SELECT source_dir, source_name, MAX(source_entity_type)
+		FROM knowledge_links
+		WHERE source_entity_type != ''
+		GROUP BY source_dir, source_name`)
+	if err != nil {
+		return nil, fmt.Errorf("storage: knowledge entity types: %w", err)
+	}
+	defer rows.Close()
+	types := make(map[string]string)
+	for rows.Next() {
+		var dir, name, et string
+		if err := rows.Scan(&dir, &name, &et); err != nil {
+			return nil, fmt.Errorf("storage: scan entity type: %w", err)
+		}
+		if p, ok := ParsePath(dir + "/" + name); ok {
+			types[p.String()] = et
+		}
+	}
+	return types, rows.Err()
+}
+
 // dbGetKnowledgeLinksForIndex returns all wikilink edges where both source and
 // target are listed under the given index note in index_deps.
 func dbGetKnowledgeLinksForIndex(db *sql.DB, index Path) ([]KnowledgeEdge, error) {

@@ -975,27 +975,31 @@ const homeGraphSectionHTML = `<div class="graph-main">
   <div style="position:relative;flex:1;display:flex;flex-direction:column;overflow:hidden">
     <div id="graph-canvas" style="flex:1;width:100%"></div>
 
-    <div class="graph-zoom-controls">
-      <button type="button" class="icon-btn-ghost graph-zoom-btn" title="Zoom in" @click="zoomIn()">
-        <svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
-          <path stroke-linecap="round" d="M12 5v14M5 12h14"/>
-        </svg>
-      </button>
-      <div class="graph-zoom-divider hairline"></div>
-      <button type="button" class="icon-btn-ghost graph-zoom-btn" title="Zoom out" @click="zoomOut()">
-        <svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
-          <path stroke-linecap="round" d="M5 12h14"/>
-        </svg>
-      </button>
-      <div class="graph-zoom-divider hairline"></div>
-      <button type="button" class="icon-btn-ghost graph-zoom-btn" title="Fit all nodes" @click="zoomFit()">
-        <svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M8 3H5a2 2 0 0 0-2 2v3"/>
-          <path stroke-linecap="round" stroke-linejoin="round" d="M21 8V5a2 2 0 0 0-2-2h-3"/>
-          <path stroke-linecap="round" stroke-linejoin="round" d="M3 16v3a2 2 0 0 0 2 2h3"/>
-          <path stroke-linecap="round" stroke-linejoin="round" d="M16 21h3a2 2 0 0 0 2-2v-3"/>
-        </svg>
-      </button>
+    <div class="graph-toolbar">
+      <div class="seg graph-color-mode">
+        <button type="button" class="seg-btn" :class="{ active: graphColorMode === 'cluster' }" title="Color nodes by cluster" @click="setGraphColorMode('cluster')">Clusters</button>
+        <button type="button" class="seg-btn" :class="{ active: graphColorMode === 'type' }" title="Color nodes by entity type" @click="setGraphColorMode('type')">Types</button>
+      </div>
+      <div class="graph-zoom-controls">
+        <button type="button" class="icon-btn-ghost graph-zoom-btn" title="Zoom in" @click="zoomIn()">
+          <svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
+            <path stroke-linecap="round" d="M12 5v14M5 12h14"/>
+          </svg>
+        </button>
+        <button type="button" class="icon-btn-ghost graph-zoom-btn" title="Zoom out" @click="zoomOut()">
+          <svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
+            <path stroke-linecap="round" d="M5 12h14"/>
+          </svg>
+        </button>
+        <button type="button" class="icon-btn-ghost graph-zoom-btn" title="Fit all nodes" @click="zoomFit()">
+          <svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M8 3H5a2 2 0 0 0-2 2v3"/>
+            <path stroke-linecap="round" stroke-linejoin="round" d="M21 8V5a2 2 0 0 0-2-2h-3"/>
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 16v3a2 2 0 0 0 2 2h3"/>
+            <path stroke-linecap="round" stroke-linejoin="round" d="M16 21h3a2 2 0 0 0 2-2v-3"/>
+          </svg>
+        </button>
+      </div>
     </div>
 
     <div class="graph-node-panel" :class="{ open: !!nodePanel }">
@@ -1191,7 +1195,7 @@ var homePageHTML = `<!DOCTYPE html>
 ` + alpineStoresScript + `
   });
 
-` + keysJS + pathAcScript + chatReduceJS + chatTextJS + chatKernelJS + chatViewJS + listTightenJS + tabFitJS + editorSessionJS + contentPaneScript + searchOverlayScript + confirmDialogJS + infoDialogJS + frontmatterDialogJS + settingsCtrlJS + homeJS + `
+` + keysJS + pathAcScript + chatReduceJS + chatTextJS + chatKernelJS + chatViewJS + listTightenJS + tabFitJS + graphLayoutJS + editorSessionJS + contentPaneScript + searchOverlayScript + confirmDialogJS + infoDialogJS + frontmatterDialogJS + settingsCtrlJS + homeJS + `
   </script>
 ` + noteSharedJS + `
 </body>

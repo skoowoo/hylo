@@ -103,11 +103,12 @@ func (vh *ViewHandler) KnowledgeGraphData(w http.ResponseWriter, r *http.Request
 		}
 	}
 
-	entityTypeByPath := make(map[string]string, len(edges))
-	for _, e := range edges {
-		if e.SourceEntityType != "" {
-			entityTypeByPath[e.Source.String()] = e.SourceEntityType
-		}
+	// Not derived from edges: an index view drops links leaving the index, so
+	// a node whose links all point outside it would lose its type.
+	entityTypeByPath, err := vh.vault.GetKnowledgeEntityTypes()
+	if err != nil {
+		http.Error(w, "get entity types: "+err.Error(), http.StatusInternalServerError)
+		return
 	}
 
 	apiNodes := make([]graphAPINode, 0, len(notes))

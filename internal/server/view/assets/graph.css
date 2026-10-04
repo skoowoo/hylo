@@ -145,26 +145,32 @@
     }
 
     /* ── Zoom controls ───────────────────────────────────────── */
-    .graph-zoom-controls {
+    /* Borderless and compact — floats over the canvas, so a tinted track
+       is enough to separate it from the nodes underneath. */
+    .graph-toolbar {
       position: absolute;
-      top: 12px; left: 12px;
+      top: 10px; left: 10px;
       z-index: 15;
       display: flex;
-      flex-direction: row;
-      gap: 2px;
-      background: var(--surface-soft);
-      border: var(--bd-w) solid var(--border-strong);
-      padding: 3px;
+      align-items: stretch;
+      gap: 6px;
     }
 
-    /* .graph-zoom-btn uses the shared .icon-btn-ghost component (base.css)
-       for its base shape, hover, and default 14px svg — nothing unique to
-       add here. */
+    .graph-zoom-controls,
+    .seg.graph-color-mode {
+      display: flex;
+      gap: 1px;
+      padding: 2px;
+      background: var(--surface-soft);
+      border: none;
+    }
 
-    .graph-zoom-divider {
-      width: 2px;
-      background: var(--border-strong);
-      margin: 4px 1px;
+    .graph-zoom-btn.icon-btn-ghost { width: 22px; height: 22px; }
+    .graph-zoom-btn.icon-btn-ghost svg { width: 12px; height: 12px; }
+
+    .graph-color-mode .seg-btn {
+      padding: 0 0.5rem;
+      font-size: var(--text-2xs);
     }
 
     /* ── Loading overlay ─────────────────────────────────────── */

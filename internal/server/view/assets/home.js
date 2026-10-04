@@ -181,6 +181,9 @@ function homeCtrl() {
     _graphTooltip: null,
     _focusedPath: '',
     nodePanel: null,
+    graphColorMode: (function () {
+      try { return localStorage.getItem('hylo-graph-color') === 'type' ? 'type' : 'cluster'; } catch (_) { return 'cluster'; }
+    })(),
     // ── Inbox ────────────────────────────────────────────────────────────
     inboxMessages: [],
     inboxLoading: true,
@@ -570,6 +573,30 @@ function homeCtrl() {
       return this._tagPaletteColor(tag);
     },
 
+    _clusterPalette: ['#60a5fa', '#f472b6', '#34d399', '#fb923c', '#a78bfa', '#facc15', '#22d3ee', '#f87171', '#84cc16', '#e879f9'],
+
+    // Communities past the palette (and singletons) share one neutral color —
+    // they're the small fringe, and reusing a hue would imply a relation.
+    _nodeColors(entityType, community, communitySize) {
+      if (this.graphColorMode === 'type') {
+        return { fill: this._tagColor(entityType), stroke: this._tagBorder(entityType) };
+      }
+      var hex = communitySize > 1 ? this._clusterPalette[community] || '#a1a1aa' : '#a1a1aa';
+      return { fill: this._hexToRgba(hex, 0.30), stroke: hex };
+    },
+
+    setGraphColorMode(mode) {
+      this.graphColorMode = mode;
+      try { localStorage.setItem('hylo-graph-color', mode); } catch (_) { /* ignore */ }
+      if (!this.cy) return;
+      var self = this;
+      this.cy.batch(function () {
+        self.cy.nodes().forEach(function (n) {
+          n.data(self._nodeColors(n.data('entityType'), n.data('community'), n.data('communitySize')));
+        });
+      });
+    },
+
     _renderGraph(data) {
       var container = document.getElementById('graph-canvas');
       if (!container) return;
@@ -590,52 +617,39 @@ function homeCtrl() {
       var bgColor = css.getPropertyValue('--bg').trim() || '#0f0f0f';
       var accentColor = css.getPropertyValue('--accent').trim() || '#cc785c';
       var mutedHex = css.getPropertyValue('--muted').trim() || '#71717a';
-      var edgeFallback = /^#[0-9a-f]{6}$/i.test(mutedHex)
-        ? self._hexToRgba(mutedHex, 0.28)
-        : 'rgba(113,113,122,0.28)';
+      var edgeColor = /^#[0-9a-f]{6}$/i.test(mutedHex)
+        ? self._hexToRgba(mutedHex, 0.32)
+        : 'rgba(113,113,122,0.32)';
 
-      var degreeMap = {};
-      (data.nodes || []).forEach(function (n) { degreeMap[n.id] = 0; });
-      (data.edges || []).forEach(function (e) {
-        if (degreeMap[e.source] !== undefined) degreeMap[e.source]++;
-        if (degreeMap[e.target] !== undefined) degreeMap[e.target]++;
+      var prep = __hyloGraphPrepare(data.nodes, data.edges || []);
+      var hubs = new Set(__hyloGraphLabeledHubs(prep.degree, data.nodes.length));
+      var communitySize = {};
+      data.nodes.forEach(function (n) {
+        var c = prep.community[n.id];
+        communitySize[c] = (communitySize[c] || 0) + 1;
       });
       function nodeSize(id) {
-        var deg = degreeMap[id] || 0;
-        return Math.round(Math.min(80, 22 + Math.log2(deg + 1) * 10));
+        return Math.round(Math.min(64, 16 + Math.log2(prep.degree[id] + 1) * 8));
       }
-
-      var nodeEntityType = {};
-      (data.nodes || []).forEach(function (n) { nodeEntityType[n.id] = n.entity_type || ''; });
 
       var elements = [];
       data.nodes.forEach(function (n) {
-        var deg = degreeMap[n.id] || 0;
+        var c = prep.community[n.id];
+        var et = n.entity_type || '';
         elements.push({
-          data: {
+          data: Object.assign({
             id: n.id, label: n.label, path: n.path,
-            entityType: n.entity_type || '', tags: n.tags || [],
-            degree: deg, nodeSize: nodeSize(n.id),
-          }
+            entityType: et, tags: n.tags || [],
+            degree: prep.degree[n.id], nodeSize: nodeSize(n.id),
+            community: c, communitySize: communitySize[c],
+          }, self._nodeColors(et, c, communitySize[c])),
+          position: prep.positions[n.id],
+          classes: hubs.has(n.id) ? 'hub' : '',
         });
       });
-      (data.edges || []).forEach(function (e) {
-        var et = nodeEntityType[e.source] || '';
-        var borderHex = self._tagBorder(et);
-        var edgeColor = /^#[0-9a-f]{6}$/i.test(borderHex)
-          ? self._hexToRgba(borderHex, 0.20)
-          : edgeFallback;
-        elements.push({ data: { source: e.source, target: e.target, edgeColor: edgeColor } });
+      prep.links.forEach(function (l) {
+        elements.push({ data: { source: l.source, target: l.target }, classes: l.bidir ? 'bidir' : '' });
       });
-
-      var nc = (data.nodes || []).length;
-      var layoutQuality = nc <= 80 ? 'proof' : nc <= 400 ? 'default' : 'draft';
-      var layoutNumIter = nc <= 80 ? 1500 : nc <= 300 ? 2000 : nc <= 600 ? 1200 : 800;
-      var layoutRepulsion = Math.max(2500, Math.min(nc * 100, 28000));
-      var layoutEdgeLen = Math.max(80, Math.min(350, 60 + nc * 2));
-      var layoutGravity = Math.max(0.10, 0.30 - nc * 0.002);
-      var layoutGravRange = Math.max(3.5, Math.min(8.0, 3.5 + nc * 0.03));
-      var layoutTilePad = Math.max(20, Math.min(60, 10 + nc * 0.5));
 
       this.cy = cytoscape({
         container: container,
@@ -644,8 +658,8 @@ function homeCtrl() {
           {
             selector: 'node',
             style: {
-              'background-color': function (ele) { return self._tagColor(ele.data('entityType')); },
-              'border-color': function (ele) { return self._tagBorder(ele.data('entityType')); },
+              'background-color': 'data(fill)',
+              'border-color': 'data(stroke)',
               'border-width': 1.5,
               'label': 'data(label)',
               'color': nodeLabelColor,
@@ -671,54 +685,52 @@ function homeCtrl() {
               'cursor': 'pointer',
             }
           },
+          {
+            selector: 'node.hub',
+            style: {
+              'min-zoomed-font-size': 0,
+              'font-size': function (ele) { return Math.round(11 + Math.log2(ele.data('degree') + 1)) + 'px'; },
+              'font-weight': 600,
+              'z-index': 15,
+            }
+          },
           { selector: 'node:selected', style: { 'border-color': accentColor, 'border-width': 3.5, 'z-index': 20 } },
           { selector: 'node.faded', style: { 'opacity': 0.18 } },
           {
             selector: 'edge',
             style: {
-              'width': 1.2,
-              'line-color': 'data(edgeColor)',
-              'target-arrow-color': 'data(edgeColor)',
+              'width': 1,
+              'line-color': edgeColor,
+              'target-arrow-color': edgeColor,
               'target-arrow-shape': 'triangle',
-              'curve-style': 'bezier',
-              'arrow-scale': 0.85,
-              'opacity': 0.85,
+              'curve-style': 'straight',
+              'arrow-scale': 0.6,
               'z-index': 1,
             }
           },
+          { selector: 'edge.bidir', style: { 'target-arrow-shape': 'none' } },
           { selector: 'edge.faded', style: { 'opacity': 0.05 } },
         ],
-        layout: {
-          name: 'fcose',
-          quality: layoutQuality,
-          randomize: true,
-          animate: true,
-          animationDuration: 400,
-          animationEasing: 'ease-out',
-          fit: true,
-          padding: 48,
-          nodeDimensionsIncludeLabels: true,
-          uniformNodeDimensions: false,
-          packComponents: true,
-          step: 'all',
-          gravity: layoutGravity,
-          gravityRange: layoutGravRange,
-          initialEnergyOnIncremental: 0.5,
-          nodeRepulsion: layoutRepulsion,
-          idealEdgeLength: layoutEdgeLen,
-          edgeElasticity: 0.45,
-          nestingFactor: 0.1,
-          numIter: layoutNumIter,
-          tile: true,
-          tilingPaddingVertical: layoutTilePad,
-          tilingPaddingHorizontal: layoutTilePad,
-          gravityCompound: 1.0,
-          gravityRangeCompound: 1.5,
-        },
+        layout: { name: 'preset', fit: false },
         wheelSensitivity: 0.3,
         minZoom: 0.05,
         maxZoom: 4,
       });
+
+      var cy = this.cy;
+      var isolated = cy.nodes().filter(function (n) { return prep.degree[n.id()] === 0; });
+      var connected = cy.elements().not(isolated);
+      if (connected.nonempty()) connected.layout(__hyloGraphLayoutOptions(prep, data.nodes.length)).run();
+      var bb = connected.nonempty() ? connected.boundingBox() : { x1: 0, y2: 0 };
+      isolated.forEach(function (n, i) { n.position({ x: bb.x1 + i * 40, y: bb.y2 + 60 }); });
+
+      var hubNodes = cy.nodes('.hub').sort(function (a, b) { return b.data('degree') - a.data('degree'); });
+      var keep = new Set(__hyloGraphPickLabels(hubNodes.map(function (n) {
+        var b = n.boundingBox({ includeNodes: false, includeEdges: false, includeLabels: true });
+        return { id: n.id(), x1: b.x1, y1: b.y1, x2: b.x2, y2: b.y2 };
+      })));
+      hubNodes.forEach(function (n) { if (!keep.has(n.id())) n.removeClass('hub'); });
+      cy.fit(undefined, 48);
 
       this.cy.on('tap', 'node', function (evt) {
         var node = evt.target;

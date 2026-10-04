@@ -290,6 +290,13 @@ func (g *Vault) GetAllKnowledgeLinks() ([]KnowledgeEdge, error) {
 	return dbGetAllKnowledgeLinks(g.db)
 }
 
+// GetKnowledgeEntityTypes returns knowledge note PathString → entity_type.
+func (g *Vault) GetKnowledgeEntityTypes() (map[string]string, error) {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+	return dbGetKnowledgeEntityTypes(g.db)
+}
+
 // GetKnowledgeLinksForIndex returns wikilink edges whose both endpoints belong
 // to the given index note's knowledge set.
 func (g *Vault) GetKnowledgeLinksForIndex(index Path) ([]KnowledgeEdge, error) {
@@ -359,7 +366,7 @@ func (g *Vault) BackfillKnowledgeLinks(knowledgeOutputDir string) error {
 				break
 			}
 		}
-		if wlNames := util.ExtractWikilinkNames(body); len(wlNames) > 0 {
+		if wlNames := util.ExtractWikilinkNames(body); len(wlNames) > 0 || entityType != "" {
 			linksToProcess = append(linksToProcess, kLink{
 				path:          n.Path(),
 				entityType:    entityType,
@@ -399,7 +406,8 @@ func (g *Vault) BackfillKnowledgeLinks(knowledgeOutputDir string) error {
 				targets = append(targets, tp)
 			}
 		}
-		if len(targets) > 0 {
+		// A leaf still gets written so its entity_type survives as a self-loop.
+		if len(targets) > 0 || kl.entityType != "" {
 			_ = dbReplaceKnowledgeLinks(g.db, kl.path, kl.entityType, targets)
 		}
 	}
