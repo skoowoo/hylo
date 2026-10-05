@@ -48,7 +48,6 @@
     pickFolder: function (opts) {
       return invoke("pick_folder", { opts: opts || {} });
     },
-    syncVaultDataAcrossSections: scheduleSync,
     inboxNotify: {
       getSettings: function () {
         return invoke("inbox_notify_get_settings");
@@ -61,33 +60,6 @@
       },
     },
   };
-
-  // One webview today (SECTIONS is only "home"). Debounce matches the Electron shell.
-  var syncTimer = null;
-  var syncWaiters = [];
-  function scheduleSync() {
-    return new Promise(function (resolve) {
-      syncWaiters.push(resolve);
-      clearTimeout(syncTimer);
-      syncTimer = setTimeout(function () {
-        var waiters = syncWaiters;
-        syncWaiters = [];
-        var result = { reloaded: [] };
-        try {
-          if (window.__hyloShellSafeForBackgroundReload && window.__hyloShellSafeForBackgroundReload()) {
-            if (typeof window.__hyloBackgroundRefresh === "function") {
-              window.__hyloBackgroundRefresh();
-              result = { reloaded: ["home"] };
-            } else {
-              result = { reloaded: ["home"] };
-              location.reload();
-            }
-          }
-        } catch (e) {}
-        waiters.forEach(function (fn) { fn(result); });
-      }, 500);
-    });
-  }
 
   // -webkit-app-region is Chromium-only. Tag the same chrome the Go CSS marks as drag.
   function blocked(el) {

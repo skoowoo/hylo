@@ -57,6 +57,9 @@ pub fn run() {
                     .inner_size(1440.0, 960.0)
                     .min_inner_size(960.0, 640.0)
                     .initialization_script(script)
+                    // Default handler returns true and never forwards the drag to
+                    // WKWebView, so an in-page drop never reaches a sidebar folder.
+                    .disable_drag_drop_handler()
                     .on_navigation(move |url| commands::allow_url(&handle, url))
                     .on_new_window(|url, _features| {
                         let _ = open::that(url.as_str());

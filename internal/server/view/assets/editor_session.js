@@ -65,14 +65,16 @@
       });
       if (r.ok) {
         __hyloEditor.dirty = false; __hyloEditorSaveStatus('Saved');
-        // A plain content save is by far the most frequent vault mutation
-        // (every ~800ms of idle-after-typing) — unlike pin/delete/rename/move,
-        // which go through window.__hyloAfterVaultMutation() and refetch +
-        // re-render the whole active section, this patches only the one row
-        // that could have changed, straight from the save response, with no
-        // extra request at all.
+        // A plain content save is the common case (every ~800ms of idle after
+        // typing). Patch the row from the response. Tags and wikilinks are
+        // diffed against the last loaded/saved body so unchanged typing does
+        // not drop the tag cloud or the graph.
         var saved = null; try { saved = await r.json(); } catch(_) {}
         if (saved) __hyloPatchNoteRowAfterSave(path, saved);
+        var diff = __hyloNoteSigDiff(path, content);
+        if (window.__hyloVaultChanged) window.__hyloVaultChanged({
+          op: 'write', path: path, tagsChanged: diff.tagsChanged, linksChanged: diff.linksChanged,
+        });
       } else {
         var errText = ''; try { errText = await r.text(); } catch(_) {}
         window.showError(errText || 'Server error — your changes may not be saved.', 'Save error');
@@ -85,12 +87,13 @@
   // .home-note-row-preview span shown when there's an excerpt, replacing
   // the (still-present, CSS-hidden) .home-note-row-dir span — see
   // home.css's ":not(.is-grid) .home-note-row-preview ~ .home-note-row-dir"
-  // rule. Only touches the row if it's actually rendered in the list right
-  // now; most saves happen while some other section is showing, and there's
-  // nothing to patch then.
+  // rule. Patches every rendered copy of the row, including sections the
+  // home pane has parked offscreen — a content save doesn't refetch those.
   function __hyloPatchNoteRowAfterSave(path, note) {
-    var row = document.querySelector('.home-note-row[data-note-path="' + CSS.escape(path) + '"]');
-    if (!row) return;
+    var rows = document.querySelectorAll('.home-note-row[data-note-path="' + CSS.escape(path) + '"]');
+    for (var r = 0; r < rows.length; r++) __hyloPatchOneNoteRow(rows[r], note);
+  }
+  function __hyloPatchOneNoteRow(row, note) {
     var meta = row.querySelector('.home-note-row-meta');
     if (!meta) return;
 
@@ -129,7 +132,9 @@
     fd.append('file', imgFile);
     var resp = await fetch('/api/vault/upload-image', {method: 'POST', body: fd});
     if (!resp.ok) throw new Error(await resp.text());
-    return (await resp.json()).src;
+    var uploaded = await resp.json();
+    if (window.__hyloVaultChanged) window.__hyloVaultChanged({ op: 'images' });
+    return uploaded.src;
   }
 
   // ── Note materialization ─────────────────────────────────────────────────────
@@ -169,12 +174,17 @@
       tab.path = data.path;
       tab.title = __hyloStripMdExt(data.path.split('/').pop()) || data.path;
       delete tab._pendingContent;
+      __hyloNoteSigRemember(data.path, md);
+      var created = __hyloNoteSigFromContent(md);
+      if (window.__hyloVaultChanged) window.__hyloVaultChanged({
+        op: 'create', path: data.path, dir: __hyloNoteDir(data.path),
+        tagsChanged: created.tags !== '', linksChanged: created.links !== '',
+      });
       if (!__hyloEditorIsActiveTabId(tab.id)) return; // switched away while this was in flight — nothing to autosave right now
       var s = __hyloEditor;
       s.currentPath = data.path;
       s.dirty = true; // re-arm autosave — more may have been typed while the create call was in flight
       __hyloEditorScheduleSave();
-      if (window.__hyloAfterVaultMutation) await window.__hyloAfterVaultMutation();
     } catch(e) {
       window.showError((e && e.message) || 'Network error — your note may not be saved.', 'Save error');
     } finally {
@@ -848,6 +858,7 @@
     var content = await resp.text();
     if (!__hyloEditorIsActiveTabId(tabId)) return false;
     s.currentPath = path; s.currentMd = __hyloEditorTightenLists(content); s.dirty = false;
+    __hyloNoteSigRemember(path, s.currentMd);
     
     // Apply state (will create new state if no saved state)
     return await __hyloEditorApplyState(savedState || { inSource: false, scrollTop: 0 }, tabId);

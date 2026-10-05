@@ -258,7 +258,6 @@ const settingsCtrlJS = `
       agentsFromCache: false,
       agentsCachedAt: 0,
       async init() {
-        window.__hyloSettingsShell = this;
         // Another same-origin view can change the accent; keep the picker's ring in step.
         window.addEventListener('hylo:accent', () => {
           var id = localStorage.getItem('hylo-accent');

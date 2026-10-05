@@ -29,8 +29,6 @@ func headHTML(opts headOpts) string {
 	b.WriteByte('\n')
 	b.WriteString(electronBootstrapScript)
 	b.WriteByte('\n')
-	b.WriteString(electronShellSafeReloadScript)
-	b.WriteByte('\n')
 	if opts.withFonts {
 		b.WriteString(noteFontsHTML)
 		b.WriteByte('\n')

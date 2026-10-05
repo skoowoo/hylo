@@ -152,6 +152,547 @@ function doHomeRefresh() {
   }
 }
 
+// ── Section DOM cache ──────────────────────────────────────────────────────
+// Sidebar switches used to innerHTML-swap #home-list-pane, which discarded
+// scroll position and pages already loaded. Cacheable sections are moved
+// into a hidden holder that stays inside <body> — Alpine's root — via
+// mutateDom, so the move is invisible to Alpine and its bindings survive.
+// Ids are stripped while parked: getElementById would otherwise hit the
+// hidden copy. Chat is left out; its kernel already detaches and reattaches.
+// A vault change names what happened (__hyloVaultChanged). Parked sections
+// that the change cannot affect stay. A plain note save patches rows in
+// place, including parked copies (editor_session.js). Manual refresh still
+// drops everything.
+var __hyloSectionCache = new Map(); // insertion order is the LRU order
+var __hyloSectionCacheMax = 20;
+// Agents, clips and edits on disk never reach __hyloVaultChanged, so a
+// section loaded longer ago than this is refetched instead of restored.
+var __hyloSectionCacheTTL = 10 * 60 * 1000;
+var __hyloSectionShownURL = '';
+var __hyloSectionShownAt = Date.now();
+var __hyloSectionShownStale = false;
+// Key of the latest navigation; a response for any other key is stale.
+var __hyloSectionWant = '';
+var __hyloSectionCacheableTypes = {
+  pinned: true, folder: true, memory: true, knowledge: true,
+  tags: true, images: true, shorts: true, inbox: true,
+};
+
+function __hyloSectionKey(raw) {
+  if (!raw) return '';
+  try {
+    var u = new URL(raw, window.location.origin);
+    if (u.pathname !== '/home/section') return '';
+    // Callers differ in param order and encoding (URLSearchParams vs encodeURIComponent).
+    u.searchParams.sort();
+    return u.pathname + '?' + u.searchParams.toString();
+  } catch (e) {
+    return '';
+  }
+}
+
+function __hyloSectionParams(key) {
+  try { return new URL(key, window.location.origin).searchParams; }
+  catch (e) { return new URLSearchParams(); }
+}
+
+function __hyloSectionType(key) {
+  return __hyloSectionParams(key).get('type') || '';
+}
+
+function __hyloInitialSectionURL() {
+  var u = new URL(window.location.href);
+  var type = u.searchParams.get('type') || 'pinned';
+  var q = new URLSearchParams();
+  q.set('type', type);
+  var path = u.searchParams.get('path');
+  if (path) q.set('path', path);
+  var tag = u.searchParams.get('tag');
+  if (tag) q.set('tag', tag);
+  if (type === 'knowledge') {
+    q.set('view', u.searchParams.get('view') || 'list');
+    var index = u.searchParams.get('index');
+    if (index) q.set('index', index);
+  }
+  var from = u.searchParams.get('from');
+  if (from) q.set('from', from);
+  return '/home/section?' + q.toString();
+}
+
+__hyloSectionShownURL = __hyloSectionKey(__hyloInitialSectionURL());
+
+function __hyloSectionStashIds(root) {
+  var nodes = root.querySelectorAll('[id]');
+  for (var i = 0; i < nodes.length; i++) {
+    nodes[i].setAttribute('data-hylo-stashed-id', nodes[i].id);
+    nodes[i].removeAttribute('id');
+  }
+}
+
+function __hyloSectionUnstashIds(root) {
+  var nodes = root.querySelectorAll('[data-hylo-stashed-id]');
+  for (var i = 0; i < nodes.length; i++) {
+    nodes[i].id = nodes[i].getAttribute('data-hylo-stashed-id');
+    nodes[i].removeAttribute('data-hylo-stashed-id');
+  }
+}
+
+function __hyloSectionCacheDrop(entry) {
+  if (entry.cy) {
+    try { entry.cy.destroy(); } catch (e) { /* ignore */ }
+    entry.cy = null;
+  }
+  var holder = entry.holder;
+  // Parked via mutateDom, so Alpine never observed the nodes leaving the
+  // live tree. Removing the holder alone doesn't list those children in the
+  // mutation record — destroy them or their effects keep running detached.
+  if (window.Alpine && Alpine.destroyTree) {
+    var child = holder.firstElementChild;
+    while (child) {
+      var next = child.nextElementSibling;
+      Alpine.destroyTree(child);
+      child = next;
+    }
+  }
+  if (holder.parentNode) holder.remove();
+}
+
+function __hyloSectionCacheDelete(key) {
+  var entry = __hyloSectionCache.get(key);
+  if (!entry) return;
+  __hyloSectionCache.delete(key);
+  __hyloSectionCacheDrop(entry);
+}
+
+function __hyloSectionCacheInvalidate() {
+  __hyloSectionCache.forEach(__hyloSectionCacheDrop);
+  __hyloSectionCache.clear();
+}
+
+function __hyloNoteDir(path) {
+  if (!path) return '/';
+  var slash = path.lastIndexOf('/');
+  return slash <= 0 ? '/' : path.slice(0, slash);
+}
+
+function __hyloSectionListsDir(key, dir) {
+  var params = __hyloSectionParams(key);
+  var type = params.get('type');
+  if (type === 'folder') return (params.get('path') || '/') === dir;
+  if (type === 'memory') return dir === '/_memory';
+  if (type === 'knowledge' && !params.get('index')) return dir === __hyloKnowledgeDir;
+  return false;
+}
+
+function __hyloIsType(type) {
+  return function (key) { return __hyloSectionType(key) === type; };
+}
+
+function __hyloIsGraph(key) {
+  var params = __hyloSectionParams(key);
+  return params.get('type') === 'knowledge' && params.get('view') === 'graph';
+}
+
+// Graph and per-index lists aren't a flat directory, so a row patch can't fix them.
+function __hyloIsKnowledgeDerived(key) {
+  return __hyloIsGraph(key) || (__hyloSectionType(key) === 'knowledge' && !!__hyloSectionParams(key).get('index'));
+}
+
+function __hyloPreviewSection(key) {
+  var type = __hyloSectionType(key);
+  return type === 'folder' || type === 'memory' || type === 'pinned' || type === 'tags' || type === 'knowledge';
+}
+
+function __hyloDropParked(pred) {
+  var keys = [];
+  __hyloSectionCache.forEach(function (_, key) { if (pred(key)) keys.push(key); });
+  keys.forEach(__hyloSectionCacheDelete);
+}
+
+// Drops matching parked sections; true when the shown one matches too.
+function __hyloDropWhere(pred) {
+  __hyloDropParked(pred);
+  return !!__hyloSectionShownURL && pred(__hyloSectionShownURL);
+}
+
+function __hyloSectionFetch(url) {
+  __hyloSectionWant = __hyloSectionKey(url);
+  // Pane as source gives section loads their own htmx sync queue, apart
+  // from /home/refresh on <body>.
+  htmx.ajax('GET', url, { source: '#home-list-pane', target: '#home-list-pane', swap: 'innerHTML' });
+}
+
+function __hyloRefreshSidebar() {
+  if (window.htmx) htmx.ajax('GET', '/home/refresh', { target: document.body, swap: 'none' });
+}
+
+function __hyloRefetchShown() {
+  if (!__hyloSectionShownURL || !window.htmx) return;
+  // Leaving before the refetch lands must not park the outdated copy.
+  __hyloSectionShownStale = true;
+  __hyloSectionFetch(__hyloSectionShownURL);
+}
+
+function __hyloAdjustCount(root, delta) {
+  var el = root && root.querySelector('.home-list-count');
+  if (!el) return;
+  var n = parseInt(el.textContent, 10);
+  if (isNaN(n)) return;
+  el.textContent = String(Math.max(0, n + delta));
+}
+
+function __hyloNoteRows(path) {
+  return document.querySelectorAll('.home-note-row[data-note-path="' + CSS.escape(path) + '"]');
+}
+
+function __hyloForSectionRoots(fn) {
+  var pane = document.getElementById('home-list-pane');
+  if (pane && __hyloSectionShownURL) fn(__hyloSectionShownURL, pane, true);
+  __hyloSectionCache.forEach(function (entry, key) { fn(key, entry.holder, false); });
+}
+
+// Remove the note from lists that contain it, and fix the count even when
+// it sits on a page that hasn't loaded. An emptied list is refetched (shown)
+// or dropped (parked) so the empty state isn't a blank pane.
+function __hyloForgetNoteInLists(path, pinned) {
+  var dir = __hyloNoteDir(path);
+  var refetchShown = false;
+  var emptied = [];
+  __hyloForSectionRoots(function (key, root, live) {
+    if (!__hyloSectionListsDir(key, dir) && !(pinned && __hyloSectionType(key) === 'pinned')) return;
+    var row = root.querySelector('.home-note-row[data-note-path="' + CSS.escape(path) + '"]');
+    if (row) row.remove();
+    __hyloAdjustCount(root, -1);
+    if (root.querySelector('.home-note-row')) return;
+    if (live) refetchShown = true;
+    else emptied.push(key);
+  });
+  emptied.forEach(__hyloSectionCacheDelete);
+  return refetchShown;
+}
+
+function __hyloRetargetNoteRows(oldPath, newPath) {
+  if (!oldPath || !newPath || oldPath === newPath) return;
+  var rows = __hyloNoteRows(oldPath);
+  var stem = __hyloNoteStem(newPath);
+  var oldStem = __hyloNoteStem(oldPath);
+  var dir = __hyloNoteDir(newPath);
+  for (var i = 0; i < rows.length; i++) {
+    var row = rows[i];
+    row.dataset.notePath = newPath;
+    if (row.dataset.noteTitle === oldStem) {
+      row.dataset.noteTitle = stem;
+      var titleEl = row.querySelector('.home-note-row-title');
+      if (titleEl && titleEl.textContent === oldStem) titleEl.textContent = stem;
+    }
+    var dirEl = row.querySelector('.home-note-row-dir');
+    if (dirEl) dirEl.textContent = dir;
+  }
+}
+
+var __hyloPinBadgeHTML = '<span class="home-note-badge home-note-badge--pin" title="Pinned"><svg fill="currentColor" viewBox="0 0 24 24"><path d="M17 3a2 2 0 0 1 2 2v15a1 1 0 0 1-1.496.868l-4.512-2.578a2 2 0 0 0-1.984 0l-4.512 2.578A1 1 0 0 1 5 20V5a2 2 0 0 1 2-2z"/></svg></span>';
+var __hyloCompiledBadgeHTML = '<span class="home-note-badge home-note-badge--done" title="Compiled"><svg fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span>';
+
+function __hyloSetPinnedBadge(path, pinned) {
+  var rows = __hyloNoteRows(path);
+  for (var i = 0; i < rows.length; i++) {
+    var row = rows[i];
+    row.dataset.notePinned = pinned ? 'true' : 'false';
+    var badge = row.querySelector('.home-note-badge--pin');
+    if (pinned && !badge) {
+      var host = row.querySelector('.home-note-row-badges');
+      if (host) host.insertAdjacentHTML('afterbegin', __hyloPinBadgeHTML);
+    } else if (!pinned && badge) badge.remove();
+  }
+}
+
+function __hyloSetCompiledBadge(path) {
+  var rows = __hyloNoteRows(path);
+  for (var i = 0; i < rows.length; i++) {
+    var row = rows[i];
+    row.dataset.noteCanCompile = 'false';
+    if (row.querySelector('.home-note-row-badges [title="Compiled"]')) continue;
+    var host = row.querySelector('.home-note-row-badges');
+    if (host) host.insertAdjacentHTML('beforeend', __hyloCompiledBadgeHTML);
+  }
+}
+
+// Compared across saves so a typo doesn't throw away the tag cloud or graph.
+var __hyloNoteSig = new Map();
+
+function __hyloCleanTag(s) {
+  return String(s || '').trim().replace(/^['"]|['"]$/g, '').trim();
+}
+
+function __hyloExtractTags(md) {
+  var m = /^---\r?\n([\s\S]*?)\r?\n---/.exec(md || '');
+  if (!m) return [];
+  var lines = m[1].split(/\r?\n/);
+  var tags = [];
+  var inList = false;
+  for (var i = 0; i < lines.length; i++) {
+    var line = lines[i];
+    if (!inList) {
+      var bracket = /^tags:\s*\[(.*)\]\s*$/.exec(line);
+      if (bracket) return bracket[1].split(',').map(__hyloCleanTag).filter(Boolean).sort();
+      if (/^tags:\s*$/.test(line)) { inList = true; continue; }
+      var one = /^tags:\s*(\S.*)$/.exec(line);
+      if (one) return [__hyloCleanTag(one[1])].filter(Boolean);
+    } else {
+      var item = /^\s*-\s*(\S.*)$/.exec(line);
+      if (item) tags.push(__hyloCleanTag(item[1]));
+      else if (/^\S/.test(line)) break;
+    }
+  }
+  tags.sort();
+  return tags;
+}
+
+function __hyloExtractLinks(md) {
+  var out = [];
+  var text = md || '';
+  var re = /\[\[([^\]|#]+)/g;
+  var found;
+  while ((found = re.exec(text))) {
+    if (found.index > 0 && text.charAt(found.index - 1) === '!') continue;
+    var name = found[1].trim();
+    if (name) out.push(name);
+  }
+  out.sort();
+  return out;
+}
+
+function __hyloNoteSigFromContent(md) {
+  return { tags: __hyloExtractTags(md).join('\n'), links: __hyloExtractLinks(md).join('\n') };
+}
+
+function __hyloNoteSigRemember(path, md) {
+  if (path) __hyloNoteSig.set(path, __hyloNoteSigFromContent(md));
+}
+
+function __hyloNoteSigDiff(path, md) {
+  var next = __hyloNoteSigFromContent(md);
+  var prev = path ? __hyloNoteSig.get(path) : null;
+  if (path) __hyloNoteSig.set(path, next);
+  if (!prev) return { tagsChanged: true, linksChanged: true };
+  return { tagsChanged: prev.tags !== next.tags, linksChanged: prev.links !== next.links };
+}
+
+function __hyloMoveSig(oldPath, newPath) {
+  var sig = __hyloNoteSig.get(oldPath);
+  if (!sig) return;
+  __hyloNoteSig.delete(oldPath);
+  __hyloNoteSig.set(newPath, sig);
+}
+
+// change.op: write, create, pin, delete, rename, rename-sweep, move, compile, short, images.
+function __hyloVaultChanged(change) {
+  if (!change || !change.op) return;
+  var refetch = false;
+  var sidebar = false;
+  function drop(pred) { if (__hyloDropWhere(pred)) refetch = true; }
+  function dropDerived() {
+    // The graph colors nodes by their first tag, so a tag edit reaches it too.
+    if (change.tagsChanged) { drop(__hyloIsType('tags')); drop(__hyloIsGraph); }
+    if (change.linksChanged) drop(__hyloIsType('knowledge'));
+  }
+  switch (change.op) {
+    case 'write':
+      dropDerived();
+      break;
+    case 'create':
+      drop(function (key) { return __hyloSectionListsDir(key, change.dir); });
+      dropDerived();
+      sidebar = true;
+      break;
+    case 'pin':
+      __hyloSetPinnedBadge(change.path, !!change.pinned);
+      drop(__hyloIsType('pinned'));
+      break;
+    case 'delete':
+      if (__hyloForgetNoteInLists(change.path, !!change.pinned)) refetch = true;
+      drop(__hyloIsType('tags'));
+      drop(__hyloIsKnowledgeDerived);
+      sidebar = true;
+      break;
+    case 'rename':
+      __hyloRetargetNoteRows(change.path, change.newPath);
+      __hyloMoveSig(change.path, change.newPath);
+      drop(__hyloIsGraph);
+      sidebar = true;
+      break;
+    case 'rename-sweep':
+      // Wikilink rewrite can change other notes' excerpts and the graph.
+      drop(__hyloPreviewSection);
+      break;
+    case 'move':
+      // The dragged card flies out of the shown list on its own; only its count needs fixing.
+      if (__hyloSectionListsDir(__hyloSectionShownURL, change.fromDir)) {
+        var pane = document.getElementById('home-list-pane');
+        __hyloAdjustCount(pane, -1);
+        var countEl = pane && pane.querySelector('.home-list-count');
+        if (countEl && parseInt(countEl.textContent, 10) === 0) refetch = true;
+      }
+      __hyloDropParked(function (key) {
+        return __hyloSectionListsDir(key, change.toDir) || __hyloSectionListsDir(key, change.fromDir);
+      });
+      __hyloRetargetNoteRows(change.path, change.newPath);
+      __hyloMoveSig(change.path, change.newPath);
+      drop(__hyloIsGraph);
+      sidebar = true;
+      break;
+    case 'compile':
+      __hyloSetCompiledBadge(change.path);
+      drop(__hyloIsType('knowledge'));
+      drop(__hyloIsType('tags'));
+      sidebar = true;
+      break;
+    case 'short':
+      drop(__hyloIsType('shorts'));
+      if (change.hasImages) drop(__hyloIsType('images'));
+      break;
+    case 'images':
+      drop(__hyloIsType('images'));
+      break;
+    default:
+      return;
+  }
+  if (sidebar) __hyloRefreshSidebar();
+  if (refetch) __hyloRefetchShown();
+}
+
+function __hyloSectionCacheRemember(key, entry) {
+  __hyloSectionCacheDelete(key);
+  var now = Date.now();
+  __hyloDropParked(function (k) { return now - __hyloSectionCache.get(k).loadedAt > __hyloSectionCacheTTL; });
+  __hyloSectionCache.set(key, entry);
+  while (__hyloSectionCache.size > __hyloSectionCacheMax) {
+    __hyloSectionCacheDelete(__hyloSectionCache.keys().next().value);
+  }
+}
+
+function __hyloSectionMutate(fn) {
+  if (window.Alpine && Alpine.mutateDom) Alpine.mutateDom(fn);
+  else fn();
+}
+
+// display:none on the parked holder clears scrollTop. Read it while the
+// section is still on screen, and write it back once the nodes are visible.
+var __hyloSectionScrollSel = '.home-list-body, .img-scroll, .shorts-stream-wrap, .home-inbox-list';
+
+function __hyloSectionCaptureScroll(root) {
+  var nodes = root.querySelectorAll(__hyloSectionScrollSel);
+  var saved = [];
+  for (var i = 0; i < nodes.length; i++) saved.push({ el: nodes[i], top: nodes[i].scrollTop });
+  return saved;
+}
+
+function __hyloSectionApplyScroll(saved) {
+  if (!saved.length) return;
+  function apply() {
+    for (var i = 0; i < saved.length; i++) saved[i].el.scrollTop = saved[i].top;
+  }
+  apply();
+  requestAnimationFrame(function () {
+    apply();
+    requestAnimationFrame(apply);
+  });
+}
+
+// Unhooks whatever the shown section attached outside its own nodes.
+function __hyloSectionTeardown(pane) {
+  var hd = window._homeData;
+  if (hd && hd._chat && pane.querySelector('#chat-root')) hd._chat.detach();
+  if (hd && hd.cy) { hd.cy.destroy(); hd.cy = null; }
+  if (__hyloTagCloudObserver) { __hyloTagCloudObserver.disconnect(); __hyloTagCloudObserver = null; }
+  clearTimeout(__hyloTagCloudResizeTimer);
+}
+
+// Move the live pane's nodes into the cache, or throw them away when the
+// section isn't cacheable (chat) or is known to be outdated.
+function __hyloSectionPark() {
+  var key = __hyloSectionShownURL;
+  var pane = document.getElementById('home-list-pane');
+  if (!pane || !pane.firstElementChild) return;
+  if (!__hyloSectionCacheableTypes[__hyloSectionType(key)] || __hyloSectionShownStale) {
+    __hyloSectionTeardown(pane);
+    while (pane.firstChild) pane.removeChild(pane.firstChild);
+    return;
+  }
+  var entry = {
+    holder: document.createElement('div'), loadedAt: __hyloSectionShownAt,
+    cy: null, zoom: 1, pan: { x: 0, y: 0 }, scroll: __hyloSectionCaptureScroll(pane),
+  };
+  entry.holder.hidden = true;
+  entry.holder.setAttribute('data-hylo-section-cache', '');
+  var hd = window._homeData;
+  if (hd && hd.cy && pane.querySelector('#graph-canvas')) {
+    entry.cy = hd.cy;
+    entry.zoom = hd.cy.zoom();
+    entry.pan = { x: hd.cy.pan().x, y: hd.cy.pan().y };
+    hd.cy = null;
+  }
+  __hyloSectionTeardown(pane);
+  __hyloSectionMutate(function () {
+    document.body.appendChild(entry.holder);
+    while (pane.firstChild) entry.holder.appendChild(pane.firstChild);
+    __hyloSectionStashIds(entry.holder);
+  });
+  __hyloSectionCacheRemember(key, entry);
+}
+
+function __hyloSectionRestoreGraph(cy, zoom, pan) {
+  var tries = 0;
+  function apply() {
+    if (cy.destroyed()) return;
+    cy.resize();
+    if (cy.width() < 2 && tries++ < 8) { requestAnimationFrame(apply); return; }
+    cy.zoom(zoom);
+    cy.pan(pan);
+  }
+  requestAnimationFrame(apply);
+}
+
+// Puts a fresh parked copy of url back in the pane. Called before any fetch,
+// so a cached section never waits behind another pane request.
+function __hyloSectionTryRestore(url) {
+  var key = __hyloSectionKey(url);
+  var entry = key && __hyloSectionCache.get(key);
+  if (!entry) return false;
+  if (Date.now() - entry.loadedAt > __hyloSectionCacheTTL) {
+    __hyloSectionCacheDelete(key);
+    return false;
+  }
+  var pane = document.getElementById('home-list-pane');
+  if (!pane) return false;
+  __hyloSectionWant = key;
+  __hyloSectionPark();
+  __hyloSectionCache.delete(key);
+  __hyloSectionMutate(function () {
+    __hyloSectionUnstashIds(entry.holder);
+    while (entry.holder.firstChild) pane.appendChild(entry.holder.firstChild);
+    entry.holder.remove();
+  });
+  __hyloSectionShownURL = key;
+  __hyloSectionShownAt = entry.loadedAt;
+  __hyloSectionShownStale = false;
+  var hd = window._homeData;
+  if (hd) {
+    hd._lastURL = key;
+    if (entry.cy) {
+      hd.cy = entry.cy;
+      __hyloSectionRestoreGraph(entry.cy, entry.zoom, entry.pan);
+    } else if (document.getElementById('graph-canvas')) {
+      hd.knowledgeIndexPath = __hyloSectionParams(key).get('index') || '';
+      hd.loadGraph();
+    }
+  }
+  __hyloUpdateDraggableCards();
+  __hyloSectionApplyScroll(entry.scroll);
+  if (document.getElementById('tag-cloud')) __hyloRenderTagCloud();
+  return true;
+}
+
 // Matches internal/inbox.defaultListLimit — the server-side page size used
 // when a request omits ?limit=. Kept in sync manually since the client
 // needs to know a full page was returned to decide whether more exist.
@@ -169,7 +710,7 @@ function homeCtrl() {
     foldersOpen: true,
     knowledgeOpen: false,
     chatsOpen: true,
-    _lastURL: '/home/section?type=pinned',
+    _lastURL: __hyloInitialSectionURL(),
     lightbox: null,
     selectMode: false,
     selectedCount: 0,
@@ -216,13 +757,7 @@ function homeCtrl() {
       // First render isn't an htmx swap (home.html, not htmx:afterSwap
       // below), so the drag-to-move cards need their initial pass here too.
       __hyloUpdateDraggableCards();
-      window.__hyloHotkeys.register('refresh', 'r', function () {
-        if (typeof window.__hyloBackgroundRefresh === 'function') {
-          window.__hyloBackgroundRefresh();
-        } else {
-          window.location.reload();
-        }
-      });
+      window.__hyloHotkeys.register('refresh', 'r', doHomeRefresh);
       _lbOpen = (data) => { this.lightbox = data; };
       // Route both overlays through the shared ESC stack (shared_keys.go)
       // instead of @keydown.escape.window: that binding fires on window's
@@ -309,19 +844,6 @@ function homeCtrl() {
       });
       this._chat.start();
       if (document.getElementById('chat-root')) this.initChatSection();
-      // Home is always safe: partial HTMX refresh is non-destructive.
-      window.__hyloShellSafeForBackgroundReload = function () { return true; };
-      // Electron main calls this instead of wc.reload() when syncing sections.
-      window.__hyloBackgroundRefresh = doHomeRefresh;
-      // Same as the shared default (shared_theme.go), except the no-Electron
-      // fallback refreshes the active section in place instead of reloading
-      // the whole page — otherwise saving a short via the dialog would kick
-      // the user back to Pinned.
-      window.__hyloAfterVaultMutation = async function () {
-        var api = window.hyloDesktop;
-        if (api && api.syncVaultDataAcrossSections) { await api.syncVaultDataAcrossSections(); return; }
-        if (window._homeData) window._homeData.reloadActiveSection();
-      };
     },
     refresh() { doHomeRefresh(); },
     // Maps the active sidebar selection to its list/grid preference bucket —
@@ -811,24 +1333,19 @@ function homeCtrl() {
 
     _load(url) {
       this._lastURL = url;
-      // Leaving whatever section was showing: any open image lightbox,
-      // select-mode state, or graph instance refers to elements that are
-      // about to be replaced. The inbox detail sheet is independent of
-      // #home-list-pane's content (content_pane.html's inbox-detail-panel
-      // renders from inboxSelected, not the list DOM) so it's left open —
-      // switching sections shouldn't force-close something the user opened.
+      // Lightbox and image select-mode point at the section being left.
+      // The pane itself is parked, so coming back reattaches the same nodes.
+      // The inbox detail stays open — it renders from inboxSelected, not the
+      // list DOM.
       this.lightbox = null;
       if (this.selectMode) this.exitSelectMode();
-      if (this.cy) { this.cy.destroy(); this.cy = null; }
-      if (__hyloTagCloudObserver) { __hyloTagCloudObserver.disconnect(); __hyloTagCloudObserver = null; }
-      this.nodePanel = null;
-      var pane = document.getElementById('home-list-pane');
-      if (pane) pane.scrollTop = 0;
-      htmx.ajax('GET', url, { target: '#home-list-pane', swap: 'innerHTML' });
+      if (!__hyloSectionTryRestore(url)) __hyloSectionFetch(url);
     },
 
     reloadActiveSection() {
-      htmx.ajax('GET', this._lastURL, { target: '#home-list-pane', swap: 'innerHTML' });
+      // Explicit refresh: drop every parked section, then refetch what's on screen.
+      __hyloSectionCacheInvalidate();
+      __hyloSectionFetch(this._lastURL);
     },
 
     // ── Inbox: message list + unread badge + read-only sheet ───────────────
@@ -1073,7 +1590,7 @@ function homeCtrl() {
         this.shortComposeText = '';
         this.shortComposeImages.forEach((i) => { if (i.previewUrl) URL.revokeObjectURL(i.previewUrl); });
         this.shortComposeImages = [];
-        if (window.__hyloAfterVaultMutation) await window.__hyloAfterVaultMutation();
+        if (window.__hyloVaultChanged) window.__hyloVaultChanged({ op: 'short', hasImages: images.length > 0 });
       } catch (err) {
         window.showError('Failed to save: ' + (err && err.message ? err.message : String(err)), 'Save failed');
       } finally {
@@ -1097,30 +1614,56 @@ function homeCtrl() {
   return ctrl;
 }
 
-// Keep _lastURL in sync with whatever actually last loaded #home-list-pane —
-// including requests that don't go through selectSection/selectFolder, like
-// the shorts month rail's declarative hx-get — so refresh() and
-// reloadActiveSection() pick up on it too. Also: the graph canvas (Knowledge's
-// graph view) and the inbox/chat sections' markup is static (server-rendered
-// the same regardless of query params), so once it lands in the DOM this is
-// what actually kicks off the client-side fetch + render — mirrors graph.js's
-// init()-time loadGraph() call, which has no equivalent trigger here since
-// Alpine doesn't re-run init() on swap.
+// Every #home-list-pane request passes through here. Ones issued by
+// __hyloSectionFetch (source = the pane) that were superseded while queued
+// are dropped. Declarative ones (the shorts month
+// buttons' hx-get) get the same cache restore _load does.
+document.body.addEventListener('htmx:beforeRequest', function (e) {
+  var d = e.detail;
+  if (!d || !d.target || d.target.id !== 'home-list-pane') return;
+  var key = __hyloSectionKey(d.pathInfo && (d.pathInfo.finalRequestPath || d.pathInfo.requestPath));
+  if (e.target === d.target) {
+    if (key !== __hyloSectionWant) { e.preventDefault(); return; }
+  } else if (__hyloSectionTryRestore(key)) {
+    e.preventDefault();
+    return;
+  } else {
+    __hyloSectionWant = key;
+  }
+  if (d.xhr) d.xhr.__hyloSectionKey = key;
+});
+
 document.body.addEventListener('htmx:beforeSwap', function (e) {
-  var target = e.detail && e.detail.target;
-  if (!target || target.id !== 'home-list-pane' || !window._homeData || !window._homeData._chat) return;
-  if (target.querySelector('#chat-root')) window._homeData._chat.detach();
+  var d = e.detail;
+  if (!d || !d.target || d.target.id !== 'home-list-pane') return;
+  var xhr = d.xhr;
+  if (xhr && xhr.__hyloSectionKey != null && xhr.__hyloSectionKey !== __hyloSectionWant) {
+    d.shouldSwap = false;
+    return;
+  }
+  // Parking waits for a response that will swap, so the old section stays
+  // on screen while loading and survives a failed request.
+  if (!d.shouldSwap) return;
+  // A refetch of the shown section replaces it; anything else parks it.
+  if (xhr && xhr.__hyloSectionKey && xhr.__hyloSectionKey !== __hyloSectionShownURL) __hyloSectionPark();
+  else __hyloSectionTeardown(d.target);
 });
 
 document.body.addEventListener('htmx:afterSwap', function (e) {
   var target = e.detail && e.detail.target;
   if (!target || target.id !== 'home-list-pane' || !window._homeData) return;
-  __hyloUpdateDraggableCards();
   var xhr = e.detail.xhr;
+  __hyloUpdateDraggableCards();
   if (!xhr || !xhr.responseURL) return;
   try {
     var u = new URL(xhr.responseURL);
     window._homeData._lastURL = u.pathname + u.search;
+    __hyloSectionShownURL = __hyloSectionKey(xhr.responseURL);
+    __hyloSectionShownAt = Date.now();
+    __hyloSectionShownStale = false;
+    // Graph, inbox, and chat markup is static; the client fetch starts here
+    // because Alpine doesn't re-run init() on an htmx swap. A cache restore
+    // never reaches this — those sections come back already initialized.
     if (document.getElementById('graph-canvas')) {
       window._homeData.knowledgeIndexPath = u.searchParams.get('index') || '';
       window._homeData.loadGraph();
@@ -1183,6 +1726,7 @@ function __hyloRenderTagCloud() {
   function layoutAndRender() {
     var gen = ++__hyloTagCloudGen;
     var width = el.clientWidth || 800;
+    el.dataset.layoutWidth = String(width);
     // Rough glyph-area estimate (avg glyph ~0.6x its font-size square) to
     // size the box. The multiplier controls the cloud's silhouette, not
     // just how much empty margin there is: d3-cloud's spiral starts at the
@@ -1238,15 +1782,10 @@ function __hyloRenderTagCloud() {
   // px of error is proportionally much bigger at 14px than at 56px.
   // document.fonts.ready resolves once every requested font has settled, so
   // waiting on it here keeps what's measured and what's rendered in sync.
-  if (document.fonts && document.fonts.ready) {
-    document.fonts.ready.then(layoutAndRender).catch(layoutAndRender);
-  } else {
-    layoutAndRender();
-  }
-
-  if (__hyloTagCloudObserver) { __hyloTagCloudObserver.disconnect(); __hyloTagCloudObserver = null; }
-  var body = el.parentElement;
-  if (body && typeof ResizeObserver !== 'undefined') {
+  function watch() {
+    if (__hyloTagCloudObserver) { __hyloTagCloudObserver.disconnect(); __hyloTagCloudObserver = null; }
+    var body = el.parentElement;
+    if (!body || typeof ResizeObserver === 'undefined') return;
     var lastWidth = body.clientWidth;
     __hyloTagCloudObserver = new ResizeObserver(function () {
       var w = body.clientWidth;
@@ -1257,6 +1796,19 @@ function __hyloRenderTagCloud() {
     });
     __hyloTagCloudObserver.observe(body);
   }
+
+  // Restoring a parked tag wall already has its words. Re-hook resize only,
+  // so coming back doesn't wipe the cloud and jump the scroll position —
+  // unless the width changed while it was parked.
+  var laidOut = Number(el.dataset.layoutWidth);
+  if (el.querySelector('.tag-cloud-word') && Math.abs((el.clientWidth || 800) - laidOut) < 4) { watch(); return; }
+
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(layoutAndRender).catch(layoutAndRender);
+  } else {
+    layoutAndRender();
+  }
+  watch();
 }
 
 // ── Shorts entries embedded in the list pane: intercept internal links ────
@@ -1310,8 +1862,10 @@ function __hyloDragNoteEligible(card) {
 // Called after every #home-list-pane swap (htmx:afterSwap, below) and once
 // on init for the page's first, non-htmx render.
 function __hyloUpdateDraggableCards() {
+  var pane = document.getElementById('home-list-pane');
+  if (!pane) return;
   var isFolderView = !!(window._homeData && String(window._homeData.activeKey || '').indexOf('dir:') === 0);
-  var cards = document.querySelectorAll('.home-note-row');
+  var cards = pane.querySelectorAll('.home-note-row');
   for (var i = 0; i < cards.length; i++) {
     cards[i].draggable = isFolderView && __hyloDragNoteEligible(cards[i]);
   }
@@ -1460,6 +2014,8 @@ async function __hyloDragMoveNote(sourcePath, targetDir, card, targetEl) {
   var data = await resp.json();
   if (window.__hyloContentPane) window.__hyloContentPane.noteMoved(sourcePath, data.path);
   __hyloFlyCardToTarget(card, targetEl);
-  if (window.__hyloAfterVaultMutation) await window.__hyloAfterVaultMutation();
+  if (window.__hyloVaultChanged) window.__hyloVaultChanged({
+    op: 'move', path: sourcePath, newPath: data.path, fromDir: __hyloNoteDir(sourcePath), toDir: targetDir,
+  });
 }
 

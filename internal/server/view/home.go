@@ -21,7 +21,8 @@ const homeListPageSize = 20
 type homePageData struct {
 	Folders        []storage.DirSummary
 	IndexNotes     []noteItem
-	KnowledgeCount int // total notes under the knowledge dir — the sidebar's "All" count
+	KnowledgeCount int    // total notes under the knowledge dir — the sidebar's "All" count
+	KnowledgeDir   string // vault-absolute, e.g. "/_knowledge" — client cache invalidation
 	SectionHTML    template.HTML
 }
 
@@ -66,6 +67,7 @@ func (vh *ViewHandler) Home(w http.ResponseWriter, r *http.Request) {
 		Folders:        folders,
 		IndexNotes:     indexNotes,
 		KnowledgeCount: vh.knowledgeCount(),
+		KnowledgeDir:   vh.knowledgeDirPath(),
 		SectionHTML:    sectionHTML,
 	}
 
@@ -131,7 +133,7 @@ func (vh *ViewHandler) homeSectionData(r *http.Request, itemsOnly bool) (homeSec
 
 		indexParam := strings.TrimSpace(r.URL.Query().Get("index"))
 		if indexParam == "" {
-			dirPath := "/" + strings.Trim(vh.knowledgeDir(), "/")
+			dirPath := vh.knowledgeDirPath()
 			if view != "graph" {
 				var nextNs int64
 				data.Items, nextNs = vh.listDirNoteItems(dirPath, beforeNs, homeListPageSize)
@@ -186,11 +188,15 @@ func (vh *ViewHandler) knowledgeDir() string {
 	return "_knowledge"
 }
 
+func (vh *ViewHandler) knowledgeDirPath() string {
+	return "/" + strings.Trim(vh.knowledgeDir(), "/")
+}
+
 // knowledgeCount returns the total note count under the knowledge dir — the
 // sidebar's "All" child count, and the same number homeSectionData's
 // unfiltered "knowledge" case uses for its list-head pill.
 func (vh *ViewHandler) knowledgeCount() int {
-	return vh.dirNoteCount("/" + strings.Trim(vh.knowledgeDir(), "/"))
+	return vh.dirNoteCount(vh.knowledgeDirPath())
 }
 
 // dirNoteCount looks up dirPath's note count from the full (unfiltered)
@@ -1195,6 +1201,7 @@ var homePageHTML = `<!DOCTYPE html>
   <div id="graph-tooltip" class="graph-tooltip"></div>
 
   <script>
+  var __hyloKnowledgeDir = "{{.KnowledgeDir}}";
   document.addEventListener('alpine:init', () => {
 ` + alpineStoresScript + `
   });

@@ -36,40 +36,6 @@ const themeBootstrapScript = `  <script>(function(){
 // when running inside the Hylo desktop wrapper.
 const electronBootstrapScript = `  <script>(function(){if(window.hyloDesktop){document.documentElement.classList.add('electron');if(window.hyloDesktop.platform==='darwin')document.documentElement.classList.add('macos');}})()</script>`
 
-// electronShellSafeReloadScript defines when a full webContents reload is
-// safe for the desktop multi-view shell, and a helper to refresh peer
-// sections after vault mutations. Main reads
-// __hyloShellSafeForBackgroundReload via executeJavaScript.
-const electronShellSafeReloadScript = `  <script>(function(){
-  window.__hyloShellSafeForBackgroundReload=function(){
-    try{
-      if(!window.hyloDesktop)return true;
-      var path=location.pathname||'';
-      var seg=path.replace(/^\/+/,'').split('/')[0];
-      if(seg==='edit')return false;
-      if(seg!=='home')return false;
-      if(window.__hyloSearchOpen)return false;
-      var cp=window.__hyloContentPane;
-      if(cp&&cp.contentPaneOpen)return false;
-      if(seg==='home'){
-        var rawTab=document.getElementById('t-raw');
-        if(rawTab&&rawTab.classList.contains('on'))return false;
-      }
-      var st=window.__hyloSettingsShell;
-      if(st){
-        if(st.saving)return false;
-        if(String(st.serverUrl||'').trim()!==String(st.initialServerUrl||'').trim())return false;
-      }
-      return true;
-    }catch(_){return false}
-  };
-  window.__hyloAfterVaultMutation=async function(){
-    var api=window.hyloDesktop;
-    if(api&&api.syncVaultDataAcrossSections){await api.syncVaultDataAcrossSections();return;}
-    window.location.reload();
-  };
-})()</script>`
-
 // alpineStoresScript initializes all Alpine.js global stores.
 // Wrap it inside a document.addEventListener('alpine:init', () => { … }) call.
 const alpineStoresScript = `    Alpine.store('settingsModal', { open: false });`
