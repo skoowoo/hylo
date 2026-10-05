@@ -253,12 +253,12 @@ func (vh *ViewHandler) renderHomeSectionHTML(r *http.Request) (template.HTML, er
 	case "inbox":
 		// Same story as graph: the message list is entirely client-rendered
 		// (home.js fetches /api/inbox itself once #home-inbox-list lands in
-		// the DOM — see the htmx:afterSwap listener), so this markup never
+		// the DOM — see __hyloSectionArrived), so this markup never
 		// varies with the request.
 		return template.HTML(homeInboxSectionHTML), nil //nolint:gosec // static markup, not user HTML
 	case "chat":
 		// Static shell. home.js attaches the chat kernel once #chat-root
-		// lands in the DOM (htmx:afterSwap); the markup itself never varies.
+		// lands in the DOM (__hyloSectionArrived); the markup itself never varies.
 		return template.HTML(homeChatSectionHTML), nil //nolint:gosec // static markup, not user HTML
 	}
 	data, err := vh.homeSectionData(r, false)
@@ -272,7 +272,7 @@ func (vh *ViewHandler) renderHomeSectionHTML(r *http.Request) (template.HTML, er
 // "jump to month" select), a composer, and the date-grouped entry feed
 // (shorts.go's loadStreamGroups/loadMonthsWithEntries back both). Pagination
 // ("Load earlier") and the month select both stay in place inside
-// #home-list-pane via hx-get, rather than navigating anywhere — unlike the
+// #home-list-pane, rather than navigating anywhere — unlike the
 // note-list view kind, they don't go through /home/section/more: the select
 // re-requests this same endpoint with &from=, and "Load earlier" hits the
 // existing /shorts/stream endpoint directly (its #shorts-stream-groups /
@@ -718,8 +718,7 @@ const homeShortsSectionHTML = `<div class="shorts-view">
       <div class="cselect-dropdown" x-show="csOpen" x-cloak>
         {{range .Months}}
         <button type="button" class="cselect-option{{if .IsCurrent}} sel{{end}}"
-                hx-get="/home/section?type=shorts&from={{.YM}}" hx-target="#home-list-pane" hx-swap="innerHTML"
-                @click="csOpen = false">
+                @click="csOpen = false; _load('/home/section?type=shorts&from={{.YM}}')">
           <span class="dot dot--fg cselect-option-dot"></span><span>{{.Abbr}} {{.Year}}</span>
         </button>
         {{end}}
@@ -809,9 +808,7 @@ const homeShortsSectionHTML = `<div class="shorts-view">
         {{if .HasMore}}
         <div class="shorts-load-more-wrap">
           <button class="shorts-loadmore-btn"
-                  hx-get="/shorts/stream?before={{.Cursor}}"
-                  hx-target="#shorts-stream-groups"
-                  hx-swap="beforeend">
+                  hx-get="/shorts/stream?before={{urlquery .Cursor}}">
             Load earlier
           </button>
         </div>
@@ -1054,7 +1051,7 @@ const homeGraphSectionHTML = `<div class="graph-main">
 // unread/read + mark-all-read) over a wide-card message list, mirroring the
 // visual language of the pinned/folder note list (.home-note-row). Entirely
 // client-rendered — home.js fetches /api/inbox once this markup lands in the
-// DOM (see the htmx:afterSwap listener) and drives the x-for below.
+// DOM (see __hyloSectionArrived) and drives the x-for below.
 // Selecting a card opens the read-only message detail, which shares the
 // editor's split pane (see contentPaneHTML's inbox-detail-panel) — the two are
 // mutually exclusive there, never both visible.
@@ -1212,7 +1209,13 @@ var homePageHTML = `<!DOCTYPE html>
 </body>
 </html>`
 
-var homePageTemplate = template.Must(template.New("home").Funcs(homeTemplateFuncs).Parse(homePageHTML))
+var homePageTemplate = withHomeSidebarParts(template.New("home").Funcs(homeTemplateFuncs), homePageHTML)
+
+// withHomeSidebarParts parses the sidebar bodies shared by the initial page and
+// /home/refresh, so both render identical markup for htmx to morph.
+func withHomeSidebarParts(t *template.Template, text string) *template.Template {
+	return template.Must(template.Must(t.Parse(text)).Parse(homeSidebarPartsHTML))
+}
 
 // HomeRefresh handles GET /home/refresh — returns HTMX OOB fragments for the
 // sidebar's counts + folder list, without a full page reload.
@@ -1251,36 +1254,20 @@ func (vh *ViewHandler) HomeRefresh(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(buf.Bytes())
 }
 
-var homeRefreshTemplate = template.Must(template.New("home-refresh").Funcs(homeTemplateFuncs).Parse(`<div id="home-side-folders-body" class="home-side-children" :class="{'is-open': foldersOpen}" x-cloak hx-swap-oob="true">
+// Morphed by htmx, which copies attributes via setAttribute — WKWebView rejects
+// '@'/':'-prefixed names, so Alpine's shorthands must be spelled out here.
+var homeRefreshTemplate = withHomeSidebarParts(template.New("home-refresh").Funcs(homeTemplateFuncs), `<hx-partial hx-target="#home-side-folders-body" hx-swap="outerMorph">
+<div id="home-side-folders-body" class="home-side-children" x-bind:class="{'is-open': foldersOpen}">
   <div class="home-side-children-inner">
-    {{range .Folders}}
-    <button type="button" class="side-nav-item home-side-child home-drop-target" :class="{'is-active': activeKey === 'dir:{{.Dir}}'}"
-            data-drop-dir="{{.Dir}}"
-            @click="selectFolder('{{.Dir}}','/home/section?type=folder&path={{encdir .Dir}}')">
-      <svg class="home-side-child-icon" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"
-           stroke-linejoin="round" viewBox="0 0 24 24">
-        <path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" />
-      </svg>
-      <span class="home-side-child-name">{{folderLabel .Dir}}</span>
-    </button>
-    {{end}}
-    {{if not .Folders}}<div class="home-side-empty">No folders</div>{{end}}
+{{template "home-side-folders-inner" .}}
   </div>
 </div>
-<div id="home-side-knowledge-body" class="home-side-children" :class="{'is-open': knowledgeOpen}" x-cloak hx-swap-oob="true">
+</hx-partial>
+<hx-partial hx-target="#home-side-knowledge-body" hx-swap="outerMorph">
+<div id="home-side-knowledge-body" class="home-side-children" x-bind:class="{'is-open': knowledgeOpen}">
   <div class="home-side-children-inner">
-    <button type="button" class="side-nav-item home-side-child" :class="{'is-active': activeKey === 'knowledge:'}"
-            @click="selectKnowledgeIndex('')">
-      <span class="home-side-child-name">All</span>
-      <span class="home-side-count">{{.KnowledgeCount}}</span>
-    </button>
-    {{range .IndexNotes}}
-    <button type="button" class="side-nav-item home-side-child" :class="{'is-active': activeKey === 'knowledge:{{.Path}}'}"
-            @click="selectKnowledgeIndex('{{.Path}}')">
-      <span class="home-side-child-name">{{label .}}</span>
-      <span class="home-side-count">{{.DepCount}}</span>
-    </button>
-    {{end}}
+{{template "home-side-knowledge-inner" .}}
   </div>
 </div>
-`))
+</hx-partial>
+`)

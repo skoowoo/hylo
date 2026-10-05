@@ -63,6 +63,7 @@ func (vh *ViewHandler) wikilinksExistFunc(src []byte) func(string) bool {
 // redirect to fallbackURL instead of returning a bare HTML snippet.
 // Returns false when a redirect was written; callers must return immediately.
 func htmxOnly(w http.ResponseWriter, r *http.Request, fallbackURL string) bool {
+	w.Header().Add("Vary", "HX-Request")
 	if r.Header.Get("HX-Request") != "true" {
 		http.Redirect(w, r, fallbackURL, http.StatusSeeOther)
 		return false

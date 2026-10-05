@@ -118,3 +118,6 @@ var graphCSS string
 //go:embed assets/cselect.css
 var cselectCSS string
 
+
+//go:embed assets/home_sidebar.html
+var homeSidebarPartsHTML string

@@ -2,6 +2,7 @@
   <div id="confirm-dialog"
        x-data="confirmDialogCtrl()"
        x-show="open"
+       x-trap.inert="open"
        x-cloak
        class="dialog-overlay confirm-overlay"
        @click.self="cancel()">

@@ -1,3 +1,4 @@
+<hx-partial hx-target="#shorts-stream-groups" hx-swap="beforeend">
 {{range .Groups}}
 {{$group := .}}
 <div class="shorts-day">
@@ -24,17 +25,16 @@
   {{end}}
 </div>
 {{end}}
-<div id="shorts-load-more" hx-swap-oob="true">
+</hx-partial>
+<hx-partial hx-target="#shorts-load-more" hx-swap="innerHTML">
   {{if .HasMore}}
   <div class="shorts-load-more-wrap">
     <button class="shorts-loadmore-btn"
-            hx-get="/shorts/stream?before={{.Cursor}}"
-            hx-target="#shorts-stream-groups"
-            hx-swap="beforeend">
+            hx-get="/shorts/stream?before={{urlquery .Cursor}}">
       Load earlier
     </button>
   </div>
   {{else}}
   <p class="shorts-end-msg hairline">— beginning —</p>
   {{end}}
-</div>
+</hx-partial>

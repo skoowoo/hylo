@@ -130,20 +130,10 @@ function extToType(ext) {
 }
 
 // ── Home partial refresh via HTMX ────────────────────────────────────────
-// Refreshes the sidebar's counts + folder list (OOB), then re-fetches
-// whichever section is currently shown in the list pane — only the browser
-// knows that, so it can't be folded into the OOB response itself.
-// htmx's default settle behavior copies "class"/"style" from an OOB swap's
-// old element onto the new one (for CSS-transition continuity), then strips
-// them again after the settle delay. That collides with Alpine's own
-// reactive style="display:none" on x-show: htmx would immediately erase the
-// inline style Alpine had just set on the freshly swapped-in
-// #home-side-knowledge-body/#home-side-folders-body, leaving it visible
-// regardless of knowledgeOpen/foldersOpen — i.e. the sidebar group reads as
-// auto-expanded after every /home/refresh. Nothing here relies on htmx's
-// class/style settle animation, so just disable it.
-htmx.config.attributesToSettle = [];
-
+// Refreshes the sidebar's counts + folder list (hx-partial, morphed so the
+// groups keep their Alpine open/closed state), then re-fetches whichever
+// section is currently shown in the list pane — only the browser knows that,
+// so it can't be folded into the response itself.
 function doHomeRefresh() {
   htmx.ajax('GET', '/home/refresh', { target: document.body, swap: 'none' });
   if (window._homeData) {
@@ -171,8 +161,6 @@ var __hyloSectionCacheTTL = 10 * 60 * 1000;
 var __hyloSectionShownURL = '';
 var __hyloSectionShownAt = Date.now();
 var __hyloSectionShownStale = false;
-// Key of the latest navigation; a response for any other key is stale.
-var __hyloSectionWant = '';
 var __hyloSectionCacheableTypes = {
   pinned: true, folder: true, memory: true, knowledge: true,
   tags: true, images: true, shorts: true, inbox: true,
@@ -315,19 +303,18 @@ function __hyloDropWhere(pred) {
   return !!__hyloSectionShownURL && pred(__hyloSectionShownURL);
 }
 
+// The pane is the source of every section load: hx-sync="this:replace" on it
+// lets a newer load cancel an older one, apart from /home/refresh on <body>.
 function __hyloSectionFetch(url) {
-  __hyloSectionWant = __hyloSectionKey(url);
-  // Pane as source gives section loads their own htmx sync queue, apart
-  // from /home/refresh on <body>.
   htmx.ajax('GET', url, { source: '#home-list-pane', target: '#home-list-pane', swap: 'innerHTML' });
 }
 
 function __hyloRefreshSidebar() {
-  if (window.htmx) htmx.ajax('GET', '/home/refresh', { target: document.body, swap: 'none' });
+  htmx.ajax('GET', '/home/refresh', { target: document.body, swap: 'none' });
 }
 
 function __hyloRefetchShown() {
-  if (!__hyloSectionShownURL || !window.htmx) return;
+  if (!__hyloSectionShownURL) return;
   // Leaving before the refetch lands must not park the outdated copy.
   __hyloSectionShownStale = true;
   __hyloSectionFetch(__hyloSectionShownURL);
@@ -665,7 +652,8 @@ function __hyloSectionTryRestore(url) {
   }
   var pane = document.getElementById('home-list-pane');
   if (!pane) return false;
-  __hyloSectionWant = key;
+  // A load for another section may still be in flight; its response is stale now.
+  htmx.trigger(pane, 'htmx:abort');
   __hyloSectionPark();
   __hyloSectionCache.delete(key);
   __hyloSectionMutate(function () {
@@ -673,24 +661,37 @@ function __hyloSectionTryRestore(url) {
     while (entry.holder.firstChild) pane.appendChild(entry.holder.firstChild);
     entry.holder.remove();
   });
-  __hyloSectionShownURL = key;
-  __hyloSectionShownAt = entry.loadedAt;
+  __hyloSectionArrived(key, entry);
+  return true;
+}
+
+// Every way a section reaches the pane — first render, htmx swap, cache
+// restore — ends here. A restored section keeps its initialized nodes, so
+// only what lives outside them (graph, tag cloud layout) is redone.
+function __hyloSectionArrived(url, entry) {
+  __hyloSectionShownURL = __hyloSectionKey(url);
+  __hyloSectionShownAt = entry ? entry.loadedAt : Date.now();
   __hyloSectionShownStale = false;
+  __hyloUpdateDraggableCards();
   var hd = window._homeData;
   if (hd) {
-    hd._lastURL = key;
-    if (entry.cy) {
-      hd.cy = entry.cy;
-      __hyloSectionRestoreGraph(entry.cy, entry.zoom, entry.pan);
-    } else if (document.getElementById('graph-canvas')) {
-      hd.knowledgeIndexPath = __hyloSectionParams(key).get('index') || '';
-      hd.loadGraph();
+    hd._lastURL = url;
+    if (document.getElementById('graph-canvas')) {
+      if (entry && entry.cy) {
+        hd.cy = entry.cy;
+        __hyloSectionRestoreGraph(entry.cy, entry.zoom, entry.pan);
+      } else {
+        hd.knowledgeIndexPath = __hyloSectionParams(__hyloSectionShownURL).get('index') || '';
+        hd.loadGraph();
+      }
+    }
+    if (!entry) {
+      if (document.getElementById('home-inbox-list')) hd.loadInbox();
+      if (document.getElementById('chat-root')) hd.initChatSection();
     }
   }
-  __hyloUpdateDraggableCards();
-  __hyloSectionApplyScroll(entry.scroll);
+  if (entry) __hyloSectionApplyScroll(entry.scroll);
   if (document.getElementById('tag-cloud')) __hyloRenderTagCloud();
-  return true;
 }
 
 // Matches internal/inbox.defaultListLimit — the server-side page size used
@@ -754,9 +755,6 @@ function homeCtrl() {
     init() {
       this.initContentPane();
       window._homeData = this;
-      // First render isn't an htmx swap (home.html, not htmx:afterSwap
-      // below), so the drag-to-move cards need their initial pass here too.
-      __hyloUpdateDraggableCards();
       window.__hyloHotkeys.register('refresh', 'r', doHomeRefresh);
       _lbOpen = (data) => { this.lightbox = data; };
       // Route both overlays through the shared ESC stack (shared_keys.go)
@@ -843,7 +841,8 @@ function homeCtrl() {
         onToast: function (text, kind) { self.showToast(text, kind); },
       });
       this._chat.start();
-      if (document.getElementById('chat-root')) this.initChatSection();
+      // The first render isn't an htmx swap, but arrives like one.
+      __hyloSectionArrived(__hyloInitialSectionURL(), null);
     },
     refresh() { doHomeRefresh(); },
     // Maps the active sidebar selection to its list/grid preference bucket —
@@ -1614,71 +1613,62 @@ function homeCtrl() {
   return ctrl;
 }
 
-// Every #home-list-pane request passes through here. Ones issued by
-// __hyloSectionFetch (source = the pane) that were superseded while queued
-// are dropped. Declarative ones (the shorts month
-// buttons' hx-get) get the same cache restore _load does.
-document.body.addEventListener('htmx:beforeRequest', function (e) {
-  var d = e.detail;
-  if (!d || !d.target || d.target.id !== 'home-list-pane') return;
-  var key = __hyloSectionKey(d.pathInfo && (d.pathInfo.finalRequestPath || d.pathInfo.requestPath));
-  if (e.target === d.target) {
-    if (key !== __hyloSectionWant) { e.preventDefault(); return; }
-  } else if (__hyloSectionTryRestore(key)) {
-    e.preventDefault();
-    return;
-  } else {
-    __hyloSectionWant = key;
-  }
-  if (d.xhr) d.xhr.__hyloSectionKey = key;
+// App-level htmx hooks; the name is whitelisted in shared_head.go's htmx-config.
+// Section loads all come from __hyloSectionFetch (source = target = the pane).
+htmx.registerExtension('hylo', {
+  htmx_before_swap: function (elt, detail) {
+    // htmx re-executes <script> in every swapped fragment and 4.0 dropped the
+    // allowScriptTags switch. Fragments carry rendered note HTML (raw HTML
+    // allowed), so no response may bring its own scripts.
+    detail.tasks.forEach(function (t) {
+      if (t.fragment) t.fragment.querySelectorAll('script').forEach(function (s) { s.remove(); });
+    });
+    var ctx = detail.ctx;
+    var pane = document.getElementById('home-list-pane');
+    if (!ctx || !pane || ctx.target !== pane) return;
+    // Parking waits for a response that will swap, so the old section stays
+    // on screen while loading and survives a failed request.
+    var swaps = detail.tasks.some(function (t) {
+      return t.type === 'main' && t.swapSpec.style !== 'none';
+    });
+    if (!swaps) return;
+    // A refetch of the shown section replaces it; anything else parks it.
+    var key = __hyloSectionKey(ctx.request.action);
+    if (key && key !== __hyloSectionShownURL) __hyloSectionPark();
+    else __hyloSectionTeardown(pane);
+  },
+
+  htmx_after_swap: function (elt, detail) {
+    var ctx = detail.ctx;
+    var pane = document.getElementById('home-list-pane');
+    if (!ctx || !pane || ctx.target !== pane || !ctx.response) return;
+    try {
+      var u = new URL(ctx.response.raw.url);
+      __hyloSectionArrived(u.pathname + u.search, null);
+    } catch (err) {
+      console.error('[hylo] section activation failed', err);
+    }
+  },
+
+  // Error statuses never swap (htmx-config noSwap), so these toasts are the
+  // only feedback a failed fragment request gives.
+  htmx_response_error: function (elt, detail) {
+    if (detail.ctx && detail.ctx.response) __hyloRequestFailed(detail.ctx, detail.ctx.response.status);
+  },
+
+  htmx_error: function (elt, detail) {
+    var err = detail.error;
+    if (!detail.ctx || !err || err.name === 'AbortError') return;
+    __hyloRequestFailed(detail.ctx, err.name + ': ' + err.message);
+  },
 });
 
-document.body.addEventListener('htmx:beforeSwap', function (e) {
-  var d = e.detail;
-  if (!d || !d.target || d.target.id !== 'home-list-pane') return;
-  var xhr = d.xhr;
-  if (xhr && xhr.__hyloSectionKey != null && xhr.__hyloSectionKey !== __hyloSectionWant) {
-    d.shouldSwap = false;
-    return;
-  }
-  // Parking waits for a response that will swap, so the old section stays
-  // on screen while loading and survives a failed request.
-  if (!d.shouldSwap) return;
-  // A refetch of the shown section replaces it; anything else parks it.
-  if (xhr && xhr.__hyloSectionKey && xhr.__hyloSectionKey !== __hyloSectionShownURL) __hyloSectionPark();
-  else __hyloSectionTeardown(d.target);
-});
-
-document.body.addEventListener('htmx:afterSwap', function (e) {
-  var target = e.detail && e.detail.target;
-  if (!target || target.id !== 'home-list-pane' || !window._homeData) return;
-  var xhr = e.detail.xhr;
-  __hyloUpdateDraggableCards();
-  if (!xhr || !xhr.responseURL) return;
-  try {
-    var u = new URL(xhr.responseURL);
-    window._homeData._lastURL = u.pathname + u.search;
-    __hyloSectionShownURL = __hyloSectionKey(xhr.responseURL);
-    __hyloSectionShownAt = Date.now();
-    __hyloSectionShownStale = false;
-    // Graph, inbox, and chat markup is static; the client fetch starts here
-    // because Alpine doesn't re-run init() on an htmx swap. A cache restore
-    // never reaches this — those sections come back already initialized.
-    if (document.getElementById('graph-canvas')) {
-      window._homeData.knowledgeIndexPath = u.searchParams.get('index') || '';
-      window._homeData.loadGraph();
-    }
-    if (document.getElementById('home-inbox-list')) {
-      window._homeData.loadInbox();
-    }
-    if (document.getElementById('chat-root')) {
-      window._homeData.initChatSection();
-    }
-    if (document.getElementById('tag-cloud')) {
-      __hyloRenderTagCloud();
-    }
-  } catch (err) { /* ignore */ }
-});
+function __hyloRequestFailed(ctx, why) {
+  var path = '';
+  try { path = new URL(ctx.request.action, window.location.origin).pathname; } catch (_) { /* ignore */ }
+  console.warn('[htmx] request failed', path, why, ctx);
+  if (window._homeData) window._homeData.showToast('Request failed: ' + path + ' (' + why + ')', 'err');
+}
 
 // ── Tags wall: word-cloud layout via d3-cloud (vendor/d3-cloud.min.js) ────
 // Packed tightly like a classic word cloud — plain text sized by tag
@@ -1859,8 +1849,7 @@ function __hyloDragNoteEligible(card) {
 // hovering a card outside folder view no longer shows a grab cursor for a
 // drag that was never going to start. Native `draggable` is a reflected
 // attribute, so home.css's [draggable="true"] selectors track this for free.
-// Called after every #home-list-pane swap (htmx:afterSwap, below) and once
-// on init for the page's first, non-htmx render.
+// Called from __hyloSectionArrived, so after every section arrival.
 function __hyloUpdateDraggableCards() {
   var pane = document.getElementById('home-list-pane');
   if (!pane) return;

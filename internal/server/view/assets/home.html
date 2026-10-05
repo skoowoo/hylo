@@ -93,20 +93,9 @@
               <path stroke-linecap="round" stroke-linejoin="round" d="m9 18 6-6-6-6" />
             </svg>
           </button>
-          <div class="home-side-children" id="home-side-knowledge-body" :class="{'is-open': knowledgeOpen}" x-cloak>
+          <div class="home-side-children" id="home-side-knowledge-body" x-bind:class="{'is-open': knowledgeOpen}" x-cloak>
             <div class="home-side-children-inner">
-              <button type="button" class="side-nav-item home-side-child" :class="{'is-active': activeKey === 'knowledge:'}"
-                      @click="selectKnowledgeIndex('')">
-                <span class="home-side-child-name">All</span>
-                <span class="home-side-count">{{.KnowledgeCount}}</span>
-              </button>
-              {{range .IndexNotes}}
-              <button type="button" class="side-nav-item home-side-child" :class="{'is-active': activeKey === 'knowledge:{{.Path}}'}"
-                      @click="selectKnowledgeIndex('{{.Path}}')">
-                <span class="home-side-child-name">{{label .}}</span>
-                <span class="home-side-count">{{.DepCount}}</span>
-              </button>
-              {{end}}
+{{template "home-side-knowledge-inner" .}}
             </div>
           </div>
         </div>
@@ -181,20 +170,9 @@
               <path stroke-linecap="round" stroke-linejoin="round" d="m9 18 6-6-6-6" />
             </svg>
           </button>
-          <div class="home-side-children" id="home-side-folders-body" :class="{'is-open': foldersOpen}" x-cloak>
+          <div class="home-side-children" id="home-side-folders-body" x-bind:class="{'is-open': foldersOpen}" x-cloak>
             <div class="home-side-children-inner">
-              {{range .Folders}}
-              <button type="button" class="side-nav-item home-side-child home-drop-target" :class="{'is-active': activeKey === 'dir:{{.Dir}}'}"
-                      data-drop-dir="{{.Dir}}"
-                      @click="selectFolder('{{.Dir}}', '/home/section?type=folder&path={{encdir .Dir}}')">
-                <svg class="home-side-child-icon" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"
-                     stroke-linejoin="round" viewBox="0 0 24 24">
-                  <path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" />
-                </svg>
-                <span class="home-side-child-name">{{folderLabel .Dir}}</span>
-              </button>
-              {{end}}
-              {{if not .Folders}}<div class="home-side-empty">No folders</div>{{end}}
+{{template "home-side-folders-inner" .}}
             </div>
           </div>
         </div>
@@ -215,7 +193,7 @@
     <!-- Common parent for everything right of the sidebar (mirrors .home-side);
          closed in home.go once content_pane.html's markup is spliced in. -->
     <div class="home-main">
-      <main class="home-list-pane" id="home-list-pane">
+      <main class="home-list-pane" id="home-list-pane" hx-sync="this:replace">
         {{.SectionHTML}}
       </main>
 

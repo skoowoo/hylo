@@ -108,6 +108,7 @@ func settingsModalHTML() string {
   <div id="hylo-settings-modal"
        x-data="settingsCtrl()"
        x-show="$store.settingsModal.open"
+       x-trap.inert="$store.settingsModal.open"
        x-cloak
        class="settings-modal-overlay">
     <div class="settings-modal-panel" @mousedown.stop>

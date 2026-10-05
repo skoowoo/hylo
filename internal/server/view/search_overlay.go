@@ -219,6 +219,7 @@ const searchOverlayPanelHTML = `
                  hx-target="#search-results"
                  hx-swap="innerHTML"
                  hx-include="#srch-field,#srch-kind"
+                 hx-sync="this:replace"
                  name="q"
                  autocomplete="off"
                  class="srch-input flex-1 bg-transparent outline-none">
@@ -311,7 +312,7 @@ const searchOnlyOverlayHTML = `
        tabindex="-1"
        @keydown.window="onKey($event)"
        @open-search.window="openWithMode($event.detail)"
-       @htmx:after-swap.window="onResultsSwap($event)"
+       @htmx:after:swap.window="onResultsSwap($event)"
        class="fixed inset-0 z-[10000] pointer-events-none outline-none">
 ` + searchOverlayPanelHTML + `
   </div>
@@ -540,7 +541,7 @@ const searchOverlayScript = `
         }
       },
       onResultsSwap(e) {
-        if (e.detail && e.detail.target && e.detail.target.id === 'search-results') {
+        if (e.detail && e.detail.ctx && e.detail.ctx.target && e.detail.ctx.target.id === 'search-results') {
           this.activeIdx = -1;
           this._clearPreview();
           this.$nextTick(() => {
