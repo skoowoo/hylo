@@ -222,6 +222,9 @@ const searchOverlayPanelHTML = `
                  hx-sync="this:replace"
                  name="q"
                  autocomplete="off"
+                 autocorrect="off"
+                 autocapitalize="off"
+                 spellcheck="false"
                  class="srch-input flex-1 bg-transparent outline-none">
           <span class="srch-hint flex items-center gap-1.5 shrink-0">
             <span x-show="!mode.field && !mode.kind && !hasQuery" class="flex items-center gap-1.5">

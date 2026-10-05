@@ -288,6 +288,11 @@
     return false;
   }
 
+  function thinkingLive(segs) {
+    var t = segs.length ? segs[segs.length - 1] : null;
+    return !!t && t.type === 'thinking' && !t.endedAt;
+  }
+
   function hasStatus(segs) {
     for (var i = 0; i < segs.length; i++) if (segs[i].type === 'status') return true;
     return false;
@@ -303,6 +308,90 @@
     if (!node || node._raw === text) return;
     node._raw = text;
     node.textContent = text;
+  }
+
+  var CHECK_MARK = '<svg class="seg-tool-check" fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+  var CROSS_MARK = '<svg class="seg-tool-check" fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24"><path stroke-linecap="round" d="M7 7l10 10M17 7L7 17"/></svg>';
+
+  var TOOL_VERBS = {
+    read: ['Reading', 'Read'],
+    search: ['Searching', 'Searched'], grep: ['Searching', 'Searched'], glob: ['Searching', 'Searched'],
+    find: ['Searching', 'Searched'], list: ['Listing', 'Listed'], ls: ['Listing', 'Listed'],
+    edit: ['Editing', 'Edited'], multiedit: ['Editing', 'Edited'], write: ['Writing', 'Wrote'],
+    file_change: ['Editing', 'Edited'], patch: ['Editing', 'Edited'], delete: ['Deleting', 'Deleted'],
+    bash: ['Running', 'Ran'], execute: ['Running', 'Ran'], shell: ['Running', 'Ran'],
+    fetch: ['Fetching', 'Fetched'], webfetch: ['Fetching', 'Fetched'], websearch: ['Searching web', 'Searched web'],
+    task: ['Delegating', 'Delegated'], agent: ['Delegating', 'Delegated'],
+    todowrite: ['Planning', 'Planned'], think: ['Thinking', 'Thought'],
+    view: ['Reading', 'Read'], read_file: ['Reading', 'Read'], cat: ['Reading', 'Read'],
+    create: ['Writing', 'Wrote'], write_file: ['Writing', 'Wrote'],
+    str_replace: ['Editing', 'Edited'], str_replace_editor: ['Editing', 'Edited'], apply_patch: ['Editing', 'Edited'],
+    replace: ['Editing', 'Edited'], move: ['Moving', 'Moved'],
+    grep_search: ['Searching', 'Searched'], codebase_search: ['Searching', 'Searched'], search_files: ['Searching', 'Searched'],
+    list_dir: ['Listing', 'Listed'], list_directory: ['Listing', 'Listed'],
+    web_fetch: ['Fetching', 'Fetched'], web_search: ['Searching web', 'Searched web'],
+    run_terminal_cmd: ['Running', 'Ran'], run_command: ['Running', 'Ran']
+  };
+
+  function toolVerb(name, running) {
+    var short = String(name || '').replace(/^mcp__.*__/, '');
+    var key = short.toLowerCase().replace(/^(acp|codex)_/, '');
+    var v = TOOL_VERBS[key];
+    if (v) return v[running ? 0 : 1];
+    return !key || key === 'other' ? 'Tool' : short;
+  }
+
+  function fmtDur(ms) {
+    if (ms < 100) return '';
+    if (ms < 10000) return (ms / 1000).toFixed(1) + 's';
+    var s = Math.round(ms / 1000);
+    return s < 60 ? s + 's' : Math.floor(s / 60) + 'm ' + (s % 60) + 's';
+  }
+
+  function toolMs(seg) {
+    var total = 0;
+    var calls = seg.calls || [];
+    for (var i = 0; i < calls.length; i++) if (calls[i].endedAt) total += calls[i].endedAt - calls[i].startedAt;
+    return total;
+  }
+
+  var chipsShown = new WeakMap();
+
+  // Notes the call touched, as chips that pop in as they're discovered.
+  function noteChips(seg, notes) {
+    var row = el('div', 'seg-tool-notes');
+    var seenCount = chipsShown.get(seg) || 0;
+    chipsShown.set(seg, notes.length);
+    notes.forEach(function (n, idx) {
+      var base = n.path.split('/').pop() || n.path;
+      var info = noteInfoCache[n.path];
+      var title = (info && info.title ? info.title : base).replace(/\.md$/i, '');
+      var chip = el('button', 'seg-note-chip' + (n.action === 'write' ? ' is-write' : '') + (idx >= seenCount ? ' is-fresh' : ''));
+      chip.type = 'button';
+      chip.title = n.path;
+      chip.textContent = title;
+      chip.addEventListener('click', function () {
+        if (window.__hyloContentPane) {
+          void window.__hyloContentPane.openNoteInContentPane(n.path, title, false, false);
+        }
+      });
+      row.appendChild(chip);
+    });
+    return row;
+  }
+
+  // Rows rebuild wholesale on structural change; a per-seg memo keeps one-shot
+  // entrance animations from replaying on every rebuild.
+  var shownState = new WeakMap();
+  function firstShow(seg, state) {
+    var fresh = shownState.get(seg) !== state;
+    shownState.set(seg, state);
+    return fresh;
+  }
+
+  // Negative delay keeps looping animations in phase across row rebuilds.
+  function phase(node, period) {
+    node.style.animationDelay = '-' + (Date.now() % period) + 'ms';
   }
 
   function segCtx(msg) {
@@ -328,77 +417,117 @@
       },
     },
     thinking: {
-      sig: function (seg, ctx, i) { return ['h', (i === ctx.lastThink && ctx.running) ? 1 : 0]; },
+      sig: function (seg, ctx) { return ['h', (ctx.running && !seg.endedAt) ? 1 : 0, seg.endedAt ? 1 : 0]; },
       mount: function (slot, seg, ctx, i, msg, rec) {
-        var streamingLast = ctx.running && i === ctx.lastThink;
+        var live = ctx.running && !seg.endedAt;
         var open = isOpen(seg);
         var wrap = el('div', 'seg-thinking hairline');
-        var btn = el('button', 'seg-thinking-toggle' + (open ? ' open' : '') + (streamingLast ? ' is-streaming' : ''));
+        var btn = el('button', 'seg-thinking-toggle' + (open ? ' open' : '') + (live ? ' is-streaming' : ''));
         btn.type = 'button';
         btn.appendChild(svg(CHEVRON));
-        btn.appendChild(document.createTextNode('Thinking'));
-        var body = el('div', 'seg-thinking-content');
+        var label = el('span', 'seg-thinking-label');
+        var dur = seg.endedAt && seg.startedAt ? fmtDur(seg.endedAt - seg.startedAt) : '';
+        label.textContent = live ? 'Thinking' : (dur ? 'Thought for ' + dur : 'Thought');
+        if (live) phase(label, 1800);
+        btn.appendChild(label);
+        var body = el('div', 'seg-thinking-content' + (live && !open ? ' is-preview' : ''));
         setText(body, seg.content || '');
-        show(body, open);
+        show(body, open || (live && !!seg.content));
         btn.addEventListener('click', function () {
           var on = toggleOpen(seg);
           btn.classList.toggle('open', on);
-          show(body, on);
+          body.classList.toggle('is-preview', live && !on);
+          show(body, on || (live && !!seg.content));
         });
         wrap.appendChild(btn);
         wrap.appendChild(body);
         rec.body = body;
+        rec.live = live;
         slot.appendChild(wrap);
       },
       patch: function (rec, seg) {
         if (!rec.body) return false;
         setText(rec.body, seg.content || '');
+        if (rec.live && seg.content && !isOpen(seg)) show(rec.body, true);
         return true;
       },
     },
     tool_use: {
       sig: function (seg, ctx) {
-        return ['u', seg.name || '', seg.count || 0, (seg.results || []).length, ctx.running ? 1 : 0];
+        var calls = seg.calls || [];
+        var last = calls.length ? calls[calls.length - 1] : null;
+        return ['u', seg.name || '', seg.count || 0, (seg.results || []).length, ctx.running ? 1 : 0,
+          last ? last.arg : '', last && last.failed ? 1 : 0,
+          (seg.notes || []).map(function (n) { return n.path + n.action; }).join('|')];
       },
       mount: function (slot, seg, ctx, i, msg, rec) {
-        var running = ctx.running;
-        if (!seg.results || seg.results.length === 0) {
-          var badge = el('div', 'badge seg-tool-use');
-          badge.appendChild(el('span', running ? 'seg-tool-spinner' : 'seg-tool-icon-done'));
-          var name = el('span');
-          name.textContent = seg.name || '';
-          badge.appendChild(name);
-          slot.appendChild(badge);
-          return;
+        var results = seg.results || [];
+        var calls = seg.calls || [];
+        var last = calls.length ? calls[calls.length - 1] : null;
+        var pending = ctx.running && results.length < seg.count;
+        var failed = false;
+        for (var ci = 0; ci < calls.length; ci++) if (calls[ci].failed) failed = true;
+        var state = pending ? 'run' : (failed ? 'err' : (results.length ? 'ok' : 'idle'));
+        var hasBody = results.some(function (r) { return !!r; });
+        var open = hasBody && isOpen(seg);
+
+        var wrap = el('div', 'seg-tool is-' + state);
+        var head = el(hasBody ? 'button' : 'div', 'seg-tool-head' + (open ? ' open' : ''));
+        if (hasBody) head.type = 'button';
+
+        var icon;
+        if (state === 'run') { icon = el('span', 'seg-tool-spinner'); phase(icon, 700); }
+        else if (state === 'ok' || state === 'err') {
+          icon = svg(state === 'ok' ? CHECK_MARK : CROSS_MARK);
+          if (firstShow(seg, state + results.length)) icon.classList.add('is-fresh');
+        } else icon = el('span', 'seg-tool-icon-done');
+        head.appendChild(icon);
+
+        var verb = el('span', 'seg-tool-verb');
+        verb.textContent = toolVerb(seg.name, pending);
+        if (pending) phase(verb, 1800);
+        head.appendChild(verb);
+        var notes = seg.notes || [];
+        if (last && last.arg && !notes.length) {
+          var arg = el('span', 'seg-tool-arg');
+          arg.textContent = last.arg;
+          arg.title = last.arg;
+          head.appendChild(arg);
         }
-        var open = isOpen(seg);
-        var wrap = el('div', 'seg-tool-result');
-        var btn = el('button', 'seg-tool-result-toggle' + (open ? ' open' : ''));
-        btn.type = 'button';
-        btn.appendChild(svg(CHEVRON));
-        var label = el('span');
-        label.textContent = seg.count > 1 ? (seg.name + ' ×' + seg.count) : (seg.name || '');
-        btn.appendChild(label);
+        if (seg.count > 1) {
+          var cnt = el('span', 'seg-tool-count');
+          cnt.textContent = '×' + seg.count;
+          head.appendChild(cnt);
+        }
+        var d = pending ? '' : fmtDur(toolMs(seg));
+        if (d) {
+          var t = el('span', 'seg-tool-time');
+          t.textContent = d;
+          head.appendChild(t);
+        }
+        if (hasBody) head.appendChild(svg(CHEVRON));
+        wrap.appendChild(head);
+        if (notes.length) wrap.appendChild(noteChips(seg, notes));
+        slot.appendChild(wrap);
+        if (!hasBody) return;
+
         var box = el('div');
         show(box, open);
         rec.pres = [];
-        for (var ri = 0; ri < seg.results.length; ri++) {
+        for (var ri = 0; ri < results.length; ri++) {
           var pre = el('pre', 'seg-tool-result-content');
-          if (seg.results.length > 1) pre.style.marginTop = '0.25rem';
-          var shown = seg.results.length > 1 ? ('[' + (ri + 1) + '] ' + seg.results[ri]) : seg.results[ri];
-          pre.textContent = shown;
-          pre._raw = seg.results[ri];
+          if (results.length > 1) pre.style.marginTop = '0.25rem';
+          pre.textContent = results.length > 1 ? ('[' + (ri + 1) + '] ' + results[ri]) : results[ri];
+          pre._raw = results[ri];
           box.appendChild(pre);
           rec.pres.push(pre);
         }
-        btn.addEventListener('click', function () {
+        head.addEventListener('click', function () {
           var on = toggleOpen(seg);
-          btn.classList.toggle('open', on);
+          head.classList.toggle('open', on);
           show(box, on);
         });
-        wrap.appendChild(btn);
         wrap.appendChild(box);
-        slot.appendChild(wrap);
       },
       patch: function (rec, seg) {
         var results = seg.results || [];
@@ -519,29 +648,135 @@
     },
   };
 
+  // Adjacent thinking/tool/status segments form one trace; a lone step stays
+  // a plain segment. Only the tail trace of a running message is live.
+  var TRACE_TYPES = { thinking: 1, tool_use: 1, tool_result: 1, status: 1 };
+
+  function buildItems(ctx) {
+    var segs = ctx.segs, items = [], i = 0;
+    while (i < segs.length) {
+      if (!TRACE_TYPES[segs[i].type]) { items.push({ seg: segs[i], i: i }); i++; continue; }
+      var j = i, steps = 0;
+      while (j < segs.length && TRACE_TYPES[segs[j].type]) { if (segs[j].type !== 'status') steps++; j++; }
+      if (steps >= 2) items.push({ trace: true, start: i, segs: segs.slice(i, j), live: ctx.running && j === segs.length });
+      else for (var k = i; k < j; k++) items.push({ seg: segs[k], i: k });
+      i = j;
+    }
+    return items;
+  }
+
+  function itemCtx(ctx, item) {
+    if (!item.trace || item.live || !ctx.running) return ctx;
+    return { segs: ctx.segs, lastThink: ctx.lastThink, running: false };
+  }
+
+  var openTraces = new WeakMap();
+  var traceState = new WeakMap();
+
+  function traceSummary(segs) {
+    var think = 0, hasThink = false, order = [], counts = {};
+    for (var i = 0; i < segs.length; i++) {
+      var sg = segs[i];
+      if (sg.type === 'thinking') {
+        hasThink = true;
+        if (sg.endedAt && sg.startedAt) think += sg.endedAt - sg.startedAt;
+      } else if (sg.type === 'tool_use') {
+        var v = toolVerb(sg.name, false);
+        if (!(v in counts)) { counts[v] = 0; order.push(v); }
+        counts[v] += sg.count || 1;
+      }
+    }
+    var parts = [];
+    if (hasThink) { var d = fmtDur(think); parts.push(d ? 'Thought ' + d : 'Thought'); }
+    for (var k = 0; k < order.length; k++) parts.push(order[k] + (counts[order[k]] > 1 ? ' ×' + counts[order[k]] : ''));
+    return parts.join(' · ') || 'Worked';
+  }
+
+  function mountTrace(slot, item, ctx, msg, rec) {
+    var first = item.segs[0];
+    var live = item.live;
+    var open = !!openTraces.get(first);
+    var collapsed = !live && !open;
+    var wrap = el('div', 'seg-trace' + (live ? ' is-live' : ''));
+    var shell = el('div', 'seg-trace-shell' + (collapsed ? ' is-collapsed' : ''));
+    var inner = el('div', 'seg-trace-body');
+    var cctx = itemCtx(ctx, item);
+    rec.kids = [];
+    for (var n = 0; n < item.segs.length; n++) {
+      var seg = item.segs[n];
+      var kslot = el('div');
+      var krec = { type: seg.type };
+      var kind = kinds[seg.type];
+      if (kind) kind.mount(kslot, seg, cctx, item.start + n, msg, krec);
+      inner.appendChild(kslot);
+      rec.kids.push(krec);
+    }
+    shell.appendChild(inner);
+    if (!live) {
+      var head = el('button', 'seg-trace-head' + (open ? ' open' : ''));
+      head.type = 'button';
+      head.appendChild(svg(CHEVRON));
+      var label = el('span');
+      label.textContent = traceSummary(item.segs);
+      head.appendChild(label);
+      head.addEventListener('click', function () {
+        var on = !openTraces.get(first);
+        openTraces.set(first, on);
+        head.classList.toggle('open', on);
+        shell.classList.toggle('is-collapsed', !on);
+      });
+      wrap.appendChild(head);
+    }
+    wrap.appendChild(shell);
+    slot.appendChild(wrap);
+    var was = traceState.get(first);
+    traceState.set(first, live ? 'live' : 'settled');
+    if (collapsed && was === 'live') {
+      shell.classList.remove('is-collapsed');
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () { shell.classList.add('is-collapsed'); });
+      });
+    }
+    rec.n = item.segs.length;
+    rec.live = live;
+  }
+
   function rowSig(msg, snap) {
     if (msg.role === 'user') return 'u\0' + (msg.content || '');
     var ctx = segCtx(msg);
     var stopping = snap.stoppingId === msg.id ? 1 : 0;
     var bits = [msg.status || '', stopping, msg.triggerEvent || '', snap.mateName(msg), hasText(ctx.segs) ? 1 : 0];
-    for (var i = 0; i < ctx.segs.length; i++) {
-      var seg = ctx.segs[i];
-      var kind = kinds[seg.type];
-      if (kind) bits.push.apply(bits, kind.sig(seg, ctx, i));
-      else bits.push(seg.type || '');
+    var items = buildItems(ctx);
+    for (var n = 0; n < items.length; n++) {
+      var it = items[n];
+      var segs = it.trace ? it.segs : [it.seg];
+      var cctx = itemCtx(ctx, it);
+      if (it.trace) bits.push('trace', it.live ? 1 : 0);
+      for (var m = 0; m < segs.length; m++) {
+        var kind = kinds[segs[m].type];
+        if (kind) bits.push.apply(bits, kind.sig(segs[m], cctx, (it.trace ? it.start : it.i) + m));
+        else bits.push(segs[m].type || '');
+      }
     }
     return bits.join('\0');
   }
 
   function mountSegments(body, msg) {
     var ctx = segCtx(msg);
+    var items = buildItems(ctx);
     var slots = [];
-    for (var i = 0; i < ctx.segs.length; i++) {
-      var seg = ctx.segs[i];
-      var kind = kinds[seg.type];
+    for (var n = 0; n < items.length; n++) {
+      var it = items[n];
       var slot = el('div');
-      var rec = { type: seg.type };
-      if (kind) kind.mount(slot, seg, ctx, i, msg, rec);
+      var rec;
+      if (it.trace) {
+        rec = { type: 'trace' };
+        mountTrace(slot, it, ctx, msg, rec);
+      } else {
+        rec = { type: it.seg.type };
+        var kind = kinds[it.seg.type];
+        if (kind) kind.mount(slot, it.seg, ctx, it.i, msg, rec);
+      }
       body.appendChild(slot);
       slots.push(rec);
     }
@@ -552,15 +787,34 @@
     var slots = body._slots;
     if (!slots) return false;
     var ctx = segCtx(msg);
-    if (slots.length !== ctx.segs.length) return false;
-    for (var i = 0; i < ctx.segs.length; i++) {
-      var seg = ctx.segs[i];
-      var rec = slots[i];
-      var kind = kinds[seg.type];
-      if (!rec || rec.type !== seg.type) return false;
-      if (kind && kind.patch && kind.patch(rec, seg, ctx, i) === false) return false;
+    var items = buildItems(ctx);
+    if (slots.length !== items.length) return false;
+    for (var n = 0; n < items.length; n++) {
+      var it = items[n];
+      var rec = slots[n];
+      if (it.trace) {
+        if (!rec || rec.type !== 'trace' || rec.n !== it.segs.length || rec.live !== it.live) return false;
+        var cctx = itemCtx(ctx, it);
+        for (var m = 0; m < it.segs.length; m++) {
+          var ks = it.segs[m], kr = rec.kids[m], kk = kinds[ks.type];
+          if (!kr || kr.type !== ks.type) return false;
+          if (kk && kk.patch && kk.patch(kr, ks, cctx, it.start + m) === false) return false;
+        }
+        continue;
+      }
+      var kind = kinds[it.seg.type];
+      if (!rec || rec.type !== it.seg.type) return false;
+      if (kind && kind.patch && kind.patch(rec, it.seg, ctx, it.i) === false) return false;
     }
     return true;
+  }
+
+  // What the agent is doing right now; picks the pulse bar's motion.
+  function pulseState(segs) {
+    var t = segs.length ? segs[segs.length - 1] : null;
+    if (t && t.type === 'text') return 'write';
+    if (t && t.type === 'tool_use' && (t.results || []).length < t.count) return 'tool';
+    return 'think';
   }
 
   function footer(msg, snap, api) {
@@ -574,7 +828,7 @@
       dots.appendChild(el('span')); dots.appendChild(el('span')); dots.appendChild(el('span'));
       stop.appendChild(dots);
       foot.appendChild(stop);
-    } else if (msg.status === 'running' && !hasText(segs) && !hasStatus(segs)) {
+    } else if (msg.status === 'running' && !hasText(segs) && !hasStatus(segs) && !thinkingLive(segs)) {
       var think = el('span', 'msg-thinking-label');
       think.appendChild(document.createTextNode('Thinking'));
       var dots2 = el('span', 'thinking-dots');
@@ -643,6 +897,11 @@
     }
     wrap.appendChild(header);
     var body = el('div', 'msg-body');
+    if (msg.status === 'running') {
+      var pulse = el('div', 'msg-pulse is-' + pulseState(msg.segments || []));
+      pulse.style.setProperty('--pd', '-' + (Date.now() % 1600) + 'ms');
+      body.appendChild(pulse);
+    }
     mountSegments(body, msg);
     wrap.appendChild(body);
     var banner = statusBanner(msg, snap, api);

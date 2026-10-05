@@ -204,34 +204,63 @@ func extractNoteCandidates(name string, input any) []noteCandidate {
 var (
 	mdTokenRe        = regexp.MustCompile(`'([^']*\.md)'|"([^"]*\.md)"|(\S*\.md)`)
 	shellSplitRe     = regexp.MustCompile(`[;&|]+`)
-	shellWriteVerbRe = regexp.MustCompile(`^(mv|cp|rm|tee|sed|mkdir|touch)$`)
-	shellReadVerbRe  = regexp.MustCompile(`^(cat|less|more|head|tail|grep|rg|find|ls)$`)
+	shellWriteVerbRe = regexp.MustCompile(`^(mv|rm|tee|mkdir|touch)$`)
+	shellReadVerbRe  = regexp.MustCompile(`^(cat|less|more|head|tail|grep|rg|find|ls|awk|wc|nl|sort|cut|stat)$`)
+	sedInPlaceRe     = regexp.MustCompile(`^(-[a-zA-Z]*i[a-zA-Z]*|--in-place.*)$`)
+	// A real output redirect: `>` / `>>` / `2>` with a target. Rules out
+	// `>=` inside awk/test expressions, `->` in text, and `2>/dev/null`.
+	shellRedirectRe = regexp.MustCompile(`(?:^|\s)(?:[0-9]|&)?>>?\s*("[^"]*"|'[^']*'|[^\s&=>]\S*)`)
 )
 
+// Only what a command demonstrably changes counts as a write: a redirect
+// target, the destination of cp, tee/rm/mv/touch/mkdir, or sed -i. Anything
+// else (cat, sed -n, awk, source files of cp) is a read.
 func extractNotesFromShellCommand(cmd string) []noteCandidate {
 	var out []noteCandidate
 	for _, part := range shellSplitRe.Split(cmd, -1) {
-		part = strings.TrimSpace(part)
-		if part == "" {
+		fields := strings.Fields(part)
+		if len(fields) == 0 {
 			continue
 		}
-		fields := strings.Fields(part)
-		verb := ""
-		if len(fields) > 0 {
-			verb = fields[0]
+		verb := fields[0]
+		targets := map[string]bool{}
+		for _, m := range shellRedirectRe.FindAllStringSubmatch(part, -1) {
+			if t := strings.Trim(m[1], `"'`); t != "/dev/null" {
+				targets[t] = true
+			}
 		}
-		var action string
+		verbAction := ""
 		switch {
-		case strings.Contains(part, ">"), shellWriteVerbRe.MatchString(verb):
-			action = NoteActionWrite
 		case shellReadVerbRe.MatchString(verb):
-			action = NoteActionRead
-		default:
-			continue // unrecognized verb: skip rather than guess
+			verbAction = NoteActionRead
+		case verb == "sed":
+			verbAction = NoteActionRead
+			for _, f := range fields[1:] {
+				if sedInPlaceRe.MatchString(f) {
+					verbAction = NoteActionWrite
+				}
+			}
+		case shellWriteVerbRe.MatchString(verb), verb == "cp":
+			verbAction = NoteActionWrite
 		}
+		var paths []string
 		for _, m := range mdTokenRe.FindAllStringSubmatch(part, -1) {
-			p := firstNonEmpty(m[1], m[2], m[3])
-			if p != "" {
+			if p := firstNonEmpty(m[1], m[2], m[3]); p != "" {
+				paths = append(paths, p)
+			}
+		}
+		for i, p := range paths {
+			action := verbAction
+			switch {
+			case targets[p]:
+				action = NoteActionWrite
+			case verb == "cp":
+				action = NoteActionRead
+				if i == len(paths)-1 {
+					action = NoteActionWrite
+				}
+			}
+			if action != "" {
 				out = append(out, noteCandidate{path: p, action: action})
 			}
 		}

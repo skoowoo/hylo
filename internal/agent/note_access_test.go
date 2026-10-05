@@ -123,3 +123,21 @@ func assertPaths(t *testing.T, got, want []NoteAccess) {
 		}
 	}
 }
+
+func TestNoteAccessTracker_BashOnlyDemonstrableChangesAreWrites(t *testing.T) {
+	tr := NewNoteAccessTracker("/vault", "/vault")
+	got := tr.Feed(map[string]any{
+		"type": "tool_use", "name": "Bash",
+		"input": map[string]any{"command": "grep -n x /vault/a.md 2>/dev/null; sed -n '1,9p' /vault/b.md; awk 'NR>=3' /vault/c.md; cat /vault/d.md > /vault/e.md; cp /vault/f.md /vault/g.md; sed -i s/a/b/ /vault/h.md"},
+	})
+	assertPaths(t, got, []NoteAccess{
+		{Path: "/a.md", Action: NoteActionRead, Tool: "Bash"},
+		{Path: "/b.md", Action: NoteActionRead, Tool: "Bash"},
+		{Path: "/c.md", Action: NoteActionRead, Tool: "Bash"},
+		{Path: "/d.md", Action: NoteActionRead, Tool: "Bash"},
+		{Path: "/e.md", Action: NoteActionWrite, Tool: "Bash"},
+		{Path: "/f.md", Action: NoteActionRead, Tool: "Bash"},
+		{Path: "/g.md", Action: NoteActionWrite, Tool: "Bash"},
+		{Path: "/h.md", Action: NoteActionWrite, Tool: "Bash"},
+	})
+}

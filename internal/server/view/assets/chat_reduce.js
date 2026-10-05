@@ -54,9 +54,31 @@
     return out;
   }
 
+  function closeThinking(segs) {
+    var t = segs.length ? segs[segs.length - 1] : null;
+    if (t && t.type === 'thinking' && !t.endedAt) t.endedAt = Date.now();
+  }
+
+  function shortPath(p) {
+    var parts = String(p).split('/').filter(Boolean);
+    return parts.slice(-2).join('/');
+  }
+
+  // One-line subject of a tool call, so the pill can say what it touched
+  // rather than only which tool ran.
+  function toolArg(input) {
+    if (!input || typeof input !== 'object') return '';
+    var p = input.file_path || input.path || input.filePath;
+    if (!p && input.__notes && input.__notes[0]) p = input.__notes[0].path;
+    if (p) return shortPath(p);
+    var v = input.pattern || input.query || input.url || input.command || input.description || input.prompt;
+    return typeof v === 'string' ? v.replace(/\s+/g, ' ').trim().slice(0, 120) : '';
+  }
+
   // Applies one `agent` SSE payload to a segment list. `last` is the tail at
   // the start of this event — matching the previous in-controller switch.
   function applyAgentSegment(segs, data) {
+    if (data.type !== 'thinking_start' && data.type !== 'thinking_delta') closeThinking(segs);
     var last = segs.length ? segs[segs.length - 1] : null;
     switch (data.type) {
       case 'text_delta': {
@@ -83,17 +105,27 @@
       }
       case 'thinking_start': {
         if (!last || last.type !== 'thinking') {
-          segs.push({ type: 'thinking', content: '' });
+          segs.push({ type: 'thinking', content: '', startedAt: Date.now() });
         }
         break;
       }
       case 'thinking_delta': {
         var td = data.delta || ''; if (!td) break;
         if (last && last.type === 'thinking') { last.content += td; }
-        else { segs.push({ type: 'thinking', content: td }); }
+        else { segs.push({ type: 'thinking', content: td, startedAt: Date.now() }); }
         break;
       }
       case 'tool_use': {
+        // ACP re-sends the same call on every location update.
+        if (data.id) {
+          var dupCall = null;
+          for (var di = segs.length - 1; di >= 0 && !dupCall; di--) {
+            if (segs[di].type !== 'tool_use') continue;
+            var dcs = segs[di].calls || [];
+            for (var dj = 0; dj < dcs.length; dj++) if (dcs[dj].id === data.id) { dupCall = dcs[dj]; break; }
+          }
+          if (dupCall) { if (!dupCall.arg) dupCall.arg = toolArg(data.input); break; }
+        }
         var toolName = data.name || 'tool', mergeTarget = null;
         for (var k = segs.length - 1; k >= 0; k--) {
           var sk = segs[k];
@@ -101,18 +133,32 @@
           if (sk.type === 'tool_use' && sk.name === toolName && sk.results.length >= sk.count) mergeTarget = sk;
           break;
         }
-        if (mergeTarget) { mergeTarget.count++; }
-        else { segs.push({ type: 'tool_use', name: toolName, count: 1, results: [] }); }
+        var call = { id: data.id || '', arg: toolArg(data.input), startedAt: Date.now() };
+        if (mergeTarget) { mergeTarget.count++; (mergeTarget.calls = mergeTarget.calls || []).push(call); }
+        else { segs.push({ type: 'tool_use', name: toolName, count: 1, results: [], calls: [call] }); }
         break;
       }
-      // Deliberately a no-op: Notes touched isn't meant to render mid-stream
-      // (the running message doesn't need a live "here's what I'm reading"
-      // ticker), only once the message is done — at which point it's
-      // rebuilt whole from the DB's authoritative list (formatStoredMessages)
-      // and appended as the last segment, never assembled from this
-      // one-event-at-a-time trickle. See mergeSynced below for the other
-      // half of this (keeping it out of the "preserve live segments" set).
-      case 'note_access': break;
+      // Live events only decorate the tool call that touched the note (as
+      // `notes`, for the chip row). The authoritative "Notes touched" cards
+      // are still rebuilt whole from the DB once the message is done — see
+      // mergeSynced, which keeps this segment type out of the live set.
+      case 'note_access': {
+        var np = data.path || '';
+        if (!np || /[*?]/.test(np)) break;
+        var host = null;
+        for (var ni = segs.length - 1; ni >= 0; ni--) {
+          if (segs[ni].type === 'status') continue;
+          if (segs[ni].type === 'tool_use') host = segs[ni];
+          break;
+        }
+        if (!host) break;
+        var notes = host.notes = host.notes || [];
+        var seen = null;
+        for (var nj = 0; nj < notes.length; nj++) if (notes[nj].path === np) { seen = notes[nj]; break; }
+        if (!seen) notes.push({ path: np, action: data.action || 'read' });
+        else if (data.action === 'write') seen.action = 'write';
+        break;
+      }
       case 'tool_result': {
         var trContent = data.content || '';
         if (typeof trContent !== 'string') trContent = JSON.stringify(trContent);
@@ -121,8 +167,12 @@
           if (segs[ti].type === 'tool_use' && segs[ti].results.length < segs[ti].count) { pending = segs[ti]; break; }
           if (segs[ti].type === 'text' || segs[ti].type === 'error') break;
         }
-        if (pending) { pending.results.push(trContent); }
-        else { segs.push({ type: 'tool_result', content: trContent }); }
+        if (pending) {
+          var done = pending.calls && pending.calls[pending.results.length];
+          if (done) { done.endedAt = Date.now(); if (data.isError) done.failed = true; }
+          pending.results.push(trContent);
+        }
+        else if (trContent) { segs.push({ type: 'tool_result', content: trContent }); }
         break;
       }
       case 'status': {
@@ -166,6 +216,7 @@
         msg.segments.push({ type: 'error', message: data.message || 'Error' });
         break;
       case 'end':
+        closeThinking(msg.segments);
         msg.status = data.status || 'succeeded';
         msg.duration = Date.now() - (msg.startTime || Date.now());
         msg.completedAt = Date.now();
@@ -301,6 +352,7 @@
     touch: touch,
     formatStoredMessages: formatStoredMessages,
     applyAgentSegment: applyAgentSegment,
+    toolArg: toolArg,
     applySSE: applySSE,
     mergeSynced: mergeSynced,
     replaceTextFromDB: replaceTextFromDB,

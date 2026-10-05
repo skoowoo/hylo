@@ -172,3 +172,48 @@ test('formatTime buckets', function () {
   assert.equal(R.formatTime(now - 3 * 60 * 60 * 1000, now), '3h ago');
   assert.ok(R.formatTime(now - 26 * 60 * 60 * 1000, now).indexOf('Yesterday') === 0);
 });
+
+test('tool_use records subject and timing; thinking closes on the next event', function () {
+  var segs = [];
+  R.applyAgentSegment(segs, { type: 'thinking_delta', delta: 'hmm' });
+  assert.ok(segs[0].startedAt);
+  assert.equal(segs[0].endedAt, undefined);
+  R.applyAgentSegment(segs, { type: 'tool_use', name: 'Read', input: { file_path: '/v/notes/a/b.md' } });
+  assert.ok(segs[0].endedAt);
+  assert.equal(segs[1].calls[0].arg, 'a/b.md');
+  R.applyAgentSegment(segs, { type: 'tool_result', content: 'ok', isError: true });
+  assert.ok(segs[1].calls[0].endedAt);
+  assert.equal(segs[1].calls[0].failed, true);
+});
+
+test('toolArg falls back through notes, pattern and command', function () {
+  assert.equal(R.toolArg({ __notes: [{ path: '/x/y/z.md' }] }), 'y/z.md');
+  assert.equal(R.toolArg({ pattern: 'htmx' }), 'htmx');
+  assert.equal(R.toolArg({ command: 'ls   -la' }), 'ls -la');
+  assert.equal(R.toolArg(null), '');
+});
+
+test('note_access decorates the tool call that touched it, deduped, globs skipped', function () {
+  var segs = [];
+  R.applyAgentSegment(segs, { type: 'tool_use', name: 'Read', input: { file_path: '/v/a.md' } });
+  R.applyAgentSegment(segs, { type: 'note_access', path: 'a.md', action: 'read' });
+  R.applyAgentSegment(segs, { type: 'note_access', path: 'a.md', action: 'write' });
+  R.applyAgentSegment(segs, { type: 'note_access', path: 'dir/*.md', action: 'read' });
+  assert.deepEqual(segs[0].notes, [{ path: 'a.md', action: 'write' }]);
+  assert.equal(segs.length, 1);
+});
+
+test('a re-sent tool_use id updates the call instead of adding a row', function () {
+  var segs = [];
+  R.applyAgentSegment(segs, { type: 'tool_use', id: 't1', name: 'acp_read', input: {} });
+  R.applyAgentSegment(segs, { type: 'tool_use', id: 't1', name: 'acp_read', input: { __notes: [{ path: '/v/a.md' }] } });
+  assert.equal(segs.length, 1);
+  assert.equal(segs[0].count, 1);
+  assert.equal(segs[0].calls[0].arg, 'v/a.md');
+});
+
+test('an empty orphan tool_result is dropped', function () {
+  var segs = [];
+  R.applyAgentSegment(segs, { type: 'tool_result', content: '' });
+  assert.equal(segs.length, 0);
+});
