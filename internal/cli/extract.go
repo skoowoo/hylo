@@ -2,13 +2,11 @@ package cli
 
 import (
 	"fmt"
-	"io"
 	"strings"
 
 	"github.com/hardhacker/hylo/internal/client"
-	"github.com/hardhacker/hylo/internal/util"
+	"github.com/hardhacker/hylo/internal/notes"
 	"github.com/spf13/cobra"
-	"github.com/yuin/goldmark/ast"
 )
 
 func newExtractCmd() *cobra.Command {
@@ -59,8 +57,8 @@ func newExtractCmd() *cobra.Command {
 	}
 
 	linkCmd := &cobra.Command{
-		Use:   "link <path-or-name>",
-		Short: "Extract all links from a note",
+		Use:          "link <path-or-name>",
+		Short:        "Extract all links from a note",
 		Example:      "  hylo extract link /notes/research.md\n  hylo extract link research.md",
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,
@@ -130,463 +128,134 @@ Use --head N, --tail N, or --start/--end for a specific line range (1-based, inc
 
 // ── subcommand runners ────────────────────────────────────────────────────────
 
-func runOutline(notePath, indent string) error {
+// withSource opens the client, loads the note's markdown and hands it to fn.
+func withSource(pathOrName string, fn func(source []byte) error) error {
 	c, err := openClient()
 	if err != nil {
 		return err
 	}
-	rc, err := c.ReadFile(notePath)
+	source, err := notes.ReadSource(c, pathOrName)
 	if err != nil {
 		return err
 	}
-	defer rc.Close()
-	source, err := io.ReadAll(rc)
-	if err != nil {
-		return err
-	}
+	return fn(source)
+}
 
-	headings := mdParseHeadings(source)
-	if len(headings) == 0 {
-		fmt.Println("(no headings found)")
-		return nil
-	}
-
-	minLevel := headings[0].level
-	for _, h := range headings[1:] {
-		if h.level < minLevel {
-			minLevel = h.level
+func runOutline(notePath, indent string) error {
+	return withSource(notePath, func(source []byte) error {
+		headings := client.ParseHeadings(source)
+		if len(headings) == 0 {
+			fmt.Println("(no headings found)")
+			return nil
 		}
-	}
-	for _, h := range headings {
-		pad := strings.Repeat(indent, h.level-minLevel)
-		fmt.Printf("%s%s %s\n", pad, strings.Repeat("#", h.level), h.text)
-	}
-	return nil
+		minLevel := headings[0].Level
+		for _, h := range headings[1:] {
+			minLevel = min(minLevel, h.Level)
+		}
+		for _, h := range headings {
+			fmt.Printf("%s%s %s\n", strings.Repeat(indent, h.Level-minLevel), strings.Repeat("#", h.Level), h.Text)
+		}
+		return nil
+	})
 }
 
 func runSection(pathOrName, query string) error {
-	c, err := openClient()
-	if err != nil {
-		return err
-	}
-	rc, err := c.ReadFile(pathOrName)
-	if err != nil {
-		return err
-	}
-	defer rc.Close()
-	source, err := io.ReadAll(rc)
-	if err != nil {
-		return err
-	}
-
-	section := mdParseSection(source, query)
-	if section == nil {
-		return fmt.Errorf("no heading matching %q found", query)
-	}
-	fmt.Print(string(section))
-	return nil
+	return withSource(pathOrName, func(source []byte) error {
+		section, err := notes.Section(source, query)
+		if err != nil {
+			return err
+		}
+		fmt.Print(section)
+		return nil
+	})
 }
 
 func runBlocks(pathOrName, blockType string) error {
-	c, err := openClient()
-	if err != nil {
-		return err
-	}
-	rc, err := c.ReadFile(pathOrName)
-	if err != nil {
-		return err
-	}
-	defer rc.Close()
-	source, err := io.ReadAll(rc)
-	if err != nil {
-		return err
-	}
-
-	switch blockType {
-	case "code":
-		blocks := mdParseCodeBlocks(source)
-		if len(blocks) == 0 {
-			fmt.Println("(no code blocks found)")
-			return nil
-		}
-		for i, b := range blocks {
-			if i > 0 {
-				fmt.Println()
+	return withSource(pathOrName, func(source []byte) error {
+		switch blockType {
+		case "code":
+			blocks := client.ParseCodeBlocks(source)
+			if len(blocks) == 0 {
+				fmt.Println("(no code blocks found)")
+				return nil
 			}
-			lang := b.lang
-			if lang == "" {
-				lang = "text"
+			for i, b := range blocks {
+				if i > 0 {
+					fmt.Println()
+				}
+				lang := b.Lang
+				if lang == "" {
+					lang = "text"
+				}
+				fmt.Printf("[%d] language: %s\n```%s\n%s```\n", i+1, lang, b.Lang, b.Content)
 			}
-			fmt.Printf("[%d] language: %s\n```%s\n%s```\n", i+1, lang, b.lang, b.content)
-		}
-	case "list":
-		lists := mdParseLists(source)
-		if len(lists) == 0 {
-			fmt.Println("(no lists found)")
-			return nil
-		}
-		for i, l := range lists {
-			if i > 0 {
-				fmt.Println()
+		case "list":
+			lists := client.ParseLists(source)
+			if len(lists) == 0 {
+				fmt.Println("(no lists found)")
+				return nil
 			}
-			fmt.Printf("[%d]\n%s", i+1, l)
+			for i, l := range lists {
+				if i > 0 {
+					fmt.Println()
+				}
+				fmt.Printf("[%d]\n%s", i+1, l)
+			}
+		default:
+			return fmt.Errorf("unknown block type %q — use: code, list", blockType)
 		}
-	default:
-		return fmt.Errorf("unknown block type %q — use: code, list", blockType)
-	}
-	return nil
+		return nil
+	})
 }
 
 func runLinks(pathOrName string) error {
-	c, err := openClient()
-	if err != nil {
-		return err
-	}
-	rc, err := c.ReadFile(pathOrName)
-	if err != nil {
-		return err
-	}
-	defer rc.Close()
-	source, err := io.ReadAll(rc)
-	if err != nil {
-		return err
-	}
-
-	links := client.ParseLinks(source)
-	if len(links) == 0 {
-		fmt.Println("(no links found)")
-		return nil
-	}
-	for i, l := range links {
-		if i > 0 {
-			fmt.Println()
+	return withSource(pathOrName, func(source []byte) error {
+		links := client.ParseLinks(source)
+		if len(links) == 0 {
+			fmt.Println("(no links found)")
+			return nil
 		}
-		fmt.Println(l.Format())
-	}
-	return nil
+		for i, l := range links {
+			if i > 0 {
+				fmt.Println()
+			}
+			fmt.Println(l.Format())
+		}
+		return nil
+	})
 }
 
 func runExtractTags(pathOrName string) error {
-	c, err := openClient()
-	if err != nil {
-		return err
-	}
-	rc, err := c.ReadFile(pathOrName)
-	if err != nil {
-		return err
-	}
-	defer rc.Close()
-	source, err := io.ReadAll(rc)
-	if err != nil {
-		return err
-	}
-
-	fm, _ := util.ParseFrontmatter(source)
-	if !fm.HasMeta() {
-		fmt.Println("(no YAML front matter found)")
+	return withSource(pathOrName, func(source []byte) error {
+		hasFM, tags := notes.Tags(source)
+		if !hasFM {
+			fmt.Println("(no YAML front matter found)")
+			return nil
+		}
+		if len(tags) == 0 {
+			fmt.Println("(no tags in front matter)")
+			return nil
+		}
+		for _, t := range tags {
+			fmt.Println(t)
+		}
 		return nil
-	}
-	if len(fm.Tags) == 0 {
-		fmt.Println("(no tags in front matter)")
-		return nil
-	}
-	for _, t := range fm.Tags {
-		fmt.Println(t)
-	}
-	return nil
+	})
 }
 
 func runSegment(pathOrName string, head, tail, start, end int) error {
-	// validate flag combinations
-	flagCount := 0
-	if head > 0 {
-		flagCount++
-	}
-	if tail > 0 {
-		flagCount++
-	}
-	if start > 0 || end > 0 {
-		flagCount++
-	}
-	if flagCount == 0 {
-		return fmt.Errorf("specify one of --head, --tail, or --start/--end")
-	}
-	if flagCount > 1 {
-		return fmt.Errorf("--head, --tail, and --start/--end are mutually exclusive")
-	}
-	if (start > 0) != (end > 0) {
-		return fmt.Errorf("--start and --end must be used together")
-	}
-	if start > 0 && start > end {
-		return fmt.Errorf("--start (%d) must not be greater than --end (%d)", start, end)
-	}
-
-	c, err := openClient()
-	if err != nil {
+	spec := notes.SegmentSpec{Head: head, Tail: tail, Start: start, End: end}
+	if err := spec.Validate(); err != nil {
 		return err
 	}
-	rc, err := c.ReadFile(pathOrName)
-	if err != nil {
-		return err
-	}
-	defer rc.Close()
-	source, err := io.ReadAll(rc)
-	if err != nil {
-		return err
-	}
-
-	lines := strings.Split(string(source), "\n")
-	// Trim trailing empty element caused by a final newline.
-	if len(lines) > 0 && lines[len(lines)-1] == "" {
-		lines = lines[:len(lines)-1]
-	}
-	total := len(lines)
-
-	var lo, hi int // 0-based, hi exclusive
-	switch {
-	case head > 0:
-		lo = 0
-		hi = head
-	case tail > 0:
-		lo = total - tail
-		hi = total
-	default: // start/end
-		lo = start - 1
-		hi = end
-	}
-	if lo < 0 {
-		lo = 0
-	}
-	if hi > total {
-		hi = total
-	}
-	if lo >= hi {
-		fmt.Println("(no lines in range)")
+	return withSource(pathOrName, func(source []byte) error {
+		lines, _ := notes.Segment(string(source), spec)
+		if len(lines) == 0 {
+			fmt.Println("(no lines in range)")
+			return nil
+		}
+		fmt.Print(strings.Join(lines, "\n"))
+		fmt.Println()
 		return nil
-	}
-	fmt.Print(strings.Join(lines[lo:hi], "\n"))
-	fmt.Println()
-	return nil
-}
-
-// ── markdown parsing helpers (CLI-specific: headings, sections, code, lists) ──
-// Link extraction uses client.ParseLinks instead of a local implementation.
-
-type heading struct {
-	level int
-	text  string
-}
-
-type codeBlock struct {
-	lang    string
-	content string
-}
-
-// mdParseHeadings returns all ATX headings in source using the goldmark AST.
-// Headings inside fenced code blocks are correctly excluded.
-func mdParseHeadings(source []byte) []heading {
-	doc := client.MDParse(source)
-	var out []heading
-	_ = ast.Walk(doc, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
-		if !entering || n.Kind() != ast.KindHeading {
-			return ast.WalkContinue, nil
-		}
-		h := n.(*ast.Heading)
-		out = append(out, heading{level: h.Level, text: client.MDInlineText(h, source)})
-		return ast.WalkSkipChildren, nil
 	})
-	return out
-}
-
-// mdParseSection extracts the raw source bytes for the first heading whose
-// text contains query (case-insensitive). The section spans from the heading
-// line through all content until the next heading of equal or higher level,
-// or end of file.
-func mdParseSection(source []byte, query string) []byte {
-	doc := client.MDParse(source)
-	query = strings.ToLower(strings.TrimLeft(strings.TrimSpace(query), "# \t"))
-
-	type hpos struct {
-		level int
-		start int // byte offset of the heading line start
-	}
-
-	var positions []hpos
-	matchIdx := -1
-
-	for n := doc.FirstChild(); n != nil; n = n.NextSibling() {
-		h, ok := n.(*ast.Heading)
-		if !ok {
-			continue
-		}
-		inner := mdNodeInnerStart(h, source)
-		if inner < 0 {
-			continue
-		}
-		lineStart := mdLineStart(source, inner)
-		if matchIdx < 0 && strings.Contains(strings.ToLower(client.MDInlineText(h, source)), query) {
-			matchIdx = len(positions)
-		}
-		positions = append(positions, hpos{level: h.Level, start: lineStart})
-	}
-
-	if matchIdx < 0 {
-		return nil
-	}
-
-	secStart := positions[matchIdx].start
-	secLevel := positions[matchIdx].level
-	secEnd := len(source)
-	for i := matchIdx + 1; i < len(positions); i++ {
-		if positions[i].level <= secLevel {
-			secEnd = positions[i].start
-			break
-		}
-	}
-
-	return source[secStart:secEnd]
-}
-
-// mdParseCodeBlocks extracts all fenced code blocks from source.
-func mdParseCodeBlocks(source []byte) []codeBlock {
-	doc := client.MDParse(source)
-	var out []codeBlock
-	_ = ast.Walk(doc, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
-		if !entering {
-			return ast.WalkContinue, nil
-		}
-		fcb, ok := n.(*ast.FencedCodeBlock)
-		if !ok {
-			return ast.WalkContinue, nil
-		}
-		lang := ""
-		if fcb.Info != nil {
-			raw := strings.TrimSpace(string(fcb.Info.Segment.Value(source)))
-			if i := strings.IndexByte(raw, ' '); i >= 0 {
-				lang = raw[:i]
-			} else {
-				lang = raw
-			}
-		}
-		var sb strings.Builder
-		for i := 0; i < fcb.Lines().Len(); i++ {
-			seg := fcb.Lines().At(i)
-			sb.Write(seg.Value(source))
-		}
-		out = append(out, codeBlock{lang: lang, content: sb.String()})
-		return ast.WalkContinue, nil
-	})
-	return out
-}
-
-// mdParseLists extracts top-level lists from source as raw markdown strings.
-// Nested lists are not reported separately.
-func mdParseLists(source []byte) []string {
-	doc := client.MDParse(source)
-	var out []string
-	_ = ast.Walk(doc, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
-		if !entering || n.Kind() != ast.KindList {
-			return ast.WalkContinue, nil
-		}
-		if s := mdRawSource(n, source); s != "" {
-			out = append(out, s)
-		}
-		return ast.WalkSkipChildren, nil
-	})
-	return out
-}
-
-// ── low-level AST / source helpers ───────────────────────────────────────────
-
-// mdNodeInnerStart returns the minimum byte offset of any content within n,
-// searching both Lines() segments and ast.Text inline segments. Returns -1
-// when n contains no content.
-func mdNodeInnerStart(n ast.Node, source []byte) int {
-	min := -1
-	_ = ast.Walk(n, func(child ast.Node, entering bool) (ast.WalkStatus, error) {
-		if !entering {
-			return ast.WalkContinue, nil
-		}
-		if child.Type() == ast.TypeBlock {
-			if lines := child.Lines(); lines != nil {
-				for i := 0; i < lines.Len(); i++ {
-					if s := lines.At(i).Start; min < 0 || s < min {
-						min = s
-					}
-				}
-			}
-		}
-		if t, ok := child.(*ast.Text); ok {
-			if s := t.Segment.Start; min < 0 || s < min {
-				min = s
-			}
-		}
-		return ast.WalkContinue, nil
-	})
-	return min
-}
-
-// mdNodeInnerStop returns the maximum byte offset (exclusive) of any content
-// within n. Returns 0 when n contains no content.
-func mdNodeInnerStop(n ast.Node, source []byte) int {
-	max := 0
-	_ = ast.Walk(n, func(child ast.Node, entering bool) (ast.WalkStatus, error) {
-		if !entering {
-			return ast.WalkContinue, nil
-		}
-		if child.Type() == ast.TypeBlock {
-			if lines := child.Lines(); lines != nil {
-				for i := 0; i < lines.Len(); i++ {
-					if s := lines.At(i).Stop; s > max {
-						max = s
-					}
-				}
-			}
-		}
-		if t, ok := child.(*ast.Text); ok {
-			if s := t.Segment.Stop; s > max {
-				max = s
-			}
-		}
-		return ast.WalkContinue, nil
-	})
-	return max
-}
-
-// mdLineStart returns the byte offset of the start of the source line
-// containing pos (scanning backward for a preceding '\n').
-func mdLineStart(source []byte, pos int) int {
-	for pos > 0 && source[pos-1] != '\n' {
-		pos--
-	}
-	return pos
-}
-
-// mdLineEnd returns the byte offset one past the end of the source line
-// containing pos (past '\n', or EOF).
-func mdLineEnd(source []byte, pos int) int {
-	for pos < len(source) && source[pos] != '\n' {
-		pos++
-	}
-	if pos < len(source) {
-		pos++ // past '\n'
-	}
-	return pos
-}
-
-// mdRawSource extracts the verbatim markdown source for block node n by
-// finding the full line span from its first to its last content byte.
-// For container blocks (blockquote, list) this preserves markers like "> " or "- ".
-func mdRawSource(n ast.Node, source []byte) string {
-	start := mdNodeInnerStart(n, source)
-	stop := mdNodeInnerStop(n, source)
-	if start < 0 || stop == 0 || start >= stop {
-		return ""
-	}
-	lineStart := mdLineStart(source, start)
-	lineEnd := mdLineEnd(source, stop-1)
-	if lineEnd > len(source) {
-		lineEnd = len(source)
-	}
-	return string(source[lineStart:lineEnd])
 }

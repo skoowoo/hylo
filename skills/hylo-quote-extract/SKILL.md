@@ -30,7 +30,7 @@ The user will name the note as either a vault-absolute path (`/clips/article.md`
 ### 2. Read the note
 
 ```bash
-hylo raw_note read <path-or-name>
+hylo read <path-or-name>
 ```
 
 If this fails, surface the error directly — don't proceed.
@@ -55,7 +55,7 @@ For the display label, use (in priority order):
 For every extracted quote run:
 
 ```bash
-hylo short_note create --content "QUOTE_TEXT
+hylo short create --content "QUOTE_TEXT
 
 [[STEM|DISPLAY]]"
 ```
@@ -65,22 +65,22 @@ The wikilink goes on its own paragraph (blank line separator) after the quote te
 **Example** — source `/clips/网络效应.md`, title "网络效应":
 
 ```bash
-hylo short_note create --content "网络效应使得先发优势几乎不可逾越，后进者需要付出数倍的资源才能撬动用户迁移。
+hylo short create --content "网络效应使得先发优势几乎不可逾越，后进者需要付出数倍的资源才能撬动用户迁移。
 
 [[网络效应|网络效应]]"
 ```
 
-Run each `hylo short_note create` call separately (one per quote), not batched into one.
+Run each `hylo short create` call separately (one per quote), not batched into one.
 
 ### 5. Report
 
 After all saves succeed, output:
 - How many quotes were saved
-- The file path(s) returned by each `hylo short_note create` call (the CLI prints `saved short note to "..."`)
+- The file path(s) returned by each `hylo short create` call (the CLI prints `saved short note to "..."`)
 
 ## Edge cases
 
-- **Note not found**: `hylo raw_note read` will error — surface it.
+- **Note not found**: `hylo read` will error — surface it.
 - **Very short note / few quotable passages**: save what exists (even 1–2 is fine) and note it.
 - **Note is itself a list of bullets or quotes**: each bullet is a candidate; still apply the quality filter — don't blindly save every line.
 - **Frontmatter title with quotes or special chars**: escape them properly in the shell argument, or use `$'...'` syntax.

@@ -3,19 +3,10 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
-	"math"
 	"os"
 
-	"github.com/hardhacker/hylo/internal/client"
-	"github.com/hardhacker/hylo/internal/util"
+	"github.com/hardhacker/hylo/internal/notes"
 	"github.com/spf13/cobra"
-)
-
-type searchScope int
-
-const (
-	searchScopeAny       searchScope = iota // no filter
-	searchScopeKnowledge                    // knowledge notes only
 )
 
 func newSearchCmd() *cobra.Command {
@@ -31,11 +22,11 @@ Query syntax:
   hylo search april --field name
   hylo search "TODO" --field content --limit 5
   hylo search "golang" --field tag`,
-		searchScopeAny,
+		false,
 	)
 }
 
-func buildSearchCommand(short, long, example string, scope searchScope) *cobra.Command {
+func buildSearchCommand(short, long, example string, knowledgeOnly bool) *cobra.Command {
 	var (
 		limit int
 		table bool
@@ -50,12 +41,7 @@ func buildSearchCommand(short, long, example string, scope searchScope) *cobra.C
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			switch field {
-			case "", "name", "content", "tag":
-			default:
-				return fmt.Errorf("unknown --field %q: must be name, content, or tag (default: all)", field)
-			}
-			return runSearch(args[0], field, limit, table, scope)
+			return runSearch(args[0], field, limit, table, knowledgeOnly)
 		},
 	}
 
@@ -66,72 +52,15 @@ func buildSearchCommand(short, long, example string, scope searchScope) *cobra.C
 	return cmd
 }
 
-type searchOutput struct {
-	Query   string        `json:"query"`
-	Total   int           `json:"total"`
-	Results []searchEntry `json:"results"`
-}
-
-type searchEntry struct {
-	Name      string  `json:"name"`
-	Dir       string  `json:"dir"`
-	Kind      string  `json:"kind"`
-	UpdatedAt string  `json:"updated_at"`
-	Score     float64 `json:"score"`
-	HitLines  []int   `json:"hit_lines,omitempty"`
-}
-
-func runSearch(query, field string, limit int, table bool, scope searchScope) error {
+func runSearch(query, field string, limit int, table, knowledgeOnly bool) error {
 	c, err := openClient()
 	if err != nil {
 		return err
 	}
-
-	var fetchLimit int
-	if scope == searchScopeAny {
-		fetchLimit = limit
-	} else {
-		fetchLimit = limit * 25
-		if fetchLimit < 100 {
-			fetchLimit = 100
-		}
-		if fetchLimit > 3000 {
-			fetchLimit = 3000
-		}
-	}
-
-	resp, err := c.Search(query, field, fetchLimit)
+	out, err := notes.Search(c, notes.SearchQuery{Query: query, Field: field, Limit: limit, KnowledgeOnly: knowledgeOnly})
 	if err != nil {
 		return err
 	}
-
-	var hits []client.SearchResult
-	for _, hit := range resp.Results {
-		if scope == searchScopeKnowledge && hit.Kind != "knowledge" && hit.Kind != "index" {
-			continue
-		}
-		hits = append(hits, hit)
-		if len(hits) >= limit {
-			break
-		}
-	}
-
-	out := searchOutput{
-		Query:   resp.Query,
-		Total:   len(hits),
-		Results: make([]searchEntry, 0, len(hits)),
-	}
-	for _, hit := range hits {
-		out.Results = append(out.Results, searchEntry{
-			Name:      hit.Name,
-			Dir:       hit.Dir,
-			Kind:      hit.Kind,
-			UpdatedAt: util.FormatTime(hit.UpdatedAt),
-			Score:     math.Round(hit.Score*1000) / 1000,
-			HitLines:  hit.Lines,
-		})
-	}
-
 	if table {
 		return printSearchTable(out)
 	}
@@ -140,7 +69,7 @@ func runSearch(query, field string, limit int, table bool, scope searchScope) er
 	return enc.Encode(out)
 }
 
-func printSearchTable(out searchOutput) error {
+func printSearchTable(out notes.SearchResult) error {
 	if len(out.Results) == 0 {
 		fmt.Printf("No results found for query: %s\n", out.Query)
 		return nil

@@ -2,12 +2,9 @@ package cli
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
-	"time"
 
-	"github.com/hardhacker/hylo/internal/storage"
-	"github.com/hardhacker/hylo/internal/util"
+	"github.com/hardhacker/hylo/internal/notes"
 	"github.com/spf13/cobra"
 )
 
@@ -35,20 +32,15 @@ Pass a vault-absolute directory path (e.g. /journal) to scope the listing to tha
 		Args:         cobra.MaximumNArgs(1),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if latest > 0 && (start != "" || end != "") {
-				return errLatestWithStartEnd()
+			q := notes.ListQuery{
+				Limit: limit,
+				Time:  notes.TimeFilter{Start: start, End: end, Latest: latest},
+				Kind:  kind,
 			}
-			opts := storage.ListOptions{
-				SortByTime: true,
-				Limit:      limit,
+			if len(args) > 0 {
+				q.Dir = args[0]
 			}
-			if err := applyListTimeFilters(&opts, latest, start, end); err != nil {
-				return err
-			}
-			if len(args) == 0 {
-				return runListAll(opts, kind, table)
-			}
-			return runListDir(args[0], opts, kind, table)
+			return runList(q, table)
 		},
 	}
 
@@ -62,98 +54,19 @@ Pass a vault-absolute directory path (e.g. /journal) to scope the listing to tha
 	return cmd
 }
 
-func errLatestWithStartEnd() error {
-	return fmt.Errorf("cannot combine --latest with --start/--end")
-}
-
-func applyListTimeFilters(opts *storage.ListOptions, latest int, start, end string) error {
-	if latest > 0 {
-		opts.After = time.Now().AddDate(0, 0, -latest)
-	}
-	if start != "" {
-		t, err := time.Parse(time.DateOnly, start)
-		if err != nil {
-			return fmt.Errorf("invalid --start date (use YYYY-MM-DD): %w", err)
-		}
-		opts.After = t
-	}
-	if end != "" {
-		t, err := time.Parse(time.DateOnly, end)
-		if err != nil {
-			return fmt.Errorf("invalid --end date (use YYYY-MM-DD): %w", err)
-		}
-		opts.Before = t
-	}
-	return nil
-}
-
-func applyKindFilter(opts *storage.ListOptions, kind string) error {
-	switch kind {
-	case "":
-		// no filter
-	case "raw":
-		opts.ExcludeKinds = []storage.Kind{storage.KindShort, storage.KindKnowledge, storage.KindIndex}
-	case "short":
-		opts.OnlyKinds = []storage.Kind{storage.KindShort}
-	case "knowledge":
-		opts.OnlyKinds = []storage.Kind{storage.KindKnowledge}
-	case "index":
-		opts.OnlyKinds = []storage.Kind{storage.KindIndex}
-	default:
-		return fmt.Errorf("unknown kind %q: must be raw, short, knowledge, or index", kind)
-	}
-	return nil
-}
-
-func runListAll(opts storage.ListOptions, kind string, table bool) error {
-	if err := applyKindFilter(&opts, kind); err != nil {
-		return err
-	}
+func runList(q notes.ListQuery, table bool) error {
 	c, err := openClient()
 	if err != nil {
 		return err
 	}
-	notes, err := c.ListAllNotes(opts)
+	entries, err := notes.List(c, q)
 	if err != nil {
 		return err
 	}
-	return printNotes(notes, table)
+	return printNotes(entries, table)
 }
 
-func runListDir(dir string, opts storage.ListOptions, kind string, table bool) error {
-	if err := applyKindFilter(&opts, kind); err != nil {
-		return err
-	}
-	c, err := openClient()
-	if err != nil {
-		return err
-	}
-	notes, err := c.ListDir(dir, opts)
-	if err != nil {
-		return err
-	}
-	return printNotes(notes, table)
-}
-
-func noteKind(k storage.Kind) string {
-	if k == "" {
-		return "raw"
-	}
-	return string(k)
-}
-
-func printNotes(notes []storage.Note, table bool) error {
-	entries := make([]listEntry, len(notes))
-	for i, n := range notes {
-		entries[i] = listEntry{
-			Name:      n.Name,
-			Dir:       n.Dir,
-			Size:      util.FormatSize(n.Size),
-			UpdatedAt: util.FormatTime(n.UpdatedAt),
-			Indexed:   n.Indexed,
-			Kind:      noteKind(n.Kind),
-		}
-	}
+func printNotes(entries []notes.NoteEntry, table bool) error {
 	if table {
 		return printNoteTable(entries)
 	}
@@ -162,16 +75,7 @@ func printNotes(notes []storage.Note, table bool) error {
 	return enc.Encode(entries)
 }
 
-type listEntry struct {
-	Name      string `json:"name"`
-	Dir       string `json:"dir"`
-	Size      string `json:"size"`
-	UpdatedAt string `json:"updated_at"`
-	Indexed   bool   `json:"indexed,omitempty"`
-	Kind      string `json:"kind"`
-}
-
-func printNoteTable(entries []listEntry) error {
+func printNoteTable(entries []notes.NoteEntry) error {
 	if len(entries) == 0 {
 		return nil
 	}

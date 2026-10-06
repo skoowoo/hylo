@@ -3,8 +3,8 @@ package cli
 import (
 	"fmt"
 	"os"
-	"strings"
 
+	"github.com/hardhacker/hylo/internal/notes"
 	"github.com/spf13/cobra"
 )
 
@@ -27,14 +27,11 @@ func newDeleteCmd() *cobra.Command {
 }
 
 func runDelete(path string) error {
-	if !strings.HasPrefix(path, "/") {
-		return fmt.Errorf("path %q must be absolute (start with \"/\")", path)
-	}
 	c, err := openClient()
 	if err != nil {
 		return err
 	}
-	if err := c.DeleteNote(path); err != nil {
+	if err := notes.Delete(c, path); err != nil {
 		return err
 	}
 	fmt.Fprintf(os.Stdout, "deleted %q\n", path)

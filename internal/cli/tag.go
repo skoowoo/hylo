@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/hardhacker/hylo/internal/client"
+	"github.com/hardhacker/hylo/internal/notes"
 	"github.com/spf13/cobra"
 )
 
@@ -75,22 +75,22 @@ func runTagList(limit int, table bool) error {
 	if err != nil {
 		return err
 	}
-	resp, err := c.TagList(limit)
+	tags, err := notes.TagList(c, limit)
 	if err != nil {
 		return err
 	}
 	if table {
-		if len(resp.Tags) == 0 {
+		if len(tags) == 0 {
 			fmt.Println("No tags in index.")
 			return nil
 		}
-		fmt.Printf("Tags: %d\n\n", len(resp.Tags))
+		fmt.Printf("Tags: %d\n\n", len(tags))
 		cols := []Column{
 			{Header: "TAG", MaxWidth: 80},
 			{Header: "COUNT"},
 		}
-		rows := make([][]string, len(resp.Tags))
-		for i, t := range resp.Tags {
+		rows := make([][]string, len(tags))
+		for i, t := range tags {
 			rows[i] = []string{t.Tag, fmt.Sprintf("%d", t.Count)}
 		}
 		PrintTable(cols, rows)
@@ -98,10 +98,6 @@ func runTagList(limit int, table bool) error {
 	}
 	enc := json.NewEncoder(os.Stdout)
 	enc.SetIndent("", "  ")
-	tags := resp.Tags
-	if tags == nil {
-		tags = []client.TagStat{}
-	}
 	return enc.Encode(tags)
 }
 

@@ -4,10 +4,8 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strings"
 
-	"github.com/hardhacker/hylo/internal/storage"
-	"github.com/hardhacker/hylo/internal/util"
+	"github.com/hardhacker/hylo/internal/notes"
 	"github.com/spf13/cobra"
 )
 
@@ -45,54 +43,17 @@ Use --force to overwrite an existing note.`,
 }
 
 func runCreate(notePath, content, fromFile string, force bool) error {
-	if !strings.HasPrefix(notePath, "/") {
-		return fmt.Errorf("path %q must be absolute (start with \"/\")", notePath)
-	}
-	if !util.IsMarkdownPath(notePath) {
-		return fmt.Errorf("path %q is not a markdown file (.md or .markdown)", notePath)
-	}
-
 	c, err := openClient()
 	if err != nil {
 		return err
 	}
-
-	if !force {
-		exists, err := c.Exists(notePath)
-		if err != nil {
-			return err
-		}
-		if exists {
-			return fmt.Errorf("%q already exists (use --force to overwrite)", notePath)
-		}
-
-		p, ok := storage.ParsePath(notePath)
-		if !ok {
-			return fmt.Errorf("path %q must be absolute (start with \"/\")", notePath)
-		}
-		resolved, err := c.ResolveNoteName(p.Base())
-		if err != nil {
-			return err
-		}
-		if resolved.Count > 0 {
-			return fmt.Errorf("a note named %q already exists in the vault (use --force to create anyway)", p.Base())
-		}
-	}
-
-	data, err := resolveContent(content, fromFile)
+	lines, err := notes.Create(c, notePath, force, func() ([]byte, error) {
+		return resolveContent(content, fromFile)
+	})
 	if err != nil {
 		return err
 	}
-
-	if !util.IsValidText(data) {
-		return fmt.Errorf("source file appears to be binary — only text content can be stored as markdown")
-	}
-
-	if err := c.WriteFile(notePath, data); err != nil {
-		return fmt.Errorf("create %q: %w", notePath, err)
-	}
-
-	fmt.Fprintf(os.Stdout, "created %q (%d lines)\n", notePath, countLines(data))
+	fmt.Fprintf(os.Stdout, "created %q (%d lines)\n", notePath, lines)
 	return nil
 }
 
@@ -134,5 +95,3 @@ func isTerminal(f *os.File) bool {
 	}
 	return (stat.Mode() & os.ModeCharDevice) != 0
 }
-
-func countLines(data []byte) int { return util.CountLines(data) }

@@ -56,6 +56,10 @@ func buildConfigSchema() []SchemaField {
 			Description: "Global system prompt prepended to every agent run. Leave empty to always use the latest built-in default. Joined with the mate's own system prompt (if any) via a markdown divider.",
 			Multiline: true, Default: config.DefaultAgentSystemPrompt},
 
+		{Key: "agent.mcp_enabled", Type: "bool", Section: "agent", Label: "Inject Hylo MCP",
+			Description: "Give every agent CLI run access to Hylo's MCP tools. Requires the TCP listener (server.port > 0). Not supported for Hermes.",
+			Default:     true},
+
 		{Key: "plugins.search.use_jieba", Type: "bool", Section: "plugins.search", Label: "Use jieba",
 			Description: "Enable Chinese tokenisation for search (~50 MB + ~1s startup).",
 			Default:     false},

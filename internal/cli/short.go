@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/hardhacker/hylo/internal/client"
+	"github.com/hardhacker/hylo/internal/notes"
 	"github.com/spf13/cobra"
 )
 
@@ -56,22 +56,15 @@ func runShortCreate(content, dir string) error {
 	if err != nil {
 		return err
 	}
-	text := string(data)
-	if len([]rune(text)) == 0 {
-		return fmt.Errorf("content must not be empty")
-	}
-
 	c, err := openClient()
 	if err != nil {
 		return err
 	}
-
-	note, err := c.CreateShort(text, dir)
+	p, err := notes.ShortCreate(c, string(data), dir)
 	if err != nil {
 		return err
 	}
-
-	fmt.Fprintf(os.Stdout, "saved short note to %q\n", note.PathString())
+	fmt.Fprintf(os.Stdout, "saved short note to %q\n", p)
 	return nil
 }
 
@@ -101,14 +94,11 @@ Without date filters all entries are returned (subject to --limit).`,
 		Args:         cobra.NoArgs,
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if latest > 0 && (start != "" || end != "") {
-				return errLatestWithStartEnd()
-			}
-			opts := client.ShortListOptions{Dir: dir, Limit: limit}
-			if err := applyShortTimeFilters(&opts, latest, start, end); err != nil {
-				return err
-			}
-			return runShortList(opts, table)
+			return runShortList(notes.ShortQuery{
+				Dir:   dir,
+				Limit: limit,
+				Time:  notes.TimeFilter{Start: start, End: end, Latest: latest},
+			}, table)
 		},
 	}
 
@@ -122,33 +112,12 @@ Without date filters all entries are returned (subject to --limit).`,
 	return cmd
 }
 
-func applyShortTimeFilters(opts *client.ShortListOptions, latest int, start, end string) error {
-	if latest > 0 {
-		opts.After = time.Now().AddDate(0, 0, -latest)
-	}
-	if start != "" {
-		t, err := time.Parse(time.DateOnly, start)
-		if err != nil {
-			return fmt.Errorf("invalid --start date (use YYYY-MM-DD): %w", err)
-		}
-		opts.After = t
-	}
-	if end != "" {
-		t, err := time.Parse(time.DateOnly, end)
-		if err != nil {
-			return fmt.Errorf("invalid --end date (use YYYY-MM-DD): %w", err)
-		}
-		opts.Before = t
-	}
-	return nil
-}
-
-func runShortList(opts client.ShortListOptions, table bool) error {
+func runShortList(q notes.ShortQuery, table bool) error {
 	c, err := openClient()
 	if err != nil {
 		return err
 	}
-	entries, err := c.ListShorts(opts)
+	entries, err := notes.ShortList(c, q)
 	if err != nil {
 		return err
 	}

@@ -180,6 +180,9 @@ type AgentConfig struct {
 	// horizontal rule: <agent.system_prompt> + "\n\n---\n\n" + <mate.system_prompt>.
 	// If only one side is non-empty, it is used as-is.
 	SystemPrompt string `mapstructure:"system_prompt" json:"system_prompt" toml:"system_prompt"`
+
+	// MCPEnabled injects Hylo's MCP endpoint into every agent CLI run.
+	MCPEnabled bool `mapstructure:"mcp_enabled" json:"mcp_enabled" toml:"mcp_enabled"`
 }
 
 // EffectiveSystemPrompt returns the agent global system prompt.
@@ -204,6 +207,23 @@ func (s ServerConfig) TCPEnabled() bool { return s.Port > 0 }
 // TLSEnabled reports whether HTTPS should be used.
 func (s ServerConfig) TLSEnabled() bool {
 	return s.CertFile != "" && s.KeyFile != ""
+}
+
+// MCPURL returns the MCP endpoint agents should connect to; ok is false when TCP is disabled.
+func (s ServerConfig) MCPURL() (url string, ok bool) {
+	if !s.TCPEnabled() {
+		return "", false
+	}
+	host := s.Host
+	switch host {
+	case "", "0.0.0.0", "::", "[::]":
+		host = "127.0.0.1"
+	}
+	scheme := "http"
+	if s.TLSEnabled() {
+		scheme = "https"
+	}
+	return fmt.Sprintf("%s://%s:%d/mcp", scheme, host, s.Port), true
 }
 
 // BrowserBaseURL returns the http:// or https:// origin for opening links in a browser.
@@ -326,6 +346,7 @@ func setDefaults(v *viper.Viper) {
 
 	v.SetDefault("agent.upload_dir", "_agent_uploads")
 	v.SetDefault("agent.system_prompt", "")
+	v.SetDefault("agent.mcp_enabled", true)
 
 	// git_sync plugin defaults (disabled by default; user must opt in)
 	v.SetDefault("plugins.git_sync.enabled", false)

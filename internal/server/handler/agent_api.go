@@ -378,6 +378,7 @@ func (a *AgentAPI) executeChat(ctx context.Context, run *agent.Run, body chatBod
 		}
 	}
 	body.SystemPrompt = mergeSystemPrompts(a.cfg.Agent.EffectiveSystemPrompt(), body.SystemPrompt)
+	body.SystemPrompt = mergeSystemPrompts(body.SystemPrompt, a.mcpPromptHint(body.AgentID))
 
 	// Persist user message and create assistant placeholder when a conversation
 	// is active. assistantMsgID is carried through to the completion handler.
@@ -494,12 +495,22 @@ func (a *AgentAPI) executeChat(ctx context.Context, run *agent.Run, body chatBod
 		return mate.RunResult{Success: false}
 	}
 
+	env := agent.SpawnEnvForAgent(def.ID, agent.ShellEnv(), envCfg)
+	for k, v := range def.StaticEnv {
+		env = mergeEnvKey(env, k, v)
+	}
+	// Keep $PWD in sync with cmd.Dir. Some agents (e.g. opencode) use $PWD
+	// rather than getcwd() to locate the project root; without this they inherit
+	// the server's CWD and treat the intended workspace as an external directory.
+	env = mergeEnvKey(env, "PWD", cwd)
+
 	argCtx := agent.BuildArgsContext{
 		Prompt: composed, ImagePaths: body.ImagePaths, ExtraAllowedDirs: body.ExtraAllowedDirs,
 		Model: safeModel, Reasoning: safeReasoning, Cwd: cwd,
 		SessionID: sessionID, FirstSession: firstSession,
 	}
 	argv := agent.BuildInvocationArgs(def, argCtx)
+	argv, env = a.injectMCP(def.ID, cwd, argv, env)
 	if e := agent.CheckWindowsCmdShimCommandLineBudget(def, bin, argv); e != nil {
 		a.logger.Warn("agent aborted",
 			slog.String("runId", run.ID),
@@ -526,15 +537,6 @@ func (a *AgentAPI) executeChat(ctx context.Context, run *agent.Run, body chatBod
 		}
 		return mate.RunResult{Success: false}
 	}
-
-	env := agent.SpawnEnvForAgent(def.ID, agent.ShellEnv(), envCfg)
-	for k, v := range def.StaticEnv {
-		env = mergeEnvKey(env, k, v)
-	}
-	// Keep $PWD in sync with cmd.Dir. Some agents (e.g. opencode) use $PWD
-	// rather than getcwd() to locate the project root; without this they inherit
-	// the server's CWD and treat the intended workspace as an external directory.
-	env = mergeEnvKey(env, "PWD", cwd)
 
 	up := a.uploadRoot()
 	safeImages := filterImagePaths(body.ImagePaths, up)

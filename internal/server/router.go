@@ -7,9 +7,11 @@ import (
 	"strings"
 
 	"github.com/hardhacker/hylo/internal/agent"
+	"github.com/hardhacker/hylo/internal/client"
 	"github.com/hardhacker/hylo/internal/config"
 	"github.com/hardhacker/hylo/internal/inbox"
 	"github.com/hardhacker/hylo/internal/mate"
+	hylomcp "github.com/hardhacker/hylo/internal/mcp"
 	"github.com/hardhacker/hylo/internal/plugins/compile"
 	"github.com/hardhacker/hylo/internal/plugins/gitsync"
 	"github.com/hardhacker/hylo/internal/plugins/search"
@@ -161,6 +163,9 @@ func newRouter(
 	mux.HandleFunc("POST /api/wechat/login/start", wxHTTP.LoginStart)
 	mux.HandleFunc("GET /api/wechat/login/status", wxHTTP.LoginStatus)
 	mux.HandleFunc("POST /api/wechat/logout", wxHTTP.Logout)
+
+	// MCP endpoint; tools call back into mux in-process, so auth is enforced once at the edge.
+	mux.Handle("/mcp", hylomcp.NewHandler(client.NewInProcess(mux)))
 
 	// Website routes
 	mux.HandleFunc("GET /notes/search", vh.SearchFragment)

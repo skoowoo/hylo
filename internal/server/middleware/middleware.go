@@ -3,6 +3,7 @@ package middleware
 import (
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -59,6 +60,9 @@ func Authenticator(apiKey string, logger *slog.Logger) func(http.Handler) http.H
 
 			if apiKey != "" {
 				token := r.Header.Get("X-Hylo-API-Key")
+				if token == "" {
+					token = strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
+				}
 				if token == "" || token != apiKey {
 					logger.Warn("unauthorized request",
 						"remote_addr", r.RemoteAddr,

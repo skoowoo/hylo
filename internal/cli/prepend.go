@@ -4,9 +4,8 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strings"
 
-	"github.com/hardhacker/hylo/internal/util"
+	"github.com/hardhacker/hylo/internal/notes"
 	"github.com/spf13/cobra"
 )
 
@@ -41,32 +40,22 @@ Content can be provided via --content or stdin.`,
 }
 
 func runPrepend(notePath, heading, content string) error {
-	if !strings.HasPrefix(notePath, "/") {
-		return fmt.Errorf("path %q must be absolute (start with \"/\")", notePath)
+	if err := notes.CheckMarkdownPath(notePath); err != nil {
+		return err
 	}
-	if !util.IsMarkdownPath(notePath) {
-		return fmt.Errorf("path %q is not a markdown file (.md or .markdown)", notePath)
-	}
-
 	data, err := resolvePrependContent(content)
 	if err != nil {
 		return err
 	}
-
-	if !util.IsValidText(data) {
-		return fmt.Errorf("content appears to be binary — only text can be prepended to a markdown note")
-	}
-
 	c, err := openClient()
 	if err != nil {
 		return err
 	}
-
-	if err := c.PrependFile(notePath, data, heading); err != nil {
-		return fmt.Errorf("prepend to %q: %w", notePath, err)
+	lines, err := notes.Prepend(c, notePath, heading, data)
+	if err != nil {
+		return err
 	}
-
-	fmt.Fprintf(os.Stdout, "prepended %d lines to %q\n", countLines(data), notePath)
+	fmt.Fprintf(os.Stdout, "prepended %d lines to %q\n", lines, notePath)
 	return nil
 }
 

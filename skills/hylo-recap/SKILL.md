@@ -7,11 +7,13 @@ description: "Reviews content against the Hylo knowledge base (_knowledge/) and 
 
 ## Environment check
 
+If Hylo MCP tools are in your tool list, skip this check. Otherwise:
+
 ```bash
 hylo --help
 ```
 
-If `hylo` is not found, inform the user and stop.
+If neither MCP tools nor `hylo` are available, inform the user and stop.
 
 ---
 

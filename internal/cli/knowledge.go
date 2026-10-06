@@ -4,10 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"sort"
-	"strings"
 
-	"github.com/hardhacker/hylo/internal/storage"
+	"github.com/hardhacker/hylo/internal/notes"
 	"github.com/spf13/cobra"
 )
 
@@ -52,20 +50,16 @@ Pass a vault-absolute directory path (e.g. /_knowledge) to scope the listing to 
 		Args:         cobra.MaximumNArgs(1),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if latest > 0 && (start != "" || end != "") {
-				return errLatestWithStartEnd()
+			q := notes.ListQuery{
+				Limit:     limit,
+				Time:      notes.TimeFilter{Start: start, End: end, Latest: latest},
+				Kind:      kind,
+				Knowledge: true,
 			}
-			opts := storage.ListOptions{
-				SortByTime: true,
-				Limit:      limit,
+			if len(args) > 0 {
+				q.Dir = args[0]
 			}
-			if err := applyListTimeFilters(&opts, latest, start, end); err != nil {
-				return err
-			}
-			if len(args) == 0 {
-				return runKnowledgeListAll(opts, kind, table)
-			}
-			return runKnowledgeListDir(args[0], opts, kind, table)
+			return runList(q, table)
 		},
 	}
 
@@ -92,7 +86,7 @@ If multiple notes share the same name, use the full vault path.`,
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runScopedRead(args[0], true)
+			return runRead(args[0], true)
 		},
 	}
 }
@@ -111,7 +105,7 @@ Query syntax:
 		`  hylo knowledge search "summary"
   hylo knowledge search clip --field name
   hylo knowledge search "TODO" --field content --limit 5`,
-		searchScopeKnowledge,
+		true,
 	)
 }
 
@@ -130,77 +124,6 @@ func newKnowledgeDeleteCmd() *cobra.Command {
 		},
 	}
 }
-
-var knowledgeKinds = []storage.Kind{
-	storage.KindKnowledge,
-	storage.KindIndex,
-}
-
-func runKnowledgeListAll(opts storage.ListOptions, kind string, table bool) error {
-	kinds, err := resolveKnowledgeKinds(kind)
-	if err != nil {
-		return err
-	}
-	if len(kinds) == 0 {
-		return printNotes(nil, table)
-	}
-	c, err := openClient()
-	if err != nil {
-		return err
-	}
-	opts.OnlyKinds = kinds
-	notes, err := c.ListAllNotes(opts)
-	if err != nil {
-		return err
-	}
-	return printNotes(notes, table)
-}
-
-func runKnowledgeListDir(dir string, opts storage.ListOptions, kind string, table bool) error {
-	kinds, err := resolveKnowledgeKinds(kind)
-	if err != nil {
-		return err
-	}
-	if len(kinds) == 0 {
-		return printNotes(nil, table)
-	}
-	c, err := openClient()
-	if err != nil {
-		return err
-	}
-	opts.OnlyKinds = kinds
-	notes, err := c.ListDir(dir, opts)
-	if err != nil {
-		return err
-	}
-	return printNotes(notes, table)
-}
-
-// resolveKnowledgeKinds returns the Kind slice for the given kind filter.
-// Empty kind returns all knowledge-subsystem kinds. Unknown kind returns an error.
-func resolveKnowledgeKinds(kind string) ([]storage.Kind, error) {
-	switch kind {
-	case "":
-		return knowledgeKinds, nil
-	case "knowledge":
-		return []storage.Kind{storage.KindKnowledge}, nil
-	case "index":
-		return []storage.Kind{storage.KindIndex}, nil
-	default:
-		return nil, fmt.Errorf("unknown kind %q: must be knowledge or index", kind)
-	}
-}
-
-func sortAndLimit(notes []storage.Note, limit int) []storage.Note {
-	sort.Slice(notes, func(i, j int) bool {
-		return notes[i].UpdatedAt.After(notes[j].UpdatedAt)
-	})
-	if limit > 0 && len(notes) > limit {
-		return notes[:limit]
-	}
-	return notes
-}
-
 
 func newKnowledgeListIndexesCmd() *cobra.Command {
 	var table bool
@@ -221,29 +144,14 @@ func newKnowledgeListIndexesCmd() *cobra.Command {
 	return cmd
 }
 
-type indexEntry struct {
-	Domain string `json:"domain"`
-	Path   string `json:"path"`
-}
-
 func runKnowledgeListIndexes(table bool) error {
 	c, err := openClient()
 	if err != nil {
 		return err
 	}
-	notes, err := c.ListAllNotes(storage.ListOptions{
-		SortByTime: true,
-		OnlyKinds:  []storage.Kind{storage.KindIndex},
-	})
+	entries, err := notes.ListIndexes(c)
 	if err != nil {
 		return err
-	}
-	entries := make([]indexEntry, len(notes))
-	for i, n := range notes {
-		entries[i] = indexEntry{
-			Domain: n.Title,
-			Path:   n.PathString(),
-		}
 	}
 	if table {
 		return printIndexTable(entries)
@@ -253,7 +161,7 @@ func runKnowledgeListIndexes(table bool) error {
 	return enc.Encode(entries)
 }
 
-func printIndexTable(entries []indexEntry) error {
+func printIndexTable(entries []notes.IndexEntry) error {
 	if len(entries) == 0 {
 		return nil
 	}
@@ -270,21 +178,11 @@ func printIndexTable(entries []indexEntry) error {
 }
 
 func runKnowledgeDelete(path string) error {
-	if !strings.HasPrefix(path, "/") {
-		return fmt.Errorf("path %q must be absolute (start with \"/\")", path)
-	}
 	c, err := openClient()
 	if err != nil {
 		return err
 	}
-	note, err := c.StatNote(path)
-	if err != nil {
-		return err
-	}
-	if note.Kind != storage.KindKnowledge {
-		return fmt.Errorf("%q is not a knowledge note", note.PathString())
-	}
-	if err := c.DeleteNote(path); err != nil {
+	if err := notes.DeleteKnowledge(c, path); err != nil {
 		return err
 	}
 	fmt.Fprintf(os.Stdout, "deleted %q\n", path)

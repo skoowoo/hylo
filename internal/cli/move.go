@@ -3,8 +3,8 @@ package cli
 import (
 	"fmt"
 	"os"
-	"strings"
 
+	"github.com/hardhacker/hylo/internal/notes"
 	"github.com/spf13/cobra"
 )
 
@@ -27,17 +27,11 @@ func newMoveCmd() *cobra.Command {
 }
 
 func runMove(path, newDir string) error {
-	if !strings.HasPrefix(path, "/") {
-		return fmt.Errorf("path %q must be absolute (start with \"/\")", path)
-	}
-	if !strings.HasPrefix(newDir, "/") {
-		return fmt.Errorf("new-dir %q must be absolute (start with \"/\")", newDir)
-	}
 	c, err := openClient()
 	if err != nil {
 		return err
 	}
-	newPath, err := c.MoveNote(path, newDir)
+	newPath, err := notes.Move(c, path, newDir)
 	if err != nil {
 		return err
 	}

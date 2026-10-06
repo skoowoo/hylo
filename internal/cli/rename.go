@@ -2,9 +2,9 @@ package cli
 
 import (
 	"fmt"
+	"github.com/hardhacker/hylo/internal/notes"
 	"os"
 	"strconv"
-	"strings"
 
 	"github.com/spf13/cobra"
 )
@@ -36,17 +36,11 @@ check on it with "hylo rename-status <job-id>".`,
 }
 
 func runRename(path, newName string) error {
-	if !strings.HasPrefix(path, "/") {
-		return fmt.Errorf("path %q must be absolute (start with \"/\")", path)
-	}
-	if strings.ContainsAny(newName, "/\\") {
-		return fmt.Errorf("new-name %q must be a filename only (no path separators)", newName)
-	}
 	c, err := openClient()
 	if err != nil {
 		return err
 	}
-	newPath, jobID, err := c.RenameNote(path, newName)
+	newPath, jobID, err := notes.Rename(c, path, newName)
 	if err != nil {
 		return err
 	}
