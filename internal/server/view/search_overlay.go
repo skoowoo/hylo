@@ -66,7 +66,7 @@ const searchOverlayStyles = `
       font-family: var(--font-ui);
     }
     .srch-footer {
-      border-color: var(--border) !important;
+      border-color: var(--line-hair) !important;
       border-top-width: var(--bd-w);
       border-radius: 0;
     }
@@ -95,7 +95,7 @@ const searchOverlayStyles = `
     /* ── Preview panel ─────────────────────────────────────── */
     .srch-results-pane {
       width: 300px; flex-shrink: 0;
-      border-right: var(--bd-w) solid var(--hairline); border-radius: 0;
+      border-right: var(--bd-w) solid var(--line-hair); border-radius: 0;
       padding: 0.5rem; gap: 0;
     }
     .srch-preview-pane {
@@ -104,7 +104,7 @@ const searchOverlayStyles = `
     .srch-preview-pane .frag-cover {
       margin-bottom: 1rem;
       padding-bottom: 0.75rem;
-      border-bottom: var(--bd-w) solid var(--hairline);
+      border-bottom: var(--bd-w) solid var(--line-hair);
       border-radius: 0;
     }
     .srch-preview-pane .frag-dir,
@@ -165,7 +165,7 @@ const searchOverlayStyles = `
       font-weight: 400;
       opacity: 0.6;
     }
-    .srch-mode-menu { border-color: var(--hairline) !important; border-bottom-width: var(--bd-w); border-radius: 0; }
+    .srch-mode-menu { border-color: var(--line-hair) !important; border-bottom-width: var(--bd-w); border-radius: 0; }
     .srch-mode-item {
       color: var(--fg);
       font-family: var(--font-ui);
@@ -174,7 +174,7 @@ const searchOverlayStyles = `
     .srch-mode-item.is-active { background: var(--control-active-bg); color: var(--control-active-fg); }
     .srch-mode-name { font-size: var(--text-sm); font-weight: 500; min-width: 5rem; }
     .srch-mode-desc { font-size: var(--text-xs); color: var(--muted); }
-    .srch-mode-footer { border-color: var(--hairline) !important; border-top-width: var(--bd-w); border-radius: 0; }
+    .srch-mode-footer { border-color: var(--line-hair) !important; border-top-width: var(--bd-w); border-radius: 0; }
     .srch-hint-sep { color: var(--muted); opacity: 0.4; }
 `
 
@@ -277,7 +277,7 @@ const searchOverlayPanelHTML = `
           <!-- Right: note preview -->
           <div id="search-preview"
                class="flex-1 overflow-y-auto
-                      [scrollbar-width:thin] [scrollbar-color:var(--border-strong)_transparent]">
+                      [scrollbar-width:thin] [scrollbar-color:var(--line-edge)_transparent]">
             <div class="srch-prev-hint">Navigate results to preview</div>
           </div>
         </div>

@@ -238,7 +238,7 @@
          (.content-pane-tabs-menu-list) scrolls. */
       display: flex; flex-direction: column;
       padding: 0.25rem;
-      background: var(--surface-soft); border: var(--bd-w) solid var(--border);
+      background: var(--surface-soft); border: var(--bd-w) solid var(--line-edge);
       border-radius: var(--r-md);
       box-shadow: var(--shadow-sm) var(--shadow-color);
       /* kbd-active (below) reads --control-active-bg — same repoint as
@@ -319,7 +319,7 @@
       min-width: 200px; max-width: min(320px, 90vw);
       display: flex; flex-direction: column;
       padding: 0.25rem;
-      background: var(--surface-soft); border: var(--bd-w) solid var(--border);
+      background: var(--surface-soft); border: var(--bd-w) solid var(--line-edge);
       border-radius: var(--r-md);
       box-shadow: var(--shadow-sm) var(--shadow-color);
     }
@@ -350,7 +350,7 @@
       position: absolute; top: calc(100% + var(--float-panel-gap)); right: 0; z-index: 50;
       transform-origin: top;
       min-width: 190px; max-width: min(320px, 90vw); padding: 0.25rem;
-      background: var(--surface-soft); border: var(--bd-w) solid var(--border);
+      background: var(--surface-soft); border: var(--bd-w) solid var(--line-edge);
       border-radius: var(--r-md);
       box-shadow: var(--shadow-sm) var(--shadow-color);
     }
@@ -388,10 +388,10 @@
     /* Separates the real actions above from the Close row below — inset to
        the rows' own text padding (0.55rem) rather than the menu's edge, so
        the line reads as a quiet seam under the content instead of a bar
-       spanning wider than it. --hairline-faint (shared_tokens.go), not
-       --hairline: this line sits inside a panel that already has its own
+       spanning wider than it. --line-hair (shared_tokens.go), not
+       --line-hair: this line sits inside a panel that already has its own
        border, so even the "secondary seam" weight is too much here. */
-    .content-pane-more-divider { margin: 0.25rem 0.55rem; border-top: var(--bd-w) solid var(--hairline-faint); }
+    .content-pane-more-divider { margin: 0.25rem 0.55rem; border-top: var(--bd-w) solid var(--line-hair); }
     /* Close isn't a feature (mousedown-outside/Esc/any row above already
        dismiss the menu) — stays muted even on hover so it doesn't compete
        with the actions above it for attention. */
@@ -497,7 +497,7 @@
       width: max-content !important;
       z-index: 20;
       background: var(--surface-soft); color: var(--fg);
-      border: var(--bd-w) solid var(--border);
+      border: var(--bd-w) solid var(--line-edge);
       border-radius: var(--r-md);
       box-shadow: var(--shadow-sm) var(--shadow-color);
       overflow: hidden;

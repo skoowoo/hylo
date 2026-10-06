@@ -77,11 +77,6 @@ const settingsAgentBotsCSS = `
       text-transform: uppercase; color: var(--fg); margin: 0;
       display: flex; align-items: center; gap: 0.6rem; white-space: nowrap;
     }
-    /* Trailing rule after the title text — a real element (like every other
-       divider in the app) rather than a ::after, so it's just .hairline
-       like anything else instead of needing that class taught about
-       pseudo-elements for this one caller. */
-    .agent-bot-form-section-rule { flex: 1; height: 2px; background: var(--hairline); }
     .agent-bot-trigger-section-top { display: flex; flex-direction: column; gap: 0.4rem; }
     .agent-bot-section-desc { font-size: var(--text-sm); color: var(--muted); line-height: 1.5; margin: 0; }
     .agent-bot-form-row { display: flex; gap: 1rem; }
@@ -135,15 +130,13 @@ const settingsAgentBotsCSS = `
     }
     /* Clickable — collapsed by default (see .agent-bot-trigger-summary),
        so N triggers costs N header rows of scroll instead of N full
-       editors. Border only shows once expanded (below), so a row of
-       collapsed cards reads as a plain stacked list, not a half-drawn
-       accordion. */
+       editors. */
     .agent-bot-trigger-hdr {
       display: flex; align-items: center; justify-content: space-between;
       gap: 0.75rem; cursor: pointer;
     }
     .agent-bot-trigger-card.is-open .agent-bot-trigger-hdr {
-      padding-bottom: 0.75rem; border-bottom: var(--bd-w) solid var(--hairline);
+      padding-bottom: 0.75rem;
     }
     .agent-bot-trigger-hdr-main { display: flex; align-items: center; gap: 0.55rem; min-width: 0; }
     .agent-bot-trigger-chev { flex-shrink: 0; color: var(--muted); display: flex; align-items: center; transition: transform var(--motion-fast); }
@@ -180,7 +173,7 @@ const settingsAgentBotsCSS = `
       flex-shrink: 0; display: flex; align-items: center; gap: 0.5rem;
       padding: 1.1rem 1.5rem;
       background: var(--bg);
-      border-top: var(--bd-w) solid var(--hairline);
+      border-top: var(--bd-w) solid var(--line-hair);
       max-width: 780px;
     }
     /* Save/Cancel now use the shared .btn-solid / .btn-outline (base.css). */
@@ -278,7 +271,7 @@ func settingsAgentBotsTabHTML() string {
                 </div>
                 <div class="agent-bot-form">
                   <section class="agent-bot-form-section">
-                    <h3 class="agent-bot-form-section-title">Profile<span class="agent-bot-form-section-rule hairline"></span></h3>
+                    <h3 class="agent-bot-form-section-title">Profile</h3>
                     <div class="agent-bot-form-row">
                       <div>
                         <label class="agent-bot-form-label">Name</label>
@@ -299,7 +292,7 @@ func settingsAgentBotsTabHTML() string {
                   </section>
 
                   <section class="agent-bot-form-section">
-                    <h3 class="agent-bot-form-section-title">Agent<span class="agent-bot-form-section-rule hairline"></span></h3>
+                    <h3 class="agent-bot-form-section-title">Agent</h3>
                     <div class="agent-bot-form-row">
                       <div>
                         <label class="agent-bot-form-label">Agent</label>
@@ -331,7 +324,7 @@ func settingsAgentBotsTabHTML() string {
                   <section class="agent-bot-form-section agent-bot-form-section-triggers">
                     <div class="agent-bot-trigger-section-top">
                       <div class="agent-bot-trigger-section-hdr">
-                        <h3 class="agent-bot-form-section-title">Triggers<span class="agent-bot-form-section-rule hairline"></span></h3>
+                        <h3 class="agent-bot-form-section-title">Triggers</h3>
                       </div>
                       <p class="agent-bot-section-desc">Automatically run this agent bot on vault events or on a schedule. Each trigger sends a prompt template to the agent.</p>
                     </div>

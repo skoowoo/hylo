@@ -214,20 +214,16 @@
        caller that can't use it — .img-card, which needs its thumbnail
        flush to the border — overrides back to 0. ── */
     .list-card {
-      border: var(--bd-w) solid var(--border-strong);
+      border: var(--bd-w) solid transparent;
       border-radius: var(--r-lg);
-      background: var(--bg);
+      background: var(--surface-soft);
       padding: 0.875rem 1.25rem;
     }
     .list-card--hover:hover { background: var(--card-hov); }
     .list-card--clickable { cursor: pointer; }
     .list-card--clickable:hover { background: var(--card-hov); }
     .list-card--clickable:active { opacity: 0.85; }
-    /* --soft — sits on --surface-soft with no visible border instead of
-       --bg + --border-strong, for a card inside a pane that's already
-       --bg (so a bordered --bg card would read as floating/separate
-       rather than part of the list). Same idiom as home-note-row/img-card.
-       Combine with --hover or --clickable for the interaction tier. */
+    /* Kept as a no-op alias: every card is soft by default now. */
     .list-card--soft { border-color: transparent; background: var(--surface-soft); }
 
     /* ── Shared empty-state block — icon + title + description, centered.
@@ -452,7 +448,7 @@
     }
     .dialog-card {
       background: var(--bg);
-      border: var(--bd-w) solid var(--border-strong);
+      border: var(--bd-w) solid var(--line-edge);
       border-radius: var(--r-xl);
       padding: 1.5rem 1.5rem 1.25rem;
       width: 100%;

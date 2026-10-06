@@ -25,7 +25,7 @@
 .cselect-btn.open svg { transform: rotate(180deg); }
 .cselect-dropdown {
   position: absolute; top: calc(100% + 3px); left: 0; right: 0; z-index: 120;
-  background: var(--surface-soft); border: var(--bd-w) solid var(--border-strong);
+  background: var(--surface-soft); border: var(--bd-w) solid var(--line-edge);
   border-radius: var(--r-md);
   box-shadow: var(--shadow-sm) var(--shadow-color);
   overflow: hidden;
@@ -56,7 +56,7 @@
 /* Shared inset divider for any dropdown built on .cselect-dropdown — same
    recipe as content_pane.css's .content-pane-more-divider (hairline-faint,
    inset margin so it doesn't touch the dropdown's rounded edges). */
-.cselect-divider { margin: 0.25rem 0.55rem; border-top: var(--bd-w) solid var(--hairline-faint); }
+.cselect-divider { margin: 0.25rem 0.55rem; border-top: var(--bd-w) solid var(--line-hair); }
 
 /* ── Inline/ghost variant — same dropdown (.cselect-dropdown/-option
    above, unchanged), but a lightweight trigger for a control that lives

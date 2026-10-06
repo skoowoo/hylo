@@ -1089,7 +1089,7 @@ function homeCtrl() {
     _tagBorder(tag) {
       if (!tag) {
         var s = getComputedStyle(document.documentElement);
-        return s.getPropertyValue('--border-strong').trim() || 'rgba(244,244,245,0.09)';
+        return s.getPropertyValue('--line-edge').trim() || 'rgba(244,244,245,0.09)';
       }
       return this._tagPaletteColor(tag);
     },
@@ -1507,12 +1507,6 @@ function homeCtrl() {
     },
 
     // ── Shorts: inline composer ─────────────────────────────────────────
-    handleShortComposeKeydown(e) {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-        e.preventDefault();
-        void this.saveShortCompose();
-      }
-    },
     // Only intercepts the paste when it actually carries image file(s) —
     // a plain text paste (the common case) falls through untouched.
     handleShortComposePaste(e) {

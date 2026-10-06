@@ -103,7 +103,7 @@
        like it did with the wider box — only the visible line shrank. */
     .home-pane-resizer {
       flex: 0 0 var(--bd-w); min-width: 0;
-      background: var(--hairline);
+      background: var(--line-hair);
       cursor: col-resize;
       position: relative; z-index: 5;
     }
@@ -138,10 +138,7 @@
       display: flex; flex-direction: column;
       min-height: 0; overflow: hidden;
       padding: 0;
-      /* --hairline instead of --border — sidebar/content sit close enough
-         in tone now that the full-contrast --border reads as too heavy a
-         seam; the ink-alpha hairline keeps the boundary a thin, quiet line. */
-      border-right: var(--bd-w) solid var(--hairline);
+      border-right: var(--bd-w) solid var(--line-hair);
       /* Every "currently active" row in here (.home-side-item.is-active,
          .home-side-child.is-active, the content-pane-toggle icon button) just
          consumes the generic --control-active-bg, same as any other
@@ -156,15 +153,6 @@
        (html.macos .home-shell above); this just swaps the border to match. */
     html.macos .home-side {
       border-right-color: var(--sidebar-glass-border);
-    }
-    /* Every hairline in the glass sidebar shares this one line colour —
-       .home-side's own right border above, the mid-list separator, the
-       New Note button's outline, and the bottom row's top border — so they
-       read as one consistent (if restrained) set of dividers instead of
-       each drifting to its own contrast against the vibrancy. */
-    html.macos .home-side-sep,
-    html.macos .home-side-new-btn {
-      border-color: var(--sidebar-glass-border);
     }
     html.macos .home-side-sep { background: var(--sidebar-glass-border); }
     /* Active-row lift: a translucent wash instead of --control-active-bg's
@@ -226,12 +214,12 @@
       flex-shrink: 0;
       display: flex; align-items: center; justify-content: center; gap: 6px;
       margin: 2px 14px 10px; height: var(--btn-h);
-      background: transparent; border-radius: var(--r-md);
-      border: var(--bd-w) solid var(--border); color: var(--nav-fg); cursor: pointer;
+      background: var(--btn-bg); border-radius: var(--r-md);
+      border: none; color: var(--nav-fg); cursor: pointer;
       font-family: inherit; font-size: var(--text-sm); font-weight: 500;
       transition: background var(--motion-fast) ease;
     }
-    .home-side-new-btn:hover { background: var(--card-hov); color: var(--fg); }
+    .home-side-new-btn:hover { background: var(--btn-bg-hov); color: var(--fg); }
     .home-side-new-btn:active { opacity: 0.85; }
     .home-side-new-btn svg { width: 14px; height: 14px; flex-shrink: 0; }
     /* The reading-pane toggle's open state reuses the same surface-2 lift as every
@@ -267,7 +255,7 @@
        (visible), so it never resets their minimum size. */
     .home-side-sep {
       flex-shrink: 0;
-      height: var(--bd-w); background: var(--hairline); margin: 11px 8px;
+      height: var(--bd-w); background: var(--line-hair); margin: 11px 8px;
     }
     /* Row/hover/active/icon now come from the shared .side-nav-item /
        .side-nav-icon (base.css) — --control-active-bg still resolves to
@@ -518,9 +506,8 @@
     .home-list-body.is-grid .has-cover .home-note-row-preview-grid,
     .home-list-body.is-grid .has-cover .home-note-row-dir,
     .home-list-body.is-grid .has-cover .home-note-row-time { color: rgba(255, 255, 255, 0.78); text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45); }
-    .home-list-body.is-grid .has-cover .home-note-badge { color: #fff; border-color: rgba(255, 255, 255, 0.55); }
-    .home-list-body.is-grid .has-cover .home-note-badge--pin { border-color: transparent; }
-    .home-list-body.is-grid .has-cover .home-note-badge--done { background: #fff; color: #26262a; border-color: transparent; }
+    .home-list-body.is-grid .has-cover .home-note-badge { color: #fff; }
+    .home-list-body.is-grid .has-cover .home-note-badge--done { background: #fff; color: #26262a; }
     .home-list-body.is-grid .has-cover .home-note-badge--todo-track { stroke: rgba(255, 255, 255, 0.4); }
     .home-list-body.is-grid .has-cover .home-note-badge--todo-fill { stroke: #fff; }
     .home-list-body.is-grid .home-load-sentinel,
@@ -614,7 +601,7 @@
       position: fixed; top: -1000px; left: -1000px;
       padding: 4px 10px;
       background: var(--surface-soft);
-      border: var(--bd-w) solid var(--border-strong);
+      border: var(--bd-w) solid var(--line-edge);
       border-radius: var(--r-md);
       font-size: var(--text-xs);
       color: var(--fg);
@@ -690,12 +677,12 @@
       flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
       width: var(--space-md); height: var(--space-md);
       font-size: var(--text-2xs); font-weight: var(--fw-medium); letter-spacing: 0;
-      color: var(--fg); border: var(--bd-w) solid var(--border-strong);
+      color: var(--fg);
       border-radius: var(--r-full);
     }
     .home-note-badge svg { width: 10px; height: 10px; }
-    .home-note-badge--done { background: var(--fg); color: var(--bg); border-color: transparent; }
-    .home-note-badge--pin { background: transparent; border-color: transparent; color: var(--fg); }
+    .home-note-badge--done { background: var(--fg); color: var(--bg); }
+    .home-note-badge--pin { background: transparent; color: var(--fg); }
     .home-note-badge--pin svg { width: 14px; height: 14px; }
     /* Checklist progress ring — same size as the pin/compiled circles, just
        filled by an SVG arc instead of an icon glyph, so a partly-done
@@ -711,7 +698,7 @@
        already uses elsewhere (a compiled note) — one shared "done" visual
        language project-wide, rather than a second checkmark style just for
        checklists. */
-    .home-note-badge--todo { border-color: transparent; padding: 0; }
+    .home-note-badge--todo { padding: 0; }
     .home-note-badge--todo svg { width: 100%; height: 100%; }
     .home-note-badge--todo-track { fill: none; stroke: rgba(var(--accent-rgb), 0.22); stroke-width: 2.5; }
     .home-note-badge--todo-fill {
@@ -822,7 +809,7 @@
     .tag-picker-search { flex-shrink: 0; padding: 0.15rem 0.15rem 0.4rem; }
     .tag-picker-search input {
       width: 100%; height: 28px; padding: 0 0.55rem;
-      border: var(--bd-w) solid var(--border); border-radius: var(--r-sm);
+      border: var(--bd-w) solid var(--line-edge); border-radius: var(--r-sm);
       background: var(--btn-bg); color: var(--fg);
       font-family: inherit; font-size: var(--text-sm);
     }
@@ -846,17 +833,6 @@
       display: flex;
       flex-direction: column;
       gap: 0;
-    }
-    .short-entry-card {
-      padding: 16px 0;
-      border-bottom: 1px solid var(--border);
-      transition: opacity var(--motion-fast) ease;
-    }
-    .short-entry-card:last-child {
-      border-bottom: none;
-    }
-    .short-entry-card:hover {
-      opacity: 0.85;
     }
     .short-entry-time {
       margin-bottom: 8px;
@@ -901,7 +877,7 @@
     .short-entry-prose blockquote {
       margin: 0.45em 0;
       padding: 0.3em 0 0.3em 0.65em;
-      border-left: 1px solid var(--hairline);
+      border-left: var(--bd-w) solid var(--line-hair);
       border-radius: 0;
       color: var(--muted);
       opacity: 1;

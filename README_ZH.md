@@ -40,7 +40,6 @@
 - [安装](#安装)
 - [Obsidian 兼容](#obsidian-兼容)
 - [编辑器](#编辑器)
-- [Shorts 速记流](#shorts-速记流)
 - [Agent Bots](#agent-bots)
 - [微信](#微信)
 - [Discord](#discord)
@@ -123,7 +122,7 @@ Hylo 提供全文搜索，但更重要的是让 agent 替你检索。当你需�
                                   │
                                   ▼
 ┌────────────────────────────────────────────────────────────────────┐
-│                           Hylo Server                            │
+│                           Hylo Server                              │
 └──────┬─────────────────┬─────────────────┬─────────────────┬───────┘
        │                 │                 │                 │
        ▼                 ▼                 ▼                 ▼
@@ -221,39 +220,6 @@ Hylo 内置 WYSIWYG Markdown 编辑器，打开笔记默认进入富文本模式
 
 输入 `[[` 插入 wikilink，别名写法与 Obsidian 一致：`[[页面名|别名]]`。图片用 `![[文件名.png]]` 嵌入。
 
-#### 查找与替换
-
-在编辑器内按 `⌘F`（`Ctrl+F`）打开查找/替换面板。若当前处于 WYSIWYG 模式，会自动切换到 Source 模式后打开面板。点击 **Aa** 按钮可切换大小写敏感。用 Enter / Shift+Enter 在匹配项间跳转，支持单个替换或全部替换。按 `Escape` 关闭。
-
-#### 选中工具条
-
-在 WYSIWYG 模式下选中文字后，浮动工具条会出现在选区上方：
-
-- **行内格式切换**：加粗、斜体、删除线、行内代码
-- **块级格式切换**：H1-H4、引用块、无序列表、有序列表（选区跨块级内容时显示）
-- **字数统计**：显示当前选区的字数
-- **复制 Markdown**：把选区的原始 Markdown 复制到剪贴板
-- **⚡ 存为 Short**：把选区追加到今天的 Short Notes，并自动附上 `[[来源笔记]]` 反向链接
-- **关闭**：收起选区并隐藏工具条
-
-## Shorts 速记流
-
-Shorts 是一个轻量的日常捕捉流，按天存储的速记条目，保存在 vault 的 `/_shorts/` 目录下，每天一个 Markdown 文件。
-
-#### ⚡ 记录
-
-| 方式         | 操作                                                                   |
-| ------------ | ---------------------------------------------------------------------- |
-| 快速笔记     | 在 App 任意位置按 `⌘.`（`Ctrl+.`）全屏 Zen 模式；`⌘↵` 保存，`Esc` 退出 |
-| 从编辑器存入 | 选中任意段落 → 点工具条中的 **⚡**                                      |
-
-快速笔记采用全屏沉浸式设计，没有工具栏，没有按钮，只有你和文字。从编辑器存入时，Hylo 会自动在条目末尾附上 `[[来源笔记]]` 反向链接，方便日后追溯。
-
-#### 📅 查看
-
-- **Stream 流**：按日期分组的时间线，今天的条目显示在最上方，向下滚动加载更早的记录
-- **Calendar 日历**：月视图，标记哪些日期有记录，点击任意日期跳转到当天的条目
-
 ## Agent Bots
 
 Agent Bot 就是你在 **Settings → Agent Bots** 里养的私人 AI。每个 agent bot 有自己的名字、系统 prompt，以及背后驱动它的 agent CLI。
@@ -272,6 +238,16 @@ Agent Bot 最有意思的地方是事件驱动：配好触发器，你什么都�
 | `wechat_message`     | 收到微信私信                 |
 | `discord_message`    | 收到 Discord 私信            |
 | `compile_requested`  | 手动触发了 LLM Wiki 编译     |
+
+#### 🧩 模板
+
+点击 **New Agent Bot** 后可以直接选择模板，触发器和 prompt 都已配好，确认 agent、模型和 prompt 后保存即可。也可以选 **Blank** 从零开始。
+
+| 模板           | 作用                                                         |
+| -------------- | ------------------------------------------------------------ |
+| `Compiler`     | 把笔记编译成知识单元，支持手动触发，`/Web Clips/` 新笔记自动编译 |
+| `Daily Memory` | 每天 09:00 自动更新个人记忆                                  |
+| `Recap`        | 新速记自动与知识库交叉比对，每周回顾一周写下的内容           |
 
 #### 底层 Agent
 
@@ -309,7 +285,7 @@ Agent Bot 最有意思的地方是事件驱动：配好触发器，你什么都�
 5. Prompt 模板写：
 
    ```
-   {{.Content}}
+   {Content}
    ```
 
 6. 保存
@@ -346,33 +322,28 @@ Bot 要能给你发主动消息（如定时推送），需要和你在同一个�
 
 ## LLM-Wiki 编译器
 
-让 AI 自动把笔记编译成结构化知识，构建互联的 LLM Wiki 网络，不用自己整理。
+让 AI 自动把笔记编译成 `/_knowledge` 下的结构化知识单元，构建互联的 LLM Wiki 网络，不用自己整理。
 
 #### 第一步：打开编译器
 
 **Settings → Server → Config → Compile** 开启，默认就是开的。
 
-#### 第二步：创建一个带编译触发器的 Agent Bot
+#### 第二步：用 `Compiler` 模板创建 Agent Bot
 
-在 **Settings → Agent Bots** 里新建 agent bot，触发方式有两种，按需选：
+1. **Settings → Agent Bots** → **New Agent Bot**
+2. 选择 **Compiler** 模板
+3. 选好 agent 和模型，保存
 
-1. 新笔记进来自动编译（`note_created` + Path Prefix）
+模板自带两个触发器：
 
-**Event** 选 `note_created`，填上 **Path Prefixes**（比如 `/Web Clips/`）。以后这个目录里一有新笔记，agent bot 就自动跑。
+| 触发器              | 什么时候触发                                         |
+| ------------------- | ---------------------------------------------------- |
+| `compile_requested` | 你在 app 里手动发起编译（如笔记操作菜单）            |
+| `note_created`      | `/Web Clips/` 下有新笔记，剪藏的网页自动编译         |
 
-示例 prompt：
-```
-使用 compile skill 编译笔记 `{{.Path}}` ，编译完成后使用 index skill 更新知识索引。
-```
+每次运行会先用 `hylo-compile-note` skill 编译笔记，再用 `hylo-index-knowledge` 更新知识索引，最后用 `humanizer` 润色新生成的知识单元。
 
-2. 手动触发（`compile_requested`）
-
-**Event** 选 `compile_requested`。你在 app 里手动发起编译时触发，更灵活。
-
-示例 prompt：
-```
-使用 compile skill 编译笔记 `{{.Path}}` ，编译完成后使用 index skill 更新知识索引。
-```
+想让其他目录也自动编译，编辑 `note_created` 触发器的 **Path Prefixes**（比如 `/journal/`）即可。
 
 ## 个人记忆（Memory）
 
@@ -380,7 +351,22 @@ Hylo 能从你的笔记里提取个人记忆，生成六个结构化文件（身
 
 默认只扫**速记**（`/_shorts`）和**知识库**（`/_knowledge`）。如果你想多扫几个目录，在 prompt 里说一句就行。
 
-#### 💬 方式一：直接在 Chat 里让 agent 跑
+#### ⏰ 方式一：用 `Daily Memory` 模板创建（推荐）
+
+1. **Settings → Agent Bots** → **New Agent Bot**
+2. 选择 **Daily Memory** 模板
+3. 选好 agent 和模型
+4. 打开 `scheduled` 触发器，把 prompt 里的 `[name]`、`[project]` 换成你的自我介绍，需要的话调整时间（默认每天 09:00）。想多扫几个目录就加一句：
+
+   ```
+   请更新我的个人记忆。我是 XXX，目前在做 YYY 项目。另外请扫描 /journal/ 目录。
+   ```
+
+5. 保存
+
+之后每天定时自动更新，你什么都不用管。
+
+#### 💬 方式二：直接在 Chat 里让 agent 跑
 
 对着任意 agent 说一句话就能触发：
 
@@ -389,30 +375,6 @@ Hylo 能从你的笔记里提取个人记忆，生成六个结构化文件（身
 ```
 
 Agent 会自己调用 `hylo-memory` skill 完成提取。首次运行扫最近 90 天，之后每次增量只扫最近 2 天，很快。
-
-#### ⏰ 方式二：定时 Agent Bot，每天自动更新
-
-懒人方案。在 **Settings → Agent Bots** 里建一个定时 Agent Bot，让它每天自己跑。
-
-1. **Settings → Agent Bots** → **New Agent Bot**
-2. 名字随便起，比如 `Daily Memory`，选好 agent 和模型
-3. **Triggers** → **+ Add trigger**
-4. **Event** 选 `scheduled`，设好每天的执行时间（比如每天 08:00）
-5. Prompt 写上你的自我介绍：
-
-   ```
-   请更新我的个人记忆。我是 XXX，目前在做 YYY 项目。
-   ```
-
-   想多扫几个目录就加一句：
-
-   ```
-   请更新我的个人记忆。我是 XXX，目前在做 YYY 项目。另外请扫描 /journal/ 目录。
-   ```
-
-6. 保存
-
-之后每天定时自动跑，你什么都不用管。
 
 ## Skills
 
@@ -486,20 +448,3 @@ LLM Wiki 编译行为由 `~/.hylo/skills/hylo-compile-note/SKILL.md` 定义。�
 #### 5. 安装或编写自定义 Skill
 
 将任意 skill 目录放入 `~/.hylo/skills/`，然后在**设置 → Skills** 中启用即可。Agent 通过目录名来引用 skill。
-
-## 快捷键
-
-| 操作              | macOS | Windows / Linux |
-| ----------------- | ----- | --------------- |
-| 关闭弹窗          | `Esc` | `Esc`           |
-| 搜索              | `⌘K`  | `Ctrl+K`        |
-| 新建笔记          | `⌘N`  | `Ctrl+N`        |
-| 快速笔记          | `⌘.`  | `Ctrl+.`        |
-| 切换编辑器        | `⌘O`  | `Ctrl+O`        |
-| 关闭当前标签页    | `⌘W`  | `Ctrl+W`        |
-| 查找与替换        | `⌘F`  | `Ctrl+F`        |
-| 展开 / 收缩编辑器 | `⌘\`  | `Ctrl+\`        |
-| 跳转到笔记页      | `⌘1`  | `Ctrl+1`        |
-| 跳转到 Agent Chat | `⌘2`  | `Ctrl+2`        |
-| 刷新              | `⌘R`  | `Ctrl+R`        |
-| 设置              | `⌘,`  | `Ctrl+,`        |

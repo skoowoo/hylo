@@ -35,14 +35,11 @@ const appTokensShared = `
       --btn-bg-on:rgba(var(--ink-rgb),0.15);
       --input-focus-ring:rgba(var(--accent-rgb),0.16);
       --selection-bg:rgba(var(--accent-rgb),0.30);
-      /* --hairline: secondary seam (bg already differs, or inside a bordered card).
-         --border/--border-strong: sole separator or floating outer edge.
-         --hairline-faint: one notch quieter still — a divider *inside* an
-         already-bordered floating panel (e.g. content-pane's more-menu),
-         where a full hairline reads as too heavy a line for what's really
-         just whitespace with a hint of a seam. */
-      --hairline:rgba(var(--ink-rgb),0.13);
-      --hairline-faint:rgba(var(--ink-rgb),0.07);
+      /* --line-hair: structural seam between regions (sidebar/content, list rows).
+         --line-edge: outer edge of a floating surface or input; always paired
+         with a shadow. Prefer a bg step or whitespace over either. */
+      --line-hair:rgba(var(--ink-rgb),0.09);
+      --line-edge:rgba(var(--ink-rgb),0.16);
       --nav-fg:rgba(var(--ink-rgb),0.82);
       --cm-active-line:rgba(var(--ink-rgb),0.04);
       --cnt-bg:rgba(var(--ink-rgb),0.07);
@@ -89,7 +86,7 @@ const appTokensShared = `
       --srch-ic:var(--muted); --srch-ph:var(--muted-soft); --srch-av:var(--control-active-bg); --srch-backdrop:var(--overlay-bg);
       --sr-dir:var(--cover-dir); --sr-tm:var(--muted); --sr-ic:var(--muted); --sr-em:var(--muted);
       --srch-kbd-fg:var(--fg);
-      --srch-panel-bd:var(--border-strong); --srch-row-bd:var(--border);
+      --srch-panel-bd:var(--line-edge); --srch-row-bd:var(--line-hair);
 
       /* Lightbox/images — fixed veil over arbitrary photos. */
       --lightbox-overlay-bg:rgba(0,0,0,0.4); --lightbox-viewer-bg:#0c0c0c;
@@ -127,8 +124,7 @@ const appTokensDark = `
       --sidebar-glass-active:rgba(255,255,255,0.08);
       --sidebar-glass-scrollbar-thumb:rgba(255,255,255,0.10); --sidebar-glass-scrollbar-thumb-hov:rgba(255,255,255,0.20);
       --canvas:#ffffff; --muted-soft:#656a78; --body:#d0d6e0;
-      --border:#35363f; --border-strong:#44454f;
-      --accent-hov:#7b86e8;
+            --accent-hov:#7b86e8;
       /* Accent as text on the canvas (links, active labels): lifted for dark; fills keep --accent. */
       --accent-text:#707ad7;
       --cover-dir:#8d92a0;
@@ -155,8 +151,7 @@ const appTokensLight = `
       /* Over vibrancy, flat --scrollbar-thumb reads too dark — keep lower. */
       --sidebar-glass-scrollbar-thumb:rgba(0,0,0,0.11); --sidebar-glass-scrollbar-thumb-hov:rgba(0,0,0,0.20);
       --canvas:#ffffff; --muted-soft:#9b9eac; --body:#3f4147;
-      --border:#d2d2d9; --border-strong:#bcbcc5;
-      --accent-hov:#4c56c8;
+            --accent-hov:#4c56c8;
       --accent-text:var(--accent);
       --cover-dir:#6b7280;
       --cnt-tx:#6b7280;

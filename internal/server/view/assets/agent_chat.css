@@ -345,8 +345,7 @@
       align-items: center;
       justify-content: center;
       padding: 0.15rem 0.4rem;
-      background: var(--bg);
-      border: var(--bd-w) solid var(--border-strong);
+      background: var(--btn-bg);
       border-radius: var(--r-xs);
       font-size: 0.68rem;
       font-family: var(--font-mono);
@@ -553,11 +552,11 @@
       top: 2px;
       bottom: 2px;
       width: var(--bd-w);
-      background: var(--hairline);
+      background: var(--line-hair);
     }
 
     .seg-trace.is-live .seg-trace-body::before {
-      background: linear-gradient(to bottom, var(--hairline) 60%, var(--accent-text));
+      background: linear-gradient(to bottom, var(--line-hair) 60%, var(--accent-text));
     }
 
     .seg-trace .seg-thinking {
@@ -575,7 +574,7 @@
       height: 2px;
       overflow: hidden;
       border-radius: 1px;
-      background: var(--hairline);
+      background: var(--line-hair);
       pointer-events: none;
     }
 
@@ -606,7 +605,7 @@
 
     /* Thinking */
     .seg-thinking {
-      border-left: var(--bd-w) solid var(--hairline);
+      border-left: var(--bd-w) solid var(--line-hair);
       padding-left: 0.7rem;
     }
 
@@ -790,8 +789,7 @@
 
     .seg-tool-result-content {
       padding: 0.45rem 0.65rem;
-      background: var(--bg);
-      border: var(--bd-w) solid var(--border-strong);
+      background: var(--btn-bg);
       font-size: var(--text-xs);
       font-family: var(--font-mono);
       color: var(--muted);
@@ -889,8 +887,7 @@
 
     .seg-console {
       padding: 0.4rem 0.65rem;
-      background: var(--bg);
-      border: var(--bd-w) solid var(--border-strong);
+      background: var(--btn-bg);
       font-family: var(--font-mono);
       font-size: var(--text-xs);
       color: var(--muted);
@@ -942,7 +939,6 @@
 
     .msg-status-banner.is-stopped {
       background: var(--btn-bg);
-      border: var(--bd-w) solid var(--border-strong);
       color: var(--muted);
     }
 
@@ -1089,7 +1085,7 @@
       flex-direction: column;
       background-color: var(--bg);
       background-image: linear-gradient(var(--btn-bg), var(--btn-bg));
-      border: var(--bd-w) solid var(--border-strong);
+      border: var(--bd-w) solid var(--line-edge);
       border-radius: var(--r-xl);
       box-shadow: var(--shadow-sm) var(--shadow-color);
       overflow: hidden; /* clips the scrollable list to the panel's rounded corners */
@@ -1144,7 +1140,7 @@
       /* hairline-faint, not border-strong — this line only needs to read as
          "whitespace with a hint of a seam" inside a panel that already has
          its own outer border, not a second real separator. */
-      border-top: var(--bd-w) solid var(--hairline-faint);
+      border-top: var(--bd-w) solid var(--line-hair);
     }
 
     /* Single-row capsule composer — was textarea-on-top + a separate fixed
@@ -1188,7 +1184,6 @@
        shape, the textarea should grow from the top instead, with the
        shortcut hint and send button anchored to the bottom beside it. */
     .chat-input-card.is-multiline .chat-textarea { align-self: flex-start; }
-    .chat-input-card.is-multiline .chat-shortcut-hint { align-self: flex-end; }
 
     .chat-input-hint {
       position: absolute;
@@ -1237,15 +1232,6 @@
     .chat-textarea:disabled {
       opacity: 0.5;
       cursor: not-allowed;
-    }
-
-    .chat-shortcut-hint {
-      flex-shrink: 0;
-      font-size: var(--text-xs);
-      color: var(--muted-soft);
-      user-select: none;
-      white-space: nowrap;
-      align-self: center;
     }
 
     .chat-send-circle {

@@ -137,7 +137,8 @@
       display: flex; width: 100%; max-width: 1080px;
       height: 80vh; max-height: 820px;
       overflow: hidden;
-      background: var(--surface-soft); border: var(--bd-w) solid var(--border);
+      background: var(--surface-soft);
+      box-shadow: var(--shadow-lg) var(--shadow-color);
       border-radius: var(--r-xl);
       transition: transform var(--motion-slow) ease;
       user-select: none;
@@ -159,14 +160,13 @@
     .lb-sidebar {
       flex: 0 0 256px; width: 256px;
       display: flex; flex-direction: column;
-      border-left: var(--bd-w) solid var(--hairline);
+      border-left: var(--bd-w) solid var(--line-hair);
       background: var(--surface-soft);
     }
     .lb-sidebar-head {
       flex-shrink: 0;
       display: flex; align-items: center; gap: 0.5rem;
       padding: 0.75rem 0.875rem;
-      border-bottom: var(--bd-w) solid var(--hairline);
       min-height: 44px;
     }
     .lb-sidebar-title {
@@ -202,17 +202,17 @@
       font-family: var(--font-mono);
       font-size: var(--text-xs); font-weight: 400;
     }
-    .lb-divider { height: 2px; background: var(--border); margin: 0.5rem 0 0.875rem; }
+    .lb-divider { height: var(--bd-w); background: var(--line-hair); margin: 0.5rem 0 0.875rem; }
 
     /* ── Linked note cards ───────────────────────────────────────── */
     .lb-note-card {
       display: flex; align-items: flex-start; gap: 0.5rem;
       padding: 0.5rem 0.6rem;
-      border: var(--bd-w) solid var(--border-strong); background: var(--bg);
+      background: var(--btn-bg); border-radius: var(--r-md);
       margin-bottom: 0.4rem; cursor: pointer;
     }
     .lb-note-card:hover {
-      background: transparent; border-color: var(--border-strong);
+      background: var(--btn-bg-hov);
     }
     .lb-note-card:active {
       opacity: 0.85;

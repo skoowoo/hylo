@@ -217,7 +217,7 @@ export const livePreviewTheme = EditorView.theme({
     border: 'none',
     margin: '0',
     borderRadius: '0',
-    borderTop: '1px solid var(--border, #d2d2d9)',
+    borderTop: '1px solid var(--line-edge, rgba(24,24,27,0.16))',
     padding: '0.5em 0',
   },
   '.cm-lp-hr.cm-lp-hr-tight-bottom': {

@@ -991,7 +991,6 @@
     var jumpBtn = rootEl.querySelector('#chat-jump');
     var descEl = rootEl.querySelector('#chat-bot-desc');
     var seg = rootEl.querySelector('#chat-conv-seg');
-    var shortcut = rootEl.querySelector('#chat-shortcut-hint');
     var spacer = el('div', 'chat-scroll-spacer');
     spacer.id = 'chat-scroll-spacer';
     spacer.setAttribute('aria-hidden', 'true');
@@ -1012,8 +1011,6 @@
     var timeTimer = 0;
     var emptyKind = '';
     var lastPrependSeq = api.state().prependSeq;
-
-    if (shortcut) shortcut.textContent = isMac ? '⌘↵' : 'Ctrl+↵';
 
     function onCopied(id, onIcon) {
       var row = rows.get(id);
@@ -1264,7 +1261,18 @@
       });
       on(ta, 'keydown', function (e) {
         if (ac && ac.handleKeydown(e)) return;
-        if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); void api.send(); }
+        if (e.isComposing || e.keyCode === 229) return;
+        var hk = window.__hyloHotkeys;
+        if (!hk) return;
+        var combo = hk.comboOf(e);
+        if (combo !== 'Enter' && !/\+Enter$/.test(combo || '')) return;
+        var custom = hk.custom || {};
+        if (combo === (custom['chat-send'] || 'Enter')) { e.preventDefault(); void api.send(); }
+        else if (combo === (custom['chat-newline'] || 'Shift+Enter')) {
+          e.preventDefault();
+          ta.setRangeText('\n', ta.selectionStart, ta.selectionEnd, 'end');
+          ta.dispatchEvent(new Event('input', { bubbles: true }));
+        }
       });
     }
 

@@ -21,9 +21,8 @@ const settingsModalCSS = `
       width: 1040px; max-width: calc(100vw - 2rem);
       height: 720px; max-height: calc(100vh - 2rem);
       background: var(--bg);
-      /* --hairline, not --border — the shadow below already carries the
-         floating edge; the line itself just needs to be a whisper. */
-      border: var(--bd-w) solid var(--hairline);
+      /* Shadow carries the floating edge; the line is only a whisper. */
+      border: var(--bd-w) solid var(--line-hair);
       border-radius: var(--r-xl);
       box-shadow: var(--shadow-lg) var(--shadow-color);
       display: flex; flex-direction: column; overflow: hidden;
@@ -60,9 +59,7 @@ const settingsModalCSS = `
     /* ── Primary sidebar ──────────────────────────────────────── */
     .settings-sidebar {
       flex-shrink: 0; width: 196px;
-      /* --hairline, not --border — matches .home-side's sidebar/content
-         seam (home.css) so both dividers read at the same weight. */
-      border-right: var(--bd-w) solid var(--hairline);
+      border-right: var(--bd-w) solid var(--line-hair);
       background: var(--surface-soft);
       padding: 1rem 0.5rem; display: flex; flex-direction: column;
       gap: 2px; user-select: none;

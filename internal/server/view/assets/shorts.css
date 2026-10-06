@@ -46,7 +46,7 @@
       width: 100%;
       margin-bottom: var(--space-lg);
       background: var(--bg);
-      border: var(--bd-w) solid var(--border-strong);
+      border: var(--bd-w) solid var(--line-edge);
       border-radius: var(--r-xl); /* matches .chat-input-card.is-multiline */
     }
     .shorts-compose-card:focus-within { background: var(--surface-soft); }
@@ -316,7 +316,6 @@
     .shorts-end-msg {
       padding: var(--space-lg) 0 var(--space-xxl);
       padding-top: 16px;
-      border-top: var(--bd-w) solid var(--border-strong);
       text-align: center;
       font-size: var(--text-3xs);
       font-family: var(--font-mono);

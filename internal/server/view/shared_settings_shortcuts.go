@@ -6,9 +6,8 @@ const settingsShortcutsCSS = `
     .shortcuts-list { display: flex; flex-direction: column; }
     .shortcuts-row {
       display: flex; align-items: center; justify-content: space-between;
-      padding: 0.55rem 0; border-bottom: var(--bd-w) solid var(--hairline); gap: 1rem;
+      padding: 0.6rem 0; gap: 1rem;
     }
-    .shortcuts-list .shortcuts-row:last-child { border-bottom: none; }
     .shortcuts-row-meta { min-width: 0; flex: 1; }
     .shortcuts-label { font-size: var(--text-sm); font-weight: 600; color: var(--fg); display: block; }
     .shortcuts-desc { font-size: var(--text-xs); color: var(--muted); margin-top: 0.1rem; }
@@ -17,12 +16,12 @@ const settingsShortcutsCSS = `
       display: inline-flex; align-items: center;
       padding: 0.18rem 0.42rem;
       border-radius: var(--r-xs);
-      background: var(--bg); border: var(--bd-w) solid var(--border-strong);
+      background: var(--btn-bg); border: var(--bd-w) solid transparent;
       font-family: var(--font-mono);
       font-size: var(--text-xs); color: var(--fg); white-space: nowrap; line-height: 1.4;
     }
     button.kbd { cursor: pointer; }
-    button.kbd:hover { border-color: var(--fg); }
+    button.kbd:hover { background: var(--btn-bg-hov); }
     .kbd-recording { border-color: var(--accent, var(--fg)); color: var(--muted); }
     .shortcuts-btn {
       background: none; border: none; padding: 0; cursor: pointer;
@@ -82,6 +81,8 @@ const settingsShortcutsJS = `
         { id: 'reading-mode',   label: 'Reading Mode',           desc: 'Toggle read-only view for saved notes',     key: 'Mod+L', editable: true },
         { id: 'refresh',        label: 'Refresh',                desc: 'Reload the current page',                   key: 'Mod+R' },
         { id: 'open-settings',  label: 'Settings',               desc: 'Open the settings dialog',                  key: 'Mod+,' },
+        { id: 'chat-send',      label: 'Chat: Send',             desc: 'Send the message in the agent chat input',  key: 'Enter',       editable: true, chat: true },
+        { id: 'chat-newline',   label: 'Chat: New Line',         desc: 'Insert a line break in the agent chat input', key: 'Shift+Enter', editable: true, chat: true },
       ],
       // Taken by the OS/webview menus or hard-wired elsewhere (find).
       reservedKeys: ['Mod+Q', 'Mod+H', 'Mod+Alt+H', 'Mod+M', 'Mod+X', 'Mod+C', 'Mod+V', 'Mod+A', 'Mod+Z', 'Mod+Y', 'Mod+Shift+Z', 'Mod+F'],
@@ -112,7 +113,9 @@ const settingsShortcutsJS = `
         this.setCombo(s, combo);
       },
       validateCombo(s, combo) {
-        if (!combo.startsWith('Mod+') && !/^F\d+$/.test(combo)) return 'Include ' + (this.isMac ? '⌘' : 'Ctrl') + ' or use a function key';
+        if (s.chat) {
+          if (!/(^|\+)Enter$/.test(combo)) return 'Chat shortcuts must use Enter';
+        } else if (!combo.startsWith('Mod+') && !/^F\d+$/.test(combo)) return 'Include ' + (this.isMac ? '⌘' : 'Ctrl') + ' or use a function key';
         if (/(^|\+)(Ctrl|Meta)\+/.test(combo)) return 'Unsupported modifier';
         if (this.reservedKeys.includes(combo)) return this.fmtCombo(combo) + ' is reserved by the system';
         const other = this.shortcutDefs.find(d => d.id !== s.id && this.getCombo(d) === combo);

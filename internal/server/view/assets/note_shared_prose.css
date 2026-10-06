@@ -134,7 +134,7 @@
        own two corners, so every markdown "---" rule reads as a tiny rounded
        pill instead of a flat line. Goldmark emits a bare <hr>, so there's no
        class to hang the shared .hairline utility off of here. */
-    .prose hr { border: none; border-top: 1px solid var(--border); border-radius: 0; margin: 2em 0; }
+    .prose hr { border: none; border-top: 1px solid var(--line-hair); border-radius: 0; margin: 2em 0; }
     .prose img { border: 1px solid var(--tbl-bd); border-radius: var(--r-sm); max-width: 100%; height: auto; }
 
     /* ── Task list (GFM - [ ] / - [x]) ──────────────────────────── */

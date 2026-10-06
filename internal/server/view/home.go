@@ -733,7 +733,6 @@ const homeShortsSectionHTML = `<div class="shorts-view">
         <textarea id="shorts-compose-input" class="shorts-compose-input" rows="2"
                   placeholder="Write a short…" spellcheck="false" x-model="shortComposeText"
                   :disabled="shortComposeSaving"
-                  @keydown="handleShortComposeKeydown($event)"
                   @paste="handleShortComposePaste($event)"
                   @input="autoResize($event.target)"></textarea>
         <div class="shorts-compose-images" x-show="shortComposeImages.length" x-cloak>
@@ -757,7 +756,6 @@ const homeShortsSectionHTML = `<div class="shorts-view">
             <svg fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
           </button>
           <div class="shorts-compose-footer-right">
-            <span class="shorts-compose-hint" x-text="(isMac ? '⌘' : 'Ctrl+') + '↵ to save'"></span>
             <button type="button" class="shorts-compose-send"
                     :disabled="(!shortComposeText.trim() && !shortComposeImages.length) || shortComposeSaving || shortComposeImages.some(i => i.uploading)"
                     @click="saveShortCompose()">Save</button>
@@ -1125,8 +1123,7 @@ const homeChatSectionHTML = `<div class="chat-main" id="chat-root">
         <div class="chat-input-hint" id="chat-input-hint" aria-hidden="true">
           <span class="chat-hint-name" id="chat-hint-name"></span>
         </div>
-        <textarea class="chat-textarea" id="chat-textarea" rows="1" placeholder=""></textarea>
-        <span class="chat-shortcut-hint" id="chat-shortcut-hint"></span>
+        <textarea class="chat-textarea" id="chat-textarea" rows="1" placeholder="" spellcheck="false" autocorrect="off" autocapitalize="off"></textarea>
         <button type="button" class="chat-send-circle" id="chat-send" disabled>
           <svg fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" d="M12 19V5M5 12l7-7 7 7" />

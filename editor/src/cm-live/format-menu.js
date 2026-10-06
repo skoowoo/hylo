@@ -21,7 +21,7 @@ import { touchedLines } from './selection-lines.js';
 //
 // Visually this is a deliberate copy of content_pane.css's
 // .content-pane-more-menu/.content-pane-more-item/.content-pane-more-divider
-// (same padding/gap/font-size/icon-size/hover, same --hairline-faint inset
+// (same padding/gap/font-size/icon-size/hover, same --line-hair inset
 // divider) — cm-live/ can't reference those classes directly (app-agnostic
 // library, no Hylo DOM/class dependencies), so the rules are duplicated
 // here instead, using the same var-with-fallback convention as theme.js so
@@ -40,7 +40,7 @@ function ensureStyles() {
   max-width: min(320px, 90vw);
   padding: 0.25rem;
   background: var(--surface-soft, #ffffff);
-  border: var(--bd-w, 1px) solid var(--border, #d2d2d9);
+  border: var(--bd-w, 1px) solid var(--line-edge, rgba(24,24,27,0.16));
   border-radius: var(--r-md, 10px);
   box-shadow: var(--shadow-sm, 0 4px 16px) var(--shadow-color, rgba(0,0,0,0.16));
   font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);
@@ -63,11 +63,11 @@ function ensureStyles() {
 .cm-format-menu-row.is-active:hover { color: var(--accent-text, #5e6ad2); background: var(--tint-soft, rgba(94,106,210,0.1)); }
 /* Inset to the rows' own text padding, not the menu's edge, so the line
    reads as a quiet seam under the content rather than a bar spanning wider
-   than it — same rule and same --hairline-faint token as
+   than it — same rule and same --line-hair token as
    .content-pane-more-divider (that div sits inside a panel that already has
-   its own border, so even --hairline is too much weight here; same logic
+   its own border, so even --line-edge is too much weight here; same logic
    applies to this popup). */
-.cm-format-menu-sep { margin: 0.25rem 0.55rem; border-top: var(--bd-w, 1px) solid var(--hairline-faint, rgba(0,0,0,0.07)); }
+.cm-format-menu-sep { margin: 0.25rem 0.55rem; border-top: var(--bd-w, 1px) solid var(--line-hair, rgba(24,24,27,0.09)); }
 `;
   document.head.appendChild(style);
 }

@@ -42,7 +42,6 @@
 - [Installation](#installation)
 - [Obsidian Compatibility](#obsidian-compatibility)
 - [Editor](#editor)
-- [Shorts](#shorts)
 - [Agent Bots](#agent-bots)
 - [WeChat](#wechat)
 - [Discord](#discord)
@@ -125,7 +124,7 @@ Hylo ships full-text search, but the more important capability is letting agents
                                   │
                                   ▼
 ┌────────────────────────────────────────────────────────────────────┐
-│                           Hylo Server                            │
+│                           Hylo Server                              │
 └──────┬─────────────────┬─────────────────┬─────────────────┬───────┘
        │                 │                 │                 │
        ▼                 ▼                 ▼                 ▼
@@ -223,39 +222,6 @@ The editor supports CommonMark and GFM: headings, bold, italic, strikethrough, i
 
 Type `[[` to insert a wikilink. Aliases follow Obsidian syntax: `[[Page Name|Alias]]`. Embed images with `![[filename.png]]`.
 
-#### Find & Replace
-
-Press `⌘F` (`Ctrl+F`) to open the find & replace panel. If the editor is in WYSIWYG mode it switches to Source mode automatically, then opens the panel. Use the **Aa** button to toggle case-sensitive matching. Navigate matches with Enter / Shift+Enter, or replace one / all occurrences. Press `Escape` to close.
-
-#### Selection Toolbar
-
-Select any text in WYSIWYG mode and a floating toolbar appears above the selection:
-
-- **Inline format toggles**: Bold, Italic, Strikethrough, Inline code
-- **Block format toggles**: H1-H4, Blockquote, Bullet list, Ordered list (shown when the selection spans block-level content)
-- **Word count**: displays the word count of the selection
-- **Copy as Markdown**: copies the raw Markdown of the selection to the clipboard
-- **⚡ Save as Short**: appends the selection to today's Short Notes, with a `[[source]]` backlink to the current note
-- **Dismiss**: collapses the selection and hides the toolbar
-
-## Shorts
-
-Shorts is a lightweight daily capture stream, a rolling feed of timestamped quick notes stored under `/_shorts/` in your vault, one Markdown file per day.
-
-#### ⚡ Capturing
-
-| Method          | How                                                                                 |
-| --------------- | ----------------------------------------------------------------------------------- |
-| Quick Note      | Press `⌘.` (`Ctrl+.`) to open a full-screen Zen editor; `⌘↵` to save, `Esc` to exit |
-| From the editor | Select any passage → click **⚡** in the toolbar                                     |
-
-The Quick Note editor is distraction-free: no toolbar, no buttons, just you and the text. When saving from the editor, Hylo automatically appends a `[[source note]]` backlink so you can always trace a Short back to its origin.
-
-#### 📅 Viewing
-
-- **Stream**: a chronological feed grouped by date; today's entries appear at the top; scroll down to load older entries
-- **Calendar**: a month grid marking which days have entries; click any date to jump to that day's notes
-
 ## Agent Bots
 
 Agent Bots are custom AI agents you define in **Settings → Agent Bots**. Each agent bot has a name, a system prompt, and a backing agent CLI (any agent CLI detected on your PATH).
@@ -274,6 +240,16 @@ Add one or more triggers to an agent bot and it runs automatically whenever a ma
 | `wechat_message`     | A WeChat direct message is received                  |
 | `discord_message`    | A Discord DM is received                             |
 | `compile_requested`  | An LLM wiki compilation is manually triggered        |
+
+#### 🧩 Templates
+
+Click **New Agent Bot** and pick a template to get a ready-made agent bot with its triggers and prompts filled in. Review the agent, model, and prompt, then save. Or choose **Blank** to start from scratch.
+
+| Template       | What it does                                                                                              |
+| -------------- | --------------------------------------------------------------------------------------------------------- |
+| `Compiler`     | Compiles notes into knowledge units, on demand and automatically for new notes under `/Web Clips/`        |
+| `Daily Memory` | Updates your personal memory every day at 09:00                                                           |
+| `Recap`        | Cross-checks each new short note against your knowledge base, and reviews the past week's writing weekly  |
 
 #### Backing Agents
 
@@ -312,7 +288,7 @@ The WeChat iLink bridge begins polling for new DMs.
 
    Example prompt:
    ```
-   {{.Content}}
+   {Content}
    ```
 
 6. Save the agent bot
@@ -349,33 +325,28 @@ Done. Every incoming DM now triggers the agent bot and gets a reply.
 
 ## LLM-Wiki Compiler
 
-Compile notes into structured knowledge and build an interconnected LLM wiki network automatically.
+Compile notes into structured knowledge units under `/_knowledge` and build an interconnected LLM wiki network automatically.
 
 #### Step 1 — Enable the Compiler
 
-Go to **Settings → Server → Config → Compile** and enable the compiler. 
+Go to **Settings → Server → Config → Compile** and enable the compiler.
 
-#### Step 2 — Create an Agent Bot with a Compile Trigger
+#### Step 2 — Create an Agent Bot from the `Compiler` template
 
-Create an agent bot in **Settings → Agent Bots**, add a trigger, and choose one of the two compile trigger modes:
+1. Open **Settings → Agent Bots** and click **New Agent Bot**
+2. Pick the **Compiler** template
+3. Choose an agent and model, then save
 
-1. Auto-compile on note creation (`note_created` + Path Prefix)
+The template comes with two triggers:
 
-Set the **Event** to `note_created` and add one or more **Path Prefixes** (e.g. `/Web Clips/`). The agent bot fires automatically whenever a new note is created inside a matching directory.
+| Trigger             | When it fires                                                                         |
+| ------------------- | ------------------------------------------------------------------------------------- |
+| `compile_requested` | You manually compile a note in the app (e.g. from the note action menu)               |
+| `note_created`      | A new note is created under `/Web Clips/`, so clipped pages are compiled automatically |
 
-Example prompt:
-```
-Use the compile skill to compile note `{{.Path}}`, then use the index skill to update the knowledge index.
-```
+Each run compiles the note with the `hylo-compile-note` skill, updates the knowledge index with `hylo-index-knowledge`, then polishes the new units with `humanizer`.
 
-2. Manual compile trigger (`compile_requested`)
-
-Set the **Event** to `compile_requested`. The agent bot fires when you manually trigger compilation from within the app (e.g. via the note action menu).
-
-Example prompt:
-```
-Use the compile skill to compile note `{{.Path}}`, then use the index skill to update the knowledge index.
-```
+To auto-compile other directories, edit the `note_created` trigger and change its **Path Prefixes** (e.g. `/journal/`).
 
 ## Personal Memory
 
@@ -383,39 +354,30 @@ Hylo can automatically extract personal memories from your notes into six struct
 
 **Default scan scope**: short notes (`/_shorts`) and knowledge units (`/_knowledge`). You can also specify additional directories directly in the prompt.
 
-#### 💬 Option 1 — Trigger manually in chat
-
-Ask any agent directly in a conversation to update your personal memory. Example prompt:
-
-```
-Please update my personal memory. I'm [name], currently working on [project], … (brief self-introduction)
-```
-
-The agent invokes the `hylo-memory` skill and completes the extraction automatically. The first run scans the last 90 days; subsequent incremental runs scan only the last 2 days.
-
-#### ⏰ Option 2 — Create a scheduled Agent Bot Trigger (daily auto-run)
-
-Create an Agent Bot in **Settings → Agent Bots** with a `scheduled` trigger to update memory automatically every day.
+#### ⏰ Option 1 — Create from the `Daily Memory` template (recommended)
 
 1. Open **Settings → Agent Bots** and click **New Agent Bot**
-2. Give it a name (e.g. `Daily Memory`), pick an agent and model
-3. Under **Triggers**, click **+ Add trigger**
-4. Set the **Event** to `scheduled` and configure the time (e.g. daily at 08:00)
-5. Write a prompt:
-
-   ```
-   Please update my personal memory. I'm [name], currently working on [project].
-   ```
-
-   To scan extra directories, append them in the prompt:
+2. Pick the **Daily Memory** template
+3. Choose an agent and model
+4. Open the `scheduled` trigger and replace `[name]` and `[project]` in the prompt with a short self-introduction. Adjust the time if you like (default: daily 09:00). To scan extra directories, append them to the prompt:
 
    ```
    Please update my personal memory. I'm [name], currently working on [project]. Also scan /journal/.
    ```
 
-6. Save the agent bot
+5. Save the agent bot
 
-From this point on, memory updates run automatically once a day with no manual action required.
+Memory then updates automatically once a day.
+
+#### 💬 Option 2 — Trigger manually in chat
+
+Ask any agent in a conversation to update your personal memory:
+
+```
+Please update my personal memory. I'm [name], currently working on [project], … (brief self-introduction)
+```
+
+The agent invokes the `hylo-memory` skill and completes the extraction. The first run scans the last 90 days; later incremental runs scan only the last 2 days.
 
 ## Skills
 
@@ -489,20 +451,3 @@ The personal memory extraction behavior is defined in `~/.hylo/skills/hylo-memor
 #### 5. Install or Build Custom Skills
 
 Drop any skill directory into `~/.hylo/skills/`, then enable it in **Settings → Skills**. Skills are referenced by agents via their directory name.
-
-## Shortcuts
-
-| Action                 | macOS | Windows / Linux |
-| ---------------------- | ----- | --------------- |
-| Dismiss                | `Esc` | `Esc`           |
-| Search                 | `⌘K`  | `Ctrl+K`        |
-| New Note               | `⌘N`  | `Ctrl+N`        |
-| Quick Note             | `⌘.`  | `Ctrl+.`        |
-| Toggle Editor          | `⌘O`  | `Ctrl+O`        |
-| Close Editor Tab       | `⌘W`  | `Ctrl+W`        |
-| Find & Replace         | `⌘F`  | `Ctrl+F`        |
-| Expand / Shrink Editor | `⌘\`  | `Ctrl+\`        |
-| Go to Notes            | `⌘1`  | `Ctrl+1`        |
-| Go to Agent Chat       | `⌘2`  | `Ctrl+2`        |
-| Refresh                | `⌘R`  | `Ctrl+R`        |
-| Settings               | `⌘,`  | `Ctrl+,`        |

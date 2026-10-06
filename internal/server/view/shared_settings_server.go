@@ -17,7 +17,7 @@ const settingsServerCSS = `
       justify-content: space-between; flex-wrap: wrap;
       gap: 0.75rem 1rem; padding: 1rem 1.5rem;
       background: var(--bg);
-      border-top: var(--bd-w) solid var(--hairline);
+      border-top: var(--bd-w) solid var(--line-hair);
     }
     .cfg-action-bar-inner { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem 1rem; width: 100%; max-width: 640px; }
     .cfg-action-left { display: flex; align-items: center; gap: 0.75rem; flex: 1; min-width: 0; }
@@ -60,8 +60,7 @@ const settingsServerCSS = `
       display: grid;
       grid-template-columns: 1fr 220px;
       grid-template-areas: "meta ctrl" "desc desc";
-      column-gap: 1rem; padding: 0.88rem 0;
-      border-bottom: var(--bd-w) solid var(--hairline); align-items: center;
+      column-gap: 1rem; padding: 0.88rem 0; align-items: center;
     }
     .cfg-field.multiline {
       grid-template-columns: 1fr;
@@ -69,7 +68,6 @@ const settingsServerCSS = `
       align-items: start;
     }
     .cfg-field.multiline .cfg-field-ctrl { justify-content: stretch; margin-top: 0.5rem; }
-    .cfg-fields .cfg-field:last-of-type { border-bottom: none; }
     .cfg-field.dirty .cfg-field-label::before {
       content: ''; display: inline-block; width: 5px; height: 5px;
       border-radius: 50%; background: var(--accent);
@@ -83,7 +81,7 @@ const settingsServerCSS = `
       font-family: var(--font-mono);
     }
     .cfg-field-desc { grid-area: desc; font-size: var(--text-xs); color: var(--muted); margin: 0.35rem 0 0; line-height: 1.5; }
-    .cfg-wechat-auth { padding: 0.88rem 0 0; border-top: var(--bd-w) solid var(--hairline); }
+    .cfg-wechat-auth { padding: 0.88rem 0 0; margin-top: 0.5rem; }
     .cfg-wechat-auth-head {
       display: flex; align-items: center; justify-content: space-between;
       gap: 0.75rem; margin-bottom: 0.65rem;
