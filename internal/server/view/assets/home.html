@@ -180,6 +180,31 @@
       </nav>
 
       <div class="home-side-bottom">
+        <div class="cselect cselect--inline server-switcher" x-data="{open:false}" x-show="$store.servers.available" x-cloak
+             x-init="$store.servers.load()" @click.outside="open=false" @keydown.escape="open=false">
+          <button type="button" class="cselect-btn cselect-btn--ghost" :class="{open:open}" aria-label="Switch server"
+                  @click="open = !open; if (open) $store.servers.refresh()">
+            <span class="srv-dot" :class="'is-' + $store.servers.state($store.servers.activeId)"></span>
+            <span class="cselect-btn-text" x-text="$store.servers.active() ? $store.servers.active().name : 'Server'"></span>
+            <svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+          </button>
+          <div class="cselect-dropdown" x-show="open" x-cloak>
+            <template x-for="s in $store.servers.items" :key="s.id">
+              <button type="button" class="cselect-option" :class="{sel: s.active}"
+                      @click="open = false; window.dispatchEvent(new CustomEvent('hylo:switch-server', {detail: {id: s.id}}))">
+                <span class="srv-dot" :class="'is-' + $store.servers.state(s.id)"></span>
+                <span class="srv-option-main">
+                  <span class="srv-option-name" x-text="s.name"></span>
+                  <span class="srv-option-url" x-text="s.kind === 'local' ? 'This computer' : $store.servers.host(s.url)"></span>
+                </span>
+              </button>
+            </template>
+            <div class="cselect-divider hairline"></div>
+            <button type="button" class="cselect-option" @click="open = false; $store.servers.openManager()">
+              <span>Manage servers…</span>
+            </button>
+          </div>
+        </div>
         <button type="button" class="icon-btn-ghost home-side-bottom-btn" title="Settings"
                 @click="$store.settingsModal.open = true; $el.blur()">
           <svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">

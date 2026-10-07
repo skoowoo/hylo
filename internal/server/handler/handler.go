@@ -28,7 +28,10 @@ func (h *Handler) HealthCheck(w http.ResponseWriter, r *http.Request) {
 // Version handles POST /version.
 func (h *Handler) Version(w http.ResponseWriter, r *http.Request) {
 	info := build.Get()
+	// "app" lets clients confirm an arbitrary URL is a Hylo server before
+	// asking for a key; /version is unauthenticated, so keep it non-sensitive.
 	respondJSON(w, http.StatusOK, map[string]string{
+		"app":        "hylo",
 		"version":    info.Version,
 		"commit":     info.Commit,
 		"build_date": info.BuildDate,

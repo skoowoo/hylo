@@ -39,7 +39,7 @@ const settingsModalCSS = `
     .settings-modal-close {
       position: absolute; top: 12px; right: 12px; z-index: 5;
     }
-    /* Electron builds the window drag mask from -webkit-app-region rects in
+    /* The desktop webview builds the window drag mask from -webkit-app-region rects in
        DOM order (drag = union, no-drag = subtract); z-index and selector
        specificity don't matter. The panel's no-drag subtracts the page's
        own drag strips underneath it; the reused .home-list-head re-adds
@@ -179,7 +179,7 @@ func settingsModalHTML() string {
             Agent CLI
           </button>
           <button class="side-nav-item settings-sidebar-item"
-                  x-show="isElectron"
+                  x-show="isDesktop"
                   :class="{'is-active': tab === 'notifications'}"
                   @click="tab = 'notifications'">
             <svg class="side-nav-icon" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
@@ -247,7 +247,7 @@ const settingsCtrlJS = `
     return {
 ` +
 	`      _inited: false,
-      isElectron: !!window.hyloDesktop,
+      isDesktop: !!window.hyloDesktop,
       tab: 'appearance',
       agents: [],
       agentsLoading: false,
@@ -261,6 +261,10 @@ const settingsCtrlJS = `
           var id = localStorage.getItem('hylo-accent');
           this.accentPref = this.accentPresets.some(p => p.id === id) ? id : 'indigo';
         });
+        window.addEventListener('hylo:switch-server', (e) => {
+          const id = (e.detail && e.detail.id) || '';
+          if (id) this.requestSwitch(id);
+        });
         window.__hyloHotkeys.register('open-settings', ',', function() {
           Alpine.store('settingsModal').open = true;
         });
@@ -273,9 +277,6 @@ const settingsCtrlJS = `
           if (window.__hyloEscPush) window.__hyloEscPush('settings', () => { Alpine.store('settingsModal').open = false; });
           if (!this._inited) {
             this._inited = true;
-            if (window.hyloDesktop) {
-              this.serverUrl = await window.hyloDesktop.getServerUrl();
-            }
             this.$watch('tab', val => {
               if (val === 'server') { this.loadServerStatus(); this.loadConfig(); }
               if (val === 'agent-bots') {

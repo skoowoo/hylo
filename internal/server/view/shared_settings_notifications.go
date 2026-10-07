@@ -1,6 +1,6 @@
 package view
 
-// Notifications tab: desktop (Electron-only) notification prefs.
+// Notifications tab: desktop-only notification prefs.
 const settingsNotificationsCSS = `
     .notif-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 0.35rem; }
     .notif-saved { font-size: var(--text-xs); color: var(--s-ok); margin: 0; font-weight: 500; }
@@ -12,8 +12,8 @@ func settingsNotificationsTabHTML() string {
 	return `
           <!-- Notifications tab -->
           <div class="settings-scroll-pane" x-show="tab === 'notifications'">
-            <div class="cfg-loader" x-show="!isElectron">Available in the desktop app only.</div>
-            <template x-if="isElectron">
+            <div class="cfg-loader" x-show="!isDesktop">Available in the desktop app only.</div>
+            <template x-if="isDesktop">
               <div class="settings-fields">
 
                 <div>
@@ -101,7 +101,7 @@ const settingsNotificationsJS = `
       async saveNotifySettings() {
         if (!window.hyloDesktop?.inboxNotify) return;
         try {
-          // Spread to a plain object so Electron's contextBridge Structured Clone
+          // Spread to a plain object so the desktop IPC bridge's structured clone
           // doesn't silently drop the Alpine.js reactive Proxy wrapper.
           const snap = {
             textEnabled:  this.notifySettings.textEnabled,

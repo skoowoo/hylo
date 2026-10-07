@@ -1,0 +1,44 @@
+/* Server switcher (sidebar) and the Settings → Server header. */
+.srv-dot {
+  display: inline-block; flex-shrink: 0; width: 7px; height: 7px;
+  border-radius: 50%; background: var(--muted-soft);
+}
+.srv-dot.is-online { background: var(--s-ok); }
+.srv-dot.is-offline { background: var(--s-err); }
+.srv-dot.is-auth_required { background: var(--s-warn); }
+
+/* Bottom row: switcher on the left, Settings on the right. */
+.home-side-bottom { justify-content: space-between; }
+.server-switcher { min-width: 0; }
+.server-switcher .cselect-btn--ghost { max-width: 170px; gap: 6px; }
+/* Opens upward: the trigger sits at the bottom edge of the sidebar. */
+.server-switcher .cselect-dropdown {
+  top: auto; bottom: calc(100% + 3px); left: 0; right: auto;
+  width: 216px; max-height: 280px;
+}
+.srv-option-main { display: flex; flex-direction: column; min-width: 0; text-align: left; }
+.srv-option-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.srv-option-url { color: var(--muted); font-size: var(--text-2xs); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Settings → Server header: the server the tab below is editing. */
+.srv-hero {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  flex-wrap: wrap; max-width: 640px; padding: 12px 14px; margin-bottom: 1.25rem;
+  background: var(--btn-bg);
+}
+.srv-hero-main { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1; }
+.srv-hero-text { display: flex; flex-direction: column; min-width: 0; }
+.srv-hero-name { font-size: var(--text-base); font-weight: 600; color: var(--fg); }
+.srv-hero-url { color: var(--muted); font-size: var(--text-xs); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.srv-hero-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.srv-notice {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+  max-width: 640px; margin: -0.5rem 0 1rem; padding: 8px 12px;
+  background: var(--btn-bg); color: var(--body); font-size: var(--text-xs);
+}
+.srv-notice-actions { display: flex; gap: 6px; }
+.srv-process {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  max-width: 640px; margin: -0.5rem 0 1rem; color: var(--muted); font-size: var(--text-xs);
+}
+.cfg-scope-for { color: var(--muted); font-weight: 400; text-transform: none; letter-spacing: 0; }

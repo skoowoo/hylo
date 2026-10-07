@@ -85,6 +85,12 @@ var homeMainHTML string
 //go:embed assets/home.js
 var homeJS string
 
+//go:embed assets/servers.css
+var serversCSS string
+
+//go:embed assets/servers_store.js
+var serversStoreJS string
+
 //go:embed assets/images.css
 var imagesCSS string
 

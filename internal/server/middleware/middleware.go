@@ -3,7 +3,6 @@ package middleware
 import (
 	"log/slog"
 	"net/http"
-	"strings"
 	"time"
 )
 
@@ -42,38 +41,8 @@ func Logger(logger *slog.Logger) func(http.Handler) http.Handler {
 				"path", r.URL.Path,
 				"status", rw.statusCode,
 				"duration", time.Since(start),
-				"remote_addr", r.RemoteAddr,
+				"remote_addr", ClientIP(r),
 			)
-		})
-	}
-}
-
-// Authenticator requires a valid X-Hylo-API-Key header if apiKey is set.
-func Authenticator(apiKey string, logger *slog.Logger) func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// Skip authentication for health and version endpoints.
-			if r.URL.Path == "/healthz" || r.URL.Path == "/version" {
-				next.ServeHTTP(w, r)
-				return
-			}
-
-			if apiKey != "" {
-				token := r.Header.Get("X-Hylo-API-Key")
-				if token == "" {
-					token = strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
-				}
-				if token == "" || token != apiKey {
-					logger.Warn("unauthorized request",
-						"remote_addr", r.RemoteAddr,
-						"path", r.URL.Path,
-						"method", r.Method,
-					)
-					http.Error(w, "Unauthorized", http.StatusUnauthorized)
-					return
-				}
-			}
-			next.ServeHTTP(w, r)
 		})
 	}
 }

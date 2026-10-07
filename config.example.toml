@@ -3,6 +3,11 @@
 host = "127.0.0.1"
 port = 54321
 
+# Remote access: see docs/remote-deployment.md.
+# The server always generates `api_key` on first start; view it
+# with `hylo auth show`. HYLO_API_KEY overrides this file.
+# api_key = ""
+
 [vault]
 # Root directory of the Vault (Hylo's personal data store).
 # Supports ~ for the home directory.

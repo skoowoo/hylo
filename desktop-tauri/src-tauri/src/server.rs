@@ -143,7 +143,7 @@ pub fn is_alive(pid: u32) -> bool {
     }
 }
 
-/// A failed lookup assumes the pid is ours, matching the Electron shell.
+/// A failed lookup assumes the pid is ours.
 pub fn looks_like_hylo(pid: u32) -> bool {
     #[cfg(unix)]
     {

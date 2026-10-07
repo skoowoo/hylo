@@ -8,17 +8,33 @@ use tokio::sync::watch;
 
 use crate::config::ConfigFile;
 
+/// Connection to one server's inbox stream.
+#[derive(Clone, PartialEq, Eq)]
+pub struct Target {
+    pub base_url: String,
+    pub key: Option<String>,
+    /// Prefixes notification titles so several servers stay distinguishable.
+    pub label: Option<String>,
+}
+
 pub struct InboxHandle {
     stop: watch::Sender<bool>,
+    /// What the loop was started with, to detect a changed URL, key or label.
+    target: Target,
 }
 
 impl InboxHandle {
-    pub fn start(app: AppHandle, data_dir: std::path::PathBuf, base_url: String) -> Self {
+    pub fn start(app: AppHandle, data_dir: std::path::PathBuf, target: Target) -> Self {
         let (stop, rx) = watch::channel(false);
+        let handle = Self { stop, target: target.clone() };
         tauri::async_runtime::spawn(async move {
-            run_loop(app, data_dir, base_url, rx).await;
+            run_loop(app, data_dir, target, rx).await;
         });
-        Self { stop }
+        handle
+    }
+
+    pub fn matches(&self, target: &Target) -> bool {
+        self.target == *target
     }
 
     pub fn shutdown(self) {
@@ -34,10 +50,10 @@ enum Loop {
 async fn run_loop(
     app: AppHandle,
     data_dir: std::path::PathBuf,
-    base_url: String,
+    target: Target,
     mut stop: watch::Receiver<bool>,
 ) {
-    let Some(endpoint) = join_notifications(&base_url) else {
+    let Some(endpoint) = join_notifications(&target.base_url) else {
         return;
     };
     let Ok(client) = reqwest::Client::builder().no_proxy().build() else {
@@ -47,7 +63,7 @@ async fn run_loop(
         if *stop.borrow() {
             break;
         }
-        match connect(&client, &app, &data_dir, &endpoint, &mut stop).await {
+        match connect(&client, &app, &data_dir, &endpoint, &target, &mut stop).await {
             Loop::Stopped => break,
             Loop::Retry => {
                 tokio::select! {
@@ -66,9 +82,14 @@ async fn connect(
     app: &AppHandle,
     data_dir: &Path,
     endpoint: &str,
+    target: &Target,
     stop: &mut watch::Receiver<bool>,
 ) -> Loop {
-    let mut resp = match client.get(endpoint).send().await {
+    let mut req = client.get(endpoint);
+    if let Some(key) = target.key.as_deref().filter(|k| !k.is_empty()) {
+        req = req.header("X-Hylo-API-Key", key);
+    }
+    let mut resp = match req.send().await {
         Ok(r) if r.status().is_success() => r,
         _ => return Loop::Retry,
     };
@@ -88,7 +109,7 @@ async fn connect(
                     Ok(Ok(Some(bytes))) => {
                         buf.push_str(&String::from_utf8_lossy(&bytes));
                         for raw in drain_events(&mut buf) {
-                            show_message(app, data_dir, &raw);
+                            show_message(app, data_dir, &raw, target.label.as_deref());
                         }
                     }
                     _ => return Loop::Retry,
@@ -123,7 +144,7 @@ struct InboxMsg {
     source: Option<String>,
 }
 
-pub fn show_message(app: &AppHandle, data_dir: &Path, raw: &str) {
+pub fn show_message(app: &AppHandle, data_dir: &Path, raw: &str, label: Option<&str>) {
     let Ok(msg) = serde_json::from_str::<InboxMsg>(raw) else {
         return;
     };
@@ -134,6 +155,10 @@ pub fn show_message(app: &AppHandle, data_dir: &Path, raw: &str) {
             .filter(|s| !s.is_empty())
             .or(msg.source)
             .unwrap_or_else(|| "Inbox".to_string());
+        let title = match label {
+            Some(l) => format!("[{l}] {title}"),
+            None => title,
+        };
         let body: String = msg
             .body
             .unwrap_or_default()

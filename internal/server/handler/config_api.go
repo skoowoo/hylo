@@ -66,9 +66,8 @@ func applySecretMask(m map[string]any, reveal bool) map[string]bool {
 	if srv, ok := m["server"].(map[string]any); ok {
 		if s, ok := srv["api_key"].(string); ok && s != "" {
 			sec["server.api_key"] = true
-			if !reveal {
-				srv["api_key"] = nil
-			}
+			// Never returned, even on reveal; `hylo auth show` is the way to read it.
+			srv["api_key"] = nil
 		}
 	}
 	plugs, _ := m["plugins"].(map[string]any)
@@ -124,6 +123,15 @@ func (c *ConfigHTTP) Patch(w http.ResponseWriter, r *http.Request) {
 	}
 	config.NormalizeJSONDecodedMap(body.Patch)
 
+	// Listen address, API key, and TLS paths are process settings. Nothing in the
+	// UI edits them; change the config file or run `hylo auth rotate`, then restart.
+	if patchTouchesServer(body.Patch) {
+		respondJSON(w, http.StatusForbidden, map[string]any{
+			"error": "server settings cannot be changed through the API; edit the config file directly",
+		})
+		return
+	}
+
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -160,6 +168,15 @@ func (c *ConfigHTTP) Patch(w http.ResponseWriter, r *http.Request) {
 		"message":          "configuration written; restart the server to apply changes",
 		"restart_required": true,
 	})
+}
+
+func patchTouchesServer(patch map[string]any) bool {
+	v, ok := patch["server"]
+	if !ok {
+		return false
+	}
+	m, isMap := v.(map[string]any)
+	return !isMap || len(m) > 0
 }
 
 func methodNotAllowed(w http.ResponseWriter, allowed []string) {

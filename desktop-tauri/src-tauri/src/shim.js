@@ -30,11 +30,31 @@
     getShellDebugPaths: function () {
       return invoke("get_shell_debug_paths");
     },
-    getServerUrl: function () {
-      return invoke("get_server_url");
-    },
-    setServerUrl: function (url) {
-      return invoke("set_server_url", { url: url });
+    // Server registry (see servers.rs). Keys stay in the shell's config file; the page
+    // only ever sees whether one is stored. Remote pages may list, probe, switch and open the
+    // manager; add/update/remove are only granted to the shell's own pages (capabilities).
+    servers: {
+      list: function () {
+        return invoke("list_servers");
+      },
+      add: function (opts) {
+        return invoke("add_server", { opts: opts });
+      },
+      update: function (id, opts) {
+        return invoke("update_server", { id: id, opts: opts || {} });
+      },
+      remove: function (id) {
+        return invoke("remove_server", { id: id });
+      },
+      switchTo: function (id) {
+        return invoke("switch_server", { id: id });
+      },
+      probe: function () {
+        return invoke("probe_servers");
+      },
+      openManager: function () {
+        return invoke("open_manager");
+      },
     },
     restartServer: function () {
       return invoke("restart_hylo_server");

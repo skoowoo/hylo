@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-open-manager"
+description = "Enables the open_manager command without any pre-configured scope."
+commands.allow = ["open_manager"]
+
+[[permission]]
+identifier = "deny-open-manager"
+description = "Denies the open_manager command without any pre-configured scope."
+commands.deny = ["open_manager"]

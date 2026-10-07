@@ -32,9 +32,9 @@ const themeBootstrapScript = `  <script>(function(){
   }
 })()</script>`
 
-// electronBootstrapScript adds the 'electron' and 'macos' classes to <html>
-// when running inside the Hylo desktop wrapper.
-const electronBootstrapScript = `  <script>(function(){if(window.hyloDesktop){document.documentElement.classList.add('electron');if(window.hyloDesktop.platform==='darwin')document.documentElement.classList.add('macos');}})()</script>`
+// desktopBootstrapScript adds the 'macos' class to <html> when running inside
+// the Hylo desktop app on macOS.
+const desktopBootstrapScript = `  <script>(function(){if(window.hyloDesktop&&window.hyloDesktop.platform==='darwin')document.documentElement.classList.add('macos');})()</script>`
 
 // alpineStoresScript initializes all Alpine.js global stores.
 // Wrap it inside a document.addEventListener('alpine:init', () => { … }) call.

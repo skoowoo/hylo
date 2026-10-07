@@ -223,7 +223,7 @@ func newRouter(
 	return middleware.Chain(mux,
 		middleware.Recoverer(logger),
 		middleware.Logger(logger),
-		middleware.Authenticator(apiKey, logger),
+		middleware.Authenticator(apiKey, logger, view.RenderLogin),
 	)
 }
 

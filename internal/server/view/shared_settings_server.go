@@ -121,34 +121,40 @@ func settingsServerTabHTML() string {
             <div class="cfg-pane-area">
               <div class="cfg-pane">
 
-                <div x-show="isElectron" style="max-width:640px; margin-bottom:1.75rem;">
-                  <label class="settings-field-label">Connection</label>
-                  <div class="settings-field-row">
-                    <input type="url" class="field-input settings-input"
-                           x-model="serverUrl"
-                           @keydown.enter="applyServerUrl()"
-                           placeholder="http://localhost:54321"
-                           spellcheck="false">
-                    <button class="btn-solid"
-                            @click="applyServerUrl()"
-                            :disabled="urlSaving"
-                            x-text="urlSaving ? 'Applying…' : 'Apply'"></button>
-                  </div>
-                  <div class="settings-error" x-show="urlError" x-text="urlError"></div>
-                  <p class="settings-field-desc">Hylo server address used by the desktop app. Changes reload immediately.</p>
-                </div>
+                <div x-init="$store.servers.load()">
 
-                <div x-show="isElectron && serverManaged" style="max-width:640px; margin-bottom:1.75rem;">
-                  <label class="settings-field-label">Process</label>
-                  <div>
-                    <button class="btn-solid btn-solid--danger"
+                  <!-- Which server this tab edits. Everything below belongs to it. -->
+                  <div class="srv-hero">
+                    <div class="srv-hero-main">
+                      <span class="srv-dot" :class="'is-' + heroState"></span>
+                      <div class="srv-hero-text">
+                        <span class="srv-hero-name" x-text="heroName"></span>
+                        <span class="srv-hero-url" x-text="heroSub"></span>
+                      </div>
+                    </div>
+                    <div class="srv-hero-actions">
+                      <button type="button" class="btn-outline" x-show="$store.servers.available" @click="$store.servers.openManager()">Manage servers</button>
+                    </div>
+                  </div>
+
+                  <div class="srv-notice" x-show="switchConfirm" x-cloak>
+                    <span x-text="'Switching reloads the window. Discard ' + Object.keys(patch).length + ' unsaved change' + (Object.keys(patch).length !== 1 ? 's' : '') + '?'"></span>
+                    <span class="srv-notice-actions">
+                      <button type="button" class="btn-solid btn--xs" @click="confirmSwitch()">Discard and switch</button>
+                      <button type="button" class="btn-outline btn--xs" @click="switchConfirm = ''">Cancel</button>
+                    </span>
+                  </div>
+                  <div class="settings-error" x-show="switchError" x-text="switchError" style="margin-bottom:0.75rem;"></div>
+                  <div class="srv-notice" x-show="switching" x-cloak>Switching…</div>
+
+                  <div class="srv-process" x-show="isDesktop && serverManaged && editingLocalServer">
+                    <span class="srv-process-label">Server process started by this app</span>
+                    <button class="btn-outline btn-outline--danger btn--xs"
                             @click="stopServer()"
                             :disabled="!serverRunning || serverStopping"
-                            x-text="serverStopping ? 'Stopping…' : 'Stop Server'"></button>
+                            x-text="serverStopping ? 'Stopping…' : (serverRunning ? 'Stop' : 'Stopped')"></button>
                   </div>
                   <div class="settings-error" x-show="serverStopError" x-text="serverStopError"></div>
-                  <p class="settings-field-desc">Server process started and managed by this desktop app.</p>
-                </div>
 
                 <div x-show="cfgLoading" class="cfg-loader">Loading configuration…</div>
                 <div x-show="cfgError && !cfgLoading" class="cfg-err-msg" x-text="'Error: ' + cfgError"></div>
@@ -157,7 +163,9 @@ func settingsServerTabHTML() string {
                      instead of a stacked accordion you scroll past. -->
                 <template x-if="!cfgLoading && !cfgError && !openSection">
                   <div>
-                    <label class="settings-field-label" style="margin-bottom:0.75rem;display:block;">Config</label>
+                    <label class="settings-field-label cfg-scope" style="margin-bottom:0.75rem;display:block;">
+                      Configuration <span class="cfg-scope-for" x-text="'· ' + heroName"></span>
+                    </label>
                     <div class="cfg-section-grid">
                       <template x-for="section in sectionTabs" :key="section">
                         <button type="button" class="list-card list-card--clickable list-card--soft cfg-section-card" @click="openSectionDetail(section)">
@@ -178,7 +186,7 @@ func settingsServerTabHTML() string {
                 <template x-if="!cfgLoading && !cfgError && openSection">
                   <div class="cfg-detail">
                     <div class="settings-detail-header cfg-detail-header">
-` + agentBotBackBtnHTML("openSection = ''", "Config") + `
+` + agentBotBackBtnHTML("openSection = ''", "Configuration") + `
                       <span class="cfg-detail-title" x-text="sectionLabel(openSection)"></span>
                     </div>
                     <p class="cfg-detail-desc" x-show="sectionIntro(openSection)" x-text="sectionIntro(openSection)"></p>
@@ -250,7 +258,7 @@ func settingsServerTabHTML() string {
                                        :value="getVal(field.key) ?? ''"
                                        :placeholder="field.default != null ? String(field.default) : ''"
                                        @input="setVal(field.key, $event.target.value)">
-                                <template x-if="field.key === 'vault.path' && isElectron">
+                                <template x-if="field.key === 'vault.path' && isDesktop">
                                   <button type="button" class="icon-btn icon-btn--lg"
                                           title="Browse for folder"
                                           style="font-size:13px;letter-spacing:0.05em;padding:0 6px;width:auto;"
@@ -331,6 +339,8 @@ func settingsServerTabHTML() string {
                   </div>
                 </template>
 
+                </div>
+
               </div>
             </div>
 
@@ -363,9 +373,9 @@ func settingsServerTabHTML() string {
 }
 
 const settingsServerJS = `
-      serverUrl: '',
-      urlSaving: false,
-      urlError: '',
+      switching: false,
+      switchConfirm: '',
+      switchError: '',
       serverManaged: false,
       serverRunning: false,
       serverStopping: false,
@@ -486,6 +496,58 @@ const settingsServerJS = `
           o[parts[parts.length - 1]] = val;
         }
         return out;
+      },
+
+      get heroServer() { return Alpine.store('servers').active(); },
+      get heroName() { return this.heroServer ? this.heroServer.name : location.host; },
+      get heroSub() {
+        const s = this.heroServer;
+        if (!s) return 'Web session';
+        return s.kind === 'local' ? 'This computer · ' + s.url : s.url;
+      },
+      get heroState() { return this.heroServer ? Alpine.store('servers').state(this.heroServer.id) : 'online'; },
+      // Before the registry loads, the page origin is the server being edited.
+      get editingLocalServer() {
+        const s = this.heroServer;
+        if (s) return s.kind === 'local';
+        const h = (location.hostname || '').toLowerCase();
+        return h === 'localhost' || h === '127.0.0.1' || h === '::1';
+      },
+
+      // Entry point for the sidebar switcher; errors and the discard prompt surface in Settings.
+      requestSwitch(id) {
+        if (!id || id === Alpine.store('servers').activeId) return;
+        this.switchError = '';
+        if (this.hasDirty) {
+          this.tab = 'server';
+          Alpine.store('settingsModal').open = true;
+          this.switchConfirm = id;
+          return;
+        }
+        this.doSwitch(id);
+      },
+
+      confirmSwitch() {
+        const id = this.switchConfirm;
+        this.switchConfirm = '';
+        this.doSwitch(id);
+      },
+
+      async doSwitch(id) {
+        if (!id || id === Alpine.store('servers').activeId) {
+          this.switching = false;
+          this.switchConfirm = '';
+          return;
+        }
+        this.switching = true;
+        this.switchError = '';
+        const err = await Alpine.store('servers').switchTo(id);
+        if (err) {
+          this.switching = false;
+          this.switchError = this.srvErrorText(err);
+          this.tab = 'server';
+          Alpine.store('settingsModal').open = true;
+        }
       },
 
       async loadServerStatus() {
@@ -633,7 +695,7 @@ const settingsServerJS = `
         } catch (e) { this.cfgSaveError = e.message; }
         finally { this.cfgSaving = false; }
 
-        if (saved && window.hyloDesktop?.restartServer) {
+        if (saved && this.editingLocalServer && window.hyloDesktop?.restartServer) {
           this.cfgRestarting = true;
           try {
             const r = await window.hyloDesktop.restartServer();
@@ -647,15 +709,13 @@ const settingsServerJS = `
         }
       },
 
-      async applyServerUrl() {
-        this.urlError = '';
-        const raw = this.serverUrl.trim().replace(/\/$/, '');
-        try {
-          const p = new URL(raw);
-          if (!['http:', 'https:'].includes(p.protocol)) throw new Error('Must use http:// or https://');
-          this.urlSaving = true;
-          await window.hyloDesktop.setServerUrl(raw);
-        } catch (e) { this.urlError = e.message; this.urlSaving = false; }
+      srvErrorText(err) {
+        switch (err.code) {
+          case 'bad_key': return 'The API key was rejected. Run "hylo auth show" on that server to see it.';
+          case 'not_hylo': return 'This address does not look like a Hylo server.';
+          case 'unreachable': return 'Cannot reach this address. Check the URL and that the server is running.';
+          default: return err.message;
+        }
       },
 
       async pickFolder(key, currentVal) {

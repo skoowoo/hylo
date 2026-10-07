@@ -45,7 +45,7 @@ pub fn install(
     force: bool,
 ) -> Result<InstallOutcome, String> {
     // Launch install and the "binary missing" fallback both write the same
-    // dest. Electron serializes them for the same reason.
+    // dest, so serialize them.
     static LOCK: Mutex<()> = Mutex::new(());
     let _guard = LOCK.lock().unwrap_or_else(|err| err.into_inner());
     let sentinel = sentinel_value();

@@ -3,7 +3,9 @@ mod commands;
 mod config;
 mod nav;
 mod notify;
+mod remote;
 mod server;
+mod servers;
 mod zoom;
 
 use std::sync::Mutex;
@@ -32,7 +34,7 @@ pub fn run() {
     builder = builder
         .invoke_handler(commands::invoke_handler())
         .setup(|app| {
-            let data_dir = config::shell_data_dir();
+            let data_dir = app.path().app_data_dir()?;
             let _ = std::fs::create_dir_all(&data_dir);
             let archive = bundled_archive(app.handle());
             app.manage(ShellState {
@@ -41,8 +43,9 @@ pub fn run() {
                 config: Mutex::new(ConfigFile::load(&data_dir)),
                 managed_pid: Mutex::new(0),
                 connected_url: Mutex::new(None),
-                inbox: Mutex::new(None),
+                inboxes: Mutex::new(std::collections::HashMap::new()),
             });
+            servers::sync_inboxes(app.handle());
 
             install_menu(app.handle())?;
 
@@ -145,8 +148,7 @@ fn watch_app_activation(app: tauri::AppHandle) {
     let center = NSNotificationCenter::defaultCenter();
     let block = RcBlock::new(move |_note: NonNull<NSNotification>| {
         // ⌘-Tab activates the app without Reopen. A window hidden by the
-        // close button stays hidden unless we show it here. Electron listens
-        // for did-become-active for the same case.
+        // close button stays hidden unless we show it here.
         show_main_if_hidden(&app);
     });
     let name = unsafe { NSApplicationDidBecomeActiveNotification };

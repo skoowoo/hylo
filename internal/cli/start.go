@@ -41,8 +41,8 @@ func newStartCmd() *cobra.Command {
 		Short: "Start the database server",
 		Long: `Start the database server.
 
-The listening address (TCP host/port, timeouts) is read only from
-the hylo.toml config file — not from flags or environment variables.
+The listen address and timeouts come from the config file, not from flags.
+HYLO_API_KEY overrides server.api_key.
 
 By default the server listens on TCP at 127.0.0.1:54321. Set server.port to 0
 in hylo.toml to disable the server entirely.
@@ -74,6 +74,15 @@ func runServe(_ *cobra.Command, _ []string) error {
 	}
 
 	log := logger.New(cfg.Log)
+
+	if path, generated, err := config.EnsureAPIKey(cfg, cfgFileUsed); err != nil {
+		return err
+	} else if generated {
+		log.Info("api key generated", "config", path, "hint", "run `hylo auth show` to view it")
+	}
+	if cfg.Server.IsRemote() && !cfg.Server.TLSEnabled() {
+		log.Warn("listening on a non-loopback address without TLS; put a TLS reverse proxy in front (see docs/remote-deployment.md)")
+	}
 
 	// Detect whether the vault was already initialised before we open it.
 	// storage.New creates .hylo on first use, so we must check beforehand.

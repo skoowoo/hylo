@@ -42,23 +42,15 @@ type DirListing struct {
 // New creates a Client connected to the running Hylo server using TCP.
 // If the TCP transport is not enabled an actionable error is returned.
 func New(cfg *config.Config) (*Client, error) {
-	if cfg.Server.TCPEnabled() {
-		protocol := "http://"
-		if cfg.Server.TLSEnabled() {
-			protocol = "https://"
-		}
-		return &Client{
-			http:    &http.Client{Timeout: 30 * time.Second},
-			baseURL: protocol + cfg.Server.TCPAddr(),
-			apiKey:  cfg.Server.APIKey,
-		}, nil
+	base, err := cfg.Server.ClientBaseURL()
+	if err != nil {
+		return nil, fmt.Errorf("%w\n\nStart the server first: hylo start server", err)
 	}
-
-	return nil, fmt.Errorf(
-		"cannot connect to hylo server\n" +
-			"  TCP: not configured\n\n" +
-			"Start the server first: hylo serve",
-	)
+	return &Client{
+		http:    &http.Client{Timeout: 30 * time.Second},
+		baseURL: base,
+		apiKey:  cfg.Server.APIKey,
+	}, nil
 }
 
 // ── Vault operations ──────────────────────────────────────────────────────────

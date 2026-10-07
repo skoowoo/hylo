@@ -99,7 +99,7 @@ func WriteConfigToml(path string, merged map[string]any) error {
 		return fmt.Errorf("encode toml: %w", err)
 	}
 	tmp := path + ".tmp"
-	if err := os.WriteFile(tmp, out, 0o644); err != nil {
+	if err := os.WriteFile(tmp, out, 0o600); err != nil {
 		return fmt.Errorf("write temp config: %w", err)
 	}
 	return os.Rename(tmp, path)

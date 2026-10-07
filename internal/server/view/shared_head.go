@@ -9,6 +9,7 @@ type headOpts struct {
 	withTW     bool   // include Tailwind CDN
 	withAlpine bool   // include Alpine.js CDN (deferred)
 	withHTMX   bool   // include htmx CDN
+	htmxConfig string // overrides htmxConfig for pages without the hylo extension
 }
 
 // Fragment endpoints answer errors with plain text, so error statuses must
@@ -16,7 +17,7 @@ type headOpts struct {
 const htmxConfig = `{"extensions":"alpine-compat,hylo","noSwap":[204,304,"4xx","5xx"]}`
 
 // headHTML returns the opening <head> block containing meta tags, the theme
-// and Electron bootstrap IIFEs, and any requested CDN scripts.
+// and desktop bootstrap IIFEs, and any requested CDN scripts.
 // Each caller then appends its own <style> block and closes with </head>.
 func headHTML(opts headOpts) string {
 	var b strings.Builder
@@ -31,7 +32,7 @@ func headHTML(opts headOpts) string {
 	b.WriteByte('\n')
 	b.WriteString(accentBootstrapScript)
 	b.WriteByte('\n')
-	b.WriteString(electronBootstrapScript)
+	b.WriteString(desktopBootstrapScript)
 	b.WriteByte('\n')
 	if opts.withFonts {
 		b.WriteString(noteFontsHTML)
@@ -45,7 +46,11 @@ func headHTML(opts headOpts) string {
 		b.WriteString("  <script defer src=\"/static/vendor/alpine.min.js\"></script>\n")
 	}
 	if opts.withHTMX {
-		b.WriteString("  <meta name=\"htmx-config\" content='" + htmxConfig + "'>\n")
+		cfg := htmxConfig
+		if opts.htmxConfig != "" {
+			cfg = opts.htmxConfig
+		}
+		b.WriteString("  <meta name=\"htmx-config\" content='" + cfg + "'>\n")
 		b.WriteString("  <script src=\"/static/vendor/htmx.min.js\"></script>\n")
 		b.WriteString("  <script src=\"/static/vendor/htmx-alpine-compat.min.js\"></script>\n")
 	}

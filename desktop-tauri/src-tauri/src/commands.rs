@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Mutex;
 use std::time::Duration;
@@ -12,6 +13,7 @@ use crate::config::{ConfigFile, InboxNotify};
 use crate::nav::{allow_navigation, http_origin, is_shell_url, shell_start_url};
 use crate::notify::{self, InboxHandle};
 use crate::server::{self, DiagPaths, ProcessStatus, SpawnResult};
+use crate::servers;
 
 pub struct ShellState {
     pub data_dir: PathBuf,
@@ -19,7 +21,8 @@ pub struct ShellState {
     pub config: Mutex<ConfigFile>,
     pub managed_pid: Mutex<u32>,
     pub connected_url: Mutex<Option<String>>,
-    pub inbox: Mutex<Option<InboxHandle>>,
+    /// Inbox stream per server id; see servers::sync_inboxes.
+    pub inboxes: Mutex<HashMap<String, InboxHandle>>,
 }
 
 impl ShellState {
@@ -27,21 +30,27 @@ impl ShellState {
         self.connected_url.lock().ok().and_then(|g| g.clone())
     }
 
-    fn replace_inbox(&self, next: Option<InboxHandle>) {
-        if let Ok(mut slot) = self.inbox.lock() {
-            if let Some(prev) = slot.take() {
-                prev.shutdown();
-            }
-            *slot = next;
-        }
+    pub fn read_config<T>(&self, f: impl FnOnce(&ConfigFile) -> T) -> Result<T, String> {
+        let cfg = self.config.lock().map_err(|e| e.to_string())?;
+        Ok(f(&cfg))
     }
 
-    /// Drop the live server session the way Electron's resetToStartScreen does.
+    /// Runs `f` under the config lock and persists only if it succeeds.
+    pub fn edit_config<T>(
+        &self,
+        f: impl FnOnce(&mut ConfigFile) -> Result<T, String>,
+    ) -> Result<T, String> {
+        let mut cfg = self.config.lock().map_err(|e| e.to_string())?;
+        let out = f(&mut cfg)?;
+        cfg.save(&self.data_dir)?;
+        Ok(out)
+    }
+
+    /// Drop the live server session; the shell goes back to its start page.
     pub fn end_session(&self) {
         if let Ok(mut slot) = self.connected_url.lock() {
             *slot = None;
         }
-        self.replace_inbox(None);
     }
 }
 
@@ -78,7 +87,7 @@ struct InboxPatch {
 #[tauri::command]
 async fn check_server(url: String) -> bool {
     let url = format!("{}/home", url.trim().trim_end_matches('/'));
-    // Any HTTP response means the process is up. Electron treats it the same way.
+    // Any HTTP response means the process is up.
     http_responds(&url).await
 }
 
@@ -177,37 +186,6 @@ fn get_server_process_status(state: State<ShellState>) -> ProcessStatus {
 }
 
 #[tauri::command]
-fn get_server_url(state: State<ShellState>) -> String {
-    state
-        .config
-        .lock()
-        .map(|c| c.server_url.clone())
-        .unwrap_or_else(|_| crate::config::DEFAULT_SERVER_URL.to_string())
-}
-
-#[tauri::command]
-fn set_server_url(app: AppHandle, url: String) -> Result<(), String> {
-    let state = app.state::<ShellState>();
-    let url = url.trim().trim_end_matches('/').to_string();
-    {
-        let mut cfg = state.config.lock().map_err(|e| e.to_string())?;
-        cfg.server_url = url.clone();
-        cfg.auto_start_server = true;
-        cfg.save(&state.data_dir)?;
-    }
-    if let Ok(mut slot) = state.connected_url.lock() {
-        *slot = Some(url.clone());
-    }
-    let inbox = InboxHandle::start(app.clone(), state.data_dir.clone(), url.clone());
-    state.replace_inbox(Some(inbox));
-
-    let target = format!("{url}/home");
-    server::diag_log(&state.data_dir, &format!("navigate {target}"));
-    navigate(&app, &target);
-    Ok(())
-}
-
-#[tauri::command]
 async fn stop_hylo_server(app: AppHandle) -> SpawnResult {
     let state = app.state::<ShellState>();
     let Some(pid) = server::read_pid(&state.data_dir) else {
@@ -258,7 +236,6 @@ async fn restart_hylo_server(app: AppHandle) -> SpawnResult {
             pid: None,
         };
     };
-    state.replace_inbox(None);
     if server::pid_is_hylo(pid) {
         server::diag_log(
             &state.data_dir,
@@ -362,7 +339,7 @@ fn toggle_maximize(window: tauri::WebviewWindow) {
 
 #[tauri::command]
 fn set_window_button_visibility(_visible: bool) {
-    // The Go UI exposes this and never calls it. Kept so the shim matches Electron.
+    // The Go UI exposes this and never calls it; kept so the shim API stays complete.
 }
 
 #[tauri::command]
@@ -400,7 +377,12 @@ fn inbox_notify_preview_sound(sound: String) {
 }
 
 pub fn show_start(app: &AppHandle) {
-    let url = shell_start_url().to_string();
+    show_start_at(app, "");
+}
+
+/// `hash` picks the shell page's view, e.g. "#servers".
+pub fn show_start_at(app: &AppHandle, hash: &str) {
+    let url = format!("{}{hash}", shell_start_url());
     let app2 = app.clone();
     std::thread::spawn(move || {
         std::thread::sleep(Duration::from_millis(60));
@@ -409,7 +391,7 @@ pub fn show_start(app: &AppHandle) {
     });
 }
 
-fn navigate(app: &AppHandle, url: &str) {
+pub fn navigate(app: &AppHandle, url: &str) {
     let Ok(parsed) = url.parse() else {
         return;
     };
@@ -423,8 +405,8 @@ pub fn allow_url(app: &AppHandle, url: &url::Url) -> bool {
     let server = state.connected();
     if allow_navigation(url, server.as_deref()) {
         if !is_shell_url(url) {
-            // Electron resets to the start screen on did-fail-load. Tauri has
-            // no failure event, so a refused connection to this origin is the signal.
+            // Tauri has no load-failure event, so a refused connection to this
+            // origin is the signal to fall back to the start page.
             watch_server_navigation(app.clone(), url.clone());
         }
         return true;
@@ -500,8 +482,13 @@ pub fn invoke_handler() -> impl Fn(tauri::ipc::Invoke<tauri::Wry>) -> bool + Sen
         stop_hylo_server,
         get_server_process_status,
         get_shell_debug_paths,
-        get_server_url,
-        set_server_url,
+        servers::list_servers,
+        servers::add_server,
+        servers::update_server,
+        servers::remove_server,
+        servers::switch_server,
+        servers::probe_servers,
+        servers::open_manager,
         restart_hylo_server,
         pick_folder,
         set_view_bg_color,

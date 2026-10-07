@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// Electron applies -webkit-app-region rects in DOM order, so the close
+// The desktop webview applies -webkit-app-region rects in DOM order, so the close
 // button's no-drag only wins over the drag-enabled .home-list-head inside
 // .settings-modal-inner if the button comes after it in the markup.
 func TestSettingsCloseButtonAfterInner(t *testing.T) {

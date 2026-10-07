@@ -141,8 +141,12 @@ type ServerConfig struct {
 	CertFile string `mapstructure:"cert_file" json:"cert_file" toml:"cert_file"`
 	KeyFile  string `mapstructure:"key_file" json:"key_file" toml:"key_file"`
 
-	// APIKey enables token-based authentication via the X-Hylo-API-Key header.
+	// APIKey enables token-based authentication via the X-Hylo-API-Key header
+	// (CLI/extensions) or a login cookie (browser/desktop).
 	APIKey string `mapstructure:"api_key" json:"api_key" toml:"api_key"`
+
+	// APIKeyFromEnv records that APIKey came from HYLO_API_KEY (never persisted).
+	APIKeyFromEnv bool `mapstructure:"-" json:"-" toml:"-"`
 
 	ReadTimeout  int `mapstructure:"read_timeout" json:"read_timeout" toml:"read_timeout"`    // seconds
 	WriteTimeout int `mapstructure:"write_timeout" json:"write_timeout" toml:"write_timeout"` // seconds
@@ -227,18 +231,9 @@ func (s ServerConfig) MCPURL() (url string, ok bool) {
 }
 
 // BrowserBaseURL returns the http:// or https:// origin for opening links in a browser.
-// TCP must be enabled in the config file (server.port > 0).
+// Requires the TCP listener (server.port > 0).
 func (c *Config) BrowserBaseURL() (string, error) {
-	if !c.Server.TCPEnabled() {
-		return "", fmt.Errorf(
-			"opening in a browser requires TCP: set server.port in your config.toml (e.g. 54321)",
-		)
-	}
-	protocol := "http://"
-	if c.Server.TLSEnabled() {
-		protocol = "https://"
-	}
-	return protocol + c.Server.TCPAddr(), nil
+	return c.Server.ClientBaseURL()
 }
 
 // Load reads configuration from a file (optional) merged with built-in defaults.
@@ -274,6 +269,7 @@ func Load(cfgFile string) (*Config, string, error) {
 	if err := v.Unmarshal(cfg); err != nil {
 		return nil, configFileUsed, fmt.Errorf("unmarshaling config: %w", err)
 	}
+	applyEnv(cfg)
 
 	return cfg, configFileUsed, nil
 }

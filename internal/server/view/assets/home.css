@@ -6,15 +6,15 @@
       font-family: var(--font-ui);
       -webkit-font-smoothing: antialiased;
     }
-    /* macOS Electron only (html.macos, set by shared_theme.go's bootstrap
-       script — see main.js's BaseWindow `vibrancy` option): let the sidebar
+    /* macOS desktop only (html.macos, set by shared_theme.go's bootstrap
+       script — see the window effects in desktop-tauri lib.rs): let the sidebar
        show the window's native vibrancy instead of painting over it. Body
        has to be the one that goes transparent — it's the layer directly
        above the window's own compositor surface, so it's the only thing
        actually standing between the vibrancy and the sidebar's pixels.
        .home-main picks up its own explicit background so the content pane
        still reads as solid; everywhere else (web browser, Windows/Linux
-       Electron) is untouched. */
+       desktop) is untouched. */
     html.macos body { background: transparent; }
     /* ── Home layout: sidebar + list body fills the full height ───── */
     .home-container {
@@ -48,7 +48,7 @@
       --content-pane-exit-ms: 200ms;
       background: var(--surface-soft);
     }
-    /* macOS Electron only: see .home-side's own html.macos rule below for
+    /* macOS desktop only: see .home-side's own html.macos rule below for
        why — same swap, just one level up now. */
     html.macos .home-shell {
       background: var(--sidebar-glass-bg);
@@ -149,7 +149,7 @@
          nearly disappearing into the surface it sits on. */
       --control-active-bg: var(--control-active-bg-on-soft);
     }
-    /* macOS Electron only: the fill itself now lives on .home-shell
+    /* macOS desktop only: the fill itself now lives on .home-shell
        (html.macos .home-shell above); this just swaps the border to match. */
     html.macos .home-side {
       border-right-color: var(--sidebar-glass-border);

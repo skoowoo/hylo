@@ -1141,7 +1141,7 @@
     }
   }
 
-  // Global undo/redo called by Electron main process via executeJavaScript.
+  // Global undo/redo called by the desktop shell menu via webview eval.
   // Calls CodeMirror undo directly, bypassing browser native undo.
   window.__hyloUndo = function() {
     var s = __hyloEditor;

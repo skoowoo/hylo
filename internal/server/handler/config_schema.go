@@ -30,7 +30,7 @@ func buildConfigSchema() []SchemaField {
 			Description: "Path to PEM private key; enable HTTPS together with cert_file.",
 			Default:     ""},
 		{Key: "server.api_key", Type: "string", Section: "server", Label: "API key",
-			Description: "If set, every request needs X-Hylo-API-Key matching this token.",
+			Description: "If set, every request needs this key (X-Hylo-API-Key header, or browser login). Generated automatically on first start; see `hylo auth show`.",
 			Sensitive:   true, Default: ""},
 		{Key: "server.read_timeout", Type: "int", Section: "server", Label: "Read timeout (s)",
 			Description: "HTTP server read deadline in seconds.",

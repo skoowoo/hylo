@@ -63,7 +63,7 @@ func TestCreateUntitledNoteDedupesOnCollision(t *testing.T) {
 
 // TestCreateUntitledNoteConcurrent fires many CreateUntitledNote calls from
 // real goroutines at once (unlike the sequential-loop dedup test above) —
-// the two Electron WebContentsViews this app runs could plausibly hit
+// the concurrent windows/requests this app runs could plausibly hit
 // "New Note" within the same second. g.mu.Lock() inside CreateUntitledNote
 // must fully serialize them; run with -race to catch any data race too.
 func TestCreateUntitledNoteConcurrent(t *testing.T) {

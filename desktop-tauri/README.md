@@ -2,7 +2,7 @@
 
 桌面壳。窗口加载本机 `hylo` 进程吐出的页面，并通过 `window.hyloDesktop` 调用壳能力。Go 服务不在这里。
 
-应用名 **Hylo**，bundle id `dev.hardhacker.hylo`。配置目录和以前的桌面壳相同：macOS 上是 `~/Library/Application Support/Hylo`。
+应用名 **Hylo**，bundle id `dev.hardhacker.hylo`。应用数据目录由 Tauri 的 `app_data_dir()` 决定（目录名取 bundle id）：macOS 上是 `~/Library/Application Support/dev.hardhacker.hylo`，里面有 `config.json`、server 的 pid 文件和日志。
 
 ## 开发
 
