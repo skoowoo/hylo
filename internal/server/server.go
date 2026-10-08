@@ -224,6 +224,22 @@ func (s *Server) Run(pidFile string) error {
 		s.logger.Info("shutdown signal received", "signal", sig)
 	}
 
+	// Notify swallows later SIGINT/SIGTERM. Restore the default terminate
+	// action so a second Ctrl+C or kill stops the process immediately if
+	// graceful shutdown is stuck.
+	signal.Reset(syscall.SIGINT, syscall.SIGTERM)
+
+	// Backstop for a shutdown step that ignores the context (index close,
+	// sqlite close). os.Exit skips defers, so drop the pid file here.
+	forceExit := time.AfterFunc(shutdownTimeout+5*time.Second, func() {
+		s.logger.Error("shutdown timed out; forcing exit")
+		if pidFile != "" {
+			_ = os.Remove(pidFile)
+		}
+		os.Exit(1)
+	})
+	defer forceExit.Stop()
+
 	ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 	defer cancel()
 
@@ -240,9 +256,25 @@ func (s *Server) Run(pidFile string) error {
 	// Stop plugins before closing the vault so any final commits can complete.
 	s.pluginMgr.Stop(ctx)
 
-	if err := s.vault.Close(); err != nil {
-		s.logger.Warn("vault close error", "err", err)
-	}
+	s.closeVault(ctx)
 	s.logger.Info("server stopped")
 	return nil
+}
+
+// closeVault releases the sqlite database without letting a stuck connection
+// hold the process open. On timeout the process still exits and the OS
+// reclaims the file.
+func (s *Server) closeVault(ctx context.Context) {
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		if err := s.vault.Close(); err != nil {
+			s.logger.Warn("vault close error", "err", err)
+		}
+	}()
+	select {
+	case <-done:
+	case <-ctx.Done():
+		s.logger.Warn("vault close timed out")
+	}
 }

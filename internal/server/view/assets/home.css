@@ -872,7 +872,13 @@
 
     .home-inbox-list { flex: 1; min-height: 0; overflow-y: auto; padding: 20px 24px 40px; display: flex; flex-direction: column; }
 
-    .home-inbox-card { display: flex; align-items: flex-start; gap: 0.5rem; background: var(--surface-soft); }
+    /* Skips layout of off-screen cards; without it re-showing the parked inbox
+       lays out every loaded card (~45ms at 50 cards in WebKit). 75px is a
+       card's rendered height; `auto` keeps the real one once seen. */
+    .home-inbox-card {
+      display: flex; align-items: flex-start; gap: 0.5rem; background: var(--surface-soft);
+      content-visibility: auto; contain-intrinsic-size: auto 75px;
+    }
     .home-inbox-card:not(.is-unread) { border-color: transparent; }
     .home-inbox-card:not(.is-unread):hover { background: var(--card-hov); }
     .home-inbox-card:not(.is-unread) :is(.home-inbox-card-title, .home-inbox-card-time) { color: var(--muted); }

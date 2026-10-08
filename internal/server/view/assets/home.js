@@ -76,6 +76,34 @@ function loadListViewModes() {
   }
 }
 
+// ── x-press ───────────────────────────────────────────────────────────────
+// x-press="expr" runs on a left mouse press instead of waiting ~80ms for the
+// release, like native sidebars and tab strips. Keyboard activation (a click
+// with detail 0) and touch/pen taps still go through click, so a scroll
+// gesture never activates. A child that must not activate its parent stops
+// pointerdown (and click) itself.
+document.addEventListener('alpine:init', function () {
+  Alpine.directive('press', function (el, { expression }, { evaluateLater, cleanup }) {
+    var run = evaluateLater(expression);
+    var pressed = false;
+    function onPointerDown(e) {
+      // Ctrl+click is the macOS secondary click.
+      pressed = e.pointerType === 'mouse' && e.button === 0 && !e.ctrlKey;
+      if (pressed) run(function () {}, { scope: { $event: e } });
+    }
+    function onClick(e) {
+      if (pressed && e.detail > 0) { pressed = false; return; }
+      run(function () {}, { scope: { $event: e } });
+    }
+    el.addEventListener('pointerdown', onPointerDown);
+    el.addEventListener('click', onClick);
+    cleanup(function () {
+      el.removeEventListener('pointerdown', onPointerDown);
+      el.removeEventListener('click', onClick);
+    });
+  });
+});
+
 // ── Home Alpine controller ────────────────────────────────────────────────
 function homeCtrl() {
   var ctrl = Object.assign(contentPaneCtrl(), homeImagesMixin(), homeGraphMixin(), homeInboxMixin(), homeShortsMixin(), {

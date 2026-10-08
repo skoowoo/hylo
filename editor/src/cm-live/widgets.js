@@ -38,6 +38,29 @@ export class WikiLinkWidget extends WidgetType {
   }
 }
 
+// Rendered height per src: a re-created <img> holds its box while it decodes
+// instead of collapsing to zero, and the height map gets a real estimate.
+const imageHeightCache = new Map();
+
+function imageDOM(src, alt) {
+  const wrap = document.createElement('span');
+  wrap.className = 'cm-lp-wikiimage';
+  const img = document.createElement('img');
+  img.alt = alt;
+  img.draggable = false;
+  const known = imageHeightCache.get(src);
+  if (known) wrap.style.minHeight = known + 'px';
+  const settle = () => {
+    wrap.style.minHeight = '';
+    if (wrap.offsetHeight) imageHeightCache.set(src, wrap.offsetHeight);
+  };
+  img.addEventListener('load', settle, { once: true });
+  img.addEventListener('error', () => { wrap.style.minHeight = ''; }, { once: true });
+  img.src = src;
+  wrap.appendChild(img);
+  return wrap;
+}
+
 // ![[wikiimage]] → <img>; resolveSrc from content_pane.js.
 export class WikiImageWidget extends WidgetType {
   constructor(filename, resolveSrc) {
@@ -50,15 +73,16 @@ export class WikiImageWidget extends WidgetType {
     return other.filename === this.filename;
   }
 
+  get src() {
+    return this.resolveSrc ? this.resolveSrc(this.filename) : this.filename;
+  }
+
+  get estimatedHeight() {
+    return imageHeightCache.get(this.src) ?? -1;
+  }
+
   toDOM() {
-    const wrap = document.createElement('span');
-    wrap.className = 'cm-lp-wikiimage';
-    const img = document.createElement('img');
-    img.src = this.resolveSrc ? this.resolveSrc(this.filename) : this.filename;
-    img.alt = this.filename;
-    img.draggable = false;
-    wrap.appendChild(img);
-    return wrap;
+    return imageDOM(this.src, this.filename);
   }
 
   // Click places caret nearby (no navigation).
@@ -67,16 +91,17 @@ export class WikiImageWidget extends WidgetType {
   }
 }
 
-// GFM "[ ]"/"[x]" → checkbox; fixed 3-char replace at `pos`. No raw-edit mode.
+// GFM "[ ]"/"[x]" → checkbox; fixed 3-char replace. No raw-edit mode.
+// Position is read from the DOM at click time, not stored: an edit above
+// would otherwise fail eq() and rebuild every checkbox below it.
 export class TaskCheckboxWidget extends WidgetType {
-  constructor(checked, pos) {
+  constructor(checked) {
     super();
     this.checked = checked;
-    this.pos = pos;
   }
 
   eq(other) {
-    return other.checked === this.checked && other.pos === this.pos;
+    return other.checked === this.checked;
   }
 
   toDOM(view) {
@@ -86,8 +111,9 @@ export class TaskCheckboxWidget extends WidgetType {
     input.checked = this.checked;
     input.addEventListener('mousedown', (e) => {
       e.preventDefault();
-      const insert = this.checked ? '[ ]' : '[x]';
-      view.dispatch({ changes: { from: this.pos, to: this.pos + 3, insert } });
+      const pos = view.posAtDOM(input);
+      const checked = /\[[xX]\]/.test(view.state.doc.sliceString(pos, pos + 3));
+      view.dispatch({ changes: { from: pos, to: pos + 3, insert: checked ? '[ ]' : '[x]' } });
     });
     return input;
   }
@@ -109,15 +135,12 @@ export class MarkdownImageWidget extends WidgetType {
     return other.url === this.url && other.alt === this.alt;
   }
 
+  get estimatedHeight() {
+    return imageHeightCache.get(this.url) ?? -1;
+  }
+
   toDOM() {
-    const wrap = document.createElement('span');
-    wrap.className = 'cm-lp-wikiimage';
-    const img = document.createElement('img');
-    img.src = this.url;
-    img.alt = this.alt || '';
-    img.draggable = false;
-    wrap.appendChild(img);
-    return wrap;
+    return imageDOM(this.url, this.alt || '');
   }
 
   ignoreEvent() {

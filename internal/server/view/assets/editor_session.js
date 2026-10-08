@@ -268,12 +268,18 @@
     } catch(_) {}
   }
 
-  // Per-tab scroll position and source-mode flag.
+  // Per-tab scroll position and source-mode flag. snapshot anchors on a doc
+  // position: a fresh state forgets measured line heights, so the raw
+  // scrollTop lands hundreds of lines off on a long note.
   var __hyloTabStates = new Map();
   function __hyloEditorSaveTabState(tabId) {
     if (!tabId) return;
-    var scroller = document.querySelector('#content-pane-edit-area .cm-scroller');
-    __hyloTabStates.set(tabId, { scrollTop: scroller ? scroller.scrollTop : 0, inSource: __hyloEditor.inSource });
+    var view = __hyloEditor.view;
+    __hyloTabStates.set(tabId, {
+      scrollTop: view ? view.scrollDOM.scrollTop : 0,
+      snapshot: view ? view.scrollSnapshot() : null,
+      inSource: __hyloEditor.inSource,
+    });
   }
   function __hyloEditorRestoreTabState(tabId) { return (tabId && __hyloTabStates.get(tabId)) || null; }
   function __hyloEditorClearTabState(tabId) { if (tabId) __hyloTabStates.delete(tabId); }
@@ -636,6 +642,7 @@
       return false;
     }
     var content = await resp.text();
+    await __hyloEditorPreloadLanguages(content);
     if (!__hyloEditorIsActiveTabId(tabId)) return false;
     s.currentPath = path; s.currentMd = __hyloEditorTightenLists(content); s.dirty = false;
     // Apply state (will create new state if no saved state)
@@ -646,6 +653,7 @@
     var s = __hyloEditor;
     if (s.dirty && s.currentPath) { clearTimeout(s.saveTimer); s.saveTimer = null; await __hyloEditorDoSave(); }
     else { clearTimeout(s.saveTimer); s.saveTimer = null; }
+    await __hyloEditorPreloadLanguages(content || '');
     if (!__hyloEditorIsActiveTabId(tabId)) return false;
     __hyloEditorSaveStatus('');
     s.currentPath = ''; s.currentMd = __hyloEditorTightenLists(content || ''); s.dirty = false;
@@ -654,13 +662,21 @@
     return await __hyloEditorApplyState(savedState || { inSource: false, scrollTop: 0 }, tabId);
   }
   
+  // Runs before currentPath/currentMd switch over, so typing into the old
+  // note during the wait still saves to the old note. Capped so a slow chunk
+  // only costs a late highlight, never a stalled open.
+  function __hyloEditorPreloadLanguages(content) {
+    var p = __hyloCM && __hyloCM.preloadCodeLanguages(content);
+    if (!p) return null;
+    return Promise.race([p, new Promise(function(r) { setTimeout(r, 150); })]);
+  }
+
   async function __hyloEditorApplyState(state, expectedTabId) {
     var s = __hyloEditor;
     await __hyloEnsureContentPaneEditor();
     if (!__hyloEditorIsActiveTabId(expectedTabId)) return false;
 
     var targetInSource = state.inSource || false;
-    var targetScroll = state.scrollTop || 0;
     // Reading takes priority over a saved source/live-preview mode; a
     // not-yet-materialized tab (no currentPath) stays editable even while
     // the preference is on.
@@ -675,31 +691,38 @@
     // start) swapped in via setState(), not a dispatch()'d replace onto the
     // previous tab's state — see s._buildState's comment for why.
     s.view.setState(s._buildState(s.currentMd, wantSource, wantReading));
+    // A fresh state is parsed only ~3000 chars deep; the background worker
+    // finishes 100–500ms later, so the rest would paint as raw markdown first.
+    __hyloCM.forceParsing(s.view, s.view.state.doc.length, 40);
     __hyloEditorSetModeState(wantSource, wantReading);
     void __hyloEditorRevalidateWikiLinks();
     // Sync write covers the tab-switch frame. Two more writes cover the
     // pane slide-in tearing down a compositing layer and resetting scrollTop.
-    __hyloEditorRestoreScroll(targetScroll, { sync: true, frames: 2, afterMs: 270, tabId: expectedTabId, focus: true });
+    __hyloEditorRestoreScroll(state, { sync: true, frames: 2, afterMs: 270, tabId: expectedTabId, focus: true });
     return true;
   }
 
-  function __hyloEditorRestoreScroll(scrollTop, opts) {
+  // saved: { scrollTop, snapshot? } from __hyloEditorSaveTabState.
+  function __hyloEditorRestoreScroll(saved, opts) {
     var s = __hyloEditor;
     opts = opts || {};
-    var top = scrollTop || 0;
+    var top = (saved && saved.scrollTop) || 0;
+    var snap = saved && saved.snapshot;
     var tabId = opts.tabId;
     function scroller() { return document.querySelector('#content-pane-edit-area .cm-scroller'); }
-    function apply() {
-      if (tabId && !__hyloEditorIsActiveTabId(tabId)) return;
+    function write() {
       var el = scroller();
       if (el) el.scrollTop = top;
+      // A reload can come back shorter than when the snapshot was taken.
+      if (snap && s.view && snap.value.range.to <= s.view.state.doc.length) s.view.dispatch({ effects: snap });
+    }
+    function apply() {
+      if (tabId && !__hyloEditorIsActiveTabId(tabId)) return;
+      write();
     }
     if (s.pendingScrollRaf) { cancelAnimationFrame(s.pendingScrollRaf); s.pendingScrollRaf = null; }
     clearTimeout(s.pendingOpenScroll);
-    if (opts.sync) {
-      var now = scroller();
-      if (now) now.scrollTop = top;
-    }
+    if (opts.sync) write();
     var frames = opts.frames || 1;
     function frame(n) {
       s.pendingScrollRaf = requestAnimationFrame(function() {

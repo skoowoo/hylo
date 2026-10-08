@@ -503,7 +503,7 @@
           } else if (savedState) {
             // Same note, unsaved edits: the doc is already showing, so skip
             // the synchronous write. 250ms matches this open path's 240ms slide.
-            __hyloEditorRestoreScroll(savedState.scrollTop || 0, { frames: 1, afterMs: 250, focus: true });
+            __hyloEditorRestoreScroll(savedState, { frames: 1, afterMs: 250, focus: true });
           }
         });
         this.$watch('tabs', function(){ self._persist(); });

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"log/slog"
 	"os"
 	"os/exec"
@@ -99,6 +100,14 @@ func captureShellEnv() {
 func runShell(ctx context.Context, shell string, args []string) ([]byte, error) {
 	cmd := exec.CommandContext(ctx, shell, args...)
 	cmd.Env = os.Environ()
+	// -i makes zsh/bash take the controlling terminal (tcsetpgrp). Keep the
+	// shell off that tty so the server stays in the foreground process group.
+	cmd.Stderr = io.Discard
+	if f, err := os.Open(os.DevNull); err == nil {
+		defer f.Close()
+		cmd.Stdin = f
+	}
+	detachShellProcess(cmd)
 	return cmd.Output()
 }
 

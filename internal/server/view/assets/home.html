@@ -32,7 +32,7 @@
            @scroll.passive="$el.style.setProperty('--fade-top', Math.min($el.scrollTop, 24) + 'px')">
 
         <button type="button" class="side-nav-item home-side-item" :class="{'is-active': curType() === 'inbox'}"
-                @click="go('/home/section?type=inbox')">
+                x-press="go('/home/section?type=inbox')">
           {{sideIcon "inbox"}}
           <span class="home-side-label">Inbox</span>
           <span class="home-side-count" x-show="unreadCount > 0" x-text="unreadCount"></span>
@@ -41,10 +41,10 @@
         <div class="home-side-group">
           <button type="button" class="side-nav-item home-side-item home-side-item--parent"
                   :class="{'is-active': curType() === 'chat' && !selectedAgentBotId}"
-                  @click="go('/home/section?type=chat')">
+                  x-press="go('/home/section?type=chat')">
             {{sideIcon "bot"}}
             <span class="home-side-label">Agent Bots</span>
-            <svg class="home-side-chevron" :class="{'is-open': chatsOpen}" @click.stop="chatsOpen = !chatsOpen"
+            <svg class="home-side-chevron" :class="{'is-open': chatsOpen}" @pointerdown.stop @click.stop="chatsOpen = !chatsOpen"
                  fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" d="m9 18 6-6-6-6" />
             </svg>
@@ -53,7 +53,7 @@
             <div class="home-side-children-inner">
               <template x-for="m in agentBots" :key="m.id">
                 <button type="button" class="side-nav-item home-side-child" :class="{'is-active': curType() === 'chat' && selectedAgentBotId === m.id}"
-                        @click="selectChatAgentBot(m.id)">
+                        x-press="selectChatAgentBot(m.id)">
                   <span class="avatar avatar--sm avatar--accent home-side-child-avatar" :style="'background:' + agentBotColor(m.name) + ';color:var(--inverse-ink)'"
                         x-text="agentBotInitials(m.name)"></span>
                   <span class="home-side-child-name" x-text="m.name"></span>
@@ -68,7 +68,7 @@
 
         <div class="home-side-group">
           <button type="button" class="side-nav-item home-side-item home-side-item--parent"
-                  @click="knowledgeOpen = !knowledgeOpen">
+                  x-press="knowledgeOpen = !knowledgeOpen">
             {{sideIcon "knowledge"}}
             <span class="home-side-label">Knowledge</span>
             <svg class="home-side-chevron" :class="{'is-open': knowledgeOpen}"
@@ -85,13 +85,13 @@
 
         <button type="button" class="side-nav-item home-side-item"
                 :class="{'is-active': curType() === 'tags'}"
-                @click="go('/home/section?type=tags')">
+                x-press="go('/home/section?type=tags')">
           {{sideIcon "tags"}}
           <span class="home-side-label">Tags</span>
         </button>
 
         <button type="button" class="side-nav-item home-side-item" :class="{'is-active': curType() === 'memory'}"
-                @click="go('/home/section?type=memory')">
+                x-press="go('/home/section?type=memory')">
           {{sideIcon "memory"}}
           <span class="home-side-label">Memory</span>
         </button>
@@ -99,25 +99,25 @@
         <div class="home-side-sep hairline"></div>
 
         <button type="button" class="side-nav-item home-side-item" :class="{'is-active': curType() === 'pinned'}"
-                @click="go('/home/section?type=pinned')">
+                x-press="go('/home/section?type=pinned')">
           {{sideIcon "star"}}
           <span class="home-side-label">Pinned</span>
         </button>
 
         <button type="button" class="side-nav-item home-side-item" :class="{'is-active': curType() === 'shorts'}"
-                @click="go('/home/section?type=shorts')">
+                x-press="go('/home/section?type=shorts')">
           {{sideIcon "shorts"}}
           <span class="home-side-label">Shorts</span>
         </button>
 
         <button type="button" class="side-nav-item home-side-item" :class="{'is-active': curType() === 'images'}"
-                @click="go('/home/section?type=images')">
+                x-press="go('/home/section?type=images')">
           {{sideIcon "images"}}
           <span class="home-side-label">Images</span>
         </button>
 
         <div class="home-side-group">
-          <button type="button" class="side-nav-item home-side-item home-side-item--parent" @click="foldersOpen = !foldersOpen">
+          <button type="button" class="side-nav-item home-side-item home-side-item--parent" x-press="foldersOpen = !foldersOpen">
             {{sideIcon "folders"}}
             <span class="home-side-label">Folders</span>
             <svg class="home-side-chevron" :class="{'is-open': foldersOpen}" fill="none" stroke="currentColor"

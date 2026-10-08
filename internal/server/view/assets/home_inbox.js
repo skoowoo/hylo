@@ -120,6 +120,11 @@ function homeInboxMixin() {
       this.unreadCount = 0;
       try { await fetch('/api/inbox/read-all', { method: 'POST' }); } catch (e) { /* ignore */ }
     },
+    // The card shows one ellipsized line; the full body would still be laid
+    // out on every reattach, which grows with message length.
+    inboxSnippet(body) {
+      return (body || '').slice(0, 200).replace(/\s+/g, ' ').trim();
+    },
     relTime(iso) {
       const d = new Date(iso);
       const diffSec = Math.floor((Date.now() - d.getTime()) / 1000);

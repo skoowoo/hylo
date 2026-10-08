@@ -115,9 +115,8 @@ func (m *Manager) Start(ctx context.Context) {
 }
 
 // Stop cancels the context shared by all plugins and waits for them to exit,
-// bounded by ctx so a hung plugin (e.g. a WebSocket close that never returns)
-// cannot prevent the process from shutting down. Calls Stop() on each plugin
-// for final cleanup regardless of whether wg.Wait timed out.
+// bounded by ctx. Plugin.Stop runs only after Start has returned: cleanup such
+// as closing the search index deadlocks if it races a Start still inside it.
 func (m *Manager) Stop(ctx context.Context) {
 	if m.cancel != nil {
 		m.cancel()
@@ -130,7 +129,8 @@ func (m *Manager) Stop(ctx context.Context) {
 	select {
 	case <-done:
 	case <-ctx.Done():
-		m.logger.Warn("plugins did not stop within shutdown timeout; forcing cleanup")
+		m.logger.Warn("plugins did not stop within shutdown timeout; skipping cleanup")
+		return
 	}
 	for _, p := range m.plugins {
 		if err := p.Stop(); err != nil {

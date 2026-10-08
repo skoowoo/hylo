@@ -265,7 +265,7 @@ func settingsNavHTML() string {
 		if t.desktopOnly {
 			show = ` x-show="isDesktop"`
 		}
-		fmt.Fprintf(&b, `<button class="side-nav-item settings-sidebar-item"%s :class="{'is-active': tab === '%s'}" @click="tab = '%s'">`+
+		fmt.Fprintf(&b, `<button class="side-nav-item settings-sidebar-item"%s :class="{'is-active': tab === '%s'}" x-press="tab = '%s'">`+
 			`<svg class="side-nav-icon" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">%s</svg>%s</button>`,
 			show, t.id, t.id, t.icon, t.label)
 	}

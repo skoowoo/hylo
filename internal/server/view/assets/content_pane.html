@@ -72,7 +72,7 @@
             <div class="content-pane-tab" :data-tab-id="tab.id"
                  :class="{ active: i === activeTab, 'is-entering': tabEntering[tab.id] }"
                  :title="tab.path || 'Untitled'"
-                 @click="tabsMenuOpen = false; i !== activeTab && contentPaneSwitchTab(i)">
+                 x-press="tabsMenuOpen = false; i !== activeTab && contentPaneSwitchTab(i)">
               <span class="content-pane-tab-draft-icon" x-show="!tab.path" aria-hidden="true">
                 <svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M12 20h9"/>
@@ -121,7 +121,7 @@
                        @blur="submitRenameActiveNote()" />
               </template>
               <button type="button" class="content-pane-tab-close"
-                      @click.stop="contentPaneCloseTab(i)" title="Close tab">
+                      @pointerdown.stop @click.stop="contentPaneCloseTab(i)" title="Close tab">
                 <svg fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
                   <path stroke-linecap="round" d="M18 6 6 18"/>
                   <path stroke-linecap="round" d="m6 6 12 12"/>

@@ -300,7 +300,7 @@ function decorateFencedCode(node, view, decos) {
 function decorateTaskMarker(node, view, decos) {
   const raw = view.state.doc.sliceString(node.from, node.to);
   const checked = /\[[xX]\]/.test(raw);
-  decos.push(Decoration.replace({ widget: new TaskCheckboxWidget(checked, node.from) }).range(node.from, node.to));
+  decos.push(Decoration.replace({ widget: new TaskCheckboxWidget(checked) }).range(node.from, node.to));
 }
 
 // ── Wikilink / wikiimage — selectionInsideRange (strict) for atomicRanges.

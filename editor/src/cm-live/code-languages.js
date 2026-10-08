@@ -40,3 +40,18 @@ export const codeLanguages = [
   legacy('Kotlin', ['kt'], async () => (await import('@codemirror/legacy-modes/mode/clike')).kotlin),
   legacy('C#', ['cs', 'csharp'], async () => (await import('@codemirror/legacy-modes/mode/clike')).csharp),
 ];
+
+const FENCE_INFO_RE = /^ {0,3}(?:`{3,}|~{3,})[ \t]*([^\s`]+)/gm;
+
+// Grammars are lazy chunks; one that isn't loaded yet when the note is parsed
+// leaves its fence unhighlighted until the chunk lands and a reparse runs.
+// Resolves once every language this text fences is loaded; null if none pending.
+export function preloadCodeLanguages(text) {
+  const pending = new Set();
+  for (const m of text.matchAll(FENCE_INFO_RE)) {
+    const desc = LanguageDescription.matchLanguageName(codeLanguages, m[1], true);
+    if (desc && !desc.support) pending.add(desc);
+  }
+  if (!pending.size) return null;
+  return Promise.all([...pending].map((d) => d.load().catch(() => null)));
+}

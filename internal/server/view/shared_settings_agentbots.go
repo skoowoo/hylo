@@ -446,7 +446,8 @@ const settingsAgentBotsJS = `
       agentBotFormMode: null,
       agentBotTemplatePicker: false,
       agentBotEditId: '',
-      agentBotDraft: {},
+      // Full shape up front: the hidden form footer still evaluates name.trim().
+      agentBotDraft: { name: '', description: '', agentId: '', model: '', cwd: '', systemPrompt: '', enabled: true },
       agentBotTriggers: [],
       agentBotSaving: false,
       agentBotSaveError: '',
