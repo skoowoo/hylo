@@ -7,14 +7,8 @@ package view
 const settingsAgentCLICSS = `
     /* ── Agents tab ───────────────────────────────────────────── */
     .agents-toolbar { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; }
-    /* Toolbar's refresh/new buttons now use the shared .btn-outline
-       (base.css), which also defines the .spinning svg animation. */
     .agents-summary { font-size: var(--text-xs); color: var(--muted); }
     .agents-list { display: flex; flex-direction: column; gap: 0.45rem; }
-    /* Box comes from the shared .list-card (base.css); this is a static
-       display card; borderless/surface-soft + hover tint now come from the
-       shared .list-card--soft.list-card--hover (base.css) instead of a
-       local override. */
     .agent-card {
       display: flex; flex-direction: column; gap: 0.625rem;
       min-width: 0; overflow: hidden;
@@ -23,7 +17,6 @@ const settingsAgentCLICSS = `
     .agent-card-top {
       display: flex; align-items: center; gap: 0.6rem; min-width: 0;
     }
-    /* .agent-dot now uses the shared .dot / .dot--on / .dot--off (base.css). */
     .agent-card-name {
       font-size: var(--text-sm); font-weight: 600; color: var(--fg);
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;

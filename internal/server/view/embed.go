@@ -124,6 +124,76 @@ var graphCSS string
 //go:embed assets/cselect.css
 var cselectCSS string
 
-
 //go:embed assets/home_sidebar.html
 var homeSidebarPartsHTML string
+
+//go:embed assets/section_cache.js
+var sectionCacheJS string
+
+//go:embed assets/home_images.js
+var homeImagesJS string
+
+//go:embed assets/home_graph.js
+var homeGraphJS string
+
+//go:embed assets/home_inbox.js
+var homeInboxJS string
+
+//go:embed assets/home_shorts.js
+var homeShortsJS string
+
+//go:embed assets/tag_cloud.js
+var tagCloudJS string
+
+//go:embed assets/home_drag.js
+var homeDragJS string
+
+// homeSectionRowsHTML defines "rows": one page of note cards plus the load-more sentinel.
+//
+//go:embed assets/home_section_rows.html
+var homeSectionRowsHTML string
+
+// homeSectionFullHTML defines "full": the list head (count, view switch) and body.
+//
+//go:embed assets/home_section_full.html
+var homeSectionFullHTML string
+
+// homeTagsSectionHTML defines "tags": the tag cloud, or one tag's note list with a tag picker.
+//
+//go:embed assets/home_tags_section.html
+var homeTagsSectionHTML string
+
+// homeShortsSectionHTML is the Shorts section: header with month picker, composer, entry feed.
+//
+//go:embed assets/home_shorts_section.html
+var homeShortsSectionHTML string
+
+// homeImagesSectionHTML is the Images section: toolbar and thumbnail grid.
+//
+//go:embed assets/home_images_section.html
+var homeImagesSectionHTML string
+
+// homeImagesLightboxHTML is the page-level image lightbox, independent of the active section.
+//
+//go:embed assets/home_images_lightbox.html
+var homeImagesLightboxHTML string
+
+// homeGraphSectionHTML defines "graph-section": canvas, zoom controls, node panel.
+//
+//go:embed assets/home_graph_section.html
+var homeGraphSectionHTML string
+
+// homeInboxSectionHTML is the Inbox section; the list itself is client-rendered.
+//
+//go:embed assets/home_inbox_section.html
+var homeInboxSectionHTML string
+
+// homeChatSectionHTML is the chat pane shell, filled by chat_view.js.
+//
+//go:embed assets/home_chat_section.html
+var homeChatSectionHTML string
+
+// homeChatToastHTML is the page-level run-completion toast.
+//
+//go:embed assets/home_chat_toast.html
+var homeChatToastHTML string

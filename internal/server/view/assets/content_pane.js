@@ -439,24 +439,24 @@
           var moreMenu = document.querySelector('.content-pane-more-menu');
           if (moreMenu && moreMenu.style.display !== 'none') {
             document.dispatchEvent(new CustomEvent('content-pane:close-more'));
-            focusManager.blurActive();
+            __hyloBlurActive();
             return;
           }
           var botMenu = document.querySelector('.content-pane-bot-menu');
           if (botMenu && botMenu.style.display !== 'none') {
             document.dispatchEvent(new CustomEvent('content-pane:close-bot'));
-            focusManager.blurActive();
+            __hyloBlurActive();
             return;
           }
           var tabsMenu = document.querySelector('.content-pane-tabs-menu');
           if (tabsMenu && tabsMenu.style.display !== 'none') {
             document.dispatchEvent(new CustomEvent('content-pane:close-tabs'));
-            focusManager.blurActive();
+            __hyloBlurActive();
             return;
           }
           if (document.querySelector('.hylo-search-panel')) {
             var _s = __hyloEditor;
-            if (_s.view && __hyloCM) __hyloEditorCloseSearch(_s.view);
+            if (_s.view && __hyloCM) __hyloCM.closeSearchPanel(_s.view);
             return;
           }
         };
@@ -465,8 +465,8 @@
             if (window.__hyloEscPop) window.__hyloEscPop('content-pane');
             // Save state BEFORE blur — blur can trigger scrollIntoView which resets scrollTop
             var currentTab = self.tabs[self.activeTab];
-            if (currentTab) await __hyloEditorSaveTabForLeave(currentTab);
-            focusManager.blurActive();
+            if (currentTab) __hyloEditorSaveTabState(currentTab.id);
+            __hyloBlurActive();
             prevOpen = false; return;
           }
           prevOpen = true;
@@ -524,7 +524,7 @@
         if (!path) return;
         this.cancelRenameActiveNote(); // opening any note (even re-opening the active one) always discards an in-progress rename on whatever tab was showing
         var prevTab = this.tabs[this.activeTab];
-        if (this.contentPaneOpen && prevTab) await __hyloEditorSaveTabForLeave(prevTab);
+        if (this.contentPaneOpen && prevTab) __hyloEditorSaveTabState(prevTab.id);
         this.upsertTab(path, title, isKnowledge, pinned, isIndex, canCompile);
         __hyloEditorResetCompileBtn();
         this._openPane();
@@ -543,7 +543,7 @@
         this.cancelRenameActiveNote(); // see openNoteInContentPane
         var s = __hyloEditor;
         var prevTab = this.tabs[this.activeTab];
-        if (this.contentPaneOpen && prevTab) await __hyloEditorSaveTabForLeave(prevTab);
+        if (this.contentPaneOpen && prevTab) __hyloEditorSaveTabState(prevTab.id);
         if (s.dirty && s.currentPath) { clearTimeout(s.saveTimer); s.saveTimer = null; await __hyloEditorDoSave(); }
         else { clearTimeout(s.saveTimer); s.saveTimer = null; }
         __hyloEditorSaveStatus('');
@@ -684,7 +684,7 @@
 
       async contentPaneSwitchTab(i) {
         this.cancelRenameActiveNote(); // see openNoteInContentPane
-        focusManager.blurActive();
+        __hyloBlurActive();
         if (i === this.activeTab) return;
 
         var prevTab = this.tabs[this.activeTab];
@@ -693,7 +693,7 @@
 
         // Save current tab's state
         if (prevTab) {
-          await __hyloEditorSaveTabForLeave(prevTab);
+          __hyloEditorSaveTabState(prevTab.id);
         }
 
         // Switch active tab
@@ -1201,12 +1201,6 @@
   function __hyloEditorOpenFind() {
     var s = __hyloEditor;
     if (!__hyloCM || !s.view) return;
-    // Cancel a still-pending animated close and snap any fading-out panel
-    // back to visible first — otherwise that stale timer would go on to
-    // close the panel this call is about to (re)open.
-    if (s._searchCloseTimer) { clearTimeout(s._searchCloseTimer); s._searchCloseTimer = null; }
-    var panel = document.querySelector('#content-pane-edit-area .cm-panels-top');
-    if (panel) panel.classList.remove('is-closing');
     __hyloCM.openSearchPanel(s.view);
   }
 

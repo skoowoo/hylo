@@ -32,7 +32,6 @@ const settingsAgentBotsCSS = `
       display: flex; align-items: flex-start; gap: 0.875rem;
     }
     .agent-bot-card.disabled-card { opacity: 0.45; }
-    /* .agent-bot-avatar now uses the shared .avatar.avatar--lg.avatar--neutral (base.css). */
     .agent-bot-card-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.3rem; }
     .agent-bot-card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.5rem; min-width: 0; }
     .agent-bot-card-name { font-size: var(--text-sm); font-weight: 600; color: var(--fg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-radius: 0; flex: 1; min-width: 0; padding-top: 0.1rem; }
@@ -41,8 +40,6 @@ const settingsAgentBotsCSS = `
     .agent-bot-card-tags { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.15rem; }
     /* Structure/color come from the shared .badge / .badge--ok (base.css). */
     .agent-bot-badge { max-width: 200px; }
-    /* Row actions (move/edit/delete) now use the shared .btn-outline /
-       .btn-solid.btn-solid--danger with the .btn--xs size modifier. */
     .agent-bot-form-wrap { max-width: 780px; }
     .agent-bot-template-list { display: flex; flex-direction: column; gap: 0.45rem; max-width: 640px; }
     /* Box/hover/cursor/surface come from the shared .list-card.list-card--clickable
@@ -87,21 +84,12 @@ const settingsAgentBotsCSS = `
        so it keeps its own overflow/line-height instead of the shared
        fixed-rows textarea treatment. */
     .agent-bot-form-textarea { overflow: hidden; line-height: 1.55; }
-    .agent-bot-trigger-section-hdr {
-      display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;
-    }
-    .agent-bot-trigger-section-hdr .agent-bot-form-section-title { flex: 1; }
     .agent-bot-trigger-add {
       font-size: var(--text-sm); font-weight: 600; color: var(--muted);
       background: none; border: none; cursor: pointer; padding: 0.15rem 0;
       display: block;
     }
     .agent-bot-trigger-add:hover { color: var(--fg); }
-    .agent-bot-triggers-empty {
-      font-size: var(--text-sm); color: var(--muted); line-height: 1.5;
-      padding: 1.1rem 1rem; border-radius: var(--r-lg); background: var(--surface-soft);
-      text-align: center; font-style: italic; opacity: 0.6;
-    }
     .agent-bot-var-panel { margin-bottom: 0.5rem; }
     .agent-bot-var-panel-label {
       display: block; font-size: var(--text-xs); font-weight: 600;
@@ -160,8 +148,6 @@ const settingsAgentBotsCSS = `
     .agent-bot-block-hint { display: block; font-size: var(--text-xs); color: var(--muted); line-height: 1.5; margin-top: 0.2rem; }
     .agent-bot-prompt-textarea { font-family: var(--font-mono); font-size: var(--text-sm); }
     .agent-bot-schedule-presets { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 0.65rem; }
-    /* Preset/weekday chips now use the shared .btn-outline.btn--xs, with
-       .active for "currently chosen" (base.css). */
     .agent-bot-schedule-custom-label { display: block; font-size: var(--text-xs); color: var(--muted); margin-bottom: 0.3rem; }
     .agent-bot-weekday-toggles { align-items: center; margin-bottom: 0.4rem; }
     .agent-bot-schedule-kind-seg { margin-bottom: 0.85rem; }
@@ -176,7 +162,6 @@ const settingsAgentBotsCSS = `
       border-top: var(--bd-w) solid var(--line-hair);
       max-width: 780px;
     }
-    /* Save/Cancel now use the shared .btn-solid / .btn-outline (base.css). */
     .agent-bot-form-err { flex: 1; font-size: var(--text-xs); color: var(--s-err); }
 
     /* .cselect* (custom select) moved to assets/cselect.css — it's an
@@ -310,10 +295,6 @@ func settingsAgentBotsTabHTML() string {
 	) + `
                       </div>
                     </div>
-                    <div style="display:none">
-                      <label class="agent-bot-form-label">Working Directory <span style="font-weight:400;text-transform:none;letter-spacing:0;">(vault root if blank)</span></label>
-                      <input class="field-input agent-bot-form-input" type="text" x-model="agentBotDraft.cwd" placeholder="/absolute/path or leave blank">
-                    </div>
                     <div>
                       <label class="agent-bot-form-label">System Prompt</label>
                       <textarea class="field-input agent-bot-form-textarea" x-model="agentBotDraft.systemPrompt" rows="1"
@@ -323,9 +304,7 @@ func settingsAgentBotsTabHTML() string {
 
                   <section class="agent-bot-form-section agent-bot-form-section-triggers">
                     <div class="agent-bot-trigger-section-top">
-                      <div class="agent-bot-trigger-section-hdr">
-                        <h3 class="agent-bot-form-section-title">Triggers</h3>
-                      </div>
+                      <h3 class="agent-bot-form-section-title">Triggers</h3>
                       <p class="agent-bot-section-desc">Automatically run this agent bot on vault events or on a schedule. Each trigger sends a prompt template to the agent.</p>
                     </div>
                     <div class="agent-bot-trigger-list">
@@ -356,7 +335,7 @@ func settingsAgentBotsTabHTML() string {
 		`<template x-for="def in agentBotEventDefs" :key="def.type"><button type="button" class="cselect-option" :class="(t.eventTypes[0]||'')===def.type ? 'sel' : ''" :title="def.description" @click="setAgentBotET(t, def.type); csOpen=false"><span class="dot dot--fg cselect-option-dot"></span><span x-text="def.label"></span></button></template>`,
 	) + `
                             </div>
-                            <template x-if="isScheduledTrigger(t)">
+                            <template x-if="eventOf(t) === 'scheduled'">
                               <div class="agent-bot-trigger-block agent-bot-trigger-schedule">
                                 <div class="agent-bot-block-label">
                                   <span class="agent-bot-block-title">Schedule</span>
@@ -368,31 +347,17 @@ func settingsAgentBotsTabHTML() string {
                                   <button type="button" class="seg-btn" :class="{active: scheduleKindOf(t)==='weekly'}" @click="setScheduleKind(t, 'weekly')">Weekly</button>
                                 </div>
 
-                                <template x-if="scheduleKindOf(t) === 'every'">
+                                <template x-if="scheduleKindOf(t) !== 'weekly'">
                                   <div class="agent-bot-schedule-kind-body">
                                     <div class="agent-bot-schedule-presets">
-                                      <template x-for="p in agentBotIntervalPresets" :key="p.value">
+                                      <template x-for="p in agentBotSchedulePresets[scheduleKindOf(t)]" :key="p.value">
                                         <button type="button" class="btn-outline btn--xs"
                                                 :class="(t.schedule || '') === p.value ? 'active' : ''"
                                                 @click="t.schedule = p.value"
                                                 x-text="p.label"></button>
                                       </template>
                                     </div>
-                                    <span class="agent-bot-block-hint">Minimum interval: 15 minutes. For a different interval, edit it directly in Raw below.</span>
-                                  </div>
-                                </template>
-
-                                <template x-if="scheduleKindOf(t) === 'daily'">
-                                  <div class="agent-bot-schedule-kind-body">
-                                    <div class="agent-bot-schedule-presets">
-                                      <template x-for="p in agentBotDailyPresets" :key="p.value">
-                                        <button type="button" class="btn-outline btn--xs"
-                                                :class="(t.schedule || '') === p.value ? 'active' : ''"
-                                                @click="t.schedule = p.value"
-                                                x-text="p.label"></button>
-                                      </template>
-                                    </div>
-                                    <span class="agent-bot-block-hint">Server local time. For a different time, edit it directly in Raw below.</span>
+                                    <span class="agent-bot-block-hint" x-text="(scheduleKindOf(t) === 'every' ? 'Minimum interval: 15 minutes.' : 'Server local time.') + ' For a different value, edit it directly in Raw below.'"></span>
                                   </div>
                                 </template>
 
@@ -416,30 +381,17 @@ func settingsAgentBotsTabHTML() string {
                                        placeholder="every 1h · daily 09:00 · weekly mon,wed 09:00">
                               </div>
                             </template>
-                            <template x-if="!isScheduledTrigger(t) && !isWechatTrigger(t) && !isAgentRunCompletedTrigger(t)">
+                            <template x-if="hasPathFilter(t)">
                               <div class="agent-bot-trigger-block agent-bot-trigger-paths">
                                 <div class="agent-bot-block-label">
-                                  <span class="agent-bot-block-title">Path Prefixes <span style="font-weight:400;opacity:0.6;">(optional)</span></span>
-                                  <span class="agent-bot-block-hint">Only fire when the event path starts with one of these prefixes. Leave empty to match all paths. One prefix per line, e.g. <code style="font-size:var(--text-2xs);padding:0 3px;background:var(--code-bg);border-radius:var(--r-xs);">/journal/</code></span>
+                                  <span class="agent-bot-block-title"><span x-text="agentBotFilterFor(t).title"></span> <span style="font-weight:400;opacity:0.6;">(optional)</span></span>
+                                  <span class="agent-bot-block-hint" x-text="agentBotFilterFor(t).hint"></span>
                                 </div>
                                 <textarea class="field-input agent-bot-form-textarea"
                                           rows="2"
                                           :value="(t.pathPrefixes || []).join('\n')"
                                           @change="t.pathPrefixes = $event.target.value.split('\n').map(function(s){return s.trim();}).filter(Boolean)"
-                                          placeholder="/journal/&#10;/projects/work/"></textarea>
-                              </div>
-                            </template>
-                            <template x-if="isAgentRunCompletedTrigger(t)">
-                              <div class="agent-bot-trigger-block agent-bot-trigger-paths">
-                                <div class="agent-bot-block-label">
-                                  <span class="agent-bot-block-title">Source Agent Bots <span style="font-weight:400;opacity:0.6;">(optional)</span></span>
-                                  <span class="agent-bot-block-hint">Only fire when the run was completed by one of these agent bots. Leave empty to fire on any agent bot. One agent bot name per line.</span>
-                                </div>
-                                <textarea class="field-input agent-bot-form-textarea"
-                                          rows="2"
-                                          :value="(t.pathPrefixes || []).join('\n')"
-                                          @change="t.pathPrefixes = $event.target.value.split('\n').map(function(s){return s.trim();}).filter(Boolean)"
-                                          placeholder="Summarizer&#10;Compiler"></textarea>
+                                          :placeholder="agentBotFilterFor(t).placeholder"></textarea>
                               </div>
                             </template>
                             <div class="agent-bot-trigger-block agent-bot-trigger-prompt">
@@ -459,7 +411,6 @@ func settingsAgentBotsTabHTML() string {
                                 </div>
                               </div>
                               <textarea class="field-input agent-bot-form-textarea agent-bot-prompt-textarea" x-model="t.prompt" rows="2"
-                                        @focus="agentBotActivePromptIdx = ti"
                                         :placeholder="agentBotPromptPlaceholder(t)"></textarea>
                             </div>
                           </div>
@@ -497,7 +448,6 @@ const settingsAgentBotsJS = `
       agentBotEditId: '',
       agentBotDraft: {},
       agentBotTriggers: [],
-      agentBotActivePromptIdx: -1,
       agentBotSaving: false,
       agentBotSaveError: '',
       agentBotEventDefs: [],
@@ -550,14 +500,16 @@ const settingsAgentBotsJS = `
         { token: '{Name}', desc: 'Filename without extension' },
         { token: '{Content}', desc: 'Appended short-note text (short_note_created only)' },
       ],
-      agentBotIntervalPresets: [
-        { label: 'Every hour', value: 'every 1h' },
-        { label: 'Every 6 hours', value: 'every 6h' },
-      ],
-      agentBotDailyPresets: [
-        { label: 'Daily 09:00', value: 'daily 09:00' },
-        { label: 'Daily 21:00', value: 'daily 21:00' },
-      ],
+      agentBotSchedulePresets: {
+        every: [
+          { label: 'Every hour', value: 'every 1h' },
+          { label: 'Every 6 hours', value: 'every 6h' },
+        ],
+        daily: [
+          { label: 'Daily 09:00', value: 'daily 09:00' },
+          { label: 'Daily 21:00', value: 'daily 21:00' },
+        ],
+      },
       agentBotWeekdayDefs: [
         { abbr: 'mon', label: 'Mon' },
         { abbr: 'tue', label: 'Tue' },
@@ -659,9 +611,7 @@ const settingsAgentBotsJS = `
           this.agentBotDraft = { name: m.name, description: m.description || '', agentId: m.agentId, model: modelValid ? savedModel : '', cwd: m.cwd || '', systemPrompt: m.systemPrompt || '', enabled: m.enabled };
           this.agentBotTriggers = (m.triggers || []).map(function(t) {
             return Object.assign({}, t, {
-              eventTypes: (t.eventTypes || []).map(function(et) {
-                return et === 'weixin_message' ? 'wechat_message' : et;
-              }),
+              eventTypes: t.eventTypes || [],
               schedule: t.schedule || '',
               pathPrefixes: t.pathPrefixes || [],
               _open: false,
@@ -710,9 +660,7 @@ const settingsAgentBotsJS = `
       },
 
       async deleteAgentBot(id) {
-        const ok = (typeof window.showConfirm === 'function')
-          ? await window.showConfirm({ title: 'Delete agent bot', message: 'This agent bot and all its data will be permanently deleted.', confirmLabel: 'Delete', danger: true })
-          : window.confirm('Delete this agent bot? This cannot be undone.');
+        const ok = await window.showConfirm({ title: 'Delete agent bot', message: 'This agent bot and all its data will be permanently deleted.', confirmLabel: 'Delete', danger: true });
         if (!ok) return;
         try {
           const r = await fetch('/api/mates/' + id, { method: 'DELETE' });
@@ -749,25 +697,31 @@ const settingsAgentBotsJS = `
       agentBotTriggerSummary(t) {
         const def = this.agentBotEventDefs.find(function(d){ return d.type === (t.eventTypes[0] || ''); });
         const label = def ? def.label : (t.eventTypes[0] || 'Select event…');
-        if (this.isScheduledTrigger(t)) return t.schedule ? label + ' · ' + t.schedule : label;
+        if (this.eventOf(t) === 'scheduled') return t.schedule ? label + ' · ' + t.schedule : label;
         if ((t.pathPrefixes || []).length) return label + ' · ' + t.pathPrefixes.join(', ');
         return label;
       },
 
-      isScheduledTrigger(t) { return (t.eventTypes || []).indexOf('scheduled') >= 0; },
-      isWechatTrigger(t) { return (t.eventTypes || []).indexOf('wechat_message') >= 0; },
-      isCompileTrigger(t) { return (t.eventTypes || []).indexOf('compile_requested') >= 0; },
-      isAgentRunCompletedTrigger(t) { return (t.eventTypes || []).indexOf('agent_run_completed') >= 0; },
+      // UI writes exactly one event type per trigger, so it keys the table.
+      eventOf(t) { return (t.eventTypes || [])[0] || ''; },
+      agentBotEventKind(t) { return this.AGENT_BOT_EVENT_KINDS[this.eventOf(t)] || null; },
 
-      // Same priority order the four isXTrigger checks above always ran in
-      // when picking vars/placeholder/hint — named once here instead of
-      // re-derived by each caller.
-      agentBotEventKind(t) {
-        if (this.isScheduledTrigger(t)) return this.AGENT_BOT_EVENT_KINDS.scheduled;
-        if (this.isWechatTrigger(t)) return this.AGENT_BOT_EVENT_KINDS.wechat_message;
-        if (this.isCompileTrigger(t)) return this.AGENT_BOT_EVENT_KINDS.compile_requested;
-        if (this.isAgentRunCompletedTrigger(t)) return this.AGENT_BOT_EVENT_KINDS.agent_run_completed;
-        return null;
+      // Schedule and WeChat triggers carry no path; the rest filter by path prefix
+      // (or, for agent_run_completed, by source bot name — same field).
+      hasPathFilter(t) { return ['scheduled', 'wechat_message'].indexOf(this.eventOf(t)) < 0; },
+      agentBotFilterFor(t) {
+        if (this.eventOf(t) === 'agent_run_completed') {
+          return {
+            title: 'Source Agent Bots',
+            hint: 'Only fire when the run was completed by one of these agent bots. Leave empty to fire on any agent bot. One agent bot name per line.',
+            placeholder: 'Summarizer\nCompiler',
+          };
+        }
+        return {
+          title: 'Path Prefixes',
+          hint: 'Only fire when the event path starts with one of these prefixes. Leave empty to match all paths. One prefix per line, e.g. /journal/',
+          placeholder: '/journal/\n/projects/work/',
+        };
       },
 
       agentBotPromptVarsForTrigger(t) {
@@ -795,33 +749,21 @@ const settingsAgentBotsJS = `
         }
       },
 
-      scheduleKindOf(t) {
-        const s = (t.schedule || '').trim().toLowerCase();
-        if (s.startsWith('every ')) return 'every';
-        if (s.startsWith('weekly ')) return 'weekly';
-        return 'daily';
+      // Backend owns the grammar ("every 1h" / "daily HH:MM" / "weekly d1,d2 HH:MM");
+      // this is the one place the UI reads it back.
+      parseAgentBotSchedule(t) {
+        const parts = (t.schedule || '').trim().toLowerCase().split(/\s+/);
+        const kind = parts[0] === 'every' || parts[0] === 'weekly' ? parts[0] : 'daily';
+        if (kind !== 'weekly') return { kind: kind, days: [], time: '09:00' };
+        const days = !parts[1] || parts[1] === 'none' ? [] : parts[1].split(',').filter(Boolean);
+        return { kind: 'weekly', days: days, time: parts[2] || '09:00' };
       },
+      scheduleKindOf(t) { return this.parseAgentBotSchedule(t).kind; },
+      weeklyDaysOf(t) { return this.parseAgentBotSchedule(t).days; },
 
       setScheduleKind(t, kind) {
         if (this.scheduleKindOf(t) === kind) return;
-        if (kind === 'every') t.schedule = 'every 1h';
-        else if (kind === 'daily') t.schedule = 'daily 09:00';
-        else if (kind === 'weekly') t.schedule = 'weekly mon 09:00';
-      },
-
-      weeklyDaysOf(t) {
-        const s = (t.schedule || '').trim().toLowerCase();
-        if (!s.startsWith('weekly ')) return [];
-        const parts = s.split(/\s+/);
-        if (parts.length < 2 || parts[1] === 'none') return [];
-        return parts[1].split(',').map(function(d) { return d.trim(); }).filter(Boolean);
-      },
-
-      weeklyTimeOf(t) {
-        const s = (t.schedule || '').trim().toLowerCase();
-        if (!s.startsWith('weekly ')) return '09:00';
-        const parts = s.split(/\s+/);
-        return parts.length >= 3 ? parts[2] : '09:00';
+        t.schedule = { every: 'every 1h', daily: 'daily 09:00', weekly: 'weekly mon 09:00' }[kind];
       },
 
       // dayField falls back to the "none" sentinel (instead of an empty string) when the
@@ -836,12 +778,10 @@ const settingsAgentBotsJS = `
           days = days.concat([abbr]);
         }
         days.sort(function(a, b) { return order.indexOf(a) - order.indexOf(b); });
-        const time = this.weeklyTimeOf(t);
-        t.schedule = 'weekly ' + (days.length ? days.join(',') : 'none') + ' ' + time;
+        t.schedule = 'weekly ' + (days.length ? days.join(',') : 'none') + ' ' + this.parseAgentBotSchedule(t).time;
       },
 
       insertAgentBotVar(ti, token, event) {
-        this.agentBotActivePromptIdx = ti;
         const promptBlock = event.target.closest('.agent-bot-trigger-prompt');
         const ta = promptBlock && promptBlock.querySelector('textarea');
         if (ta && typeof ta.selectionStart === 'number') {

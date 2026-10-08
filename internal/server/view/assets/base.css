@@ -397,39 +397,14 @@
        track, --scrollbar-thumb/-hov) so no page reinvents its own. A class
        selector here outranks the hide rule regardless of file order
        (0,0,1,1 vs 0,0,0,1). ── */
-    .home-list-body,
-    .home-inbox-list,
-    .chat-scroll,
-    .img-scroll,
-    .home-side-nav,
-    .inbox-sheet-scroll {
+    :is(.home-list-body, .home-inbox-list, .chat-scroll, .img-scroll, .inbox-sheet-scroll) {
       scrollbar-width: thin;
       scrollbar-color: var(--scrollbar-thumb) transparent;
     }
-    .home-list-body::-webkit-scrollbar,
-    .home-inbox-list::-webkit-scrollbar,
-    .chat-scroll::-webkit-scrollbar,
-    .img-scroll::-webkit-scrollbar,
-    .home-side-nav::-webkit-scrollbar,
-    .inbox-sheet-scroll::-webkit-scrollbar { width: 5px; }
-    .home-list-body::-webkit-scrollbar-track,
-    .home-inbox-list::-webkit-scrollbar-track,
-    .chat-scroll::-webkit-scrollbar-track,
-    .img-scroll::-webkit-scrollbar-track,
-    .home-side-nav::-webkit-scrollbar-track,
-    .inbox-sheet-scroll::-webkit-scrollbar-track { background: transparent; }
-    .home-list-body::-webkit-scrollbar-thumb,
-    .home-inbox-list::-webkit-scrollbar-thumb,
-    .chat-scroll::-webkit-scrollbar-thumb,
-    .img-scroll::-webkit-scrollbar-thumb,
-    .home-side-nav::-webkit-scrollbar-thumb,
-    .inbox-sheet-scroll::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); }
-    .home-list-body::-webkit-scrollbar-thumb:hover,
-    .home-inbox-list::-webkit-scrollbar-thumb:hover,
-    .chat-scroll::-webkit-scrollbar-thumb:hover,
-    .img-scroll::-webkit-scrollbar-thumb:hover,
-    .home-side-nav::-webkit-scrollbar-thumb:hover,
-    .inbox-sheet-scroll::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hov); }
+    :is(.home-list-body, .home-inbox-list, .chat-scroll, .img-scroll, .inbox-sheet-scroll)::-webkit-scrollbar { width: 5px; }
+    :is(.home-list-body, .home-inbox-list, .chat-scroll, .img-scroll, .inbox-sheet-scroll)::-webkit-scrollbar-track { background: transparent; }
+    :is(.home-list-body, .home-inbox-list, .chat-scroll, .img-scroll, .inbox-sheet-scroll)::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); }
+    :is(.home-list-body, .home-inbox-list, .chat-scroll, .img-scroll, .inbox-sheet-scroll)::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hov); }
 
     /* ── Shared modal dialog chrome ───────────────────────────────
        Backs confirm_dialog.css and info_dialog.css (small, single-purpose

@@ -1,0 +1,29 @@
+<div class="home-inbox-section">
+  <div class="home-list-head">
+    <span class="home-list-count" title="Unread" x-show="unreadCount > 0" x-text="unreadCount"></span>
+    <div class="home-list-head-spacer"></div>
+    <div class="seg">
+      <button type="button" class="seg-btn" :class="inboxFilter === 'all' ? 'active' : ''" @click="setInboxFilter('all')">All</button>
+      <button type="button" class="seg-btn" :class="inboxFilter === 'unread' ? 'active' : ''" @click="setInboxFilter('unread')">Unread</button>
+    </div>
+    <button type="button" class="icon-btn home-inbox-mark-all-btn" title="Mark all read" x-show="unreadCount > 0" @click="markAllInboxRead()">{{svgCheck}}</button>
+  </div>
+  <div class="home-inbox-list" id="home-inbox-list" @scroll="onInboxListScroll($event)">
+    <template x-if="!inboxLoading && visibleInboxMessages().length === 0">
+      <div class="home-list-empty" x-text="inboxFilter === 'unread' ? 'All caught up — no unread messages.' : 'No messages yet.'"></div>
+    </template>
+    <template x-for="m in visibleInboxMessages()" :key="m.id">
+      <div class="list-card list-card--clickable home-list-card home-inbox-card" :class="{ 'is-unread': !m.isRead }" @click="selectInboxMessage(m)">
+        <div class="dot dot--fg home-inbox-unread-dot"></div>
+        <div class="home-inbox-card-content">
+          <div class="home-inbox-card-top">
+            <span class="home-inbox-card-title" x-text="m.title || m.source"></span>
+            <span class="home-inbox-card-time" x-text="relTime(m.createdAt)"></span>
+          </div>
+          <div class="home-inbox-card-snippet" x-text="m.body"></div>
+        </div>
+      </div>
+    </template>
+    <div class="home-list-empty" x-show="inboxLoadingMore" style="padding:1rem 0">Loading more…</div>
+  </div>
+</div>

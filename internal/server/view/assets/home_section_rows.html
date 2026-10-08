@@ -1,0 +1,31 @@
+{{define "rows"}}{{range .Items}}
+<div class="list-card list-card--clickable home-list-card home-note-row{{if .Cover}} has-cover{{end}}" @click="__hyloOpenNote($event.currentTarget)"
+     draggable="true"
+     data-note-path="{{.Path}}" data-note-title="{{label .}}"
+     data-note-is-knowledge="{{.IsKnowledge}}" data-note-is-index="{{.IsIndex}}"
+     data-note-can-compile="{{.CanCompile}}" data-note-pinned="{{.Pinned}}">
+  {{if .Cover}}<div class="home-note-cover" aria-hidden="true"><img src="{{coverURL .Cover}}" alt="" draggable="false" loading="lazy" decoding="async"></div>{{end}}
+  <div class="home-note-row-top">
+    <div class="home-note-row-titleblock">
+      <div class="home-note-row-titlerow">
+        <span class="home-note-row-title">{{label .}}</span>
+        {{if .TodoTotal}}{{if eq .TodoDone .TodoTotal}}<span class="home-note-badge home-note-badge--done" title="{{.TodoDone}}/{{.TodoTotal}} done"><svg fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span>{{else}}<span class="home-note-badge home-note-badge--todo" title="{{.TodoDone}}/{{.TodoTotal}}"><svg viewBox="0 0 20 20"><circle class="home-note-badge--todo-track" cx="10" cy="10" r="8"/><circle class="home-note-badge--todo-fill" cx="10" cy="10" r="8" transform="rotate(-90 10 10)" stroke-dasharray="{{todoRingDash .TodoDone .TodoTotal}}"/></svg></span>{{end}}{{end}}
+      </div>
+      {{if .Preview}}<span class="home-note-row-preview-grid">{{.Preview}}</span>{{end}}
+    </div>
+    <div class="home-note-row-badges">
+      {{if .Pinned}}<span class="home-note-badge home-note-badge--pin" title="Pinned"><svg fill="currentColor" viewBox="0 0 24 24"><path d="M17 3a2 2 0 0 1 2 2v15a1 1 0 0 1-1.496.868l-4.512-2.578a2 2 0 0 0-1.984 0l-4.512 2.578A1 1 0 0 1 5 20V5a2 2 0 0 1 2-2z"/></svg></span>{{end}}
+      {{if .IsCompiled}}<span class="home-note-badge home-note-badge--done" title="Compiled"><svg fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span>{{end}}
+    </div>
+  </div>
+  <div class="home-note-row-meta">
+    {{if .Preview}}<span class="home-note-row-preview">{{.Preview}}</span>{{end}}
+    <span class="home-note-row-dir">{{.Dir}}</span>
+    <span class="home-note-row-time">{{.UpdatedAt}}</span>
+  </div>
+</div>
+{{end}}{{if .NextURL}}
+<div class="home-load-sentinel" hx-get="{{.NextURL}}" hx-trigger="intersect once" hx-swap="outerHTML"></div>
+{{end}}{{if not .Items}}
+<div class="home-list-empty">{{.EmptyMsg}}</div>
+{{end}}{{end}}

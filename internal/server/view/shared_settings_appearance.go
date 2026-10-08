@@ -11,16 +11,7 @@ const settingsAppearanceCSS = `
       color: var(--fg); margin-bottom: 0.5rem;
     }
     .settings-field-desc { font-size: var(--text-xs); color: var(--muted); margin-top: 0.4rem; line-height: 1.5; }
-    .settings-field-row { display: flex; gap: 0.5rem; align-items: center; }
-    /* Box/font come from the shared .field-input (base.css); this is
-       inline next to a button in a flex row, not full-width. */
-    .settings-input { flex: 1; min-width: 0; }
-    /* Apply/save/toolbar/danger buttons all now use the shared
-       .btn-outline / .btn-solid / .btn-solid--danger classes (base.css). */
     .settings-error { margin-top: 0.4rem; font-size: var(--text-xs); color: var(--s-err); }
-
-    /* Theme/Enter-Effect/schedule-kind pickers use the shared .seg/.seg-btn
-       component (base.css) instead of their own copy. */
 
     .accent-swatches { display: flex; flex-wrap: wrap; gap: 0.75rem; padding: 0.4rem; }
     /* Ring is a pseudo-element border, not outline: the page-wide

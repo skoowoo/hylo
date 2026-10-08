@@ -48,9 +48,7 @@ func newRouter(
 	agentCache.WarmUp()
 	ah := handler.NewAgentAPI(logger, cfg, vault, agentHub, mateStore, agentCache)
 
-	// Inbox: generic, source-agnostic message store. mate trigger runs are the
-	// first producer (wired below); other producers can call inboxStore.Create
-	// directly without depending on the mate package. Shares mate.db's
+	// Inbox: notifications for finished bot trigger runs. Shares mate.db's
 	// connection rather than opening its own file.
 	var inboxStore *inbox.Store
 	if mateStore != nil {
@@ -79,24 +77,14 @@ func newRouter(
 			if strings.TrimSpace(result.LastMessage) == "" {
 				return
 			}
-			level := inbox.LevelSuccess
-			if !result.Success {
-				level = inbox.LevelError
-			}
 			title := m.Name
 			if h1 := firstMarkdownH1(result.LastMessage); h1 != "" {
 				title = m.Name + ": " + h1
 			}
 			if _, err := inboxStore.Create(inbox.Message{
-				Source: "mate_trigger",
-				Level:  level,
+				Source: m.Name,
 				Title:  title,
 				Body:   result.LastMessage,
-				Metadata: map[string]any{
-					"mateId":     m.ID,
-					"eventType":  string(result.EventType),
-					"durationMs": result.Duration.Milliseconds(),
-				},
 			}); err != nil {
 				logger.Warn("inbox: create message", "err", err)
 			}
@@ -109,8 +97,7 @@ func newRouter(
 		mux.HandleFunc("GET /api/inbox/unread-count", ih.InboxUnreadCountGET)
 		mux.HandleFunc("POST /api/inbox/read-all", ih.InboxReadAllPOST)
 		mux.HandleFunc("POST /api/inbox/{id}/read", ih.InboxReadPOST)
-		mux.HandleFunc("DELETE /api/inbox/{id}", ih.InboxDELETE)
-		mux.HandleFunc("GET /api/inbox/notifications", inboxStore.Notifications().StreamSSE)
+		mux.HandleFunc("GET /api/inbox/notifications", inboxStore.StreamSSE)
 	}
 
 	mux.HandleFunc("GET /api/agents", ah.AgentsGET)

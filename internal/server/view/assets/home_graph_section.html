@@ -1,0 +1,68 @@
+{{define "graph-section"}}<div class="graph-main">
+  <div style="position:relative;flex:1;display:flex;flex-direction:column;overflow:hidden">
+    <div id="graph-canvas" style="flex:1;width:100%"></div>
+
+    <div class="graph-toolbar">
+      <div class="seg graph-color-mode">
+        <button type="button" class="seg-btn" :class="{ active: graphColorMode === 'cluster' }" title="Color nodes by cluster" @click="setGraphColorMode('cluster')">Clusters</button>
+        <button type="button" class="seg-btn" :class="{ active: graphColorMode === 'type' }" title="Color nodes by entity type" @click="setGraphColorMode('type')">Types</button>
+      </div>
+      <div class="graph-zoom-controls">
+        <button type="button" class="icon-btn-ghost graph-zoom-btn" title="Zoom in" @click="zoomIn()">
+          <svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
+            <path stroke-linecap="round" d="M12 5v14M5 12h14"/>
+          </svg>
+        </button>
+        <button type="button" class="icon-btn-ghost graph-zoom-btn" title="Zoom out" @click="zoomOut()">
+          <svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
+            <path stroke-linecap="round" d="M5 12h14"/>
+          </svg>
+        </button>
+        <button type="button" class="icon-btn-ghost graph-zoom-btn" title="Fit all nodes" @click="zoomFit()">
+          <svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M8 3H5a2 2 0 0 0-2 2v3"/>
+            <path stroke-linecap="round" stroke-linejoin="round" d="M21 8V5a2 2 0 0 0-2-2h-3"/>
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 16v3a2 2 0 0 0 2 2h3"/>
+            <path stroke-linecap="round" stroke-linejoin="round" d="M16 21h3a2 2 0 0 0 2-2v-3"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="graph-node-panel" :class="{ open: !!nodePanel }">
+      <div class="graph-node-panel-row">
+        <span class="badge badge--sm graph-node-panel-type"
+              x-show="nodePanel && nodePanel.entityType"
+              x-text="nodePanel ? nodePanel.entityType : ''"></span>
+        <span class="graph-node-panel-edges"
+              x-text="nodePanel ? (nodePanel.edgeCount + (nodePanel.edgeCount === 1 ? ' link' : ' links')) : ''"></span>
+        <button type="button" class="icon-btn-ghost graph-node-panel-close" @click="_clearFocus()" title="Close">
+          <svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
+            <path stroke-linecap="round" d="M18 6 6 18"/>
+            <path stroke-linecap="round" d="m6 6 12 12"/>
+          </svg>
+        </button>
+      </div>
+      <div class="graph-node-panel-title" x-text="nodePanel ? nodePanel.label : ''"></div>
+    </div>
+
+    <div class="graph-loading" x-show="loading" x-cloak>
+      <span>Loading graph…</span>
+    </div>
+
+    <div class="graph-zero empty-state" x-show="!loading && empty" x-cloak>
+      <div class="empty-state-icon">
+        <svg fill="none" stroke="currentColor" stroke-width="1.25" viewBox="0 0 48 48">
+          <circle cx="24" cy="12" r="4.5"/>
+          <circle cx="10" cy="36" r="4.5"/>
+          <circle cx="38" cy="36" r="4.5"/>
+          <line x1="24" y1="16.5" x2="10.8" y2="31.7" stroke-linecap="round"/>
+          <line x1="24" y1="16.5" x2="37.2" y2="31.7" stroke-linecap="round"/>
+          <line x1="14.5" y1="36" x2="33.5" y2="36" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="empty-state-title">No knowledge notes yet</div>
+      <div class="empty-state-desc">Knowledge notes and their connections will appear here once the compile agent has run on your raw notes.</div>
+    </div>
+  </div>
+</div>{{end}}

@@ -22,10 +22,7 @@ const settingsSkillsCSS = `
     .skill-card.not-installed:hover .skill-card-left { opacity: 1; }
     .skill-card-left { display: flex; align-items: center; gap: 0.6rem; flex: 1; min-width: 0; }
     .skill-card-right { display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0; }
-    /* .skill-dot now uses the shared .dot / .dot--on / .dot--off (base.css). */
     .skill-name { font-size: var(--text-sm); font-weight: 600; color: var(--fg); }
-    /* .skill-default-badge now uses the shared .badge (base.css). */
-    .skill-toggling { opacity: 0.55; pointer-events: none; }
     .skill-repo-link {
       font-size: var(--text-xs); color: var(--muted); font-family: var(--font-mono);
       text-decoration: none; opacity: 0.65;
@@ -34,12 +31,6 @@ const settingsSkillsCSS = `
       transition: color var(--motion-fast), opacity var(--motion-fast);
     }
     .skill-repo-link:hover { color: var(--accent-text); opacity: 1; }
-    /* Install/Uninstall now use the shared .btn-outline /
-       .btn-solid.btn-solid--danger with the .btn--xs size modifier. */
-    /* Placeholder text for every field here (.agent-bot-form-input/-textarea,
-       .cfg-input/-textarea, .settings-input) now comes from the shared
-       .field-input::placeholder (base.css) — they all carry that class
-       already, so this no longer needs its own copy. */
 `
 
 func settingsSkillsTabHTML() string {
@@ -133,14 +124,14 @@ const settingsSkillsJS = `
           });
           const d = await r.json();
           if (!r.ok) {
-            if (typeof window.showError === 'function') window.showError(d.error || 'Install failed', 'Install failed');
+            window.showError(d.error || 'Install failed', 'Install failed');
             return;
           }
           this.skillsList = this.skillsList.map(function(s) {
-            return s.name === name ? Object.assign({}, s, { installed: true, enabled: true }) : s;
+            return s.name === name ? Object.assign({}, s, { installed: true }) : s;
           });
         } catch(e) {
-          if (typeof window.showError === 'function') window.showError(e.message, 'Install failed');
+          window.showError(e.message, 'Install failed');
         } finally {
           const t = Object.assign({}, this.skillsInstalling);
           delete t[name];
@@ -149,23 +140,21 @@ const settingsSkillsJS = `
       },
 
       async uninstallSkill(name) {
-        const ok = (typeof window.showConfirm === 'function')
-          ? await window.showConfirm({ title: 'Uninstall skill', message: 'Remove "' + name + '" and all its files from ~/.hylo/skills/?', confirmLabel: 'Uninstall', danger: true })
-          : window.confirm('Uninstall skill "' + name + '"? This cannot be undone.');
+        const ok = await window.showConfirm({ title: 'Uninstall skill', message: 'Remove "' + name + '" and all its files from ~/.hylo/skills/?', confirmLabel: 'Uninstall', danger: true });
         if (!ok) return;
         this.skillsUninstalling = Object.assign({}, this.skillsUninstalling, { [name]: true });
         try {
           const r = await fetch('/api/skills/' + encodeURIComponent(name), { method: 'DELETE' });
           const d = await r.json();
           if (!r.ok) {
-            if (typeof window.showError === 'function') window.showError(d.error || 'Uninstall failed', 'Uninstall failed');
+            window.showError(d.error || 'Uninstall failed', 'Uninstall failed');
             return;
           }
           this.skillsList = this.skillsList.map(function(s) {
-            return s.name === name ? Object.assign({}, s, { installed: false, enabled: false }) : s;
+            return s.name === name ? Object.assign({}, s, { installed: false }) : s;
           });
         } catch(e) {
-          if (typeof window.showError === 'function') window.showError(e.message, 'Uninstall failed');
+          window.showError(e.message, 'Uninstall failed');
         } finally {
           const t = Object.assign({}, this.skillsUninstalling);
           delete t[name];

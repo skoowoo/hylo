@@ -17,11 +17,6 @@ func (s *Store) CreateConversation(mateID, title string) (Conversation, error) {
 	return s.createConversation(mateID, title, ConvTypeChat, "")
 }
 
-// CreateTriggerConversation creates a background trigger-run conversation (type='trigger').
-func (s *Store) CreateTriggerConversation(mateID, title string) (Conversation, error) {
-	return s.createConversation(mateID, title, ConvTypeTrigger, "")
-}
-
 func (s *Store) createConversation(mateID, title, convType, userKey string) (Conversation, error) {
 	now := time.Now().UnixMilli()
 	id := uuid.NewString()
@@ -151,24 +146,6 @@ func (s *Store) GetOrCreateTriggerReplyConv(mateID, userKey string) (string, err
 	if err != nil {
 		return "", err
 	}
-	return conv.ID, nil
-}
-
-// GetOrCreateTriggerConvID is deprecated: legacy trigger runs used a separate conversation.
-func (s *Store) GetOrCreateTriggerConvID(m *Mate) (string, error) {
-	if m.TriggerConvID != "" {
-		return m.TriggerConvID, nil
-	}
-	conv, err := s.createConversation(m.ID, "Auto runs", ConvTypeTrigger, "")
-	if err != nil {
-		return "", err
-	}
-	now := time.Now().UnixMilli()
-	_, err = s.db.Exec(`UPDATE mates SET trigger_conv_id = ?, updated_at = ? WHERE id = ?`, conv.ID, now, m.ID)
-	if err != nil {
-		return "", fmt.Errorf("mate: set trigger_conv_id: %w", err)
-	}
-	m.TriggerConvID = conv.ID
 	return conv.ID, nil
 }
 

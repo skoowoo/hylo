@@ -6,20 +6,19 @@ import "time"
 
 // Mate is a configured agent persona with its own agent, model, cwd, and triggers.
 type Mate struct {
-	ID            string        `json:"id"`
-	Name          string        `json:"name"`
-	Description   string        `json:"description"`
-	AgentID       string        `json:"agentId"`
-	Model         string        `json:"model"`
-	Color         string        `json:"color"` // hex color, e.g. "#cc785c"
-	Cwd           string        `json:"cwd"`
-	SystemPrompt  string        `json:"systemPrompt"`
-	TriggerConvID string        `json:"triggerConvId,omitempty"` // legacy; no longer used for new trigger runs
-	Enabled       bool          `json:"enabled"`
-	CreatedAt     time.Time     `json:"createdAt"`
-	UpdatedAt     time.Time     `json:"updatedAt"`
-	Triggers      []MateTrigger `json:"triggers,omitempty"`
-	TriggerCount  int           `json:"triggerCount,omitempty"` // populated in list views
+	ID           string        `json:"id"`
+	Name         string        `json:"name"`
+	Description  string        `json:"description"`
+	AgentID      string        `json:"agentId"`
+	Model        string        `json:"model"`
+	Color        string        `json:"color"` // hex color, e.g. "#cc785c"
+	Cwd          string        `json:"cwd"`
+	SystemPrompt string        `json:"systemPrompt"`
+	Enabled      bool          `json:"enabled"`
+	CreatedAt    time.Time     `json:"createdAt"`
+	UpdatedAt    time.Time     `json:"updatedAt"`
+	Triggers     []MateTrigger `json:"triggers,omitempty"`
+	TriggerCount int           `json:"triggerCount,omitempty"` // populated in list views
 }
 
 // MateTrigger fires a run when a matching mate event occurs.

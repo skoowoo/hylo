@@ -1,0 +1,10 @@
+  <div class="run-toast" :class="toastKind === 'ok' ? 'run-toast-ok' : 'run-toast-err'" x-show="toastVisible" x-transition
+    style="display:none">
+    <span x-text="toastText"></span>
+    <button class="run-toast-dismiss" @click="toastVisible = false" type="button" title="Dismiss">
+      <svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6" />
+        <path stroke-linecap="round" stroke-linejoin="round" d="m6 6 12 12" />
+      </svg>
+    </button>
+  </div>

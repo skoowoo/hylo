@@ -1,0 +1,52 @@
+<div class="chat-main" id="chat-root">
+
+  <div class="home-list-head">
+    <span class="agent-bot-bar-desc" id="chat-bot-desc" style="display:none"></span>
+    <div class="home-list-head-spacer"></div>
+    <div class="seg" id="chat-conv-seg" style="display:none">
+      <button class="seg-btn" type="button" data-conv="chat">Chat</button>
+      <button class="seg-btn" type="button" data-conv="trigger">Trigger</button>
+    </div>
+    <button class="new-chat-btn" id="chat-new-btn" type="button" title="New chat" disabled>
+      <svg fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 5v14M5 12h14" />
+      </svg>
+    </button>
+  </div>
+
+  <div class="chat-scroll" id="chat-scroll">
+    <div class="chat-scroll-inner" id="chat-thread"></div>
+  </div>
+
+  <button type="button" class="chat-scroll-bottom-btn" id="chat-jump" title="Scroll to latest" style="display:none">
+    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M12 5v14M5 12l7 7 7-7" />
+    </svg>
+  </button>
+
+  <div class="chat-input-outer" id="chat-input-outer">
+    <div class="chat-ac-wrap">
+      <div class="chat-ac-panel" id="chat-ac-panel" aria-expanded="false" hidden>
+        <ul class="chat-path-ac" id="chat-path-ac" role="listbox"></ul>
+        <div class="chat-path-ac-hint hairline" id="chat-path-ac-hint" hidden></div>
+      </div>
+      <div class="chat-input-card" id="chat-input-card">
+        <div class="chat-input-hint" id="chat-input-hint" aria-hidden="true">
+          <span class="chat-hint-name" id="chat-hint-name"></span>
+        </div>
+        <textarea class="chat-textarea" id="chat-textarea" rows="1" placeholder="" spellcheck="false" autocorrect="off" autocapitalize="off"></textarea>
+        <button type="button" class="chat-send-circle" id="chat-send" disabled>
+          <svg fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 19V5M5 12l7-7 7 7" />
+          </svg>
+        </button>
+        <button type="button" class="chat-stop-circle" id="chat-stop" style="display:none">
+          <svg fill="currentColor" viewBox="0 0 24 24">
+            <rect x="5" y="5" width="14" height="14" rx="2" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+</div>

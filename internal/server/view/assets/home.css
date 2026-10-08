@@ -165,18 +165,6 @@
     html.macos .home-side-bottom-btn.is-active {
       background: var(--sidebar-glass-active);
     }
-    /* Scrollbar thumb: the shared --scrollbar-thumb (base.css) is tuned for
-       a flat surface — over the vibrancy it comes out too strong in both
-       directions (darker/grayer in light, brighter in dark), so the glass
-       sidebar gets its own toned-down value (shared_tokens.go). Same
-       selector base.css uses, just scoped under html.macos so it wins on
-       specificity without !important. */
-    html.macos .home-side-nav::-webkit-scrollbar-thumb {
-      background: var(--sidebar-glass-scrollbar-thumb);
-    }
-    html.macos .home-side-nav::-webkit-scrollbar-thumb:hover {
-      background: var(--sidebar-glass-scrollbar-thumb-hov);
-    }
     /* Top row holds Search + the reading-pane toggle, right-aligned — it
        shares the window's true top edge with the macOS traffic lights
        (same row, not stacked above/below them), so the lights just need
@@ -202,26 +190,6 @@
       cursor: default;
     }
     html.macos .home-side-top button { -webkit-app-region: no-drag; }
-    /* Full-width primary action — but understated: a solid accent fill (or
-       even accent-colored text) reads as too loud for a row that's
-       permanently visible in the sidebar rather than a one-off modal CTA.
-       Just a hairline border + the same resting color/weight as any other
-       sidebar row (.home-side-item/.home-side-child) — it reads as "the
-       create action" from its position and icon alone, not from color or
-       boldness. Sits above the scrollable nav list as its own fixed row,
-       not inside it. */
-    .home-side-new-btn {
-      flex-shrink: 0;
-      display: flex; align-items: center; justify-content: center; gap: 6px;
-      margin: 2px 14px 10px; height: var(--btn-h);
-      background: var(--btn-bg); border-radius: var(--r-md);
-      border: none; color: var(--nav-fg); cursor: pointer;
-      font-family: inherit; font-size: var(--text-sm); font-weight: 500;
-      transition: background var(--motion-fast) ease;
-    }
-    .home-side-new-btn:hover { background: var(--btn-bg-hov); color: var(--fg); }
-    .home-side-new-btn:active { opacity: 0.85; }
-    .home-side-new-btn svg { width: 14px; height: 14px; flex-shrink: 0; }
     /* The reading-pane toggle's open state reuses the same surface-2 lift as every
        other "currently active" indicator app-wide (no border — matches
        .home-side-child.is-active below), scoped by its own class rather
@@ -236,9 +204,12 @@
        afford a touch more presence than a dense toolbar's icons would. */
     .home-side-bottom-btn svg { width: 16px; height: 16px; }
     .home-side-nav {
-      flex: 1; min-height: 0; overflow-y: auto;
+      flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none;
       display: flex; flex-direction: column; gap: 3px;
       padding: 14px;
+      /* --fade-top follows scrollTop (capped at 24px), so the top edge fades in once content scrolls out. */
+      -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 var(--fade-top, 0px));
+      mask-image: linear-gradient(to bottom, transparent 0, #000 var(--fade-top, 0px));
       border-radius: 0; /* scrolling chrome strip — never rounds (the global
         reset was clipping its own content into rounded corners) */
     }
@@ -901,15 +872,10 @@
 
     .home-inbox-list { flex: 1; min-height: 0; overflow-y: auto; padding: 20px 24px 40px; display: flex; flex-direction: column; }
 
-    .home-inbox-card { display: flex; align-items: flex-start; gap: 0.5rem; }
-    /* Unread and read cards now share the same surface-soft fill; only the
-       border stays on unread cards as the reminder cue. */
-    .home-inbox-card { background: var(--surface-soft); }
+    .home-inbox-card { display: flex; align-items: flex-start; gap: 0.5rem; background: var(--surface-soft); }
     .home-inbox-card:not(.is-unread) { border-color: transparent; }
     .home-inbox-card:not(.is-unread):hover { background: var(--card-hov); }
-    .home-inbox-card:not(.is-unread) .home-inbox-card-title,
-    .home-inbox-card:not(.is-unread) .home-inbox-card-time { color: var(--muted); }
-    /* Shape/color come from the shared .dot.dot--fg (base.css). */
+    .home-inbox-card:not(.is-unread) :is(.home-inbox-card-title, .home-inbox-card-time) { color: var(--muted); }
     .home-inbox-unread-dot { margin-top: 0.45rem; }
     .home-inbox-card:not(.is-unread) .home-inbox-unread-dot { display: none; }
     .home-inbox-card-content { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.3rem; }

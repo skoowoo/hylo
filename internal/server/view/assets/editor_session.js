@@ -1,12 +1,7 @@
   // Editor session: one CodeMirror view, its mode, and save/load.
   // Pane chrome (tabs, split, rename, compile) lives in content_pane.js.
   // ── Editor state ────────────────────────────────────────────────────────────
-  // One CodeMirror 6 EditorView (s.view) for the whole editor now — the old
-  // Milkdown (WYSIWYG) / CodeMirror (source) split is gone. "inSource"/
-  // editorMode still exist (see below) but now mean "decorations
-  // Compartment reconfigured to plain syntax highlighting" vs "live-preview
-  // decorations active", toggled in place on the same view/doc instead of
-  // switching between two separately-mounted editors.
+  // One EditorView for all notes; source vs live preview swaps a decoration Compartment in place.
   var __hyloEditor = {
     view: null,
     initPromise: null, dirty: false,
@@ -66,15 +61,10 @@
       if (r.ok) {
         __hyloEditor.dirty = false; __hyloEditorSaveStatus('Saved');
         // A plain content save is the common case (every ~800ms of idle after
-        // typing). Patch the row from the response. Tags and wikilinks are
-        // diffed against the last loaded/saved body so unchanged typing does
-        // not drop the tag cloud or the graph.
+        // typing). Patch the row from the response.
         var saved = null; try { saved = await r.json(); } catch(_) {}
         if (saved) __hyloPatchNoteRowAfterSave(path, saved);
-        var diff = __hyloNoteSigDiff(path, content);
-        if (window.__hyloVaultChanged) window.__hyloVaultChanged({
-          op: 'write', path: path, tagsChanged: diff.tagsChanged, linksChanged: diff.linksChanged,
-        });
+        if (window.__hyloVaultChanged) window.__hyloVaultChanged({ op: 'write' });
       } else {
         var errText = ''; try { errText = await r.text(); } catch(_) {}
         window.showError(errText || 'Server error — your changes may not be saved.', 'Save error');
@@ -83,12 +73,7 @@
       window.showError((e && e.message) || 'Network error — your changes may not be saved.', 'Save error');
     }
   }
-  // Mirrors the "rows" template's path-line markup (home.go): a
-  // .home-note-row-preview span shown when there's an excerpt, replacing
-  // the (still-present, CSS-hidden) .home-note-row-dir span — see
-  // home.css's ":not(.is-grid) .home-note-row-preview ~ .home-note-row-dir"
-  // rule. Patches every rendered copy of the row, including sections the
-  // home pane has parked offscreen — a content save doesn't refetch those.
+  // Patches every rendered row, including parked sections, since a save doesn't refetch them.
   function __hyloPatchNoteRowAfterSave(path, note) {
     var rows = document.querySelectorAll('.home-note-row[data-note-path="' + CSS.escape(path) + '"]');
     for (var r = 0; r < rows.length; r++) __hyloPatchOneNoteRow(rows[r], note);
@@ -138,9 +123,7 @@
   }
 
   // ── Note materialization ─────────────────────────────────────────────────────
-  // A brand-new tab has no path — and nothing on the server — until its
-  // first real edit (see __hyloEditorHandleContentChange below). There is
-  // no draft state to load/flush/discard before that point.
+  // A new tab has no path or server copy until its first real edit.
   function __hyloEditorActiveTab() {
     var pane = window.__hyloContentPane;
     return pane ? pane.tabs[pane.activeTab] : null;
@@ -151,7 +134,6 @@
     var tab = pane && pane.tabs[pane.activeTab];
     return !!(tab && tab.id === tabId);
   }
-  async function __hyloEditorSaveTabForLeave(tab) { await tabStateManager.saveForLeave(tab); }
 
   // _materializing lives on the tab itself, not a shared variable — two
   // different unmaterialized tabs can be in flight at once.
@@ -174,12 +156,7 @@
       tab.path = data.path;
       tab.title = __hyloStripMdExt(data.path.split('/').pop()) || data.path;
       delete tab._pendingContent;
-      __hyloNoteSigRemember(data.path, md);
-      var created = __hyloNoteSigFromContent(md);
-      if (window.__hyloVaultChanged) window.__hyloVaultChanged({
-        op: 'create', path: data.path, dir: __hyloNoteDir(data.path),
-        tagsChanged: created.tags !== '', linksChanged: created.links !== '',
-      });
+      if (window.__hyloVaultChanged) window.__hyloVaultChanged({ op: 'create' });
       if (!__hyloEditorIsActiveTabId(tab.id)) return; // switched away while this was in flight — nothing to autosave right now
       var s = __hyloEditor;
       s.currentPath = data.path;
@@ -191,12 +168,7 @@
       tab._materializing = false;
     }
   }
-  // Called only for real transactions — note/tab switches go through
-  // view.setState() (see s._buildState), which never reaches the
-  // updateListener below at all, so every docChanged transaction that does
-  // arrive here is a real edit (typing, paste-image insert, frontmatter
-  // dialog apply, undo/redo, …). No text comparison: the transaction having
-  // happened at all is the dirty signal.
+  // Only real edits reach here: tab switches use view.setState(), which skips updateListener.
   function __hyloEditorHandleContentChange(md) {
     var s = __hyloEditor;
     var pane = window.__hyloContentPane;
@@ -235,12 +207,7 @@
     return names;
   }
 
-  // Batch-checks which [[wikilink]] targets in the note just loaded into the
-  // editor still exist, then dispatches wikiLinksRevalidated so the live
-  // preview repaints any that are gone as broken (see liveOptions.isWikiLinkBroken
-  // above). Fire-and-forget; wikiLinkRevalidateSeq (bumped by the caller
-  // before this runs) guards against a slow response landing after the user
-  // has already switched to a different note.
+  // Repaints [[links]] whose target is gone; the seq guard drops responses for a note already left.
   async function __hyloEditorRevalidateWikiLinks() {
     var s = __hyloEditor;
     var seq = s.wikiLinkRevalidateSeq;
@@ -301,9 +268,15 @@
     } catch(_) {}
   }
 
-  function __hyloEditorSaveTabState(tabId) { tabStateManager.save(tabId); }
-  function __hyloEditorRestoreTabState(tabId) { return tabStateManager.restore(tabId); }
-  function __hyloEditorClearTabState(tabId) { tabStateManager.clear(tabId); }
+  // Per-tab scroll position and source-mode flag.
+  var __hyloTabStates = new Map();
+  function __hyloEditorSaveTabState(tabId) {
+    if (!tabId) return;
+    var scroller = document.querySelector('#content-pane-edit-area .cm-scroller');
+    __hyloTabStates.set(tabId, { scrollTop: scroller ? scroller.scrollTop : 0, inSource: __hyloEditor.inSource });
+  }
+  function __hyloEditorRestoreTabState(tabId) { return (tabId && __hyloTabStates.get(tabId)) || null; }
+  function __hyloEditorClearTabState(tabId) { if (tabId) __hyloTabStates.delete(tabId); }
   function __hyloEditorSyncViewButtons() {
     var s = __hyloEditor;
     document.querySelectorAll('.content-pane-view-btn-wysiwyg').forEach(function(btn) {
@@ -389,50 +362,26 @@
         ];
       };
 
-      // Extensions for every EditorState we build — one per note/tab switch
-      // now (see s._buildState below), not just the initial mount.
-      // decoInitial/readInitial seed s.decoCompartment/s.readCompartment with
-      // whatever mode this particular state should start in; editorMode's
-      // reconfigure() (below) swaps them later via view.dispatch() without
-      // needing a new state, since Compartments are reusable across states.
+      // The compartments are seeded per state and reconfigured later via dispatch.
       s._buildExtensions = function(decoInitial, readInitial) {
         return [
           sharedLanguage,
           cm.history(),
-          // listIndentExtension is Prec.highest internally (see
-          // cm-live/list-indent.js) — @codemirror/lang-markdown's own
-          // language support registers a high-precedence Enter binding for
-          // "continue list markup" that a plain keymap.of(...) here would
-          // lose to regardless of array position. It handles Tab/Shift-Tab
-          // (not bound by defaultKeymap at all — every outliner-style
-          // editor claims them, same as Cmd+]/Cmd+[) and Enter on an empty
-          // list item specifically (the built-in path is supposed to
-          // outdent/exit there but unreliably just inserts a blank line
-          // with the marker left dangling instead); a non-empty item's
-          // Enter isn't handled here and falls through to defaultKeymap.
+          // Highest precedence: lang-markdown's own Enter binding would otherwise win.
           cm.listIndentExtension,
-          // Right-click selection formatting. Outside the mode compartments,
-          // so it works in both live-preview and source mode. CM6 composes
-          // multiple domEventHandlers independently, so this stays separate
-          // from the paste handler below.
+          // Outside the mode compartments, so it works in source mode too.
           cm.selectionFormatMenu(),
           cm.keymap.of([].concat(cm.defaultKeymap, cm.historyKeymap)),
           cm.search({ top: true, createPanel: __hyloCreateSearchPanel }),
           cm.EditorView.lineWrapping, cmTheme,
           cm.EditorView.contentAttributes.of({spellcheck: 'false'}),
           cm.linkClickHandler(),
-          // Outside the compartment so the collapsed flag survives a
-          // source/live-preview toggle. The header widget that reads it
-          // lives inside liveDecorations() and is torn down in source mode.
+          // Outside the compartment so the collapsed flag survives a mode toggle.
           cm.frontmatterCollapseField,
           s.decoCompartment.of(decoInitial),
           s.readCompartment.of(readInitial),
           cm.EditorView.updateListener.of(function(update) {
-            // Note/tab switches (s._buildState + view.setState(), see below)
-            // never reach this listener at all — setState() doesn't fire
-            // updateListener, confirmed against the CM6 version bundled in
-            // editor.js. So every docChanged transaction that does arrive
-            // here is a real edit; no "is this programmatic" flag needed.
+            // setState() never fires this, so every docChanged here is a real edit.
             if (!update.docChanged) return;
             __hyloEditorHandleContentChange(update.state.doc.toString());
           }),
@@ -453,31 +402,12 @@
           }),
         ];
       };
-      // One EditorState per note/tab, built fresh from its saved markdown —
-      // used for every note/tab switch (see __hyloEditorApplyState) via
-      // view.setState(), never view.dispatch(). setState() swaps the whole
-      // state in one shot: no transaction is produced, so there's nothing to
-      // exclude from history and nothing for the frontmatter changeFilter to
-      // block — a switch just isn't an edit to begin with, instead of being
-      // one we have to talk our way around.
-      //
-      // This used to fall back to a dispatch()'d full-doc replace instead,
-      // because LivePreviewPlugin's decorations went stale past the first
-      // ~3000 chars of a freshly-built state and never recovered — traced to
-      // @codemirror/language only parsing that much of a *fresh* EditorState
-      // synchronously (Work.InitViewport), handing the rest to background
-      // parsing that lands through a separate dispatch our decoration
-      // plugins weren't listening for. Fixed at the source (live-preview.js,
-      // horizontal-rule-field.js, frontmatter-collapse.js all now compare
-      // syntaxTree(update.state) against the tree they last used — the same
-      // check CM6's own built-in TreeHighlighter uses for exactly this), so
-      // setState() is safe here again.
+      // One EditorState per note/tab, swapped in with setState(): a switch is not an edit,
+      // so nothing lands in undo history or hits the frontmatter filter.
       s._buildState = function(content, inSource, reading) {
         return cm.EditorState.create({
           doc: content || '',
-          // No saved cursor to restore (tabStateManager only tracks scroll/
-          // mode) — land past frontmatter and any leading list/task/heading
-          // marker instead of EditorState.create's default of offset 0.
+          // Land past frontmatter and any leading list/heading marker, not at offset 0.
           selection: cm.EditorSelection.cursor(cm.initialCursorOffset(content || '')),
           extensions: s._buildExtensions(
             inSource ? [sourceHighlight] : cm.liveDecorations(liveOptions),
@@ -506,155 +436,53 @@
   }
 
   // ── Search panel (custom, top-anchored) ─────────────────────────────────────
-  // CodeMirror's Panel API has no declarative x-show/x-transition
-  // equivalent (mount() fires once, right after insertion; there's no
-  // pre-removal hook), so the slide-in/out that matches the tabs/more
-  // menus (content_pane.html, content_pane.css) is done by hand: mount() toggles
-  // .is-entering on the .cm-panels-top wrapper CodeMirror already
-  // created, and every close goes through this wrapper, which holds the
-  // real close call until .is-closing's CSS transition (content_pane.css) has
-  // had time to finish.
-  //
-  // That hold-off is exactly what made Cmd+F/"Find" occasionally look dead:
-  // for the ~100ms between adding .is-closing and this timer actually
-  // calling realClose(), CM6's own search state still considers the panel
-  // open (that state only flips on the real close call). openSearchPanel()
-  // called in that window sees "already open" and just refocuses the
-  // fading-out DOM instead of reopening it — and this timer, still pending,
-  // then closes that freshly-reopened panel a moment later anyway. One
-  // fast Escape-then-Cmd+F (or Esc then clicking Find again) was enough to
-  // hit it. __hyloEditorOpenFind cancels s._searchCloseTimer before
-  // asking CM6 to (re)open, and the timer is tracked as a single id here
-  // (not left to stack one per close call) so there's only ever one to
-  // cancel.
-  function __hyloEditorCloseSearch(view) {
-    var cm = __hyloCM;
-    if (!cm) return;
-    var s = __hyloEditor;
-    if (s._searchCloseTimer) { clearTimeout(s._searchCloseTimer); s._searchCloseTimer = null; }
-    var panel = document.querySelector('#content-pane-edit-area .cm-panels-top');
-    if (!panel) { cm.closeSearchPanel(view); return; }
-    panel.classList.add('is-closing');
-    s._searchCloseTimer = setTimeout(function() {
-      s._searchCloseTimer = null;
-      cm.closeSearchPanel(view);
-    }, 100);
+  var SR_ICON = {
+    close: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+    expand: '<path d="m9 6 6 6-6 6"/>',
+    up: '<path d="m18 15-6-6-6 6"/>',
+    down: '<path d="m6 9 6 6 6-6"/>',
+  };
+  function srIcon(name) {
+    return '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + SR_ICON[name] + '</svg>';
   }
+
   function __hyloCreateSearchPanel(view) {
     var cm = __hyloCM;
     var dom = document.createElement('div');
     dom.className = 'hylo-search-panel';
+    dom.innerHTML =
+      '<div class="hylo-sr-header"><span class="hylo-sr-header-label">Find</span>' +
+        '<button type="button" class="hylo-sr-ibtn" data-act="close" aria-label="Close">' + srIcon('close') + '</button></div>' +
+      '<div class="hylo-sr-row">' +
+        '<button type="button" class="hylo-sr-ibtn hylo-sr-expand-btn" data-act="expand" title="Toggle replace" aria-label="Toggle replace" aria-expanded="false">' + srIcon('expand') + '</button>' +
+        '<div class="hylo-sr-input-wrap">' +
+          '<input type="text" class="field-input hylo-sr-input" main-field placeholder="Find" aria-label="Find">' +
+          '<div class="hylo-sr-inset-btns">' +
+            '<span class="hylo-sr-count" aria-hidden="true" style="display:none"></span>' +
+            '<button type="button" class="hylo-sr-ibtn" data-act="prev" title="Previous (Shift+Enter)">' + srIcon('up') + '</button>' +
+            '<button type="button" class="hylo-sr-ibtn" data-act="next" title="Next (Enter)">' + srIcon('down') + '</button>' +
+            '<button type="button" class="hylo-sr-ibtn hylo-sr-toggle" data-act="case" title="Match case">Aa</button>' +
+          '</div></div></div>' +
+      '<div class="hylo-sr-row" hidden><div class="hylo-sr-row-spacer"></div>' +
+        '<div class="hylo-sr-input-wrap">' +
+          '<input type="text" class="field-input hylo-sr-input" placeholder="Replace" aria-label="Replace">' +
+          '<div class="hylo-sr-inset-btns">' +
+            '<button type="button" class="hylo-sr-ibtn hylo-sr-text" data-act="replace" title="Replace (Enter)">Replace</button>' +
+            '<button type="button" class="hylo-sr-ibtn hylo-sr-text" data-act="replaceAll" title="Replace All">All</button>' +
+          '</div></div></div>';
 
-    // Header: what this floating panel is, plus its one non-search control
-    // (Close) — kept off the Find row itself so that row is only ever
-    // search controls, not a mix of "act on the query" and "dismiss the
-    // panel" buttons.
-    var headerRow = document.createElement('div');
-    headerRow.className = 'hylo-sr-header';
-    var headerLabel = document.createElement('span');
-    headerLabel.className = 'hylo-sr-header-label';
-    headerLabel.textContent = 'Find';
-
-    var closeBtn = document.createElement('button');
-    closeBtn.type = 'button'; closeBtn.className = 'hylo-sr-ibtn'; closeBtn.setAttribute('aria-label', 'Close');
-    closeBtn.innerHTML = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
-
-    headerRow.append(headerLabel, closeBtn);
-
-    // Row 1: Find. Leading chevron reveals/hides row 2 (Replace, below) —
-    // collapsed by default since most Cmd+F visits are look-not-change.
-    var findRow = document.createElement('div');
-    findRow.className = 'hylo-sr-row';
-
-    var expandBtn = document.createElement('button');
-    expandBtn.type = 'button'; expandBtn.className = 'hylo-sr-ibtn hylo-sr-expand-btn';
-    expandBtn.title = 'Toggle replace'; expandBtn.setAttribute('aria-label', 'Toggle replace');
-    expandBtn.setAttribute('aria-expanded', 'false');
-    expandBtn.innerHTML = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg>';
-
-    var findWrap = document.createElement('div');
-    findWrap.className = 'hylo-sr-input-wrap';
-
-    var findInput = document.createElement('input');
-    findInput.type = 'text'; findInput.placeholder = 'Find';
-    findInput.className = 'field-input hylo-sr-input'; findInput.setAttribute('main-field', '');
-    findInput.setAttribute('aria-label', 'Find');
-
-    var findInset = document.createElement('div');
-    findInset.className = 'hylo-sr-inset-btns';
-
-    // Match count ("2/7") — a plain label, not a button; sits ahead of the
-    // nav icons so the two read together ("2/7, then ↑↓ to move"). Hidden
-    // (not just empty) when the field itself is empty, so it doesn't leave
-    // a dead gap before you've typed anything.
-    var countEl = document.createElement('span');
-    countEl.className = 'hylo-sr-count'; countEl.setAttribute('aria-hidden', 'true');
-    countEl.style.display = 'none';
-
-    var prevBtn = document.createElement('button');
-    prevBtn.type = 'button'; prevBtn.className = 'hylo-sr-ibtn'; prevBtn.title = 'Previous (Shift+Enter)';
-    prevBtn.innerHTML = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>';
-
-    var nextBtn = document.createElement('button');
-    nextBtn.type = 'button'; nextBtn.className = 'hylo-sr-ibtn'; nextBtn.title = 'Next (Enter)';
-    nextBtn.innerHTML = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>';
-
-    var caseBtn = document.createElement('button');
-    caseBtn.type = 'button'; caseBtn.className = 'hylo-sr-ibtn hylo-sr-toggle'; caseBtn.title = 'Match case';
-    caseBtn.textContent = 'Aa';
-
-    findInset.append(countEl, prevBtn, nextBtn, caseBtn);
-    findWrap.append(findInput, findInset);
-    findRow.append(expandBtn, findWrap);
-
-    // Row 2: Replace — hidden by default (expandBtn toggles it). Prior
-    // versions drew Replace/Replace All as bare icons (a return-style arrow
-    // and a double-chevron); neither reads unambiguously at this size, so
-    // they're short text labels now — same treatment as the "Aa" toggle
-    // above, not a second icon language for two actions that matter.
-    var replaceRow = document.createElement('div');
-    replaceRow.className = 'hylo-sr-row';
-    replaceRow.hidden = true;
-
-    // Empty — just holds the column open so replaceWrap lines up under
-    // findWrap instead of under expandBtn.
-    var replaceSpacer = document.createElement('div');
-    replaceSpacer.className = 'hylo-sr-row-spacer';
-
-    var replaceWrap = document.createElement('div');
-    replaceWrap.className = 'hylo-sr-input-wrap';
-
-    var replaceInput = document.createElement('input');
-    replaceInput.type = 'text'; replaceInput.placeholder = 'Replace';
-    replaceInput.className = 'field-input hylo-sr-input'; replaceInput.setAttribute('aria-label', 'Replace');
-
-    var replaceInset = document.createElement('div');
-    replaceInset.className = 'hylo-sr-inset-btns';
-
-    var replaceBtn = document.createElement('button');
-    replaceBtn.type = 'button'; replaceBtn.className = 'hylo-sr-ibtn hylo-sr-text'; replaceBtn.title = 'Replace (Enter)';
-    replaceBtn.textContent = 'Replace';
-
-    var replaceAllBtn = document.createElement('button');
-    replaceAllBtn.type = 'button'; replaceAllBtn.className = 'hylo-sr-ibtn hylo-sr-text'; replaceAllBtn.title = 'Replace All';
-    replaceAllBtn.textContent = 'All';
-
-    replaceInset.append(replaceBtn, replaceAllBtn);
-    replaceWrap.append(replaceInput, replaceInset);
-    replaceRow.append(replaceSpacer, replaceWrap);
-    dom.append(headerRow, findRow, replaceRow);
-
-    // State
+    var inputs = dom.querySelectorAll('input');
+    var findInput = inputs[0], replaceInput = inputs[1];
+    var replaceRow = replaceInput.closest('.hylo-sr-row');
+    var countEl = dom.querySelector('.hylo-sr-count');
     var caseSensitive = false;
 
     function buildQuery() {
       return new cm.SearchQuery({ search: findInput.value, caseSensitive: caseSensitive, replace: replaceInput.value });
     }
-    // Counts matches by walking the same SearchQuery cursor CM6 itself uses
-    // for find-next — no separate/approximate tally, so it can't drift from
-    // what Enter/↓ would actually land on. O(doc length); fine at note size.
+    // Walks the same cursor findNext uses, so the tally can't drift from it.
     function updateMatchCount() {
-      if (!findInput.value) { countEl.style.display = 'none'; countEl.textContent = ''; return; }
+      if (!findInput.value) { countEl.style.display = 'none'; return; }
       countEl.style.display = '';
       var q = buildQuery();
       if (!q.valid) { countEl.textContent = '0/0'; return; }
@@ -669,35 +497,43 @@
       countEl.textContent = total ? (idx || 1) + '/' + total : '0/0';
     }
     function commit() { view.dispatch({ effects: cm.setSearchQuery.of(buildQuery()) }); updateMatchCount(); }
+    function close() { cm.closeSearchPanel(view); }
 
+    var actions = {
+      close: close,
+      prev: function() { cm.findPrevious(view); },
+      next: function() { cm.findNext(view); },
+      replace: function() { cm.replaceNext(view); },
+      replaceAll: function() { cm.cmReplaceAll(view); },
+      case: function(btn) {
+        caseSensitive = !caseSensitive;
+        btn.classList.toggle('active', caseSensitive);
+        commit(); findInput.focus();
+      },
+      expand: function(btn) {
+        var open = replaceRow.hidden;
+        replaceRow.hidden = !open;
+        btn.classList.toggle('is-open', open);
+        btn.setAttribute('aria-expanded', String(open));
+        if (open) replaceInput.focus();
+      },
+    };
+    dom.addEventListener('click', function(e) {
+      var btn = e.target.closest('[data-act]');
+      if (!btn) return;
+      actions[btn.dataset.act](btn);
+      if (btn.dataset.act !== 'close') updateMatchCount();
+    });
     findInput.addEventListener('input', commit);
     replaceInput.addEventListener('input', commit);
-
-    caseBtn.addEventListener('click', function() {
-      caseSensitive = !caseSensitive;
-      caseBtn.classList.toggle('active', caseSensitive);
-      commit(); findInput.focus();
+    dom.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') { e.preventDefault(); close(); return; }
+      if (e.key !== 'Enter') return;
+      e.preventDefault();
+      if (e.target === replaceInput) cm.replaceNext(view);
+      else if (e.shiftKey) cm.findPrevious(view); else cm.findNext(view);
+      updateMatchCount();
     });
-    expandBtn.addEventListener('click', function() {
-      var open = replaceRow.hidden;
-      replaceRow.hidden = !open;
-      expandBtn.classList.toggle('is-open', open);
-      expandBtn.setAttribute('aria-expanded', String(open));
-      if (open) replaceInput.focus();
-    });
-    findInput.addEventListener('keydown', function(e) {
-      if (e.key === 'Enter') { e.preventDefault(); if (e.shiftKey) cm.findPrevious(view); else cm.findNext(view); updateMatchCount(); }
-      if (e.key === 'Escape') { e.preventDefault(); __hyloEditorCloseSearch(view); }
-    });
-    replaceInput.addEventListener('keydown', function(e) {
-      if (e.key === 'Enter') { e.preventDefault(); cm.replaceNext(view); updateMatchCount(); }
-      if (e.key === 'Escape') { e.preventDefault(); __hyloEditorCloseSearch(view); }
-    });
-    prevBtn.addEventListener('click', function() { cm.findPrevious(view); updateMatchCount(); });
-    nextBtn.addEventListener('click', function() { cm.findNext(view); updateMatchCount(); });
-    replaceBtn.addEventListener('click', function() { cm.replaceNext(view); updateMatchCount(); });
-    replaceAllBtn.addEventListener('click', function() { cm.cmReplaceAll(view); updateMatchCount(); });
-    closeBtn.addEventListener('click', function() { __hyloEditorCloseSearch(view); });
 
     return {
       dom: dom,
@@ -706,36 +542,24 @@
         var sel = view.state.selection.main;
         if (!sel.empty) {
           var txt = view.state.sliceDoc(sel.from, sel.to);
-          if (txt && !txt.includes('\n')) { findInput.value = txt; commit(); }
+          // Dispatching inside mount() would run during CM's own update and drop the panel.
+          if (txt && !txt.includes('\n')) { findInput.value = txt; queueMicrotask(commit); }
         }
         findInput.focus(); findInput.select();
         updateMatchCount();
-        var panel = dom.closest('.cm-panels-top');
-        if (panel) {
-          panel.classList.add('is-entering');
-          requestAnimationFrame(function() {
-            requestAnimationFrame(function() { panel.classList.remove('is-entering'); });
-          });
-        }
       },
     };
   }
 
-  // ── Editor mode state machine ────────────────────────────────────────────────
-  // Single authority for live-preview ↔ source ↔ reading transitions *on the
-  // currently active tab's document*. All three are the same EditorView/doc —
-  // reconfigure() only swaps s.decoCompartment (+ s.readCompartment for
-  // reading, which layers on live preview), a pure decoration change with no
-  // `changes`, so it never touches the document, the undo stack, or dirty
-  // tracking. Switching to a *different* note/tab is a different operation
-  // entirely — see __hyloEditorApplyState, which builds a fresh EditorState
-  // (mode baked in from the start) and swaps it in with view.setState().
+  // ── Editor mode ──────────────────────────────────────────────────────────────
+  // Live preview / source / reading share one view and doc; only the compartments change,
+  // so the document, undo stack and dirty flag are untouched.
   var editorMode = (function() {
     function reconfigure(inSource, reading, opts) {
       var s = __hyloEditor;
       s.view.dispatch({effects: s._modeEffects(inSource, reading)});
       __hyloEditorSetModeState(inSource, reading);
-      if (!(opts && opts.skipFocus)) focusManager.focusEditor();
+      if (!(opts && opts.skipFocus)) __hyloFocusEditor();
     }
     return {
       // User-triggered: live preview → source
@@ -757,42 +581,24 @@
         s.currentMd = s.view.state.doc.toString();
         reconfigure(false, true, {skipFocus: true});
       },
-      toggle: function() {
-        if (__hyloEditor.inSource) this.exitSource(); else this.enterSource();
-      },
       toggleReading: function() {
         if (__hyloEditor.readingActive) this.exitSource(); else this.enterReading();
       },
     };
   })();
 
-  // ── Focus manager ────────────────────────────────────────────────────────────
-  // Single authority for all editor focus/blur decisions.
-  var focusManager = {
-    focusEditor: function() {
-      var s = __hyloEditor;
-      if (s.view) s.view.focus();
-    },
-    // Blur whatever currently has focus.
-    blurActive: function() {
-      if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
-    },
-    // True when focus is inside the editor content area.
-    isInsideEditor: function() {
-      var ae = document.activeElement;
-      var ea = document.getElementById('content-pane-edit-area');
-      return !!(ea && ea.contains(ae));
-    },
-  };
+  function __hyloFocusEditor() {
+    if (__hyloEditor.view) __hyloEditor.view.focus();
+  }
+  function __hyloBlurActive() {
+    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+  }
+  function __hyloFocusInsideEditor() {
+    var ea = document.getElementById('content-pane-edit-area');
+    return !!(ea && ea.contains(document.activeElement));
+  }
 
-  function __hyloEditorEnterSource() { editorMode.enterSource(); }
-  function __hyloEditorExitSource() { editorMode.exitSource(); }
-
-  // "Metadata" header's pencil button (cm-live/frontmatter-collapse.js) —
-  // frontmatter is read-only in live-preview mode (frontmatterReadOnly()),
-  // so this dialog + allowFrontmatterEdit-annotated dispatch is the only
-  // way to change it there. from/to span the whole node including the
-  // "---" delimiters; only the interior YAML is shown/edited.
+  // Frontmatter is read-only in live preview, so this dialog is its only edit path.
   function __hyloEditorEditFrontmatter(view, from, to) {
     var raw = view.state.doc.sliceString(from, to);
     var lines = raw.split('\n');
@@ -808,32 +614,6 @@
       });
     });
   }
-
-  // ── Tab state manager ─────────────────────────────────────────────────────────
-  // Owns the per-tab saved state (scroll position, source mode).
-  var tabStateManager = (function() {
-    var _states = new Map();  // tabId → { scrollTop, inSource }
-    return {
-      save: function(tabId) {
-        if (!tabId) return;
-        var s = __hyloEditor;
-        var scroller = document.querySelector('#content-pane-edit-area .cm-scroller');
-        _states.set(tabId, { scrollTop: scroller ? scroller.scrollTop : 0, inSource: s.inSource });
-      },
-      restore: function(tabId) {
-        if (!tabId) return null;
-        return _states.get(tabId) || null;
-      },
-      clear: function(tabId) {
-        if (!tabId) return;
-        _states.delete(tabId);
-      },
-      saveForLeave: async function(tab) {
-        if (!tab) return;
-        this.save(tab.id);
-      },
-    };
-  })();
 
   // ── Content loaders ──────────────────────────────────────────────────────────
   async function __hyloContentPaneLoadNote(path, tabId, savedState) {
@@ -858,8 +638,6 @@
     var content = await resp.text();
     if (!__hyloEditorIsActiveTabId(tabId)) return false;
     s.currentPath = path; s.currentMd = __hyloEditorTightenLists(content); s.dirty = false;
-    __hyloNoteSigRemember(path, s.currentMd);
-    
     // Apply state (will create new state if no saved state)
     return await __hyloEditorApplyState(savedState || { inSource: false, scrollTop: 0 }, tabId);
   }
@@ -889,10 +667,7 @@
     var wantReading = !!(s.reading && s.currentPath);
     var wantSource = !wantReading && targetInSource;
 
-    // Clear the previous note's broken-wikilink set before the new one's
-    // decorations render, so a stale "broken" flag can't flash on a target
-    // that's perfectly fine in *this* note — __hyloEditorRevalidateWikiLinks
-    // repopulates it (and repaints) once the batch check comes back.
+    // Avoid flashing the previous note's broken flags before revalidation lands.
     s.brokenWikiLinkNames = new Set();
     s.wikiLinkRevalidateSeq++;
 
@@ -931,7 +706,7 @@
         if (n > 1) { frame(n - 1); return; }
         s.pendingScrollRaf = null;
         apply();
-        if (opts.focus && !focusManager.isInsideEditor()) focusManager.focusEditor();
+        if (opts.focus && !__hyloFocusInsideEditor()) __hyloFocusEditor();
       });
     }
     frame(frames);

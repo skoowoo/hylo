@@ -1,0 +1,63 @@
+{{define "tags"}}{{if .Selected}}<div class="home-list-head">
+  <span class="tag-current"><span class="tag-current-name">{{.Selected}}</span></span>
+  <span class="home-list-count" id="home-list-count" title="Notes">{{.Count}}</span>
+  <div class="home-list-head-spacer"></div>
+  <div class="cselect cselect--inline tag-picker" x-data="{tpOpen:false,tpQuery:''}" @click.outside="tpOpen=false">
+    <button type="button" class="cselect-btn cselect-btn--ghost" :class="{open:tpOpen}"
+            @click="tpOpen=!tpOpen; tpQuery=''; $nextTick(function(){$refs.tpInput && $refs.tpInput.focus()})"
+            @keydown.escape="tpOpen=false" aria-label="Switch tag">
+      <span class="cselect-btn-text">Switch tag</span>
+      <svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+    </button>
+    <div class="cselect-dropdown tag-picker-dropdown" x-show="tpOpen" x-cloak>
+      <div class="tag-picker-search">
+        <input x-ref="tpInput" type="text" x-model="tpQuery" placeholder="Filter tags…" @keydown.escape="tpOpen=false">
+      </div>
+      <div class="cselect-divider hairline"></div>
+      <button type="button" class="cselect-option tag-picker-alltags" @click="go('/home/section?type=tags'); tpOpen=false">
+        <svg fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+          <rect width="7" height="7" x="3" y="3" rx="1" /><rect width="7" height="7" x="14" y="3" rx="1" />
+          <rect width="7" height="7" x="14" y="14" rx="1" /><rect width="7" height="7" x="3" y="14" rx="1" />
+        </svg>
+        <span>All tags</span>
+      </button>
+      <div class="cselect-divider hairline"></div>
+      <div class="tag-picker-options">
+        {{$sel := .Selected}}
+        {{range .Tags}}
+        <button type="button" class="cselect-option{{if eq .Name $sel}} sel{{end}}"
+                x-show="tpQuery === '' || '{{.Name}}'.toLowerCase().includes(tpQuery.toLowerCase())"
+                @click="selectTag('{{.Name}}'); tpOpen=false">
+          <span class="dot dot--fg cselect-option-dot"></span>
+          <span class="tag-picker-option-name">{{.Name}}</span><span class="tag-picker-option-count">{{.Count}}</span>
+        </button>
+        {{end}}
+      </div>
+    </div>
+  </div>
+  <div class="seg">
+    <button type="button" class="seg-btn" :class="currentListView() === 'list' ? 'active' : ''"
+            @click="setListView('list')" title="List view">
+      <svg fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+        <path d="M3 6h18" /><path d="M3 12h18" /><path d="M3 18h18" />
+      </svg>
+    </button>
+    <button type="button" class="seg-btn" :class="currentListView() === 'grid' ? 'active' : ''"
+            @click="setListView('grid')" title="Grid view">
+      <svg fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+        <rect width="7" height="7" x="3" y="3" rx="1" /><rect width="7" height="7" x="14" y="3" rx="1" />
+        <rect width="7" height="7" x="14" y="14" rx="1" /><rect width="7" height="7" x="3" y="14" rx="1" />
+      </svg>
+    </button>
+  </div>
+</div>
+<div class="home-list-body" id="home-list-body" :class="{'is-grid': currentListView() === 'grid'}">{{template "rows" .}}</div>
+{{else}}<div class="home-list-head">
+  <span class="home-list-count" id="home-list-count" title="Tags">{{len .Tags}}</span>
+</div>
+<div class="home-list-body" id="home-list-body">{{if .Tags}}
+  <div class="tag-cloud" id="tag-cloud" data-tags="{{tagsJSON .Tags}}"></div>
+  {{else}}
+  <div class="home-list-empty">No tags yet</div>
+{{end}}</div>
+{{end}}{{end}}

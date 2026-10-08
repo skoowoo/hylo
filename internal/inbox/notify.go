@@ -4,30 +4,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"sync"
 	"time"
 )
 
-// Bus is a fan-out broadcaster that fires whenever a new Message is created,
-// so subscribers (e.g. the desktop app) can show a real-time notification
-// without polling. Push is non-blocking and drops events for slow subscribers.
-type Bus struct {
-	mu   sync.Mutex
-	subs map[chan Message]struct{}
-}
-
-func newBus() *Bus {
-	return &Bus{subs: make(map[chan Message]struct{})}
-}
-
-func (b *Bus) push(m Message) {
-	b.mu.Lock()
-	subs := make([]chan Message, 0, len(b.subs))
-	for ch := range b.subs {
-		subs = append(subs, ch)
-	}
-	b.mu.Unlock()
-	for _, ch := range subs {
+// push fans a new message out to SSE subscribers, dropping it for slow ones.
+func (s *Store) push(m Message) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for ch := range s.subs {
 		select {
 		case ch <- m:
 		default:
@@ -35,24 +19,23 @@ func (b *Bus) push(m Message) {
 	}
 }
 
-func (b *Bus) subscribe() chan Message {
+func (s *Store) subscribe() chan Message {
 	ch := make(chan Message, 16)
-	b.mu.Lock()
-	b.subs[ch] = struct{}{}
-	b.mu.Unlock()
+	s.mu.Lock()
+	s.subs[ch] = struct{}{}
+	s.mu.Unlock()
 	return ch
 }
 
-func (b *Bus) unsubscribe(ch chan Message) {
-	b.mu.Lock()
-	delete(b.subs, ch)
-	b.mu.Unlock()
+func (s *Store) unsubscribe(ch chan Message) {
+	s.mu.Lock()
+	delete(s.subs, ch)
+	s.mu.Unlock()
 }
 
-// StreamSSE serves GET /api/inbox/notifications as a Server-Sent Events
-// stream: one "message" event per newly created inbox message, regardless
-// of source.
-func (b *Bus) StreamSSE(w http.ResponseWriter, r *http.Request) {
+// StreamSSE serves GET /api/inbox/notifications: one "message" event per
+// newly created inbox message.
+func (s *Store) StreamSSE(w http.ResponseWriter, r *http.Request) {
 	fl, ok := w.(http.Flusher)
 	if !ok {
 		http.Error(w, "streaming unsupported", http.StatusInternalServerError)
@@ -64,8 +47,8 @@ func (b *Bus) StreamSSE(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Connection", "keep-alive")
 	fl.Flush()
 
-	ch := b.subscribe()
-	defer b.unsubscribe(ch)
+	ch := s.subscribe()
+	defer s.unsubscribe(ch)
 
 	ticker := time.NewTicker(25 * time.Second)
 	defer ticker.Stop()

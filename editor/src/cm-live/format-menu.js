@@ -6,7 +6,7 @@ import { rangeTouchesCode, rangeCrossesBlock, trimWhitespace, lineInsideCodeBloc
 import { touchedLines } from './selection-lines.js';
 
 // Right-click formatting menu. There's no native context menu to coexist
-// with here — this Electron app never wires up `webContents.on('context-
+// with here — the desktop shell never wires up `webContents.on('context-
 // menu', ...)`, so `contextmenu`'s preventDefault() below is all that's
 // needed to fully own the gesture; no main-process changes required.
 //
@@ -24,9 +24,7 @@ import { touchedLines } from './selection-lines.js';
 // (same padding/gap/font-size/icon-size/hover, same --line-hair inset
 // divider) — cm-live/ can't reference those classes directly (app-agnostic
 // library, no Hylo DOM/class dependencies), so the rules are duplicated
-// here instead, using the same var-with-fallback convention as theme.js so
-// this still degrades reasonably outside the main app (e.g.
-// livepreview-demo/).
+// here instead, using the same var-with-fallback convention as theme.js.
 const STYLE_ID = 'cm-format-menu-styles';
 function ensureStyles() {
   if (document.getElementById(STYLE_ID)) return;

@@ -122,7 +122,6 @@ const appTokensDark = `
       /* macOS vibrancy wash — pull native material toward --surface-soft. */
       --sidebar-glass-bg:rgba(33,34,41,0.6); --sidebar-glass-border:rgba(255,255,255,0.1);
       --sidebar-glass-active:rgba(255,255,255,0.08);
-      --sidebar-glass-scrollbar-thumb:rgba(255,255,255,0.10); --sidebar-glass-scrollbar-thumb-hov:rgba(255,255,255,0.20);
       --canvas:#ffffff; --muted-soft:#656a78; --body:#d0d6e0;
             --accent-hov:#7b86e8;
       /* Accent as text on the canvas (links, active labels): lifted for dark; fills keep --accent. */
@@ -148,8 +147,6 @@ const appTokensLight = `
       /* Vibrancy reads dull alone — lean lighter while staying translucent. */
       --sidebar-glass-bg:rgba(250,250,251,0.72); --sidebar-glass-border:rgba(0,0,0,0.08);
       --sidebar-glass-active:rgba(0,0,0,0.06);
-      /* Over vibrancy, flat --scrollbar-thumb reads too dark — keep lower. */
-      --sidebar-glass-scrollbar-thumb:rgba(0,0,0,0.11); --sidebar-glass-scrollbar-thumb-hov:rgba(0,0,0,0.20);
       --canvas:#ffffff; --muted-soft:#9b9eac; --body:#3f4147;
             --accent-hov:#4c56c8;
       --accent-text:var(--accent);

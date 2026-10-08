@@ -1,0 +1,63 @@
+<div class="home-list-head">
+  <span class="home-list-count" title="Images">{{.Count}}</span>
+  <div class="home-list-head-spacer"></div>
+  <button type="button" class="btn-outline btn--xs" x-show="!selectMode" @click="enterSelectMode()">
+    <svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2"/><path stroke-linecap="round" stroke-linejoin="round" d="m9 12 2 2 4-4"/></svg>
+    Select
+  </button>
+  <div class="toolbar-select-group" x-show="selectMode" style="display:none">
+    <div class="bulk-count"><strong x-text="selectedCount"></strong> selected</div>
+    <button type="button" class="btn-solid btn-solid--danger btn--xs"
+            :disabled="!selectedCount"
+            @click="deleteSelected()"
+            x-text="selectedCount ? 'Delete (' + selectedCount + ')' : 'Delete'">
+    </button>
+    <button type="button" class="btn-outline btn--xs" @click="exitSelectMode()">Cancel</button>
+  </div>
+</div>
+<div class="img-scroll">
+  <div class="img-grid" id="img-grid">
+    {{- if .Images}}
+    {{- range .Images}}
+    <div class="list-card list-card--clickable img-card" onclick="openImageLightbox(this)"
+         data-img-src="{{.ThumbURL}}" data-img-name="{{.Name}}" data-img-dir="{{.Dir}}"
+         data-img-size="{{.Size}}" data-img-time="{{.UpdatedAt}}" data-img-ext="{{.Ext}}"
+         data-img-notes="{{.LinkedNotesJSON}}">
+      <div class="img-thumb-wrap">
+        <img class="img-thumb" src="{{.ThumbURL}}" alt="{{.Name}}" loading="lazy" decoding="async">
+        <div class="img-select-check"><svg fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg></div>
+        {{- if .LinkedNotes}}
+        <div class="img-link-badge">
+          <svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path stroke-linecap="round" stroke-linejoin="round" d="M14 2v5a1 1 0 0 0 1 1h5"/></svg>
+          {{len .LinkedNotes}}
+        </div>
+        {{- end}}
+      </div>
+      <div class="img-info">
+        <div class="img-caption">{{if .Caption}}{{.Caption}}{{else}}{{.Name}}{{end}}</div>
+        <div class="img-time">{{.UpdatedAt}}</div>
+      </div>
+    </div>
+    {{- end}}
+    {{- if .NextNs}}
+    <div class="img-sentinel"
+         hx-get="/images/grid?before={{.NextNs}}"
+         hx-trigger="intersect once"
+         hx-swap="beforebegin"
+         hx-target="this"></div>
+    {{- end}}
+    {{- else}}
+    <div class="img-empty empty-state">
+      <div class="empty-state-icon">
+        <svg fill="none" stroke="currentColor" stroke-width="1.25" viewBox="0 0 48 48">
+          <rect x="5" y="8" width="38" height="32" rx="3"/>
+          <circle cx="16" cy="18" r="3.5"/>
+          <path stroke-linecap="round" stroke-linejoin="round" d="M5 33l10-10 8 8 7-9 13 13"/>
+        </svg>
+      </div>
+      <div class="empty-state-title">No images yet</div>
+      <div class="empty-state-desc">Images you add to your notes will show up here.</div>
+    </div>
+    {{- end}}
+  </div>
+</div>

@@ -501,31 +501,7 @@
       border-radius: var(--r-md);
       box-shadow: var(--shadow-sm) var(--shadow-color);
       overflow: hidden;
-      transform-origin: top right;
-      /* Mirrors the tabs/more menus' Alpine x-transition (same durations/
-         easing, see content_pane.html's Tailwind classes and shared_tokens.go's
-         --tw-ease-out/in) — CodeMirror's panel API has no declarative
-         x-show equivalent, so .is-entering/.is-closing are toggled
-         imperatively by __hyloCreateSearchPanel's mount() and the
-         cmCloseSearchPanel wrapper (content_pane.js). */
-      transition: transform 150ms cubic-bezier(0, 0, 0.2, 1), opacity 150ms cubic-bezier(0, 0, 0.2, 1);
     }
-    #content-pane-edit-area .cm-panels-top.is-entering,
-    #content-pane-edit-area .cm-panels-top.is-closing {
-      opacity: 0;
-      transform: translateY(-8px) scale(0.97);
-    }
-    #content-pane-edit-area .cm-panels-top.is-closing {
-      transition-duration: 100ms;
-      transition-timing-function: cubic-bezier(0.4, 0, 1, 1);
-    }
-    /* display:flex column, not the old css-grid-via-display:contents trick
-       — that only worked while every row had exactly 2 cells (input, one
-       trailing button); the header row and find row each have a different
-       shape now (label+close; chevron+input), and the replace row's cells
-       don't share either one's columns (a leading spacer, not a chevron
-       or a label), so each row lays itself out instead of feeding cells
-       into one shared grid. */
     .hylo-search-panel {
       display: flex; flex-direction: column;
       row-gap: 0.5rem;

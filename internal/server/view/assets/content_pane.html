@@ -400,7 +400,7 @@
         <span x-text="inboxSelected ? fullTime(inboxSelected.createdAt) : ''"></span>
       </div>
       <div class="inbox-sheet-scroll">
-        <div class="prose inbox-sheet-body" x-html="inboxSelected ? renderMarkdown(inboxSelected.body) : ''"></div>
+        <div class="prose inbox-sheet-body" x-html="inboxSelected ? __hyloRenderMarkdown(inboxSelected.body) : ''"></div>
       </div>
     </div>
   </div>

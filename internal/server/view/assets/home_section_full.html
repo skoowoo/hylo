@@ -1,0 +1,31 @@
+{{define "full"}}<div class="home-list-head">
+  <span class="home-list-count" id="home-list-count" title="{{.Title}}">{{.Count}}</span>
+  <div class="home-list-head-spacer"></div>
+  <div class="seg">
+    <button type="button" class="seg-btn" :class="currentListView() === 'list' ? 'active' : ''"
+            @click="setListView('list')" title="List view">
+      <svg fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+        <path d="M3 6h18" /><path d="M3 12h18" /><path d="M3 18h18" />
+      </svg>
+    </button>
+    <button type="button" class="seg-btn" :class="currentListView() === 'grid' ? 'active' : ''"
+            @click="setListView('grid')" title="Grid view">
+      <svg fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+        <rect width="7" height="7" x="3" y="3" rx="1" /><rect width="7" height="7" x="14" y="3" rx="1" />
+        <rect width="7" height="7" x="14" y="14" rx="1" /><rect width="7" height="7" x="3" y="14" rx="1" />
+      </svg>
+    </button>
+    {{if .ShowGraphOption}}
+    <button type="button" class="seg-btn" :class="currentListView() === 'graph' ? 'active' : ''"
+            @click="setListView('graph')" title="Graph view">
+      <svg fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+        <circle cx="12" cy="4.5" r="2" /><path d="m10.4 6.3-2.8 2.9" /><circle cx="4.5" cy="12" r="2" />
+        <path d="M6.5 12h11" /><circle cx="19.5" cy="12" r="2" /><path d="m13.6 15.5 2.8 2.9" /><circle cx="12" cy="19.5" r="2" />
+      </svg>
+    </button>
+    {{end}}
+  </div>
+</div>
+{{if eq .View "graph"}}{{template "graph-section" .}}{{else}}
+<div class="home-list-body" id="home-list-body" :class="{'is-grid': currentListView() === 'grid'}">{{template "rows" .}}</div>
+{{end}}{{end}}

@@ -30,8 +30,6 @@ const settingsShortcutsCSS = `
     .shortcuts-btn:hover { color: var(--fg); }
     .shortcuts-error { flex-basis: 100%; text-align: right; font-size: var(--text-xs); color: var(--danger, #d33); }
     .shortcuts-row { flex-wrap: wrap; }
-    /* .kbd-cmd sizing/alignment now comes from the shared .kbd-combo
-       (base.css) — see that rule for why. */
 `
 
 func settingsShortcutsTabHTML() string {

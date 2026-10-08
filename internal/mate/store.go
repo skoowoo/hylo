@@ -22,7 +22,6 @@ CREATE TABLE IF NOT EXISTS mates (
     color           TEXT    NOT NULL DEFAULT '',
     cwd             TEXT    NOT NULL DEFAULT '',
     system_prompt   TEXT    NOT NULL DEFAULT '',
-    trigger_conv_id TEXT    NOT NULL DEFAULT '',
     enabled         INTEGER NOT NULL DEFAULT 1,
     sort_order      INTEGER NOT NULL DEFAULT 0,
     created_at      INTEGER NOT NULL,

@@ -1,0 +1,110 @@
+<div class="shorts-view">
+  <div class="home-list-head">
+    <div class="home-list-head-spacer"></div>
+    {{if gt (len .Months) 1}}
+    <div class="cselect cselect--inline" x-data="{ csOpen: false }" @click.outside="csOpen = false">
+      <button type="button" class="cselect-btn cselect-btn--ghost" :class="{open: csOpen}"
+              @click="csOpen = !csOpen" @keydown.escape="csOpen = false" aria-label="Jump to month">
+        <span class="cselect-btn-text">{{.ActiveMonthLabel}}</span>
+        <svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+      </button>
+      <div class="cselect-dropdown" x-show="csOpen" x-cloak>
+        {{range .Months}}
+        <button type="button" class="cselect-option{{if .IsCurrent}} sel{{end}}"
+                @click="csOpen = false; go('/home/section?type=shorts&from={{.YM}}')">
+          <span class="dot dot--fg cselect-option-dot"></span><span>{{.Abbr}} {{.Year}}</span>
+        </button>
+        {{end}}
+      </div>
+    </div>
+    {{end}}
+  </div>
+
+  <div class="shorts-stream-wrap">
+    <div class="shorts-stream-inner">
+      <div class="shorts-compose-card">
+        <textarea id="shorts-compose-input" class="shorts-compose-input" rows="2"
+                  placeholder="Write a short…" spellcheck="false" x-model="shortComposeText"
+                  :disabled="shortComposeSaving"
+                  @paste="handleShortComposePaste($event)"
+                  @input="__hyloAutoResize($event.target)"></textarea>
+        <div class="shorts-compose-images" x-show="shortComposeImages.length" x-cloak>
+          <template x-for="img in shortComposeImages" :key="img.id">
+            <div class="shorts-compose-img" :class="{'is-uploading': img.uploading, 'is-failed': img.failed}">
+              <img :src="img.previewUrl || img.src" :alt="img.name">
+              <div class="shorts-compose-img-spin" x-show="img.uploading"></div>
+              <button type="button" class="shorts-compose-img-remove" title="Remove image" aria-label="Remove image"
+                      @click="removeShortComposeImage(img.id)">
+                <svg fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" viewBox="0 0 24 24"><path d="M18 6L6 18"/><path d="M6 6l12 12"/></svg>
+              </button>
+            </div>
+          </template>
+        </div>
+        <div class="shorts-compose-footer">
+          <input type="file" id="shorts-compose-file-input" class="shorts-compose-file-input"
+                 accept="image/*" multiple @change="handleShortComposeFilePick($event)">
+          <button type="button" class="shorts-compose-attach" title="Add image" aria-label="Add image"
+                  :disabled="shortComposeSaving"
+                  onclick="document.getElementById('shorts-compose-file-input').click()">
+            <svg fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+          </button>
+          <div class="shorts-compose-footer-right">
+            <button type="button" class="shorts-compose-send"
+                    :disabled="(!shortComposeText.trim() && !shortComposeImages.length) || shortComposeSaving || shortComposeImages.some(i => i.uploading)"
+                    @click="saveShortCompose()">Save</button>
+          </div>
+        </div>
+      </div>
+      <div id="shorts-stream-groups">
+        {{range .Groups}}
+        {{$group := .}}
+        <div class="shorts-day">
+          {{range .Entries}}
+          <div class="list-card shorts-entry">
+            <div class="shorts-entry-meta">
+              <span class="shorts-entry-date">{{if $group.IsToday}}Today{{else if $group.IsYesterday}}Yesterday{{else}}{{$group.DateLabel}}{{end}}</span>
+              <span class="shorts-entry-time">{{.Time}}</span>
+            </div>
+            <div class="prose shorts-entry-prose">{{.HTML}}</div>
+            {{if .Images}}
+            <div class="shorts-img-grid{{if eq (len .Images) 1}} shorts-img-grid--one{{end}}">
+              {{range .Images}}
+              <div class="shorts-img-cell" onclick="openImageLightbox(this)"
+                   data-img-src="{{.ThumbURL}}" data-img-name="{{.Name}}" data-img-dir="{{.Dir}}"
+                   data-img-size="{{.Size}}" data-img-time="{{.UpdatedAt}}" data-img-ext="{{.Ext}}"
+                   data-img-notes="{{.LinkedNotesJSON}}">
+                <img src="{{.ThumbURL}}" alt="{{.Name}}" loading="lazy" decoding="async">
+              </div>
+              {{end}}
+            </div>
+            {{end}}
+          </div>
+          {{end}}
+        </div>
+        {{else}}
+        <div class="shorts-empty-state">
+          <div class="shorts-empty-icon">
+            <svg fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M13 21h8"/><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/></svg>
+          </div>
+          <p class="shorts-empty-label">No shorts yet</p>
+          <button type="button" class="shorts-empty-btn"
+                  onclick="var el=document.getElementById('shorts-compose-input'); if (el) el.focus();">
+            <svg fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5v14"/></svg>Write a short
+          </button>
+        </div>
+        {{end}}
+      </div>
+
+      <div id="shorts-load-more">
+        {{if .HasMore}}
+        <div class="shorts-load-more-wrap">
+          <button class="shorts-loadmore-btn"
+                  hx-get="/shorts/stream?before={{urlquery .Cursor}}">
+            Load earlier
+          </button>
+        </div>
+        {{end}}
+      </div>
+    </div>
+  </div>
+</div>

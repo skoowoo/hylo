@@ -1,5 +1,10 @@
 package view
 
+import (
+	"fmt"
+	"strings"
+)
+
 // settingsModalCSS/settingsModalHTML/settingsCtrlJS assemble the settings
 // modal's shared shell (overlay, panel, sidebar nav, pane chrome) with each
 // tab's own CSS/HTML/JS slice, split into its own shared_settings_<tab>.go
@@ -54,7 +59,6 @@ const settingsModalCSS = `
     }
 
     /* ── Settings inner layout ───────────────────────────────── */
-    .settings-body { flex: 1; display: flex; min-height: 0; overflow: hidden; }
 
     /* ── Primary sidebar ──────────────────────────────────────── */
     .settings-sidebar {
@@ -70,8 +74,6 @@ const settingsModalCSS = `
          still reads as a clear lift. Same fix as .home-side (home.css). */
       --control-active-bg: var(--control-active-bg-on-soft);
     }
-    /* Row/hover/active/icon now come from the shared .side-nav-item /
-       .side-nav-icon (base.css). */
 
     /* ── Content area ─────────────────────────────────────────── */
     .settings-content { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden; border-radius: 0; }
@@ -96,7 +98,7 @@ const settingsModalCSS = `
     .settings-scroll-pane { flex: 1; overflow-y: auto; padding: 1.75rem 1.5rem 3rem; }
     ::-webkit-scrollbar { display: none; }
 
-` + settingsAppearanceCSS + settingsServerCSS + settingsAgentCLICSS + settingsNotificationsCSS + settingsShortcutsCSS + settingsAgentBotsCSS + settingsSkillsCSS
+` + settingsAppearanceCSS + settingsServerCSS + settingsWechatCSS + settingsAgentCLICSS + settingsNotificationsCSS + settingsShortcutsCSS + settingsAgentBotsCSS + settingsSkillsCSS
 
 // settingsModalHTML returns the settings modal DOM. Include once per page —
 // opened via the sidebar's bottom-row Settings button (see home.html).
@@ -112,105 +114,12 @@ func settingsModalHTML() string {
       <div class="settings-modal-inner">
 
         <!-- Primary sidebar -->
-        <nav class="settings-sidebar hairline">
-          <button class="side-nav-item settings-sidebar-item"
-                  :class="{'is-active': tab === 'appearance'}"
-                  @click="tab = 'appearance'">
-            <svg class="side-nav-icon" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
-              <circle cx="12" cy="12" r="10"/>
-              <path d="M12 18a6 6 0 0 0 0-12z" fill="currentColor" stroke="none"/>
-            </svg>
-            Appearance
-          </button>
-          <button class="side-nav-item settings-sidebar-item"
-                  :class="{'is-active': tab === 'server'}"
-                  @click="tab = 'server'">
-            <svg class="side-nav-icon" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
-              <rect width="20" height="8" x="2" y="2" rx="2"/>
-              <rect width="20" height="8" x="2" y="14" rx="2"/>
-              <path stroke-linecap="round" d="M6 6h.01"/>
-              <path stroke-linecap="round" d="M6 18h.01"/>
-            </svg>
-            Server
-          </button>
-          <button class="side-nav-item settings-sidebar-item"
-                  :class="{'is-active': tab === 'agent-bots'}"
-                  @click="tab = 'agent-bots'">
-            <svg class="side-nav-icon" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
-              <path d="M12 6V2H8"/>
-              <path d="M15 11v2"/>
-              <path d="M2 12h2"/>
-              <path d="M20 12h2"/>
-              <path d="M20 16a2 2 0 0 1-2 2H8.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 4 20.286V8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2z"/>
-              <path d="M9 11v2"/>
-            </svg>
-            Agent Bots
-          </button>
-          <button class="side-nav-item settings-sidebar-item"
-                  :class="{'is-active': tab === 'skills'}"
-                  @click="tab = 'skills'">
-            <svg class="side-nav-icon" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z"/>
-              <path stroke-linecap="round" stroke-linejoin="round" d="M20 2v4"/>
-              <path stroke-linecap="round" stroke-linejoin="round" d="M22 4h-4"/>
-              <circle cx="4" cy="20" r="2"/>
-            </svg>
-            Skills
-          </button>
-          <button class="side-nav-item settings-sidebar-item"
-                  :class="{'is-active': tab === 'agents'}"
-                  @click="tab = 'agents'">
-            <svg class="side-nav-icon" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M12 20v2"/>
-              <path stroke-linecap="round" stroke-linejoin="round" d="M12 2v2"/>
-              <path stroke-linecap="round" stroke-linejoin="round" d="M17 20v2"/>
-              <path stroke-linecap="round" stroke-linejoin="round" d="M17 2v2"/>
-              <path stroke-linecap="round" stroke-linejoin="round" d="M2 12h2"/>
-              <path stroke-linecap="round" stroke-linejoin="round" d="M2 17h2"/>
-              <path stroke-linecap="round" stroke-linejoin="round" d="M2 7h2"/>
-              <path stroke-linecap="round" stroke-linejoin="round" d="M20 12h2"/>
-              <path stroke-linecap="round" stroke-linejoin="round" d="M20 17h2"/>
-              <path stroke-linecap="round" stroke-linejoin="round" d="M20 7h2"/>
-              <path stroke-linecap="round" stroke-linejoin="round" d="M7 20v2"/>
-              <path stroke-linecap="round" stroke-linejoin="round" d="M7 2v2"/>
-              <rect x="4" y="4" width="16" height="16" rx="2"/>
-              <rect x="8" y="8" width="8" height="8" rx="1"/>
-            </svg>
-            Agent CLI
-          </button>
-          <button class="side-nav-item settings-sidebar-item"
-                  x-show="isDesktop"
-                  :class="{'is-active': tab === 'notifications'}"
-                  @click="tab = 'notifications'">
-            <svg class="side-nav-icon" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/>
-              <path stroke-linecap="round" stroke-linejoin="round" d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>
-            </svg>
-            Notifications
-          </button>
-          <button class="side-nav-item settings-sidebar-item"
-                  :class="{'is-active': tab === 'shortcuts'}"
-                  @click="tab = 'shortcuts'">
-            <svg class="side-nav-icon" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
-              <path stroke-linecap="round" d="M10 8h.01"/>
-              <path stroke-linecap="round" d="M12 12h.01"/>
-              <path stroke-linecap="round" d="M14 8h.01"/>
-              <path stroke-linecap="round" d="M16 12h.01"/>
-              <path stroke-linecap="round" d="M18 8h.01"/>
-              <path stroke-linecap="round" d="M6 8h.01"/>
-              <path stroke-linecap="round" stroke-linejoin="round" d="M7 16h10"/>
-              <path stroke-linecap="round" d="M8 12h.01"/>
-              <rect width="20" height="16" x="2" y="4" rx="2"/>
-            </svg>
-            Shortcuts
-          </button>
-        </nav>
+` + settingsNavHTML() + `
 
         <div class="settings-content">
 
           <div class="home-list-head">
-            <span class="settings-content-title"
-                  x-text="({appearance:'Appearance',server:'Server','agent-bots':'Agent Bots',skills:'Skills',agents:'Agent CLI',notifications:'Notifications',shortcuts:'Shortcuts'})[tab] || ''"></span>
+            <span class="settings-content-title" x-text="` + settingsTabTitlesJS() + `[tab] || ''"></span>
           </div>
 
 ` +
@@ -225,7 +134,7 @@ func settingsModalHTML() string {
         </div><!-- .settings-content -->
       </div><!-- .settings-modal-inner -->
       <!-- Must stay after .settings-modal-inner: see the -webkit-app-region note in the CSS above. -->
-      <button class="icon-btn-ghost settings-modal-close" @click="$store.settingsModal.open = false" type="button">
+      <button class="icon-btn-ghost settings-modal-close" @click="requestClose()" type="button">
         <svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
           <path stroke-linecap="round" d="M18 6 6 18"/>
           <path stroke-linecap="round" d="m6 6 12 12"/>
@@ -246,8 +155,7 @@ const settingsCtrlJS = `
   function settingsCtrl() {
     return {
 ` +
-	`      _inited: false,
-      isDesktop: !!window.hyloDesktop,
+	`      isDesktop: !!window.hyloDesktop,
       tab: 'appearance',
       agents: [],
       agentsLoading: false,
@@ -268,36 +176,37 @@ const settingsCtrlJS = `
         window.__hyloHotkeys.register('open-settings', ',', function() {
           Alpine.store('settingsModal').open = true;
         });
-        this.$watch('$store.settingsModal.open', async (open) => {
+        this.$watch('tab', (val) => { if (Alpine.store('settingsModal').open) this.loadTab(val); });
+        this.$watch('$store.settingsModal.open', (open) => {
           if (!open) {
             if (window.__hyloEscPop) window.__hyloEscPop('settings');
             this.cancelWechatLogin();
             return;
           }
-          if (window.__hyloEscPush) window.__hyloEscPush('settings', () => { Alpine.store('settingsModal').open = false; });
-          if (!this._inited) {
-            this._inited = true;
-            this.$watch('tab', val => {
-              if (val === 'server') { this.loadServerStatus(); this.loadConfig(); }
-              if (val === 'agent-bots') {
-                this.loadAgentBots();
-                if (!this.agentsLoaded) this.loadAgents();
-                if (!this.agentBotEventDefs.length) this.loadAgentBotEvents();
-              }
-              if (val === 'skills') this.loadSkills();
-              if (val === 'agents') { if (!this.agentsLoaded) this.loadAgents(); }
-              if (val === 'notifications') this.loadNotifySettings();
-            });
-          }
-          await Promise.all([this.loadConfig(), this.loadServerStatus()]);
-          if (this.tab === 'agent-bots') {
-            this.loadAgentBots();
-            if (!this.agentsLoaded) this.loadAgents();
-            if (!this.agentBotEventDefs.length) this.loadAgentBotEvents();
-          }
-          if (this.tab === 'skills') this.loadSkills();
-          if (this.tab === 'agents') { if (!this.agentsLoaded) this.loadAgents(); }
+          if (window.__hyloEscPush) window.__hyloEscPush('settings', () => this.requestClose());
+          this.loadTab(this.tab);
         });
+      },
+
+      async requestClose() {
+        if (this.hasDirty) {
+          const ok = await window.showConfirm({ title: 'Discard changes?', message: 'You have unsaved server settings.', confirmLabel: 'Discard', danger: true });
+          if (!ok) return;
+          this.discardAll();
+        }
+        Alpine.store('settingsModal').open = false;
+      },
+
+      loadTab(tab) {
+        if (tab === 'server') { this.loadServerStatus(); if (!this.hasDirty) this.loadConfig(); }
+        else if (tab === 'agent-bots') {
+          this.loadAgentBots();
+          if (!this.agentsLoaded) this.loadAgents();
+          if (!this.agentBotEventDefs.length) this.loadAgentBotEvents();
+        }
+        else if (tab === 'skills') this.loadSkills();
+        else if (tab === 'agents') { if (!this.agentsLoaded) this.loadAgents(); }
+        else if (tab === 'notifications') this.loadNotifySettings();
       },
 
       async loadAgents(force = false) {
@@ -328,10 +237,49 @@ const settingsCtrlJS = `
       },
 
 ` +
-	settingsAppearanceJS + settingsServerJS + settingsAgentCLIJS + settingsNotificationsJS + settingsShortcutsJS + settingsAgentBotsJS + settingsSkillsJS +
+	settingsAppearanceJS + settingsServerJS + settingsWechatJS + settingsAgentCLIJS + settingsNotificationsJS + settingsShortcutsJS + settingsAgentBotsJS + settingsSkillsJS +
 	`    };
   }
 `
+
+type settingsTab struct {
+	id, label, icon string
+	desktopOnly     bool
+}
+
+var settingsTabs = []settingsTab{
+	{id: "appearance", label: "Appearance", desktopOnly: false, icon: `<circle cx="12" cy="12" r="10"/><path d="M12 18a6 6 0 0 0 0-12z" fill="currentColor" stroke="none"/>`},
+	{id: "server", label: "Server", desktopOnly: false, icon: `<rect width="20" height="8" x="2" y="2" rx="2"/><rect width="20" height="8" x="2" y="14" rx="2"/><path stroke-linecap="round" d="M6 6h.01"/><path stroke-linecap="round" d="M6 18h.01"/>`},
+	{id: "agent-bots", label: "Agent Bots", desktopOnly: false, icon: `<path d="M12 6V2H8"/><path d="M15 11v2"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="M20 16a2 2 0 0 1-2 2H8.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 4 20.286V8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2z"/><path d="M9 11v2"/>`},
+	{id: "skills", label: "Skills", desktopOnly: false, icon: `<path stroke-linecap="round" stroke-linejoin="round" d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z"/><path stroke-linecap="round" stroke-linejoin="round" d="M20 2v4"/><path stroke-linecap="round" stroke-linejoin="round" d="M22 4h-4"/><circle cx="4" cy="20" r="2"/>`},
+	{id: "agents", label: "Agent CLI", desktopOnly: false, icon: `<path stroke-linecap="round" stroke-linejoin="round" d="M12 20v2"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 2v2"/><path stroke-linecap="round" stroke-linejoin="round" d="M17 20v2"/><path stroke-linecap="round" stroke-linejoin="round" d="M17 2v2"/><path stroke-linecap="round" stroke-linejoin="round" d="M2 12h2"/><path stroke-linecap="round" stroke-linejoin="round" d="M2 17h2"/><path stroke-linecap="round" stroke-linejoin="round" d="M2 7h2"/><path stroke-linecap="round" stroke-linejoin="round" d="M20 12h2"/><path stroke-linecap="round" stroke-linejoin="round" d="M20 17h2"/><path stroke-linecap="round" stroke-linejoin="round" d="M20 7h2"/><path stroke-linecap="round" stroke-linejoin="round" d="M7 20v2"/><path stroke-linecap="round" stroke-linejoin="round" d="M7 2v2"/><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="8" y="8" width="8" height="8" rx="1"/>`},
+	{id: "notifications", label: "Notifications", desktopOnly: true, icon: `<path stroke-linecap="round" stroke-linejoin="round" d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path stroke-linecap="round" stroke-linejoin="round" d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>`},
+	{id: "shortcuts", label: "Shortcuts", desktopOnly: false, icon: `<path stroke-linecap="round" d="M10 8h.01"/><path stroke-linecap="round" d="M12 12h.01"/><path stroke-linecap="round" d="M14 8h.01"/><path stroke-linecap="round" d="M16 12h.01"/><path stroke-linecap="round" d="M18 8h.01"/><path stroke-linecap="round" d="M6 8h.01"/><path stroke-linecap="round" stroke-linejoin="round" d="M7 16h10"/><path stroke-linecap="round" d="M8 12h.01"/><rect width="20" height="16" x="2" y="4" rx="2"/>`},
+}
+
+func settingsNavHTML() string {
+	var b strings.Builder
+	b.WriteString(`<nav class="settings-sidebar hairline">`)
+	for _, t := range settingsTabs {
+		show := ""
+		if t.desktopOnly {
+			show = ` x-show="isDesktop"`
+		}
+		fmt.Fprintf(&b, `<button class="side-nav-item settings-sidebar-item"%s :class="{'is-active': tab === '%s'}" @click="tab = '%s'">`+
+			`<svg class="side-nav-icon" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">%s</svg>%s</button>`,
+			show, t.id, t.id, t.icon, t.label)
+	}
+	b.WriteString(`</nav>`)
+	return b.String()
+}
+
+func settingsTabTitlesJS() string {
+	parts := make([]string, len(settingsTabs))
+	for i, t := range settingsTabs {
+		parts[i] = fmt.Sprintf("'%s':'%s'", t.id, t.label)
+	}
+	return "({" + strings.Join(parts, ",") + "})"
+}
 
 func cselectHTML(labelExpr, body string) string {
 	return `<div class="cselect" x-data="{ csOpen: false }" @click.outside="csOpen = false">` +

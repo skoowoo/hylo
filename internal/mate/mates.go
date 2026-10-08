@@ -12,7 +12,7 @@ import (
 
 func (s *Store) ListMates() ([]Mate, error) {
 	rows, err := s.db.Query(
-		`SELECT m.id, m.name, m.description, m.agent_id, m.model, m.color, m.cwd, m.system_prompt, m.trigger_conv_id, m.enabled, m.created_at, m.updated_at,
+		`SELECT m.id, m.name, m.description, m.agent_id, m.model, m.color, m.cwd, m.system_prompt, m.enabled, m.created_at, m.updated_at,
 		        (SELECT COUNT(*) FROM mate_triggers t WHERE t.mate_id = m.id) AS trigger_count
          FROM mates m ORDER BY m.sort_order ASC, m.created_at ASC`,
 	)
@@ -28,10 +28,10 @@ func (s *Store) GetMate(id string) (*Mate, error) {
 	var createdMs, updatedMs int64
 	var enabled int
 	err := s.db.QueryRow(
-		`SELECT id, name, description, agent_id, model, color, cwd, system_prompt, trigger_conv_id, enabled, created_at, updated_at
+		`SELECT id, name, description, agent_id, model, color, cwd, system_prompt, enabled, created_at, updated_at
          FROM mates WHERE id = ?`, id,
 	).Scan(&m.ID, &m.Name, &m.Description, &m.AgentID, &m.Model, &m.Color, &m.Cwd,
-		&m.SystemPrompt, &m.TriggerConvID, &enabled, &createdMs, &updatedMs)
+		&m.SystemPrompt, &enabled, &createdMs, &updatedMs)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -54,10 +54,10 @@ func (s *Store) CreateMate(m *Mate) error {
 	var maxOrder int64
 	s.db.QueryRow(`SELECT COALESCE(MAX(sort_order), -1) FROM mates`).Scan(&maxOrder) //nolint:errcheck
 	_, err := s.db.Exec(
-		`INSERT INTO mates(id, name, description, agent_id, model, color, cwd, system_prompt, trigger_conv_id, enabled, sort_order, created_at, updated_at)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+		`INSERT INTO mates(id, name, description, agent_id, model, color, cwd, system_prompt, enabled, sort_order, created_at, updated_at)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
 		m.ID, m.Name, m.Description, m.AgentID, m.Model, m.Color, m.Cwd,
-		m.SystemPrompt, m.TriggerConvID, boolToInt(m.Enabled), maxOrder+1, now, now,
+		m.SystemPrompt, boolToInt(m.Enabled), maxOrder+1, now, now,
 	)
 	return err
 }
@@ -81,10 +81,10 @@ func (s *Store) UpdateMate(m *Mate) error {
 	now := time.Now().UnixMilli()
 	m.UpdatedAt = time.UnixMilli(now)
 	_, err := s.db.Exec(
-		`UPDATE mates SET name=?, description=?, agent_id=?, model=?, color=?, cwd=?, system_prompt=?, trigger_conv_id=?, enabled=?, updated_at=?
+		`UPDATE mates SET name=?, description=?, agent_id=?, model=?, color=?, cwd=?, system_prompt=?, enabled=?, updated_at=?
          WHERE id=?`,
 		m.Name, m.Description, m.AgentID, m.Model, m.Color, m.Cwd,
-		m.SystemPrompt, m.TriggerConvID, boolToInt(m.Enabled), now, m.ID,
+		m.SystemPrompt, boolToInt(m.Enabled), now, m.ID,
 	)
 	return err
 }
@@ -224,7 +224,7 @@ func scanMateRow(rows *sql.Rows, withTriggerCount bool) (Mate, error) {
 	var triggerCount int
 	var cols = []any{
 		&m.ID, &m.Name, &m.Description, &m.AgentID, &m.Model, &m.Color, &m.Cwd,
-		&m.SystemPrompt, &m.TriggerConvID, &enabled, &createdMs, &updatedMs,
+		&m.SystemPrompt, &enabled, &createdMs, &updatedMs,
 	}
 	if withTriggerCount {
 		cols = append(cols, &triggerCount)

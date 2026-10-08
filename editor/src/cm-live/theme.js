@@ -4,7 +4,6 @@
 // CM6 notes:
 //   1. No <h1>/<li> — only .cm-line; DOM-adjacency rules live in decorators.js.
 //   2. Blank lines are real — don't port inter-block margin (would double-gap).
-// var() fallbacks: light-mode tokens so livepreview-demo renders without the app sheet.
 import { EditorView } from '@codemirror/view';
 import { HighlightStyle } from '@codemirror/language';
 import { tags } from '@lezer/highlight';
@@ -533,8 +532,10 @@ export const codeHighlightStyle = HighlightStyle.define([
   { tag: tags.local(tags.variableName), color: 'var(--syn-param, #8f5e15)' },
   { tag: [tags.typeName, tags.namespace], color: 'var(--syn-type, #166775)' },
   { tag: tags.className, color: 'var(--syn-class, #33635c)' },
-  { tag: [tags.special(tags.variableName), tags.macroName], color: 'var(--syn-builtin, #8c4351)' },
-  { tag: tags.definition(tags.propertyName), color: 'var(--syn-property, #33635c)' },
+  { tag: [tags.special(tags.variableName), tags.standard(tags.variableName), tags.macroName], color: 'var(--syn-builtin, #8c4351)' },
+  { tag: [tags.propertyName, tags.attributeName], color: 'var(--syn-property, #33635c)' },
+  { tag: tags.number, color: 'var(--syn-const, #965027)' },
+  { tag: tags.tagName, color: 'var(--syn-keyword, #5a4a78)' },
   { tag: tags.comment, color: 'var(--syn-comment, #848cb1)', fontStyle: 'italic' },
   { tag: tags.invalid, color: 'var(--syn-invalid, #c53b53)' },
 ]);
