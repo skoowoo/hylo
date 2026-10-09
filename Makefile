@@ -20,7 +20,7 @@ LDFLAGS := -s -w \
   -X $(MODULE)/internal/build.Commit=$(COMMIT) \
   -X $(MODULE)/internal/build.BuildDate=$(BUILD_DATE)
 
-.PHONY: build run serve lint test test-js clean tidy clip-zip icons editor dist-all dist-clean dist-cli dist-cli-snapshot dist-clip dist-dmg dist-win-app dist-checksum
+.PHONY: build run serve lint test test-js clean tidy clip-zip icons editor dist-all dist-clean dist-cli dist-cli-snapshot dist-cli-linux dist-clip dist-dmg dist-win-app dist-checksum
 
 ## build: compile the binary into ./bin/hylo
 build:
@@ -66,7 +66,7 @@ clean:
 	rm -rf bin/
 
 ## dist-all: build CLI archive, Clip extension zip, and the desktop DMG into ./dist, then checksum
-dist-all: dist-clean dist-dmg dist-clip dist-checksum
+dist-all: dist-clean dist-dmg dist-cli-linux dist-clip dist-checksum
 
 ## dist-clean: remove all previous dist artifacts before a fresh release build
 dist-clean:
@@ -80,6 +80,10 @@ dist-cli:
 ## dist-cli-snapshot: local test build without a git tag, current platform only
 dist-cli-snapshot:
 	goreleaser release --snapshot --clean --config $(GORELEASER_CONFIG)
+
+## dist-cli-linux: build hylo CLI for linux/amd64 via Docker into ./dist
+dist-cli-linux:
+	./scripts/build-linux.sh
 
 ## dist-clip: build Clip browser extension and zip into ./dist
 dist-clip:

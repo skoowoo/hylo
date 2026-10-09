@@ -34,6 +34,9 @@ function homeInboxMixin() {
       // live SSE subscription start unconditionally here.
       this.refreshUnreadCount();
       this.initInboxStream();
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) this.refreshUnreadCount();
+      });
     },
     // ── Inbox: message list + unread badge + read-only sheet ───────────────
     initInboxStream() {
@@ -43,6 +46,9 @@ function homeInboxMixin() {
       // sidebar section is active since the unread badge is always visible.
       if (typeof EventSource === 'undefined') return;
       var es = new EventSource('/api/inbox/notifications');
+      // Fires on first connect and every auto-reconnect; messages created
+      // while disconnected never arrive over the stream.
+      es.addEventListener('open', () => this.refreshUnreadCount());
       es.addEventListener('message', (e) => {
         var msg;
         try { msg = JSON.parse(e.data); } catch (err) { return; }
@@ -97,10 +103,16 @@ function homeInboxMixin() {
         await this.$nextTick();
       }
     },
-    refreshUnreadCount() {
-      return fetch('/api/inbox/unread-count').then(function (r) { return r.json(); }).then((data) => {
+    refreshUnreadCount(retries = 2) {
+      return fetch('/api/inbox/unread-count').then(function (r) {
+        if (!r.ok) throw new Error('unread-count ' + r.status);
+        return r.json();
+      }).then((data) => {
         this.unreadCount = data.count || 0;
-      }).catch(function () { });
+      }).catch(() => {
+        // Startup can race the server; a swallowed failure left the badge at 0.
+        if (retries > 0) setTimeout(() => this.refreshUnreadCount(retries - 1), 1500);
+      });
     },
     selectInboxMessage(m) {
       this.inboxSelected = m;

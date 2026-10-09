@@ -1,0 +1,37 @@
+version: 2
+project_name: hylo
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: hylo-linux
+    main: ./cmd/hylo
+    binary: hylo
+    goos:
+      - linux
+    goarch:
+      - amd64
+    env:
+      - CGO_ENABLED=1
+    ldflags:
+      - -s -w
+      - -X github.com/hardhacker/hylo/internal/build.Version={{.Version}}
+      - -X github.com/hardhacker/hylo/internal/build.Commit={{.Commit}}
+      - -X github.com/hardhacker/hylo/internal/build.BuildDate={{.Date}}
+
+archives:
+  - id: hylo-linux
+    name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
+    formats:
+      - tar.gz
+    files:
+      - config.example.toml
+      - skills/**/*
+
+checksum:
+  disable: true
+
+release:
+  disable: true
