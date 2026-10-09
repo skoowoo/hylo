@@ -1,6 +1,6 @@
 // Thematic breaks need a StateField: CM6 rejects block:true decorations from
 // a ViewPlugin (live-preview.js). HorizontalRuleWidget needs block:true for
-// a full-width <hr>. Single-line only — multi-line block replace corrupts height-map.
+// a full-width <hr>.
 import { StateField } from '@codemirror/state';
 import { Decoration, EditorView } from '@codemirror/view';
 import { syntaxTree } from '@codemirror/language';
@@ -25,7 +25,7 @@ import { HorizontalRuleWidget } from './widgets.js';
 // and past a fenced code block containing a literal "---" comment line — same
 // positions as the unpruned walk, ~55% fewer nodes visited on that fixture
 // (a real prose-heavy note, being mostly inline text, prunes far more).
-const NEVER_CONTAINS_HR = new Set([
+export const NEVER_CONTAINS_HR = new Set([
   'Paragraph',
   'ATXHeading1', 'ATXHeading2', 'ATXHeading3', 'ATXHeading4', 'ATXHeading5', 'ATXHeading6',
   'SetextHeading1', 'SetextHeading2',

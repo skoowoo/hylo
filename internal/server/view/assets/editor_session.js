@@ -604,6 +604,25 @@
     return !!(ea && ea.contains(document.activeElement));
   }
 
+  // Focus return for x-trap.noreturn dialogs: x-trap's own return calls native
+  // focus(), which in WebKit scrolls a focused CodeMirror back to the top.
+  // Usage: x-effect="__hyloTrapReturn($el, open)", placed before x-trap so it
+  // records the opener before the trap moves focus in.
+  var __hyloTrapOpeners = new WeakMap();
+  function __hyloTrapReturn(el, open) {
+    if (open) { __hyloTrapOpeners.set(el, document.activeElement); return; }
+    var prev = __hyloTrapOpeners.get(el);
+    if (!prev) return;
+    __hyloTrapOpeners.delete(el);
+    // After x-trap's own effect has lifted inert from the page.
+    setTimeout(function() {
+      if (!prev.isConnected || prev === document.body) return;
+      var view = __hyloEditor.view;
+      if (view && view.dom.contains(prev)) view.focus();
+      else prev.focus({ preventScroll: true });
+    }, 0);
+  }
+
   // Frontmatter is read-only in live preview, so this dialog is its only edit path.
   function __hyloEditorEditFrontmatter(view, from, to) {
     var raw = view.state.doc.sliceString(from, to);

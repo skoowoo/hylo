@@ -14,12 +14,12 @@ for (const name of readdirSync(outDir)) {
 }
 
 await esbuild.build({
-  entryPoints: [join(__dirname, 'src/index.js')],
+  entryPoints: { editor: join(__dirname, 'src/index.js'), 'fence-card': join(__dirname, 'src/fence-card.js') },
   bundle: true,
   format: 'esm',
   splitting: true,
   outdir: outDir,
-  entryNames: 'editor',
+  entryNames: '[name]',
   minify: true,
   target: ['chrome120'],
   treeShaking: true,

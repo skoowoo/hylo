@@ -85,6 +85,12 @@
       padding: 1.25rem 1.5rem; overflow-x: auto; line-height: 1.65;
       margin: 1.5em 0;
     }
+    /* Fence cards (editor/src/cm-live/fence-card) take over these once the reply settles;
+       reserving their height keeps the hand-off from jolting the thread. */
+    .prose pre:has(> code.language-mindmap) {
+      box-sizing: border-box; min-height: 360px;
+    }
+    .prose .hy-card { margin: 1.5em 0; }
     .prose pre code {
       font-family: var(--font-mono);
       color: var(--pre-tx); background: transparent !important;

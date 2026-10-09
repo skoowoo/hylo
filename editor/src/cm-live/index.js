@@ -8,6 +8,7 @@ import { wikiSyntax } from './wiki-syntax.js';
 import { frontmatterSyntax } from './frontmatter-syntax.js';
 import { livePreviewPlugin, livePreviewAtomicRanges } from './live-preview.js';
 import { horizontalRuleField } from './horizontal-rule-field.js';
+import { fenceCardField } from './fence-card/card-field.js';
 import { frontmatterHeaderField } from './frontmatter-collapse.js';
 import { frontmatterReadOnly } from './frontmatter-readonly.js';
 import { livePreviewTheme, codeHighlightStyle } from './theme.js';
@@ -63,6 +64,7 @@ export function liveDecorations(options) {
     livePreviewPlugin.of(options),
     livePreviewAtomicRanges(),
     horizontalRuleField(),
+    fenceCardField(),
     frontmatterReadOnly(),
     frontmatterHeaderField(options),
     livePreviewTheme,

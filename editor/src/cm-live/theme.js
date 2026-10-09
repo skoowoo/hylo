@@ -255,6 +255,10 @@ export const livePreviewTheme = EditorView.theme({
   // pulled out of flow onto its own corner badge (below) instead of holding
   // the line open, so it no longer costs a whole extra line to show.
   '.cm-lp-codeblock-marker-line': { fontSize: '1px', lineHeight: '1px' },
+  '.cm-lp-code-lang-edit': { color: 'var(--syn-keyword, #5a4a78)' },
+  // flow-root keeps the card's margins inside the widget box: collapsed through,
+  // CM's height measure misses them and every line below drifts.
+  '.cm-card-widget': { display: 'flow-root' },
   '.cm-lp-code-lang': {
     position: 'absolute',
     top: '0.7rem',

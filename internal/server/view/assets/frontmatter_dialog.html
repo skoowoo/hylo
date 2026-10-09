@@ -2,7 +2,8 @@
   <div id="frontmatter-dialog"
        x-data="frontmatterDialogCtrl()"
        x-show="open"
-       x-trap.inert="open"
+       x-effect="__hyloTrapReturn($el, open)"
+       x-trap.inert.noreturn="open"
        x-cloak
        class="dialog-overlay fm-edit-overlay"
        @click.self="cancel()">

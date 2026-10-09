@@ -302,6 +302,8 @@
     if (node._raw === text) return;
     node._raw = text;
     node.innerHTML = root.__hyloRenderMarkdown(text, { cache: !streaming });
+    if (!streaming) root.__hyloHydrateFenceCards(node);
+    else if (node._fenceGen) root.__hyloReleaseFenceCards(node);
   }
 
   function setText(node, text) {
@@ -1097,6 +1099,7 @@
 
     function retire(id) {
       var row = rows.get(id);
+      if (row) root.__hyloReleaseFenceCards(row);
       if (row && row.parentNode) row.parentNode.removeChild(row);
       rows.delete(id);
     }
@@ -1339,6 +1342,7 @@
       },
       destroy: function () {
         detaching = true;
+        root.__hyloReleaseFenceCards(thread);
         if (copiedListener === onCopied) copiedListener = null;
         if (hydrateListener === onContentHydrated) hydrateListener = null;
         listen.abort();

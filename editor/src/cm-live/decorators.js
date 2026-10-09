@@ -12,6 +12,7 @@ import { hideRange, styleRange } from './decoration-helpers.js';
 import { nearestAncestor, nameIs, isSameNode } from './tree-utils.js';
 import { decorateTableHeader, decorateTableBodyRow, decorateTableDelimiterRow } from './tables-decorate.js';
 import { decorateFrontmatter } from './frontmatter-decorate.js';
+import { cardFence } from './fence-card/registry.js';
 
 // ── Headings ──────────────────────────────────────────────────────────────
 // Inline padding overrides (not classes): depend on line position, not CSS
@@ -270,6 +271,8 @@ function decorateFencedCode(node, view, decos) {
   // Unclosed fence extends to EOF — don't show card until truly closed.
   const info = node.node.getChild('CodeInfo');
   const editingBlock = selectionTouchesRange(view.state, node.from, node.to);
+  // fence-card/card-field.js replaces the whole block with a widget.
+  if (!editingBlock && cardFence(view.state.doc, node.node)) return;
   if (marks.length >= 2) {
     for (let n = fromLine; n <= toLine; n++) {
       const classes = ['cm-lp-codeblock'];
@@ -292,7 +295,8 @@ function decorateFencedCode(node, view, decos) {
     if (editingBlock) continue;
     hideRange(mark.from, mark.to, decos);
   }
-  if (info) styleRange(info.from, info.to, 'cm-lp-code-lang', decos);
+  // The corner badge is render-only; while editing, the name stays inline after the fence.
+  if (info) styleRange(info.from, info.to, editingBlock ? 'cm-lp-code-lang-edit' : 'cm-lp-code-lang', decos);
 }
 
 // ── GFM task marker

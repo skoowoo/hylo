@@ -3,6 +3,34 @@
 (function (root) {
   var mdCache = new Map();
 
+  // Fence hydration needs `class` on <code>; nothing else keeps it.
+  function onlyFenceClass(node, data) {
+    if (data.attrName === 'class' && !(node.nodeName === 'CODE' && /^language-[\w-]+$/.test(data.attrValue))) data.keepAttr = false;
+  }
+
+  // Mirrors the registry in editor/src/cm-live/fence-card/registry.js; only these load the chunk.
+  var FENCE_CARD_SEL = 'pre > code.language-mindmap';
+  var fenceLoad = null;
+  function fenceModule() {
+    fenceLoad = fenceLoad || import('/static/fence-card.js');
+    return fenceLoad;
+  }
+
+  // Bumping _fenceGen drops a hydrate still waiting on the chunk for content that has moved on.
+  root.__hyloReleaseFenceCards = function (node) {
+    if (!node) return;
+    node._fenceGen = (node._fenceGen || 0) + 1;
+    if (fenceLoad) fenceLoad.then(function (m) { m.releaseFenceCards(node); }).catch(function () {});
+  };
+
+  // Once the chunk is in, always go through it: hydrating also releases the previous render.
+  root.__hyloHydrateFenceCards = function (node) {
+    if (!node) return;
+    var gen = node._fenceGen = (node._fenceGen || 0) + 1;
+    if (!fenceLoad && !node.querySelector(FENCE_CARD_SEL)) return;
+    fenceModule().then(function (m) { if (node._fenceGen === gen) m.hydrateFenceCards(node); }).catch(function () {});
+  };
+
   root.__hyloRenderMarkdown = function (text, opts) {
     if (!text || typeof text !== 'string') return '';
     var useCache = !opts || opts.cache !== false;
@@ -23,11 +51,16 @@
     } else {
       html = marked.parse(processed);
       if (typeof DOMPurify !== 'undefined') {
-        html = DOMPurify.sanitize(html, {
-          ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 's', 'del', 'code', 'pre', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
-            'ul', 'ol', 'li', 'blockquote', 'a', 'hr', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'img'],
-          ALLOWED_ATTR: ['href', 'title', 'src', 'alt'],
-        });
+        DOMPurify.addHook('uponSanitizeAttribute', onlyFenceClass);
+        try {
+          html = DOMPurify.sanitize(html, {
+            ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 's', 'del', 'code', 'pre', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+              'ul', 'ol', 'li', 'blockquote', 'a', 'hr', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'img'],
+            ALLOWED_ATTR: ['href', 'title', 'src', 'alt', 'class'],
+          });
+        } finally {
+          DOMPurify.removeHook('uponSanitizeAttribute', onlyFenceClass);
+        }
       }
     }
     if (useCache) {
