@@ -7,7 +7,7 @@ use std::sync::Mutex;
 
 use crate::server;
 
-pub const APP_VERSION: &str = "1.1.0";
+pub const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 pub const BUILD_ID: &str = "0";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
