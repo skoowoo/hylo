@@ -3,7 +3,7 @@
 import { Decoration } from '@codemirror/view';
 import { selectionTouchesLine } from './selection.js';
 import { TableEmptyCellWidget, TableDelimiterWidget } from './widgets.js';
-import { hideRange } from './decoration-helpers.js';
+import { hideRange, styleRange } from './decoration-helpers.js';
 
 function tableAlignments(tableNode, doc) {
   const delim = tableNode.getChild('TableDelimiter');
@@ -86,15 +86,25 @@ export function decorateTableDelimiterRow(node, view, decos) {
   const state = view.state;
   const line = state.doc.lineAt(node.from);
   if (selectionTouchesLine(state, line)) {
-    decos.push(Decoration.line({ class: 'cm-lp-table-row' }).range(line.from));
+    decos.push(Decoration.line({ class: 'cm-lp-table-raw cm-lp-table-raw-delim' }).range(line.from));
     return;
   }
   decos.push(Decoration.line({ class: 'cm-lp-table-row cm-lp-table-delim' }).range(line.from));
   decos.push(Decoration.replace({ widget: new TableDelimiterWidget() }).range(line.from, line.to));
 }
 
+function isFirstBodyRow(tableNode, node) {
+  const first = tableNode && tableNode.getChild('TableRow');
+  return !!first && first.from === node.from;
+}
+
+function headerIsRaw(state, tableNode) {
+  const header = tableNode.getChild('TableHeader');
+  return !!header && selectionTouchesLine(state, state.doc.lineAt(header.from));
+}
+
 function decorateTableRow(isHeader) {
-  return (node, view, decos, atomics, options, tableCache) => {
+  return (node, view, decos, options, tableCache) => {
     const state = view.state;
     const doc = state.doc;
     const line = doc.lineAt(node.from);
@@ -102,12 +112,20 @@ function decorateTableRow(isHeader) {
     const last = tableNode && tableNode.lastChild;
     const isLastRow = !isHeader && !!last && last.from === node.from && last.to === node.to;
 
+    // The row being edited stays a plain text line: inside the flex row its
+    // text runs and spans would become separate flex items and lose spacing.
+    if (selectionTouchesLine(state, line)) {
+      decos.push(Decoration.line({ class: 'cm-lp-table-raw' }).range(line.from));
+      for (const pipe of node.node.getChildren('TableDelimiter')) styleRange(pipe.from, pipe.to, 'cm-lp-table-pipe', decos);
+      return;
+    }
+
     const rowClasses = ['cm-lp-table-row'];
     if (isHeader) rowClasses.push('cm-lp-table-row-header');
     if (isLastRow) rowClasses.push('cm-lp-table-row-last');
+    // A raw header no longer draws the table's top edge.
+    if (!isHeader && isFirstBodyRow(tableNode, node) && headerIsRaw(state, tableNode)) rowClasses.push('cm-lp-table-row-top');
     decos.push(Decoration.line({ class: rowClasses.join(' ') }).range(line.from));
-
-    if (selectionTouchesLine(state, line)) return;
 
     const layout = tableNode ? getTableLayout(tableNode, doc, tableCache) : { alignments: [], weights: [] };
     const alignments = layout.alignments;

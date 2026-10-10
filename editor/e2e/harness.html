@@ -1,0 +1,45 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<!-- Mirrors #content-pane-edit-area's layout (content_pane.css) closely
+     enough for line wrapping and the height map to behave as in the app. -->
+<style>
+  html, body { margin: 0; height: 100%; background: #fff; font-family: -apple-system, sans-serif; }
+  #area { position: absolute; inset: 0; }
+  #area .cm-editor { height: 100%; }
+  #area .cm-scroller { overflow-y: auto; padding: 2.5rem max(clamp(1.25rem, 4vw, 2.5rem), calc(50% - 360px)); }
+  #area .cm-content { padding: 0; }
+  #area .cm-line { padding: 0; }
+</style>
+</head>
+<body>
+<div id="area"></div>
+<script type="module">
+import * as cm from '/bundle/editor.js';
+const doc = await (await fetch('/fixture' + location.search)).text();
+window.cm = cm;
+window.view = new cm.EditorView({
+  parent: document.getElementById('area'),
+  state: cm.EditorState.create({
+    doc,
+    extensions: [
+      cm.wikiMarkdownLanguage(),
+      cm.history(),
+      cm.tableKeymap,
+      cm.fenceAutoClose,
+      cm.listIndentExtension,
+      cm.formatKeymap,
+      cm.keymap.of([].concat(cm.defaultKeymap, cm.historyKeymap)),
+      cm.EditorView.lineWrapping,
+      cm.frontmatterCollapseField,
+      cm.liveDecorations({ resolveImageSrc: (name) => '/image?' + encodeURIComponent(name) }),
+    ],
+  }),
+});
+cm.forceParsing(window.view, doc.length, 200);
+window.view.focus();
+window.ready = true;
+</script>
+</body>
+</html>

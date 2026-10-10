@@ -26,8 +26,8 @@
       color: var(--h5); margin-top: 1.25em; margin-bottom: 0.5em;
     }
     .prose h6 {
-      font-size: 1em; line-height: 1.6;
-      font-weight: 600;
+      font-size: 0.875em; line-height: 1.6;
+      font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
       color: var(--h6); margin-top: 1.25em; margin-bottom: 0.5em;
     }
     .prose hr + h4, .prose hr + h5, .prose hr + h6,
@@ -57,7 +57,7 @@
       background: var(--tint-soft);
     }
     .prose blockquote {
-      font-style: italic; margin: 0 0 1.5em;
+      margin: 0 0 1.5em;
       padding: 0.35rem 0 0.35rem 1.5rem;
       border-left: none;
       position: relative;

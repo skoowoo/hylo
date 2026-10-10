@@ -14,6 +14,9 @@
     wikiLinkRevalidateSeq: 0,
     decoCompartment: null, readCompartment: null,
     inSource: false, pendingScrollRaf: null, pendingOpenScroll: null,
+    // Heading a [[note#Heading]] click should land on once the note opens;
+    // applied by __hyloEditorRestoreScroll so its scroll writes don't undo it.
+    pendingHeading: null,
     // reading: global user preference, survives note/tab switches and restarts.
     // readingActive: what the view is actually showing — drafts stay editable
     // even while the preference is on.
@@ -191,8 +194,10 @@
   // client can batch-check the same target names the server would resolve.
   var __hyloWikilinkRe = /\[\[([^\]\[|]+?)(?:\|[^\]\[]+?)?\]\]/g;
 
+  // "note#Heading" names "note"; a bare "#Heading" names no other note ('').
   function __hyloWikiLinkTargetName(raw) {
-    var name = (raw || '').trim();
+    var name = (raw || '').split('#')[0].trim();
+    if (!name) return '';
     if (!/\.md$/i.test(name)) name += '.md';
     return name;
   }
@@ -202,7 +207,7 @@
     __hyloWikilinkRe.lastIndex = 0;
     while ((m = __hyloWikilinkRe.exec(md || ''))) {
       var name = __hyloWikiLinkTargetName(m[1]);
-      if (!seen[name]) { seen[name] = true; names.push(name); }
+      if (name && !seen[name]) { seen[name] = true; names.push(name); }
     }
     return names;
   }
@@ -229,6 +234,75 @@
         s.view.dispatch({effects: __hyloCM.wikiLinksRevalidated.of(null)});
       }
     } catch (_) {}
+  }
+
+  function __hyloNoteStem(path) {
+    var name = String(path || '').split('/').pop();
+    return name.replace(/\.md$/i, '');
+  }
+
+  // ![alt](path) → served from the vault. Relative paths resolve against the
+  // note's folder, "/..." against the vault root; anything with a scheme
+  // (https:, data:) is left alone.
+  function __hyloNoteImageSrc(url, notePath) {
+    if (!url || /^[a-z][a-z0-9+.-]*:/i.test(url) || url.indexOf('//') === 0) return url;
+    var path = url.replace(/[?#].*$/, '');
+    try { path = decodeURI(path); } catch(_) {}
+    var parts = (path.charAt(0) === '/' ? [] : String(notePath || '/').split('/').slice(1, -1)).concat(path.split('/'));
+    var out = [];
+    for (var i = 0; i < parts.length; i++) {
+      var part = parts[i];
+      if (!part || part === '.') continue;
+      if (part === '..') {
+        if (!out.length) return url; // climbs out of the vault
+        out.pop();
+      } else {
+        out.push(part);
+      }
+    }
+    var name = out.pop();
+    if (!name) return url;
+    return '/api/images/at?dir=' + encodeURIComponent('/' + out.join('/')) + '&name=' + encodeURIComponent(name);
+  }
+
+  // "[[" completion source. A bare "[[" offers the other open tabs (the server
+  // rejects an empty query); otherwise a filename search.
+  async function __hyloEditorSearchNotes(query, signal) {
+    if (!query.trim()) {
+      var pane = window.__hyloContentPane;
+      var tabs = pane && Array.isArray(pane.tabs) ? pane.tabs : [];
+      var seen = {};
+      return tabs.filter(function(t) {
+        if (!t || !t.path || t.path === __hyloEditor.currentPath || seen[t.path]) return false;
+        seen[t.path] = true;
+        return true;
+      }).map(function(t) { return { label: __hyloNoteStem(t.path) }; });
+    }
+    var resp = await fetch('/api/search', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({q: query, type: 'name', limit: 30}), signal: signal,
+    });
+    if (!resp.ok) return [];
+    var data = await resp.json();
+    return (data.results || []).map(function(r) {
+      return { label: __hyloNoteStem(r.name), detail: r.dir && r.dir !== '/' ? r.dir : undefined };
+    });
+  }
+
+  // A heading in the current note scrolls in place; otherwise open the note
+  // and let the scroll restore land on the heading.
+  async function __hyloEditorFollowWikiLink(target, heading) {
+    var s = __hyloEditor;
+    var here = !target || target.toLowerCase() === __hyloNoteStem(s.currentPath).toLowerCase();
+    if (here) {
+      if (heading && s.view) __hyloCM.jumpToHeading(s.view, heading);
+      return;
+    }
+    s.pendingHeading = heading || null;
+    await __hyloContentPaneOpenWikiLink(target);
+    // No restore in flight means the open failed or bailed; don't let the
+    // heading leak into whatever note opens next.
+    if (!s.pendingOpenScroll) s.pendingHeading = null;
   }
 
   // Open a wiki-link target in the pane.  value is the raw [[…]] inner text.
@@ -352,7 +426,8 @@
         resolveImageSrc: function(filename) {
           return '/api/images/serve?name=' + encodeURIComponent(filename);
         },
-        onWikiLinkClick: function(target) { void __hyloContentPaneOpenWikiLink(target); },
+        resolveMarkdownImageSrc: function(url) { return __hyloNoteImageSrc(url, s.currentPath); },
+        onWikiLinkClick: function(target, alias, e, heading) { void __hyloEditorFollowWikiLink(target, heading); },
         // Populated (async, after each note load) by __hyloEditorRevalidateWikiLinks.
         // Mutating the set alone doesn't repaint; that function also dispatches
         // wikiLinksRevalidated.
@@ -373,10 +448,18 @@
         return [
           sharedLanguage,
           cm.history(),
+          // Ahead of the other Prec.highest Enter bindings: an open completion takes Enter first.
+          cm.wikiLinkCompletion(__hyloEditorSearchNotes),
+          // Tab/Enter inside a table, before the list bindings get them.
+          cm.tableKeymap,
+          // Closing ``` written as the opening one is typed.
+          cm.fenceAutoClose,
           // Highest precedence: lang-markdown's own Enter binding would otherwise win.
           cm.listIndentExtension,
+          cm.formatKeymap,
           // Outside the mode compartments, so it works in source mode too.
           cm.selectionFormatMenu(),
+          cm.cjkWordSelection,
           cm.keymap.of([].concat(cm.defaultKeymap, cm.historyKeymap)),
           cm.search({ top: true, createPanel: __hyloCreateSearchPanel }),
           cm.EditorView.lineWrapping, cmTheme,
@@ -587,6 +670,10 @@
         s.currentMd = s.view.state.doc.toString();
         reconfigure(false, true, {skipFocus: true});
       },
+      // More menu's "Source / Live preview" item.
+      toggle: function() {
+        if (__hyloEditor.inSource) this.exitSource(); else this.enterSource();
+      },
       toggleReading: function() {
         if (__hyloEditor.readingActive) this.exitSource(); else this.enterReading();
       },
@@ -738,6 +825,7 @@
     function apply() {
       if (tabId && !__hyloEditorIsActiveTabId(tabId)) return;
       write();
+      if (s.pendingHeading && s.view) __hyloCM.jumpToHeading(s.view, s.pendingHeading);
     }
     if (s.pendingScrollRaf) { cancelAnimationFrame(s.pendingScrollRaf); s.pendingScrollRaf = null; }
     clearTimeout(s.pendingOpenScroll);
@@ -755,5 +843,6 @@
     s.pendingOpenScroll = setTimeout(function() {
       s.pendingOpenScroll = null;
       apply();
+      s.pendingHeading = null;
     }, opts.afterMs);
   }

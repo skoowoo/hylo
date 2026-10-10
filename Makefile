@@ -43,10 +43,12 @@ lint:
 test:
 	go test -race -v ./...
 
-## test-js: run the editor's and static assets' JS test suites (node --test, no deps)
+## test-js: run the editor's and static assets' JS test suites, plus the editor's
+## WebKit e2e (skipped if WebKit is missing: cd editor && npx playwright-core install webkit)
 test-js:
 	cd editor && npm test
 	node --test "internal/server/view/assets/**/*.test.js"
+	cd editor && npm run test:e2e
 
 ## tidy: tidy and verify go modules
 tidy:

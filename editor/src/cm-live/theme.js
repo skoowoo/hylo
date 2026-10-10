@@ -70,26 +70,43 @@ export const livePreviewTheme = EditorView.theme({
     paddingTop: '1.25em !important',
     paddingBottom: '0.5em !important',
   },
+  // h5/h6 keep h4's ink (lighter fails AA at body size) and step down by size/case.
   '.cm-lp-h5': {
     fontSize: '1em',
     lineHeight: '1.6',
-    color: 'var(--h5, #838896)',
+    color: 'var(--h5, #6b7280)',
     paddingTop: '1.25em !important',
     paddingBottom: '0.5em !important',
   },
   '.cm-lp-h6': {
-    fontSize: '1em',
-    lineHeight: '1.6',
-    color: 'var(--h6, #9b9eac)',
+    fontSize: '0.875em',
+    lineHeight: '1.8',
+    textTransform: 'uppercase',
+    letterSpacing: '0.04em',
+    color: 'var(--h6, #6b7280)',
     paddingTop: '1.25em !important',
     paddingBottom: '0.5em !important',
   },
   // Revealed "#" marker (caret on the line) — muted regardless of heading
   // level so it reads as syntax, not part of the heading text.
   '.cm-lp-heading-mark': { color: 'var(--muted-soft, rgba(60,60,67,0.35))', fontWeight: '400' },
+  // Box for hangRange: right-aligned so the syntax ends where the text begins.
+  '.cm-lp-hang': { display: 'inline-block', textAlign: 'right', whiteSpace: 'pre', fontStyle: 'normal' },
+  '.cm-lp-quote-mark': { color: 'var(--muted-soft, rgba(60,60,67,0.35))', paddingRight: '0.45rem', boxSizing: 'border-box' },
+  // Setext underline once its text is hidden.
+  '.cm-lp-hidden-line': { fontSize: '1px', lineHeight: '1px', padding: '0 !important' },
 
   '.cm-lp-strong': { fontWeight: '600', color: 'var(--prose-strong, #111111)' },
   '.cm-lp-em': { fontStyle: 'italic', color: 'var(--prose-em, #374151)' },
+  // CJK has no italic face — the browser would shear the glyphs. Chinese
+  // typography marks emphasis with dots under the characters instead.
+  '.cm-lp-em-cjk': {
+    fontStyle: 'normal',
+    textEmphasis: 'filled dot',
+    WebkitTextEmphasis: 'filled dot',
+    textEmphasisPosition: 'under right',
+    WebkitTextEmphasisPosition: 'under right',
+  },
   '.cm-lp-strike': { textDecoration: 'line-through', color: 'var(--muted, #6d7080)' },
   '.cm-lp-code': {
     fontFamily: 'var(--font-mono, "JetBrains Mono", ui-monospace, monospace)',
@@ -103,8 +120,8 @@ export const livePreviewTheme = EditorView.theme({
   // ── Blockquote ──────────────────────────────────────────────────────────
   // !important: content_pane.css zeros .cm-line padding.
   // borderRadius:0 — global reset would round the inset bar into brackets.
+  // Not italic: most quotes here are CJK, which has no italic face.
   '.cm-lp-quote': {
-    fontStyle: 'italic',
     paddingTop: '0.35rem !important',
     paddingBottom: '0.35rem !important',
     paddingLeft: '1.5rem !important',
@@ -114,39 +131,48 @@ export const livePreviewTheme = EditorView.theme({
     position: 'relative',
     borderRadius: '0',
   },
-  // Inset box-shadow stands in for old ::before bar (no pseudo on line decos).
-  '.cm-line.cm-lp-quote': {
-    boxShadow: 'inset 2px 0 0 0 var(--bq-bd, rgba(94,106,210,0.55))',
-  },
-  // Nested: +1.5rem pad + extra inset bar per level (cap 4).
+  // One 2px bar per nesting level, 1.5rem apart. Gradients, not inset
+  // box-shadows: an offset inset shadow fills everything up to the offset.
+  '.cm-line.cm-lp-quote': { background: 'linear-gradient(var(--bq-bd, rgba(94,106,210,0.55)), var(--bq-bd, rgba(94,106,210,0.55))) 0 0 / 2px 100% no-repeat' },
+  // Nested: +1.5rem pad + one more bar per level (cap 4).
   '.cm-lp-quote-d2': { paddingLeft: '3rem !important' },
-  '.cm-line.cm-lp-quote-d2': {
-    boxShadow:
-      'inset 2px 0 0 0 var(--bq-bd, rgba(94,106,210,0.55)), inset calc(2px + 1.5rem) 0 0 0 var(--bq-bd, rgba(94,106,210,0.55))',
-  },
+  '.cm-line.cm-lp-quote-d2': { background: 'linear-gradient(var(--bq-bd, rgba(94,106,210,0.55)), var(--bq-bd, rgba(94,106,210,0.55))) 0 0 / 2px 100% no-repeat, linear-gradient(var(--bq-bd, rgba(94,106,210,0.55)), var(--bq-bd, rgba(94,106,210,0.55))) 1.5rem 0 / 2px 100% no-repeat' },
   '.cm-lp-quote-d3': { paddingLeft: '4.5rem !important' },
-  '.cm-line.cm-lp-quote-d3': {
-    boxShadow:
-      'inset 2px 0 0 0 var(--bq-bd, rgba(94,106,210,0.55)), inset calc(2px + 1.5rem) 0 0 0 var(--bq-bd, rgba(94,106,210,0.55)), inset calc(2px + 3rem) 0 0 0 var(--bq-bd, rgba(94,106,210,0.55))',
-  },
+  '.cm-line.cm-lp-quote-d3': { background: 'linear-gradient(var(--bq-bd, rgba(94,106,210,0.55)), var(--bq-bd, rgba(94,106,210,0.55))) 0 0 / 2px 100% no-repeat, linear-gradient(var(--bq-bd, rgba(94,106,210,0.55)), var(--bq-bd, rgba(94,106,210,0.55))) 1.5rem 0 / 2px 100% no-repeat, linear-gradient(var(--bq-bd, rgba(94,106,210,0.55)), var(--bq-bd, rgba(94,106,210,0.55))) 3.0rem 0 / 2px 100% no-repeat' },
   '.cm-lp-quote-d4': { paddingLeft: '6rem !important' },
-  '.cm-line.cm-lp-quote-d4': {
-    boxShadow:
-      'inset 2px 0 0 0 var(--bq-bd, rgba(94,106,210,0.55)), inset calc(2px + 1.5rem) 0 0 0 var(--bq-bd, rgba(94,106,210,0.55)), inset calc(2px + 3rem) 0 0 0 var(--bq-bd, rgba(94,106,210,0.55)), inset calc(2px + 4.5rem) 0 0 0 var(--bq-bd, rgba(94,106,210,0.55))',
-  },
+  '.cm-line.cm-lp-quote-d4': { background: 'linear-gradient(var(--bq-bd, rgba(94,106,210,0.55)), var(--bq-bd, rgba(94,106,210,0.55))) 0 0 / 2px 100% no-repeat, linear-gradient(var(--bq-bd, rgba(94,106,210,0.55)), var(--bq-bd, rgba(94,106,210,0.55))) 1.5rem 0 / 2px 100% no-repeat, linear-gradient(var(--bq-bd, rgba(94,106,210,0.55)), var(--bq-bd, rgba(94,106,210,0.55))) 3.0rem 0 / 2px 100% no-repeat, linear-gradient(var(--bq-bd, rgba(94,106,210,0.55)), var(--bq-bd, rgba(94,106,210,0.55))) 4.5rem 0 / 2px 100% no-repeat' },
 
-  // ── Links — pointer only when strictly inside (cm-lp-link-hit from link-click.js).
+  // ── Links — the whole visible text is the hit target (link-click.js).
   // Color carries the link now, not an underline — no textDecoration.
   '.cm-lp-link': {
     color: 'var(--accent-text, #5e6ad2)',
     fontWeight: '400',
+    cursor: 'pointer',
   },
-  '.cm-lp-link.cm-lp-link-hit': { cursor: 'pointer' },
-  '.cm-lp-link:hover': {
+  '.cm-lp-link:not(.cm-lp-link-editing):hover': {
     background: 'var(--tint-soft, rgba(94,106,210,0.06))',
     color: 'var(--accent-hov, #4c56c8)',
     borderRadius: '0', // defeat global 8px reset
   },
+  // Caret on the link: it's being edited, not followed.
+  '.cm-lp-link-editing': { cursor: 'text' },
+  '.cm-lp-link-url': { color: 'var(--accent-text, #5e6ad2)', opacity: '0.7' },
+  '.cm-lp-linkref': { color: 'var(--muted, #6d7080)' },
+
+  // ── Source shown as-is: HTML, comments, indented code.
+  '.cm-lp-html': {
+    fontFamily: 'var(--font-mono, "JetBrains Mono", ui-monospace, monospace)',
+    fontSize: '0.85em',
+    color: 'var(--muted, #6d7080)',
+  },
+  '.cm-lp-html-comment': { color: 'var(--muted-soft, rgba(60,60,67,0.45))' },
+  '.cm-lp-htmlblock': {
+    fontFamily: 'var(--font-mono, "JetBrains Mono", ui-monospace, monospace)',
+    fontSize: 'var(--text-base, 0.875rem)',
+    color: 'var(--muted, #6d7080)',
+  },
+  '.cm-lp-codeblock-indented.cm-lp-codeblock-first': { paddingTop: '0.6rem !important' },
+  '.cm-lp-codeblock-indented.cm-lp-codeblock-last': { paddingBottom: '0.6rem !important' },
 
   // ── Lists ───────────────────────────────────────────────────────────────
   '.cm-lp-list-line': {
@@ -166,8 +192,11 @@ export const livePreviewTheme = EditorView.theme({
   '.cm-lp-list-gap': { fontSize: '1px', lineHeight: '1px', padding: '0 !important' },
   // Main text color, not brand — these read as prose structure (like a
   // paragraph's own text), not an accent/call-to-action.
-  '.cm-lp-list-mark-ol': { color: 'var(--prose-body, #374151)', fontSize: '0.85em' },
+  // Fixed-width column the line's negative text-indent hangs the marker in.
+  '.cm-lp-list-marker': { display: 'inline-block', textIndent: '0', whiteSpace: 'nowrap', verticalAlign: 'baseline' },
+  '.cm-lp-list-mark-ol': { color: 'var(--prose-body, #374151)', fontVariantNumeric: 'tabular-nums' },
   '.cm-lp-bullet': { color: 'var(--prose-body, #374151)' },
+  '.cm-lp-list-mark-raw': { color: 'var(--muted-soft, rgba(60,60,67,0.35))' },
 
   // ── Task checkboxes — real <input>, same look as old ::before SVG.
   '.cm-lp-task-checkbox': {
@@ -177,8 +206,7 @@ export const livePreviewTheme = EditorView.theme({
     width: '14px',
     height: '14px',
     verticalAlign: 'middle',
-    marginRight: '0.5em',
-    marginTop: '-0.15em',
+    margin: '-0.15em 0 0 0',
     border: '1.5px solid var(--prose-body, #374151)',
     borderRadius: 'var(--r-xs, 4px)',
     background: 'transparent',
@@ -236,44 +264,57 @@ export const livePreviewTheme = EditorView.theme({
     paddingRight: '1.5rem !important',
   },
   '.cm-lp-codeblock-first': {
-    position: 'relative', // anchors cm-lp-code-lang's absolute corner badge
+    position: 'relative', // anchors the absolute cm-lp-code-header
     borderTopLeftRadius: 'var(--r-sm, 6px)',
     borderTopRightRadius: 'var(--r-sm, 6px)',
-    paddingTop: '0.75rem !important',
   },
   '.cm-lp-codeblock-last': {
     borderBottomLeftRadius: 'var(--r-sm, 6px)',
     borderBottomRightRadius: 'var(--r-sm, 6px)',
-    paddingBottom: '0.75rem !important',
   },
-  // The opening/closing fence line itself, once its ``` marker is hidden, is
-  // otherwise pure dead space — its own font line-height was stacking with
-  // codeblock-first/last's padding above, which is what actually made the
-  // empty top/bottom gap so big. Collapsed to a hairline (frontmatter/table/
-  // list-gap's trick) so -first/-last's padding is the only thing left
-  // controlling that gap — including when there's a language label: that's
-  // pulled out of flow onto its own corner badge (below) instead of holding
-  // the line open, so it no longer costs a whole extra line to show.
-  '.cm-lp-codeblock-marker-line': { fontSize: '1px', lineHeight: '1px' },
+  // Fence lines are the block's top/bottom padding. Same height raw or
+  // rendered (only the font is small), so revealing ``` never shifts text.
+  '.cm-lp-codeblock-fence': { fontSize: '0.75rem', color: 'var(--muted, #6d7080)' },
+  '.cm-lp-codeblock-first.cm-lp-codeblock-fence': { lineHeight: '2rem' },
+  '.cm-lp-codeblock-last.cm-lp-codeblock-fence': { lineHeight: '1.25rem' },
   '.cm-lp-code-lang-edit': { color: 'var(--syn-keyword, #5a4a78)' },
   // flow-root keeps the card's margins inside the widget box: collapsed through,
   // CM's height measure misses them and every line below drifts.
   '.cm-card-widget': { display: 'flow-root' },
-  '.cm-lp-code-lang': {
+  '.cm-lp-code-header': {
     position: 'absolute',
-    top: '0.7rem',
-    right: '1.5rem',
+    top: '0',
+    right: '0.75rem',
+    height: '2rem',
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '0.4rem',
+  },
+  '.cm-lp-code-lang': {
     color: 'var(--muted, #6d7080)',
-    // rem, not em, and lineHeight reset: this now lives inside
-    // cm-lp-codeblock-marker-line, whose own font-size/line-height are
-    // collapsed to 1px — em/inherited-px sizing here would inherit that and
-    // round down to nothing (line-height's "1px" is a literal length, so it
-    // inherits as-is regardless of this element's own font-size).
-    fontSize: '0.75rem',
-    lineHeight: 'normal',
+    fontSize: '0.6875rem',
+    lineHeight: '1',
     textTransform: 'uppercase',
     letterSpacing: '0.04em',
   },
+  '.cm-lp-code-copy': {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '22px',
+    height: '22px',
+    padding: '0',
+    border: 'none',
+    background: 'transparent',
+    color: 'var(--muted, #6d7080)',
+    borderRadius: 'var(--r-sm, 6px)',
+    cursor: 'pointer',
+    opacity: '0.55',
+    transition: 'opacity 0.15s ease, background-color 0.15s ease',
+  },
+  '.cm-lp-code-copy:hover': { opacity: '1', background: 'var(--icon-hov, rgba(0,0,0,0.06))', color: 'var(--fg, #1a1a1a)' },
+  '.cm-lp-code-copy.is-done': { opacity: '1', color: 'var(--accent-text, #5e6ad2)' },
+  '.cm-lp-code-copy svg': { width: '13px', height: '13px', display: 'block' },
 
   // ── Wikilink ────────────────────────────────────────────────────────────
   // Color carries the link now, not an underline — same as .cm-lp-link.
@@ -316,14 +357,46 @@ export const livePreviewTheme = EditorView.theme({
     textDecorationColor: 'var(--muted, #6d7080)',
     color: 'var(--muted, #6d7080)',
     opacity: '0.55',
-    cursor: 'default',
+    cursor: 'text',
     userSelect: 'none',
   },
   '.cm-lp-wikilink-broken::before': { backgroundColor: 'var(--muted, #6d7080)' },
   '.cm-lp-wikilink-broken:hover': { background: 'transparent', color: 'var(--muted, #6d7080)' },
 
   // ── Images ──────────────────────────────────────────────────────────────
-  '.cm-lp-wikiimage': { display: 'inline-block', verticalAlign: 'middle', maxWidth: '100%' },
+  '.cm-lp-wikiimage': { display: 'inline-block', verticalAlign: 'middle', maxWidth: '100%', cursor: 'text', position: 'relative' },
+  '.cm-lp-image-zoom': {
+    position: 'absolute',
+    top: '8px',
+    right: '8px',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '26px',
+    height: '26px',
+    padding: '0',
+    border: 'none',
+    borderRadius: 'var(--r-sm, 6px)',
+    background: 'rgba(0,0,0,0.45)',
+    color: '#fff',
+    cursor: 'zoom-in',
+    opacity: '0',
+    transition: 'opacity 0.15s ease',
+  },
+  '.cm-lp-wikiimage:hover .cm-lp-image-zoom': { opacity: '1' },
+  '.cm-lp-image-zoom svg': { width: '14px', height: '14px', display: 'block' },
+  '.cm-lp-image-broken': {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '0.4em',
+    padding: '0.35em 0.7em',
+    border: '1px dashed var(--tbl-bd, rgba(24,24,27,0.2))',
+    borderRadius: 'var(--r-sm, 6px)',
+    color: 'var(--muted, #6d7080)',
+    fontSize: 'var(--text-sm, 0.8125rem)',
+    lineHeight: '1.5',
+  },
+  '.cm-lp-image-broken svg': { width: '14px', height: '14px', flexShrink: '0' },
   '.cm-lp-wikiimage img': {
     display: 'block',
     maxWidth: '100%',
@@ -374,6 +447,8 @@ export const livePreviewTheme = EditorView.theme({
   // appears — opacity + pointer-events, not display:none, so it fades and
   // an invisible button can't eat a stray click.
   '.cm-lp-fm-header-edit-hidden': { opacity: '0', pointerEvents: 'none' },
+  // The caret can't enter the block any more, so hover is the usual way in.
+  '.cm-lp-fm-header:hover .cm-lp-fm-header-edit-hidden': { opacity: '1', pointerEvents: 'auto' },
   '.cm-lp-fm-header-edit:hover': { background: 'var(--icon-hov, rgba(0,0,0,0.06))', color: 'var(--fg, #1a1a1a)' },
   '.cm-lp-fm-header-edit svg': { width: '13px', height: '13px', display: 'block' },
 
@@ -514,6 +589,17 @@ export const livePreviewTheme = EditorView.theme({
   // Keep last-row bottom border — no outer <table> to close the box.
   '.cm-lp-table-row-last .cm-lp-table-cell-first': { borderBottomLeftRadius: 'var(--r-sm, 6px)' },
   '.cm-lp-table-row-last .cm-lp-table-cell-last': { borderBottomRightRadius: 'var(--r-sm, 6px)' },
+  '.cm-lp-table-row-top .cm-lp-table-cell': { borderTop: '1px solid var(--tbl-bd, rgba(24,24,27,0.12))' },
+  '.cm-lp-table-row-top .cm-lp-table-cell-first': { borderTopLeftRadius: 'var(--r-sm, 6px)' },
+  '.cm-lp-table-row-top .cm-lp-table-cell-last': { borderTopRightRadius: 'var(--r-sm, 6px)' },
+  // Row under the caret: plain source, sized like the cells so the switch doesn't jolt.
+  '.cm-lp-table-raw': {
+    fontSize: 'var(--text-base, 0.875rem)',
+    color: 'var(--td-tx, #374151)',
+    paddingTop: '0.45rem !important',
+    paddingBottom: '0.45rem !important',
+  },
+  '.cm-lp-table-raw-delim, .cm-lp-table-pipe': { color: 'var(--muted-soft, rgba(60,60,67,0.35))' },
   // Hairline: shrink line font + inline-block widget (not block — splits buffers).
   '.cm-lp-table-delim': { fontSize: '1px', lineHeight: '1px' },
   '.cm-lp-table-delim-widget': { display: 'inline-block', height: '0' },
@@ -525,7 +611,7 @@ export const livePreviewTheme = EditorView.theme({
 // this file's var()-fallback convention above.
 export const codeHighlightStyle = HighlightStyle.define([
   { tag: tags.keyword, color: 'var(--syn-keyword, #5a4a78)' },
-  // No labelName — fence CodeInfo is styled as cm-lp-code-lang.
+  // No labelName — fence CodeInfo is decorateFencedCode's job.
   { tag: [tags.atom, tags.bool], color: 'var(--syn-const, #965027)' },
   { tag: [tags.literal, tags.inserted], color: 'var(--syn-const, #965027)' },
   // Empty rule: block tags.url inheriting --syn-const from literal (cm-lp-link owns it).

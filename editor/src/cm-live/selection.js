@@ -22,8 +22,8 @@ export function selectionTouchesLine(state, line) {
   return selectionTouchesRange(state, line.from, line.to);
 }
 
-// Strict (boundary-exclusive) for atomic widgets — inclusive would un-atomize
-// on the same caret atomicRanges protects, breaking one-keystroke delete/skip.
+// Strict (boundary-exclusive) for widgets: a caret just before/after one keeps
+// the rendered form; stepping inside reveals the source.
 export function selectionInsideRange(state, from, to) {
   if (state.facet(readingMode)) return false;
   for (const range of state.selection.ranges) {

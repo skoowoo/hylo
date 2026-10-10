@@ -23,6 +23,18 @@ export function rangeTouchesCode(state, from, to) {
   return hit;
 }
 
+// Like rangeTouchesCode, minus inline code spans — for the inline-code toggle itself.
+export function rangeTouchesCodeBlock(state, from, to) {
+  let hit = false;
+  syntaxTree(state).iterate({
+    from, to,
+    enter(node) {
+      if (node.name === 'CodeBlock' || node.name === 'FencedCode') { hit = true; return false; }
+    },
+  });
+  return hit;
+}
+
 // True when `line` is itself part of a fenced/indented code block's
 // content (including its fence delimiter lines) — as opposed to
 // rangeTouchesCode above, which also flags a line that merely *contains* an

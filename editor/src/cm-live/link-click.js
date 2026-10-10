@@ -5,25 +5,14 @@
 //   1. Drag: travel >= CLICK_DRAG_THRESHOLD → don't open (not "selection empty"
 //      — hand tremor alone can make a 1-char selection).
 //   2. Already editing: selectionTouchesRange on pre-click selection → don't open.
-//   3. Boundary: isStrictlyInside (exclusive); selectionTouchesRange is inclusive for reveal.
+//   3. Hit test is the rendered link text itself (.cm-lp-link), so the first and
+//      last characters are as clickable as the middle.
 //   4. mouseup: raw capture-phase — CM6 MouseSelection preventDefault races domEventHandlers.
-//
-// Position via caretPositionFromPoint — more reliable than posAtCoords near block decos.
 import { EditorView, ViewPlugin } from '@codemirror/view';
-import { syntaxTree } from '@codemirror/language';
+import { syntaxTree, ensureSyntaxTree } from '@codemirror/language';
 import { selectionTouchesRange } from './selection.js';
 import { setSuppressedLinkReveal, suppressedLinkRevealField } from './link-reveal-suppression.js';
-
-function posAtEvent(view, e) {
-  if (document.caretPositionFromPoint) {
-    const caret = document.caretPositionFromPoint(e.clientX, e.clientY);
-    if (caret) return view.posAtDOM(caret.offsetNode, caret.offset);
-  } else if (document.caretRangeFromPoint) {
-    const range = document.caretRangeFromPoint(e.clientX, e.clientY);
-    if (range) return view.posAtDOM(range.startContainer, range.startOffset);
-  }
-  return null;
-}
+import { linkTarget } from './link-refs.js';
 
 // Bare GFM autolinks lack a scheme; window.open needs an absolute URL.
 function normalizeAutolinkUrl(raw) {
@@ -41,17 +30,8 @@ function linkNodeAt(view, pos) {
     to: pos,
     enter(node) {
       if (node.name === 'Link') {
-        const marks = node.node.getChildren('LinkMark');
-        const urlNode = node.node.getChild('URL');
-        if (marks.length >= 2 && urlNode) {
-          result = {
-            url: view.state.doc.sliceString(urlNode.from, urlNode.to),
-            from: node.from,
-            to: node.to,
-            textFrom: marks[0].to,
-            textTo: marks[1].from,
-          };
-        }
+        const target = linkTarget(view.state, node.node);
+        if (target) result = { ...target, from: node.from, to: node.to };
       } else if (node.name === 'Autolink') {
         const urlNode = node.node.getChild('URL');
         if (urlNode) {
@@ -85,7 +65,7 @@ function slugify(text) {
 const HEADING_LEAD_RE = /^#{1,6}\s+/;
 
 // Editor headings have no DOM id — scroll within the view instead of window.open.
-function jumpToHeading(view, rawTarget) {
+export function jumpToHeading(view, rawTarget) {
   let target;
   try {
     target = decodeURIComponent(rawTarget);
@@ -96,10 +76,12 @@ function jumpToHeading(view, rawTarget) {
   if (!targetSlug) return false;
   const doc = view.state.doc;
   let found = null;
-  syntaxTree(view.state).iterate({
+  // The background parse may not have reached a heading far down a long note yet.
+  const tree = ensureSyntaxTree(view.state, doc.length, 200) || syntaxTree(view.state);
+  tree.iterate({
     enter(node) {
       if (found) return false;
-      if (!/^ATXHeading[1-6]$/.test(node.name)) return;
+      if (!/^(ATXHeading[1-6]|SetextHeading[12])$/.test(node.name)) return;
       const line = doc.lineAt(node.from);
       const headingSlug = slugify(line.text.replace(HEADING_LEAD_RE, ''));
       if (headingSlug === targetSlug) found = line.from;
@@ -118,20 +100,11 @@ function openExternal(url) {
   window.open(url, '_blank', 'noopener,noreferrer');
 }
 
-// Exclusive of boundaries — see header point 3.
-function isStrictlyInside(pos, from, to) {
-  return pos > from && pos < to;
-}
-
-// CSS :hover can't distinguish edge vs interior; match click hit-test.
-const HOVER_HIT_CLASS = 'cm-lp-link-hit';
-
 // Matches CM6 MouseSelection "not yet a drag"; ignores hand-tremor jitter.
 const CLICK_DRAG_THRESHOLD = 10;
 
 export function linkClickHandler() {
   let pending = null;
-  let hitEl = null;
 
   const mouseupPlugin = ViewPlugin.fromClass(
     class {
@@ -154,9 +127,7 @@ export function linkClickHandler() {
             if (!this.view.state.selection.main.empty) {
               this.view.dispatch({ selection: { anchor: this.view.state.selection.main.head } });
             }
-            if (p.kind === 'stabilize') {
-              // Boundary click — caret only, no open.
-            } else if (p.kind === 'anchor') {
+            if (p.kind === 'anchor') {
               jumpToHeading(this.view, p.target);
             } else {
               openExternal(p.url);
@@ -172,20 +143,6 @@ export function linkClickHandler() {
   );
 
   const mouseHandlers = EditorView.domEventHandlers({
-    mousemove(e, view) {
-      const target = e.target.closest && e.target.closest('.cm-lp-link');
-      if (hitEl && hitEl !== target) {
-        hitEl.classList.remove(HOVER_HIT_CLASS);
-        hitEl = null;
-      }
-      if (!target) return false;
-      const pos = posAtEvent(view, e);
-      const node = pos == null ? null : linkNodeAt(view, pos);
-      const inside = !!node && isStrictlyInside(pos, node.textFrom, node.textTo);
-      target.classList.toggle(HOVER_HIT_CLASS, inside);
-      hitEl = inside ? target : null;
-      return false;
-    },
     mousedown(e, view) {
       pending = null;
       if (e.button !== 0) return false;
@@ -197,15 +154,10 @@ export function linkClickHandler() {
         return false;
       }
 
-      const pos = posAtEvent(view, e);
-      if (pos == null) return false;
-      const node = linkNodeAt(view, pos);
+      const hit = e.target.closest && e.target.closest('.cm-lp-link');
+      if (!hit || hit.classList.contains('cm-lp-link-editing')) return false;
+      const node = linkNodeAt(view, view.posAtDOM(hit));
       if (!node) return false;
-      if (!isStrictlyInside(pos, node.textFrom, node.textTo)) {
-        // Boundary: stabilize tremor selection, don't open.
-        pending = { kind: 'stabilize', startX: e.clientX, startY: e.clientY };
-        return false;
-      }
       // Already editing raw markdown — leave alone.
       if (selectionTouchesRange(view.state, node.from, node.to)) return false;
       pending = node.url.startsWith('#')

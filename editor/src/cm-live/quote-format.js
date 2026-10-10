@@ -1,6 +1,7 @@
 import { syntaxTree } from '@codemirror/language';
 import { touchedLines } from './selection-lines.js';
 import { lineInsideCodeBlock } from './format-guards.js';
+import { refreshDomCaret } from './dom-caret.js';
 
 // Blockquote toggle for the right-click format menu. Unlike list markers
 // (list-indent.js's ListItem, a container node you can resolve up to from a
@@ -62,6 +63,7 @@ export function toggleBlockquote(view) {
   }
   if (!changes.length) return true;
   view.dispatch({ changes, userEvent: 'input' });
+  refreshDomCaret(view);
   return true;
 }
 
@@ -120,6 +122,7 @@ export function emptyQuoteEnter(view) {
   if (!isEmptyQuotedLine(state, line, marks)) return false;
   const { from, to } = innermostMarkRange(state, line, marks);
   view.dispatch({ changes: { from, to, insert: '' }, userEvent: 'input' });
+  refreshDomCaret(view);
   return true;
 }
 
@@ -141,5 +144,6 @@ export function emptyQuoteBackspace(view) {
   if (!isEmptyQuotedLine(state, line, marks)) return false;
   const { from, to } = innermostMarkRange(state, line, marks);
   view.dispatch({ changes: { from, to, insert: '' }, userEvent: 'delete' });
+  refreshDomCaret(view);
   return true;
 }

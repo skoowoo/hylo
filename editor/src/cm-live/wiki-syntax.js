@@ -42,8 +42,13 @@ export function wikiNodeInner(node, doc) {
   return doc.sliceString(node.from + openLen, node.to - 2);
 }
 
+// "note#Heading|alias" → { target: 'note', heading: 'Heading', alias: 'alias' }.
+// An empty target ("[[#Heading]]") points into the current note.
 export function splitWikiLinkInner(inner) {
   const bar = inner.indexOf('|');
-  if (bar < 0) return { target: inner, alias: null };
-  return { target: inner.slice(0, bar), alias: inner.slice(bar + 1) };
+  const ref = bar < 0 ? inner : inner.slice(0, bar);
+  const alias = bar < 0 ? null : inner.slice(bar + 1);
+  const hash = ref.indexOf('#');
+  if (hash < 0) return { target: ref, heading: null, alias };
+  return { target: ref.slice(0, hash).trim(), heading: ref.slice(hash + 1).trim() || null, alias };
 }

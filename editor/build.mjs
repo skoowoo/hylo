@@ -2,6 +2,7 @@ import esbuild from 'esbuild';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { readdirSync, rmSync } from 'fs';
+import { bundleOptions } from './build-options.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const outDir = join(__dirname, '../internal/server/static');
@@ -13,16 +14,6 @@ for (const name of readdirSync(outDir)) {
   if (name !== 'vendor') rmSync(join(outDir, name), { recursive: true, force: true });
 }
 
-await esbuild.build({
-  entryPoints: { editor: join(__dirname, 'src/index.js'), 'fence-card': join(__dirname, 'src/fence-card.js') },
-  bundle: true,
-  format: 'esm',
-  splitting: true,
-  outdir: outDir,
-  entryNames: '[name]',
-  minify: true,
-  target: ['chrome120'],
-  treeShaking: true,
-});
+await esbuild.build(bundleOptions(outDir));
 
 console.log('built →', outDir);

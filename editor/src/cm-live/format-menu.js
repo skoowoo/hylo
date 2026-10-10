@@ -1,8 +1,13 @@
 import { EditorView, ViewPlugin } from '@codemirror/view';
-import { toggleBold, toggleItalic, toggleStrikethrough, inlineFormatActiveAt } from './inline-format.js';
+import {
+  toggleBold, toggleItalic, toggleStrikethrough, toggleInlineCode, insertLink,
+  inlineFormatActiveAt, inlineCodeActiveAt,
+} from './inline-format.js';
 import { toggleBulletList, toggleOrderedList, toggleTaskList, listFormatActiveAt } from './list-format.js';
 import { toggleBlockquote, quoteFormatActiveAt } from './quote-format.js';
-import { rangeTouchesCode, rangeCrossesBlock, trimWhitespace, lineInsideCodeBlock } from './format-guards.js';
+import { rangeTouchesCode, rangeTouchesCodeBlock, rangeCrossesBlock, trimWhitespace, lineInsideCodeBlock } from './format-guards.js';
+import { FORMAT_KEYS } from './format-keymap.js';
+import { charPosAtCoords, wordRangeAt } from './cjk-words.js';
 import { touchedLines } from './selection-lines.js';
 
 // Right-click formatting menu. There's no native context menu to coexist
@@ -55,6 +60,7 @@ function ensureStyles() {
   cursor: pointer;
 }
 .cm-format-menu-row svg { width: 13px; height: 13px; flex-shrink: 0; }
+.cm-format-menu-kbd { margin-left: auto; padding-left: 1.5rem; color: var(--muted-soft, #9b9eac); font-size: var(--text-xs, 0.75rem); }
 .cm-format-menu-row:hover:not(:disabled) { color: var(--fg, #1a1a1a); background: var(--icon-hov, rgba(0,0,0,0.06)); }
 .cm-format-menu-row:disabled { opacity: 0.4; cursor: default; }
 .cm-format-menu-row.is-active,
@@ -88,16 +94,63 @@ const ICONS = {
   bullet: lucideIcon('list', '<path d="M3 5h.01"/><path d="M3 12h.01"/><path d="M3 19h.01"/><path d="M8 5h13"/><path d="M8 12h13"/><path d="M8 19h13"/>'),
   ordered: lucideIcon('list-ordered', '<path d="M11 5h10"/><path d="M11 12h10"/><path d="M11 19h10"/><path d="M4 4h1v5"/><path d="M4 9h2"/><path d="M6.5 20H3.4c0-1 2.6-1.925 2.6-3.5a1.5 1.5 0 0 0-2.6-1.02"/>'),
   task: lucideIcon('list-todo', '<path d="M13 5h8"/><path d="M13 12h8"/><path d="M13 19h8"/><path d="m3 17 2 2 4-4"/><rect x="3" y="4" width="6" height="6" rx="1"/>'),
+  cut: lucideIcon('scissors', '<circle cx="6" cy="6" r="3"/><path d="M8.12 8.12 12 12"/><path d="M20 4 8.12 15.88"/><circle cx="6" cy="18" r="3"/><path d="M14.8 14.8 20 20"/>'),
+  copy: lucideIcon('copy', '<rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>'),
+  paste: lucideIcon('clipboard', '<rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>'),
+  code: lucideIcon('code', '<path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/>'),
+  link: lucideIcon('link', '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>'),
   quote: lucideIcon('quote', '<path d="M16 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z"/><path d="M5 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z"/>'),
 };
+
+const IS_MAC = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+
+function keyHint(key) {
+  if (!key) return '';
+  const parts = key.split('-');
+  const last = parts.pop().toUpperCase();
+  if (IS_MAC) {
+    const sym = { Mod: '⌘', Shift: '⇧', Alt: '⌥', Ctrl: '⌃' };
+    return parts.map((p) => sym[p]).sort((a, b) => '⌃⌥⇧⌘'.indexOf(a) - '⌃⌥⇧⌘'.indexOf(b)).join('') + last;
+  }
+  return parts.map((p) => (p === 'Mod' ? 'Ctrl' : p)).concat(last).join('+');
+}
+
+// execCommand routes through CM's own copy/cut handlers (line-wise copy, undo
+// event); writeText is the fallback where the command is refused.
+function clipboardCommand(cmd) {
+  return (view) => {
+    const sel = view.state.selection.main;
+    if (document.execCommand(cmd)) return true;
+    if (!navigator.clipboard) return false;
+    void navigator.clipboard.writeText(view.state.sliceDoc(sel.from, sel.to));
+    if (cmd === 'cut') view.dispatch({ changes: { from: sel.from, to: sel.to }, userEvent: 'delete.cut' });
+    return true;
+  };
+}
+
+// WebKit may show its own "Paste" confirmation before readText resolves.
+function pasteFromClipboard(view) {
+  navigator.clipboard.readText().then((text) => {
+    if (!text) return;
+    view.dispatch(view.state.replaceSelection(text), { userEvent: 'input.paste', scrollIntoView: true });
+  }).catch(() => {});
+  return true;
+}
+
+const canPaste = () => !!(navigator.clipboard && navigator.clipboard.readText);
 
 // Each action owns its own isActive check instead of branching on `group` —
 // group only decides menu layout (which section it's in, and whether it
 // needs real selected text to be enabled), not which state it reflects.
 const ACTIONS = [
-  { id: 'bold', label: 'Bold', group: 'inline', run: toggleBold, isActive: (state, sel) => inlineFormatActiveAt(state, sel).bold },
-  { id: 'italic', label: 'Italic', group: 'inline', run: toggleItalic, isActive: (state, sel) => inlineFormatActiveAt(state, sel).italic },
-  { id: 'strike', label: 'Strikethrough', group: 'inline', run: toggleStrikethrough, isActive: (state, sel) => inlineFormatActiveAt(state, sel).strike },
+  { id: 'cut', label: 'Cut', group: 'clipboard', key: 'Mod-x', run: clipboardCommand('cut'), isActive: () => false },
+  { id: 'copy', label: 'Copy', group: 'clipboard', key: 'Mod-c', run: clipboardCommand('copy'), isActive: () => false },
+  { id: 'paste', label: 'Paste', group: 'clipboard', key: 'Mod-v', run: pasteFromClipboard, isActive: () => false },
+  { id: 'bold', label: 'Bold', group: 'inline', key: FORMAT_KEYS.bold, run: toggleBold, isActive: (state, sel) => inlineFormatActiveAt(state, sel).bold },
+  { id: 'italic', label: 'Italic', group: 'inline', key: FORMAT_KEYS.italic, run: toggleItalic, isActive: (state, sel) => inlineFormatActiveAt(state, sel).italic },
+  { id: 'strike', label: 'Strikethrough', group: 'inline', key: FORMAT_KEYS.strike, run: toggleStrikethrough, isActive: (state, sel) => inlineFormatActiveAt(state, sel).strike },
+  { id: 'code', label: 'Code', group: 'inline', key: FORMAT_KEYS.code, run: toggleInlineCode, isActive: inlineCodeActiveAt },
+  { id: 'link', label: 'Link', group: 'inline', key: FORMAT_KEYS.link, run: insertLink, isActive: () => false },
   { id: 'bullet', label: 'Bullet List', group: 'block', run: toggleBulletList, isActive: (state, sel) => listFormatActiveAt(state, sel) === 'bullet' },
   { id: 'ordered', label: 'Numbered List', group: 'block', run: toggleOrderedList, isActive: (state, sel) => listFormatActiveAt(state, sel) === 'ordered' },
   { id: 'task', label: 'Checklist', group: 'block', run: toggleTaskList, isActive: (state, sel) => listFormatActiveAt(state, sel) === 'task' },
@@ -138,12 +191,12 @@ class FormatMenuPlugin {
 
   open(event) {
     const view = this.view;
-    const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
+    const pos = charPosAtCoords(view, event.clientX, event.clientY);
     // Right-click on a bare cursor (no selection) over a word auto-selects
     // it first, same as most editors — makes the inline actions usable
-    // immediately instead of a dead click.
+    // immediately instead of a dead click. CJK goes by segmented words.
     if (view.state.selection.main.empty && pos != null) {
-      const word = view.state.wordAt(pos);
+      const word = wordRangeAt(view.state, pos);
       if (word) view.dispatch({ selection: word });
     }
     const sel = view.state.selection.main;
@@ -157,6 +210,15 @@ class FormatMenuPlugin {
       || rangeCrossesBlock(view.state, sel.from, sel.to);
     // Mirrors list-format.js/quote-format.js's own code-block guard.
     const blockDisabled = touchedLines(view.state).some(line => lineInsideCodeBlock(view.state, line));
+    const disabled = {
+      cut: sel.empty,
+      copy: sel.empty,
+      paste: !canPaste(),
+      // Inline code toggles off an existing span, so only block code rules it out.
+      code: sel.empty || trimmedSel.from >= trimmedSel.to
+        || rangeTouchesCodeBlock(view.state, sel.from, sel.to)
+        || rangeCrossesBlock(view.state, sel.from, sel.to),
+    };
 
     const dom = this._dom();
     dom.textContent = '';
@@ -173,12 +235,14 @@ class FormatMenuPlugin {
       row.type = 'button';
       row.className = 'cm-format-menu-row';
       // ICONS/label are fixed internal constants, never user data.
-      row.innerHTML = ICONS[action.id] + '<span>' + action.label + '</span>';
+      row.innerHTML = ICONS[action.id] + '<span>' + action.label + '</span>'
+        + '<span class="cm-format-menu-kbd">' + keyHint(action.key) + '</span>';
       // Inline actions need real, formattable selected text; block actions
       // (list/quote) are line-level and work from a bare cursor
       // (Notion/Obsidian-style "make this line a list/quote"), so only the
       // code-block check applies to them.
-      if (action.group === 'inline' ? inlineDisabled : blockDisabled) row.disabled = true;
+      const off = action.id in disabled ? disabled[action.id] : action.group === 'inline' ? inlineDisabled : blockDisabled;
+      if (off) row.disabled = true;
       if (action.isActive(view.state, sel)) row.classList.add('is-active');
       // preventDefault keeps the editor focused/selected through the click —
       // without it, the default mousedown blur fires update() with
@@ -237,6 +301,8 @@ export function selectionFormatMenu() {
     formatMenuPlugin,
     EditorView.domEventHandlers({
       contextmenu(event, view) {
+        // readOnly doesn't block dispatch, so the menu would still rewrite the doc.
+        if (view.state.readOnly) return false;
         event.preventDefault();
         view.plugin(formatMenuPlugin).open(event);
         return true;

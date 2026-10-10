@@ -1,5 +1,5 @@
 import { EditorSelection } from '@codemirror/state';
-import { rangeTouchesCode, rangeCrossesBlock, trimWhitespace } from './format-guards.js';
+import { rangeTouchesCode, rangeTouchesCodeBlock, rangeCrossesBlock, trimWhitespace } from './format-guards.js';
 import { resolveAncestor } from './tree-utils.js';
 
 // Bold/italic/strikethrough toggle commands for the right-click format menu
@@ -15,12 +15,9 @@ import { resolveAncestor } from './tree-utils.js';
 // only partially overlaps an existing mark is treated as "not yet applied"
 // (see the toggleWrap comment below for why that's the deliberate choice).
 function enclosingNode(state, range, nodeNames) {
-  return resolveAncestor(
-    state,
-    range.from,
-    (n) => nodeNames.includes(n.name) && n.from <= range.from && n.to >= range.to,
-    1
-  );
+  const fits = (n) => nodeNames.includes(n.name) && n.from <= range.from && n.to >= range.to;
+  // A bare caret on either outer edge counts as inside: a fresh pair there would fuse with the existing marks.
+  return resolveAncestor(state, range.from, fits, 1) || (range.empty ? resolveAncestor(state, range.from, fits, -1) : null);
 }
 
 function markChild(node, markName, fromEnd) {
@@ -28,22 +25,44 @@ function markChild(node, markName, fromEnd) {
   return c && c.name === markName ? c : null;
 }
 
-function toggleWrap(view, { nodeNames, markName, markStart, markEnd }) {
+function stripMarks(state, node, markName, range) {
+  const open = markChild(node, markName, false);
+  const close = markChild(node, markName, true);
+  if (!open || !close || close.from < open.to) return null;
+  const changes = state.changes([
+    { from: open.from, to: open.to, insert: '' },
+    { from: close.from, to: close.to, insert: '' },
+  ]);
+  return { changes, range: EditorSelection.range(changes.mapPos(range.anchor, -1), changes.mapPos(range.head, -1)) };
+}
+
+function toggleWrap(view, { nodeNames, markName, markStart, markEnd, touchesCode = rangeTouchesCode }) {
   const state = view.state;
+  if (state.readOnly) return false;
   const tr = state.changeByRange(range => {
     // Code content is verbatim — inserting mark characters into it doesn't
     // format anything, so leave it untouched regardless of selection shape.
-    if (rangeTouchesCode(state, range.from, range.to)) return { range };
+    if (touchesCode(state, range.from, range.to)) return { range };
 
     if (range.empty) {
+      const pos = range.from;
+      // Caret inside an existing span: the shortcut turns it off.
+      const node = enclosingNode(state, range, nodeNames);
+      const stripped = node && stripMarks(state, node, markName, range);
+      if (stripped) return stripped;
+      // Second press on a pair it just inserted takes the pair back out.
+      if (state.sliceDoc(pos - markStart.length, pos) === markStart && state.sliceDoc(pos, pos + markEnd.length) === markEnd) {
+        const changes = [{ from: pos - markStart.length, to: pos + markEnd.length, insert: '' }];
+        return { changes, range: EditorSelection.cursor(pos - markStart.length) };
+      }
       // Bare cursor — drop a fresh pair of marks and land the cursor between
       // them so typing continues inside, the same behavior most markdown
       // editors give an empty-selection toggle.
       const changes = [
-        { from: range.from, insert: markStart },
-        { from: range.to, insert: markEnd },
+        { from: pos, insert: markStart },
+        { from: pos, insert: markEnd },
       ];
-      return { changes, range: EditorSelection.cursor(range.from + markStart.length) };
+      return { changes, range: EditorSelection.cursor(pos + markStart.length) };
     }
 
     // A mark spanning a blank line doesn't round-trip as one emphasis span
@@ -109,6 +128,39 @@ export function toggleStrikethrough(view) {
   return toggleWrap(view, { nodeNames: ['Strikethrough'], markName: 'StrikethroughMark', markStart: '~~', markEnd: '~~' });
 }
 
+// Only block code is off-limits here; an existing inline span is what this toggles off.
+export function toggleInlineCode(view) {
+  return toggleWrap(view, {
+    nodeNames: ['InlineCode'],
+    markName: 'CodeMark',
+    markStart: '`',
+    markEnd: '`',
+    touchesCode: rangeTouchesCodeBlock,
+  });
+}
+
+const BARE_URL_RE = /^(?:https?:\/\/|www\.)\S+$/i;
+
+// Selected text becomes the label (caret lands in the empty URL); a selected
+// URL becomes the target (caret lands in the empty label).
+export function insertLink(view) {
+  const state = view.state;
+  if (state.readOnly) return false;
+  const tr = state.changeByRange(range => {
+    if (rangeTouchesCode(state, range.from, range.to) || rangeCrossesBlock(state, range.from, range.to)) return { range };
+    const { from, to } = range.empty ? range : trimWhitespace(state, range.from, range.to);
+    const text = state.sliceDoc(from, to);
+    if (text.includes('\n')) return { range };
+    if (text && BARE_URL_RE.test(text)) {
+      return { changes: { from, to, insert: '[](' + text + ')' }, range: EditorSelection.cursor(from + 1) };
+    }
+    const insert = '[' + text + ']()';
+    return { changes: { from, to, insert }, range: EditorSelection.cursor(from + insert.length - 1) };
+  });
+  view.dispatch(state.update(tr, { scrollIntoView: true, userEvent: 'input' }));
+  return true;
+}
+
 // For the format menu's active-state highlighting (e.g. showing "Bold" as
 // pressed when the selection is already bold). Mirrors toggleWrap's own
 // guards/trimming so the indicator never disagrees with what a click would
@@ -131,4 +183,10 @@ export function inlineFormatActiveAt(state, range) {
     italic: !!enclosingNode(state, r, ['Emphasis']),
     strike: !!enclosingNode(state, r, ['Strikethrough']),
   };
+}
+
+export function inlineCodeActiveAt(state, range) {
+  if (range.empty) return false;
+  const { from, to } = trimWhitespace(state, range.from, range.to);
+  return from < to && !!enclosingNode(state, { from, to }, ['InlineCode']);
 }

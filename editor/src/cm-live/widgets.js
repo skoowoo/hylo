@@ -1,33 +1,51 @@
 import { WidgetType } from '@codemirror/view';
+import { allowFrontmatterCaret } from './frontmatter-readonly.js';
+import { openImageViewer } from './image-viewer.js';
+
+// Click puts the caret `offset` chars into the source the widget replaces,
+// which flips it back to raw markdown for editing.
+function editOnMouseDown(dom, view, offset) {
+  dom.addEventListener('mousedown', (e) => {
+    if (e.button !== 0 || e.defaultPrevented) return;
+    e.preventDefault();
+    view.dispatch({ selection: { anchor: view.posAtDOM(dom) + offset } });
+    view.focus();
+  });
+}
 
 // Clickable [[wikilink]] chip; onClick injected by content_pane.js (no Hylo routing here).
 // broken (from options.isWikiLinkBroken, also app-injected) means the target note
 // doesn't exist any more — nothing to navigate to, so it renders struck-through
 // and skips the click handler entirely rather than firing onClick into a dead end.
 export class WikiLinkWidget extends WidgetType {
-  constructor(target, alias, onClick, broken) {
+  constructor(target, heading, alias, onClick, broken) {
     super();
     this.target = target;
+    this.heading = heading;
     this.alias = alias;
     this.onClick = onClick;
     this.broken = !!broken;
   }
 
   eq(other) {
-    return other.target === this.target && other.alias === this.alias && other.broken === this.broken;
+    return other.target === this.target && other.heading === this.heading && other.alias === this.alias && other.broken === this.broken;
   }
 
-  toDOM() {
+  toDOM(view) {
     const span = document.createElement('span');
     span.className = this.broken ? 'cm-lp-wikilink cm-lp-wikilink-broken' : 'cm-lp-wikilink';
-    span.textContent = this.alias || this.target;
-    span.title = this.broken ? 'Note not found' : this.target;
+    const ref = this.heading ? (this.target ? this.target + ' › ' : '') + this.heading : this.target;
+    span.textContent = this.alias || ref;
+    span.title = this.broken ? 'Note not found — click to edit' : ref;
     span.setAttribute('data-wl-value', this.target);
     if (this.onClick && !this.broken) {
       span.addEventListener('mousedown', (e) => {
         e.preventDefault();
-        this.onClick(this.target, this.alias, e);
+        this.onClick(this.target, this.alias, e, this.heading);
       });
+    } else {
+      // Nothing to open — the likely intent is fixing the target.
+      editOnMouseDown(span, view, 2);
     }
     return span;
   }
@@ -42,80 +60,76 @@ export class WikiLinkWidget extends WidgetType {
 // instead of collapsing to zero, and the height map gets a real estimate.
 const imageHeightCache = new Map();
 
-function imageDOM(src, alt) {
-  const wrap = document.createElement('span');
-  wrap.className = 'cm-lp-wikiimage';
-  const img = document.createElement('img');
-  img.alt = alt;
-  img.draggable = false;
-  const known = imageHeightCache.get(src);
-  if (known) wrap.style.minHeight = known + 'px';
-  const settle = () => {
-    wrap.style.minHeight = '';
-    if (wrap.offsetHeight) imageHeightCache.set(src, wrap.offsetHeight);
-  };
-  img.addEventListener('load', settle, { once: true });
-  img.addEventListener('error', () => { wrap.style.minHeight = ''; }, { once: true });
-  img.src = src;
-  wrap.appendChild(img);
-  return wrap;
-}
+const ZOOM_ICON =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="m21 3-7 7"/><path d="m3 21 7-7"/></svg>';
+const BROKEN_ICON =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m2 2 20 20"/><path d="M10.41 10.41a2 2 0 1 1-2.83-2.83"/><path d="M13.5 13.5 6 21"/><path d="M18 12l3 3"/><path d="M3.59 3.59A1.99 1.99 0 0 0 3 5v14a2 2 0 0 0 2 2h14c.55 0 1.052-.22 1.41-.59"/><path d="M21 15V5a2 2 0 0 0-2-2H9"/></svg>';
 
-// ![[wikiimage]] → <img>; resolveSrc from content_pane.js.
-export class WikiImageWidget extends WidgetType {
-  constructor(filename, resolveSrc) {
+// ![[file]] and ![alt](url). `src` is already resolved by the decorator;
+// `label` names the image in the broken-image placeholder. A click edits the
+// source (`editOffset` chars in); the corner button opens the viewer.
+export class ImageWidget extends WidgetType {
+  constructor(src, label, editOffset) {
     super();
-    this.filename = filename;
-    this.resolveSrc = resolveSrc;
+    this.src = src;
+    this.label = label;
+    this.editOffset = editOffset;
   }
 
   eq(other) {
-    return other.filename === this.filename;
-  }
-
-  get src() {
-    return this.resolveSrc ? this.resolveSrc(this.filename) : this.filename;
+    return other.src === this.src && other.label === this.label;
   }
 
   get estimatedHeight() {
     return imageHeightCache.get(this.src) ?? -1;
   }
 
-  toDOM() {
-    return imageDOM(this.src, this.filename);
-  }
-
-  // Click places caret nearby (no navigation).
-  ignoreEvent() {
-    return true;
-  }
-}
-
-// GFM "[ ]"/"[x]" → checkbox; fixed 3-char replace. No raw-edit mode.
-// Position is read from the DOM at click time, not stored: an edit above
-// would otherwise fail eq() and rebuild every checkbox below it.
-export class TaskCheckboxWidget extends WidgetType {
-  constructor(checked) {
-    super();
-    this.checked = checked;
-  }
-
-  eq(other) {
-    return other.checked === this.checked;
-  }
-
   toDOM(view) {
-    const input = document.createElement('input');
-    input.type = 'checkbox';
-    input.className = 'cm-lp-task-checkbox';
-    input.checked = this.checked;
-    input.addEventListener('mousedown', (e) => {
+    const wrap = document.createElement('span');
+    wrap.className = 'cm-lp-wikiimage';
+    const img = document.createElement('img');
+    img.alt = this.label;
+    img.draggable = false;
+    const known = imageHeightCache.get(this.src);
+    if (known) wrap.style.minHeight = known + 'px';
+    img.addEventListener('load', () => {
+      wrap.style.minHeight = '';
+      if (wrap.offsetHeight) imageHeightCache.set(this.src, wrap.offsetHeight);
+    }, { once: true });
+    img.addEventListener('error', () => {
+      imageHeightCache.delete(this.src);
+      wrap.style.minHeight = '';
+      wrap.className = 'cm-lp-wikiimage cm-lp-image-broken';
+      wrap.innerHTML = BROKEN_ICON;
+      const text = document.createElement('span');
+      text.textContent = 'Image not found · ' + this.label;
+      wrap.appendChild(text);
+    }, { once: true });
+    img.src = this.src;
+
+    const zoom = document.createElement('button');
+    zoom.type = 'button';
+    zoom.className = 'cm-lp-image-zoom';
+    zoom.title = 'View image';
+    zoom.setAttribute('aria-label', 'View image');
+    zoom.innerHTML = ZOOM_ICON;
+    zoom.addEventListener('mousedown', (e) => {
       e.preventDefault();
-      const pos = view.posAtDOM(input);
-      const checked = /\[[xX]\]/.test(view.state.doc.sliceString(pos, pos + 3));
-      view.dispatch({ changes: { from: pos, to: pos + 3, insert: checked ? '[ ]' : '[x]' } });
+      e.stopPropagation();
+      openImageViewer(this.src, this.label);
     });
-    return input;
+    wrap.append(img, zoom);
+    editOnMouseDown(wrap, view, this.editOffset);
+    return wrap;
+  }
+
+  // CM would otherwise size the caret beside the widget to the whole image.
+  // Report a text-height caret on the image's bottom edge, where text after it sits.
+  coordsAt(dom, pos, side) {
+    const rect = dom.getBoundingClientRect();
+    const lineHeight = parseFloat(getComputedStyle(dom).lineHeight) || rect.height;
+    const x = pos === 0 && side <= 0 ? rect.left : rect.right;
+    return { left: x, right: x, top: rect.bottom - Math.min(lineHeight, rect.height), bottom: rect.bottom };
   }
 
   ignoreEvent() {
@@ -123,24 +137,61 @@ export class TaskCheckboxWidget extends WidgetType {
   }
 }
 
-// ![alt](url) — URL from source (not wiki resolveSrc).
-export class MarkdownImageWidget extends WidgetType {
-  constructor(url, alt) {
+// GFM "[ ]"/"[x]" → checkbox in the list's marker column. Position is read
+// from the DOM at click time, not stored: an edit above would otherwise fail
+// eq() and rebuild every checkbox below it.
+export class TaskCheckboxWidget extends WidgetType {
+  constructor(checked, columnEm) {
     super();
-    this.url = url;
-    this.alt = alt;
+    this.checked = checked;
+    this.columnEm = columnEm;
   }
 
   eq(other) {
-    return other.url === this.url && other.alt === this.alt;
+    return other.checked === this.checked && other.columnEm === this.columnEm;
   }
 
-  get estimatedHeight() {
-    return imageHeightCache.get(this.url) ?? -1;
+  toDOM(view) {
+    const box = document.createElement('span');
+    box.className = 'cm-lp-list-marker';
+    box.style.width = this.columnEm + 'em';
+    const input = document.createElement('input');
+    input.type = 'checkbox';
+    input.className = 'cm-lp-task-checkbox';
+    input.checked = this.checked;
+    input.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      const pos = view.posAtDOM(box);
+      const checked = /\[[xX]\]/.test(view.state.doc.sliceString(pos, pos + 3));
+      view.dispatch({ changes: { from: pos, to: pos + 3, insert: checked ? '[ ]' : '[x]' } });
+    });
+    box.appendChild(input);
+    return box;
+  }
+
+  ignoreEvent() {
+    return false;
+  }
+}
+
+// Bullet "•" or the ordered number, in a fixed-width marker column.
+export class ListMarkerWidget extends WidgetType {
+  constructor(label, columnEm) {
+    super();
+    this.label = label;
+    this.columnEm = columnEm;
+  }
+
+  eq(other) {
+    return other.label === this.label && other.columnEm === this.columnEm;
   }
 
   toDOM() {
-    return imageDOM(this.url, this.alt || '');
+    const span = document.createElement('span');
+    span.className = this.label ? 'cm-lp-list-marker cm-lp-list-mark-ol' : 'cm-lp-list-marker cm-lp-bullet';
+    span.style.width = this.columnEm + 'em';
+    span.textContent = this.label || '•';
+    return span;
   }
 
   ignoreEvent() {
@@ -148,21 +199,58 @@ export class MarkdownImageWidget extends WidgetType {
   }
 }
 
-// "-"/"*"/"+" → •. Ordered markers stay literal (real content).
-export class BulletWidget extends WidgetType {
-  eq() {
-    return true;
+const COPY_ICON =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>';
+const CHECK_ICON =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
+
+// Opening fence line of a code block at rest: language label + copy button.
+export class CodeHeaderWidget extends WidgetType {
+  constructor(lang, code) {
+    super();
+    this.lang = lang;
+    this.code = code;
+  }
+
+  eq(other) {
+    return other.lang === this.lang && other.code === this.code;
   }
 
   toDOM() {
-    const span = document.createElement('span');
-    span.className = 'cm-lp-bullet';
-    span.textContent = '•';
-    return span;
+    const wrap = document.createElement('span');
+    wrap.className = 'cm-lp-code-header';
+    if (this.lang) {
+      const label = document.createElement('span');
+      label.className = 'cm-lp-code-lang';
+      label.textContent = this.lang;
+      wrap.appendChild(label);
+    }
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'cm-lp-code-copy';
+    btn.title = 'Copy code';
+    btn.setAttribute('aria-label', 'Copy code');
+    btn.innerHTML = COPY_ICON;
+    // Keep the caret where it is — clicking chrome shouldn't open the block for editing.
+    btn.addEventListener('mousedown', (e) => e.preventDefault());
+    btn.addEventListener('click', () => {
+      if (!navigator.clipboard) return;
+      navigator.clipboard.writeText(this.code).then(() => {
+        btn.innerHTML = CHECK_ICON;
+        btn.classList.add('is-done');
+        setTimeout(() => {
+          btn.innerHTML = COPY_ICON;
+          btn.classList.remove('is-done');
+        }, 1200);
+      }).catch(() => {});
+    });
+    wrap.appendChild(btn);
+    return wrap;
   }
 
-  ignoreEvent() {
-    return true;
+  // The copy button is ours; a click anywhere else on the header lets CM place the caret.
+  ignoreEvent(e) {
+    return !!(e.target.closest && e.target.closest('.cm-lp-code-copy'));
   }
 }
 
@@ -427,7 +515,7 @@ export class FrontmatterMoreWidget extends WidgetType {
     span.textContent = '+' + this.count + ' more';
     span.addEventListener('mousedown', (e) => {
       e.preventDefault();
-      view.dispatch({ selection: { anchor: this.revealPos } });
+      view.dispatch({ selection: { anchor: this.revealPos }, annotations: allowFrontmatterCaret.of(true) });
     });
     return span;
   }
