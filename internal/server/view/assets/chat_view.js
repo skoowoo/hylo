@@ -145,21 +145,26 @@
   // Batch-fetches title/preview/cover for note-touched cards, keyed by vault
   // path. Shared across every note_access segment on the page so re-mounting
   // (patch always forces a remount here) doesn't refetch what's cached.
-  var noteInfoCache = Object.create(null); // path -> row | null (unknown/failed)
+  var noteInfoCache = Object.create(null); // path -> row | null (not in vault); undefined = not fetched or fetch failed
 
   function fetchNoteInfo(paths) {
     var need = paths.filter(function (p) { return p && !(p in noteInfoCache); });
     if (!need.length) return Promise.resolve();
-    return fetch('/api/notes/info', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ paths: need }),
-    }).then(function (resp) { return resp.ok ? resp.json() : { notes: [] }; })
-      .then(function (data) {
-        var got = Object.create(null);
-        (data.notes || []).forEach(function (n) { noteInfoCache[n.path] = n; got[n.path] = true; });
-        need.forEach(function (p) { if (!got[p]) noteInfoCache[p] = null; });
-      })
-      .catch(function () { need.forEach(function (p) { noteInfoCache[p] = null; }); });
+    var chunks = [];
+    for (var i = 0; i < need.length; i += 100) chunks.push(need.slice(i, i + 100));
+    return Promise.all(chunks.map(function (chunk) {
+      return fetch('/api/notes/info', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paths: chunk }),
+      }).then(function (resp) { return resp.ok ? resp.json() : null; })
+        .then(function (data) {
+          if (!data) return;
+          var got = Object.create(null);
+          (data.notes || []).forEach(function (n) { noteInfoCache[n.path] = n; got[n.path] = true; });
+          chunk.forEach(function (p) { if (!got[p]) noteInfoCache[p] = null; });
+        })
+        .catch(function () {});
+    }));
   }
 
   // One card per touched note, built from the same markup/classes as the
@@ -262,6 +267,7 @@
     // (see mountSegments), so scrollWidth/clientWidth would still read 0 if
     // checked synchronously here — defer past that insertion's layout pass.
     requestAnimationFrame(update);
+    return update;
   }
 
   function setCopyIcon(btn, on) {
@@ -590,15 +596,21 @@
         // turns that into a horizontal scroll strip (agent_chat.css).
         var scroller = el('div', 'seg-note-access-scroller');
         var row = el('div', 'seg-note-access-row home-list-body is-grid');
-        var cards = items.map(noteAccessCard);
-        cards.forEach(function (c) { row.appendChild(c.node); });
+        // Hidden until the vault confirms which notes exist; the wrapper is
+        // appended now so it keeps its place among later segments.
+        show(wrap, false);
         scroller.appendChild(row);
         wrap.appendChild(scroller);
         slot.appendChild(wrap);
-        wireHorizontalScroller(scroller, row);
+        var updateArrows = wireHorizontalScroller(scroller, row);
         fetchNoteInfo(items.map(function (it) { return it.path; })).then(function () {
-          cards.forEach(function (c) { c.hydrate(); });
-          // Hydration grows card height after scrollToBottom already ran; re-pin if still stuck.
+          var cards = items
+            .filter(function (it) { return noteInfoCache[it.path] !== null; })
+            .map(noteAccessCard);
+          if (!cards.length) return;
+          cards.forEach(function (c) { row.appendChild(c.node); c.hydrate(); });
+          show(wrap, true);
+          updateArrows();
           if (hydrateListener) hydrateListener();
         });
       },
@@ -811,14 +823,6 @@
     return true;
   }
 
-  // What the agent is doing right now; picks the pulse bar's motion.
-  function pulseState(segs) {
-    var t = segs.length ? segs[segs.length - 1] : null;
-    if (t && t.type === 'text') return 'write';
-    if (t && t.type === 'tool_use' && (t.results || []).length < t.count) return 'tool';
-    return 'think';
-  }
-
   function footer(msg, snap, api) {
     var foot = el('div', 'msg-footer');
     var segs = msg.segments || [];
@@ -899,11 +903,6 @@
     }
     wrap.appendChild(header);
     var body = el('div', 'msg-body');
-    if (msg.status === 'running') {
-      var pulse = el('div', 'msg-pulse is-' + pulseState(msg.segments || []));
-      pulse.style.setProperty('--pd', '-' + (Date.now() % 1600) + 'ms');
-      body.appendChild(pulse);
-    }
     mountSegments(body, msg);
     wrap.appendChild(body);
     var banner = statusBanner(msg, snap, api);

@@ -36,7 +36,7 @@ func TestMCPPromptHintOnlyWhenInjected(t *testing.T) {
 			t.Errorf("%s: hint present=%v, want %v", c.name, hint != "", c.want)
 		}
 		// The prompt claims MCP exactly when argv/env are actually extended.
-		argv, _ := a.injectMCP(c.agent, t.TempDir(), nil, nil)
+		argv, _ := a.injectMCP(c.agent, "", t.TempDir(), nil, nil)
 		if (len(argv) > 0) != c.want && c.agent != "opencode" {
 			t.Errorf("%s: injected argv=%v inconsistent with hint", c.name, argv)
 		}

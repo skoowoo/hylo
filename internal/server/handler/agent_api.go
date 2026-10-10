@@ -14,6 +14,7 @@ import (
 
 	"github.com/hardhacker/hylo/internal/agent"
 	"github.com/hardhacker/hylo/internal/config"
+	"github.com/hardhacker/hylo/internal/editorbus"
 	"github.com/hardhacker/hylo/internal/mate"
 	"github.com/hardhacker/hylo/internal/plugin"
 	"github.com/hardhacker/hylo/internal/storage"
@@ -27,10 +28,11 @@ type AgentAPI struct {
 	hub        *agent.Hub
 	store      *mate.Store // nil when store is unavailable; handles both mate config and chat history
 	agentCache *agent.AgentCache
-	active     sync.Map // runID -> *agent.ChatProcess
-	canceled   sync.Map // runID -> true; set by RunCancelPOST so executeChat can report "canceled" instead of "failed" for a user-initiated stop
-	pathRuns   sync.Map // vault path -> runID; set by FireTriggerRun for path-bearing events
-	runner     *mate.Runner // optional; set via SetMateRunner once the mate runner exists, so TriggerRetryPOST can re-fire through its onDone pipeline
+	active     sync.Map       // runID -> *agent.ChatProcess
+	canceled   sync.Map       // runID -> true; set by RunCancelPOST so executeChat can report "canceled" instead of "failed" for a user-initiated stop
+	pathRuns   sync.Map       // vault path -> runID; set by FireTriggerRun for path-bearing events
+	runner     *mate.Runner   // optional; set via SetMateRunner once the mate runner exists, so TriggerRetryPOST can re-fire through its onDone pipeline
+	editorBus  *editorbus.Bus // optional; cancelled alongside a run so the editor stops typing
 }
 
 // NewAgentAPI constructs the agent HTTP surface.
@@ -44,6 +46,9 @@ func NewAgentAPI(logger *slog.Logger, cfg *config.Config, vault *storage.Vault, 
 func (a *AgentAPI) SetMateRunner(r *mate.Runner) {
 	a.runner = r
 }
+
+// SetEditorBus lets a run cancel stop the editor from typing what the agent already sent.
+func (a *AgentAPI) SetEditorBus(b *editorbus.Bus) { a.editorBus = b }
 
 func (a *AgentAPI) uploadRoot() string {
 	sub := strings.TrimSpace(a.cfg.Agent.UploadDir)
@@ -213,6 +218,9 @@ func (a *AgentAPI) RunCancelPOST(w http.ResponseWriter, r *http.Request) {
 		if cp, ok := v.(*agent.ChatProcess); ok && cp.Cmd != nil && cp.Cmd.Process != nil {
 			_ = cp.Cmd.Process.Kill()
 		}
+	}
+	if a.editorBus != nil {
+		a.editorBus.CancelRun(id)
 	}
 	a.logger.Info("agent run cancel", slog.String("runId", id))
 	respondJSON(w, http.StatusOK, map[string]any{"ok": true})
@@ -510,7 +518,7 @@ func (a *AgentAPI) executeChat(ctx context.Context, run *agent.Run, body chatBod
 		SessionID: sessionID, FirstSession: firstSession,
 	}
 	argv := agent.BuildInvocationArgs(def, argCtx)
-	argv, env = a.injectMCP(def.ID, cwd, argv, env)
+	argv, env = a.injectMCP(def.ID, run.ID, cwd, argv, env)
 	if e := agent.CheckWindowsCmdShimCommandLineBudget(def, bin, argv); e != nil {
 		a.logger.Warn("agent aborted",
 			slog.String("runId", run.ID),

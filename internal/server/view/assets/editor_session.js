@@ -460,6 +460,7 @@
           // Outside the mode compartments, so it works in source mode too.
           cm.selectionFormatMenu(),
           cm.cjkWordSelection,
+          cm.agentCursorExtension,
           cm.keymap.of([].concat(cm.defaultKeymap, cm.historyKeymap)),
           cm.search({ top: true, createPanel: __hyloCreateSearchPanel }),
           cm.EditorView.lineWrapping, cmTheme,

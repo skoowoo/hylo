@@ -5,6 +5,14 @@ description: Write an article beat-by-beat, drawing from the vault's knowledge b
 
 <what-to-do>
 
+## Writing surface
+
+If the `hylo-editor` skill is available and the `editor_*` tools are in your tool list, write the article **in the live editor**, so the user watches each beat being typed. Load `hylo-editor` before the first write and follow it. "Write a beat" then means `editor_type`, "re-read the article" means `editor_read` (it includes the user's unsaved edits), and "rewrite a beat" means `editor_rewrite`.
+
+If the first editor call fails because no editor is open, ask the user to open Hylo, or ask whether to write the file directly instead. Once the article is going through the editor, every write for it stays there: don't switch to file tools mid-article.
+
+Without the editor tools, write and re-read the article file with the regular note tools.
+
 ## Phase 0 — Topic alignment
 
 Ask the user for three things (can be in one message):
@@ -57,8 +65,8 @@ The user picks one. Then go to Phase 2.
 
 Loop until the article reaches a natural end:
 
-1. Write **only the chosen beat** to the article file. Pull material from relevant knowledge units — paraphrase, quote, recombine. The units are a quarry. Preserve any time-anchored content ("as of YYYY-MM-DD") if it matters to the argument.
-2. Re-read the article file from disk.
+1. Write **only the chosen beat** to the article (in the editor: `editor_type` at `end`, one call per beat). Pull material from relevant knowledge units — paraphrase, quote, recombine. The units are a quarry. Preserve any time-anchored content ("as of YYYY-MM-DD") if it matters to the argument.
+2. Re-read the article (in the editor: `editor_read`).
 3. Offer 2–3 candidate **next beats** — different directions from where the article now stands. Name the knowledge unit(s) each would draw from.
 4. The user picks one. Repeat.
 
@@ -121,9 +129,10 @@ The article ends when the argument lands — not when the palette is exhausted. 
 ## Writing rhythm
 
 - Append one beat at a time. Never write ahead.
-- Re-read the article file from disk before every write. Preserve user edits absolutely.
+- Re-read the article before every write (`editor_read` in the editor, from disk otherwise). Preserve user edits absolutely.
 - If the user edits a previous beat substantially, let it change what comes next.
-- If the user says "rewrite that beat" or "go back and try a different beat 3", do it — edit in place, leave the rest alone.
+- If the user says "rewrite that beat" or "go back and try a different beat 3", do it — edit in place, leave the rest alone. In the editor, that is `editor_rewrite` on the beat's blocks from a fresh `editor_read`.
+- If typing in the editor comes back `interrupted`, the user has taken over. Don't retype the rest of the beat; re-read and ask how to continue.
 
 ## The knowledge-writing loop
 

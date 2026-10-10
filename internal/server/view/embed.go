@@ -70,6 +70,9 @@ var graphLayoutJS string
 //go:embed assets/editor_session.js
 var editorSessionJS string
 
+//go:embed assets/editor_agent.js
+var editorAgentJS string
+
 //go:embed assets/content_pane.js
 var contentPaneScript string
 

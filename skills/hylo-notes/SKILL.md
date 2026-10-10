@@ -26,3 +26,5 @@ If neither MCP tools nor `hylo` are available, inform the user and stop.
 | **Knowledge**     | "what do I know about", knowledge base, compiled knowledge, index notes                                | @knowledge.md   |
 
 Load the matching sub-skill. If the request spans multiple scenarios, handle them sequentially.
+
+If the user wants the writing to happen live in Hylo's open editor ("write it in the editor", "rewrite what I selected"), use the `hylo-editor` skill instead.

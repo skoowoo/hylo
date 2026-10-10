@@ -9,6 +9,7 @@ This guide covers what each built-in skill does and how to talk to it. For how s
 - [Skills Guide](#skills-guide)
   - [Table of Contents](#table-of-contents)
   - [hylo-notes — everyday note operations](#hylo-notes--everyday-note-operations)
+  - [hylo-editor — live writing in the editor](#hylo-editor--live-writing-in-the-editor)
   - [hylo-compile-note — compile a note into knowledge](#hylo-compile-note--compile-a-note-into-knowledge)
   - [hylo-index-knowledge — build the knowledge index](#hylo-index-knowledge--build-the-knowledge-index)
   - [hylo-memory — extract personal memory](#hylo-memory--extract-personal-memory)
@@ -29,6 +30,21 @@ Save this as a note under /reading: "..."
 Find my notes about pricing strategy
 Jot down a quick note: remember to follow up with Alex about the partnership
 What do I know about network effects?
+```
+
+## hylo-editor — live writing in the editor
+
+Writes and revises notes inside the editor you have open, so you watch the text being typed: the note opens in front of you and an "Agent" caret types in a natural rhythm. It can add to the end of a note, under a given heading or at your cursor, and it can rewrite or delete a paragraph, a range of blocks, or exactly what you have selected. Each write is one undo step, and typing anything yourself stops the agent and hands control back. The skill also teaches the agent Hylo's markdown dialect — wikilinks, wiki images, mindmap blocks, tasks and tables — so what it types renders correctly. It needs the Hylo app to be open; if it isn't, the agent tells you instead of quietly writing the file.
+
+**Use it for:** drafting while you watch, continuing from where your cursor is, or polishing a passage you've selected.
+
+**Example prompts**
+
+```
+Write an intro for this note in the editor.
+Continue from my cursor with three more examples.
+Rewrite the paragraph I selected to be more concise.
+Turn the "Plan" section into a mindmap.
 ```
 
 ## hylo-compile-note — compile a note into knowledge
@@ -110,7 +126,7 @@ Give me a review of everything I wrote this week.
 
 ## hylo-writing — beat-by-beat article writing
 
-Leads a choose-your-own-adventure writing process: you state the topic, the intended reader, and the stance; the skill scans the knowledge base for relevant units, proposes a palette of sources for your approval, then writes the article one beat (one paragraph-sized move) at a time, offering a few candidate next beats after each one. When the article is done, it can be compiled back into the knowledge base, closing the loop.
+Leads a choose-your-own-adventure writing process: you state the topic, the intended reader, and the stance; the skill scans the knowledge base for relevant units, proposes a palette of sources for your approval, then writes the article one beat (one paragraph-sized move) at a time, offering a few candidate next beats after each one. When the article is done, it can be compiled back into the knowledge base, closing the loop. If the Hylo editor is open, each beat is typed live into it (via `hylo-editor`), so you watch the article grow.
 
 **Use it for:** writing something grounded in your own accumulated understanding, rather than starting from a blank page or copy-pasting raw notes together.
 

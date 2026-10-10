@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -13,6 +14,10 @@ const (
 	mcpServerName = "hylo"
 	// mcpKeyEnv carries the API key to the agent process; configs only reference it by name.
 	mcpKeyEnv = "HYLO_API_KEY"
+	// mcpRunEnv carries the run id to agents whose config is a shared project file; the
+	// file references it in mcpRunHeader (mcp.runHeader), so it stays the same across runs.
+	mcpRunEnv    = "HYLO_RUN_ID"
+	mcpRunHeader = "X-Hylo-Run"
 )
 
 // mcpAgents lists the agent CLIs PrepareMCP knows how to configure.
@@ -40,6 +45,24 @@ const MCPPromptHint = `Hylo MCP tools are connected (MCP server "hylo"). They ma
 type MCPEndpoint struct {
 	URL    string
 	APIKey string
+	// RunID ties tool calls to the run, so cancelling it stops its editor tools.
+	RunID string
+}
+
+// runScoped sends the run as ?run= (mcp.RunParam), for agents whose config is per process.
+func (ep MCPEndpoint) runScoped() MCPEndpoint {
+	if ep.RunID == "" {
+		return ep
+	}
+	u, err := url.Parse(ep.URL)
+	if err != nil {
+		return ep
+	}
+	q := u.Query()
+	q.Set("run", ep.RunID)
+	u.RawQuery = q.Encode()
+	ep.URL = u.String()
+	return ep
 }
 
 // MCPInjection is what a run needs so the agent CLI can see Hylo's MCP tools.
@@ -54,6 +77,12 @@ func PrepareMCP(agentID string, ep MCPEndpoint, cwd string, baseEnv []string) (M
 	inj := MCPInjection{Env: map[string]string{}}
 	if ep.APIKey != "" {
 		inj.Env[mcpKeyEnv] = ep.APIKey
+	}
+	switch agentID {
+	case "cursor-agent", "pi":
+		inj.Env[mcpRunEnv] = ep.RunID
+	default:
+		ep = ep.runScoped()
 	}
 
 	switch agentID {
@@ -88,6 +117,7 @@ func PrepareMCP(agentID string, ep MCPEndpoint, cwd string, baseEnv []string) (M
 		// Without --approve-mcps a project server stays "not loaded (needs approval)".
 		inj.Args = []string{"--approve-mcps"}
 		srv := httpServer(ep, "${env:"+mcpKeyEnv+"}")
+		addHeader(srv, mcpRunHeader, "${env:"+mcpRunEnv+"}")
 		if err := mergeMCPFile(filepath.Join(cwd, ".cursor", "mcp.json"), srv); err != nil {
 			return MCPInjection{}, err
 		}
@@ -96,6 +126,7 @@ func PrepareMCP(agentID string, ep MCPEndpoint, cwd string, baseEnv []string) (M
 		// Pi ignores project-local MCP config unless the project is trusted for this run.
 		inj.Args = []string{"-a"}
 		srv := httpServer(ep, "${"+mcpKeyEnv+"}")
+		addHeader(srv, mcpRunHeader, "${"+mcpRunEnv+"}")
 		if err := mergeMCPFile(filepath.Join(cwd, ".pi", "mcp.json"), srv); err != nil {
 			return MCPInjection{}, err
 		}
@@ -106,9 +137,18 @@ func PrepareMCP(agentID string, ep MCPEndpoint, cwd string, baseEnv []string) (M
 func httpServer(ep MCPEndpoint, keyRef string) map[string]any {
 	srv := map[string]any{"url": ep.URL}
 	if ep.APIKey != "" {
-		srv["headers"] = map[string]string{"Authorization": "Bearer " + keyRef}
+		addHeader(srv, "Authorization", "Bearer "+keyRef)
 	}
 	return srv
+}
+
+func addHeader(srv map[string]any, k, v string) {
+	h, _ := srv["headers"].(map[string]string)
+	if h == nil {
+		h = map[string]string{}
+		srv["headers"] = h
+	}
+	h[k] = v
 }
 
 func opencodeConfig(ep MCPEndpoint, baseEnv []string) (string, error) {

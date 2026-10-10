@@ -29,6 +29,7 @@ export { wikiLinkCompletion } from './wikilink-complete.js';
 export { readingExtensions } from './reading.js';
 export { initialCursorOffset } from './initial-cursor.js';
 export { preloadCodeLanguages } from './code-languages.js';
+export { agentCursorExtension, planAgentInsert, planAgentRewrite, readAgentDoc, agentType, foreignEditCount } from './agent-typing.js';
 
 // Shared by live-preview mode and (Phase 4) plain source mode, so toggling
 // between them reconfigures a Compartment around the *same* parse instead

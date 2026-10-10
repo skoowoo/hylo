@@ -203,3 +203,42 @@ func TestMCPPromptHintMentionsMapping(t *testing.T) {
 		}
 	}
 }
+
+func TestPrepareMCPScopesURLToRun(t *testing.T) {
+	ep := testEP
+	ep.RunID = "r 1"
+	inj, err := PrepareMCP("claude", ep, t.TempDir(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(inj.Args[1], `"url":"http://127.0.0.1:54321/mcp?run=r+1"`) {
+		t.Errorf("args: %v", inj.Args)
+	}
+	// A project file is shared by concurrent runs: it names the env var, each process carries its id.
+	for _, c := range []struct{ id, file, ref string }{
+		{"pi", ".pi/mcp.json", "${HYLO_RUN_ID}"},
+		{"cursor-agent", ".cursor/mcp.json", "${env:HYLO_RUN_ID}"},
+	} {
+		dir := t.TempDir()
+		inj, err := PrepareMCP(c.id, ep, dir, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if inj.Env["HYLO_RUN_ID"] != "r 1" {
+			t.Errorf("%s: env %v", c.id, inj.Env)
+		}
+		b, _ := os.ReadFile(filepath.Join(dir, c.file))
+		if strings.Contains(string(b), "r 1") || !strings.Contains(string(b), `"X-Hylo-Run": "`+c.ref+`"`) {
+			t.Errorf("%s: file %s", c.id, b)
+		}
+		other := ep
+		other.RunID = "r2"
+		before := string(b)
+		if _, err := PrepareMCP(c.id, other, dir, nil); err != nil {
+			t.Fatal(err)
+		}
+		if b, _ := os.ReadFile(filepath.Join(dir, c.file)); string(b) != before {
+			t.Errorf("%s: file changed between runs", c.id)
+		}
+	}
+}

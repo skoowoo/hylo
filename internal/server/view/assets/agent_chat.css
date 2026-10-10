@@ -564,45 +564,6 @@
       padding-left: 0;
     }
 
-    /* Pulse bar — one thin line above the running message; motion follows
-       what the agent is doing. */
-    .msg-pulse {
-      position: absolute;
-      top: -0.25rem;
-      left: 0.625rem;
-      right: 0;
-      height: 2px;
-      overflow: hidden;
-      border-radius: 1px;
-      background: var(--line-hair);
-      pointer-events: none;
-    }
-
-    .msg-pulse::after {
-      content: '';
-      position: absolute;
-      top: 0;
-      bottom: 0;
-      left: 0;
-      width: 30%;
-      background: linear-gradient(90deg, transparent, var(--accent-text), transparent);
-      animation: pulse-sweep 1.6s ease-in-out infinite;
-      animation-delay: var(--pd, 0ms);
-    }
-
-    .msg-pulse.is-tool::after {
-      width: 18%;
-      animation-duration: 0.8s;
-      animation-delay: 0ms;
-    }
-
-    .msg-pulse.is-write::after {
-      width: 14px;
-      background: var(--accent-text);
-      animation: pulse-caret 1s steps(2, jump-none) infinite;
-      animation-delay: 0ms;
-    }
-
     /* Thinking */
     .seg-thinking {
       border-left: var(--bd-w) solid var(--line-hair);
@@ -1264,8 +1225,8 @@
     }
 
     .chat-send-circle svg {
-      width: 13px;
-      height: 13px;
+      width: 15px;
+      height: 15px;
       flex-shrink: 0;
       /* Nudge the arrow up half a pixel — an equal-margin glyph inside a
          perfect circle reads as slightly low, since the eye weighs the
@@ -1283,8 +1244,8 @@
       border: none;
       border-radius: var(--r-full);
       cursor: pointer;
-      background: var(--p2);
-      color: var(--inverse-ink);
+      background: var(--accent);
+      color: var(--accent-fg);
     }
 
     .chat-stop-circle:hover {
@@ -1301,8 +1262,8 @@
     }
 
     .chat-stop-circle svg {
-      width: 11px;
-      height: 11px;
+      width: 13px;
+      height: 13px;
       flex-shrink: 0;
     }
 
@@ -1325,15 +1286,6 @@
     @keyframes seg-shimmer {
       from { background-position: 100% 0; }
       to { background-position: -100% 0; }
-    }
-
-    @keyframes pulse-sweep {
-      from { transform: translateX(-100%); }
-      to { transform: translateX(340%); }
-    }
-
-    @keyframes pulse-caret {
-      50% { opacity: 0; }
     }
 
     @keyframes chip-in {
@@ -1430,7 +1382,6 @@
       }
       .seg-tool-check.is-fresh,
       .seg-note-chip.is-fresh { animation: none; }
-      .msg-pulse::after { animation: none; }
     }
 
     ::-webkit-scrollbar {

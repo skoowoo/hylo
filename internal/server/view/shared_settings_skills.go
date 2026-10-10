@@ -18,8 +18,10 @@ const settingsSkillsCSS = `
     .skill-card {
       display: flex; align-items: center; justify-content: space-between; gap: 1rem;
     }
-    .skill-card.not-installed .skill-card-left { opacity: 0.7; }
-    .skill-card.not-installed:hover .skill-card-left { opacity: 1; }
+    .skill-card.not-installed .skill-card-left,
+    .skill-card.disabled .skill-card-left { opacity: 0.7; }
+    .skill-card.not-installed:hover .skill-card-left,
+    .skill-card.disabled:hover .skill-card-left { opacity: 1; }
     .skill-card-left { display: flex; align-items: center; gap: 0.6rem; flex: 1; min-width: 0; }
     .skill-card-right { display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0; }
     .skill-name { font-size: var(--text-sm); font-weight: 600; color: var(--fg); }
@@ -41,8 +43,8 @@ func settingsSkillsTabHTML() string {
 ` + toolbarRefreshBtnHTML("skillsLoading", "loadSkills()", "Loading…") + `
             </div>
             <p class="skills-desc">
-              Manage skills for agents. Built-in skills are always enabled.
-              External skills can be installed or removed here. Source directory: <code>~/.hylo/skills/</code>
+              Manage skills for agents. Built-in skills are always enabled; other installed skills
+              can be turned on or off. Skills you copy into <code>~/.hylo/skills/</code> appear here, off until you turn them on.
             </p>
             <div class="cfg-err-msg" x-show="skillsError && !skillsLoading" x-text="'Error: ' + skillsError"></div>
             <div class="cfg-loader" x-show="skillsLoading">Loading skills…</div>
@@ -52,9 +54,9 @@ func settingsSkillsTabHTML() string {
               </template>
               <div class="skills-list">
                 <template x-for="s in sortedSkillsList" :key="s.name">
-                  <div class="list-card list-card--hover list-card--soft skill-card" :class="s.installed ? '' : 'not-installed'">
+                  <div class="list-card list-card--hover list-card--soft skill-card" :class="!s.installed ? 'not-installed' : (s.enabled ? '' : 'disabled')">
                     <div class="skill-card-left">
-                      <span class="dot" :class="s.installed ? 'dot--on' : 'dot--off'"></span>
+                      <span class="dot" :class="s.enabled ? 'dot--on' : 'dot--off'"></span>
                       <span class="skill-name" x-text="s.name"></span>
                       <span class="badge" x-show="s.default">built-in</span>
                       <template x-if="s.repoUrl">
@@ -64,6 +66,14 @@ func settingsSkillsTabHTML() string {
                       </template>
                     </div>
                     <div class="skill-card-right">
+                      <template x-if="!s.default && s.installed">
+                        <div class="seg">
+                          <button type="button" class="seg-btn" :class="{active: !s.enabled}"
+                                  :disabled="!!skillsToggling[s.name]" @click="setSkillEnabled(s.name, false)">Off</button>
+                          <button type="button" class="seg-btn" :class="{active: s.enabled}"
+                                  :disabled="!!skillsToggling[s.name]" @click="setSkillEnabled(s.name, true)">On</button>
+                        </div>
+                      </template>
                       <template x-if="!s.default && s.installed">
                         <button class="btn-outline btn-outline--danger btn--xs"
                                 :disabled="!!skillsUninstalling[s.name]"
@@ -94,6 +104,7 @@ const settingsSkillsJS = `
       skillsError: '',
       skillsInstalling: {},
       skillsUninstalling: {},
+      skillsToggling: {},
 
       get sortedSkillsList() {
         return [...this.skillsList].sort(function(a, b) {
@@ -128,7 +139,7 @@ const settingsSkillsJS = `
             return;
           }
           this.skillsList = this.skillsList.map(function(s) {
-            return s.name === name ? Object.assign({}, s, { installed: true }) : s;
+            return s.name === name ? Object.assign({}, s, { installed: true, enabled: true }) : s;
           });
         } catch(e) {
           window.showError(e.message, 'Install failed');
@@ -139,6 +150,28 @@ const settingsSkillsJS = `
         }
       },
 
+      async setSkillEnabled(name, on) {
+        const cur = this.skillsList.find(function(s) { return s.name === name; });
+        if (!cur || cur.enabled === on) return;
+        this.skillsToggling = Object.assign({}, this.skillsToggling, { [name]: true });
+        try {
+          const r = await fetch('/api/skills/' + encodeURIComponent(name) + (on ? '/enable' : '/disable'), { method: 'POST' });
+          const d = await r.json();
+          if (!r.ok) {
+            window.showError(d.error || 'Update failed', on ? 'Enable failed' : 'Disable failed');
+            return;
+          }
+          this.skillsList = this.skillsList.map(function(s) {
+            return s.name === name ? Object.assign({}, s, { enabled: on }) : s;
+          });
+        } catch(e) {
+          window.showError(e.message, on ? 'Enable failed' : 'Disable failed');
+        } finally {
+          const t = Object.assign({}, this.skillsToggling);
+          delete t[name];
+          this.skillsToggling = t;
+        }
+      },
       async uninstallSkill(name) {
         const ok = await window.showConfirm({ title: 'Uninstall skill', message: 'Remove "' + name + '" and all its files from ~/.hylo/skills/?', confirmLabel: 'Uninstall', danger: true });
         if (!ok) return;
@@ -151,7 +184,7 @@ const settingsSkillsJS = `
             return;
           }
           this.skillsList = this.skillsList.map(function(s) {
-            return s.name === name ? Object.assign({}, s, { installed: false }) : s;
+            return s.name === name ? Object.assign({}, s, { installed: false, enabled: false }) : s;
           });
         } catch(e) {
           window.showError(e.message, 'Uninstall failed');

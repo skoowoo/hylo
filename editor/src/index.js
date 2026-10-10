@@ -26,4 +26,10 @@ export {
   cjkWordSelection,
   wikiLinkCompletion,
   preloadCodeLanguages,
+  agentCursorExtension,
+  planAgentInsert,
+  planAgentRewrite,
+  readAgentDoc,
+  agentType,
+  foreignEditCount,
 } from './cm-live/index.js';

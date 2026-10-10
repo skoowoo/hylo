@@ -139,7 +139,8 @@ export function mount(el, source, ctx = {}) {
       if (persist) viewCache.delete(current);
       current = next;
       save();
-      return render(false);
+      // An untouched view follows the content, so a map typed line by line ends up fitted.
+      return render(!touched);
     },
     fit() {
       touched = false;

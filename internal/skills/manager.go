@@ -30,6 +30,7 @@ var proxyOnce sync.Once
 // DefaultSkills are always enabled and cannot be disabled by the user.
 var DefaultSkills = []string{
 	"hylo-compile-note",
+	"hylo-editor",
 	"hylo-index-knowledge",
 	"hylo-memory",
 	"hylo-notes",
@@ -186,10 +187,10 @@ func (m *Manager) List() ([]SkillInfo, error) {
 
 	if err == nil {
 		for _, e := range entries {
-			if !e.IsDir() {
+			name := e.Name()
+			if !isSkillDir(filepath.Join(m.sourceDir, name)) {
 				continue
 			}
-			name := e.Name()
 			installed[name] = true
 			entry := catalog[name]
 			out = append(out, SkillInfo{
@@ -476,6 +477,7 @@ func findSkillDir(repoRoot, skillName string) (string, error) {
 	)
 }
 
+// isSkillDir follows symlinks, so a skill linked into ~/.hylo/skills counts like a copied one.
 func isSkillDir(p string) bool {
 	info, err := os.Stat(p)
 	if err != nil || !info.IsDir() {
@@ -545,11 +547,8 @@ func (m *Manager) LinkEnabled(logger *slog.Logger) {
 	}
 
 	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
-		}
 		name := entry.Name()
-		if !m.isEnabled(name) {
+		if !m.isEnabled(name) || !isSkillDir(filepath.Join(m.sourceDir, name)) {
 			continue
 		}
 		src := filepath.Join(m.sourceDir, name)

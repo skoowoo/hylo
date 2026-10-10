@@ -9,6 +9,7 @@ import (
 	"github.com/hardhacker/hylo/internal/agent"
 	"github.com/hardhacker/hylo/internal/client"
 	"github.com/hardhacker/hylo/internal/config"
+	"github.com/hardhacker/hylo/internal/editorbus"
 	"github.com/hardhacker/hylo/internal/inbox"
 	"github.com/hardhacker/hylo/internal/mate"
 	hylomcp "github.com/hardhacker/hylo/internal/mcp"
@@ -47,6 +48,8 @@ func newRouter(
 	agentCache := agent.NewAgentCache(0, nil)
 	agentCache.WarmUp()
 	ah := handler.NewAgentAPI(logger, cfg, vault, agentHub, mateStore, agentCache)
+	editorBus := editorbus.New()
+	ah.SetEditorBus(editorBus)
 
 	// Inbox: notifications for finished bot trigger runs. Shares mate.db's
 	// connection rather than opening its own file.
@@ -152,7 +155,10 @@ func newRouter(
 	mux.HandleFunc("POST /api/wechat/logout", wxHTTP.Logout)
 
 	// MCP endpoint; tools call back into mux in-process, so auth is enforced once at the edge.
-	mux.Handle("/mcp", hylomcp.NewHandler(client.NewInProcess(mux)))
+	mux.HandleFunc("GET /api/editor/agent", editorBus.StreamSSE)
+	mux.HandleFunc("POST /api/editor/agent/ack", editorBus.AckPOST)
+	mux.HandleFunc("POST /api/editor/agent/focus", editorBus.FocusPOST)
+	mux.Handle("/mcp", hylomcp.NewHandler(client.NewInProcess(mux), hylomcp.WithEditorBus(editorBus)))
 
 	// Website routes
 	mux.HandleFunc("GET /notes/search", vh.SearchFragment)

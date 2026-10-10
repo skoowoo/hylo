@@ -25,12 +25,12 @@ func (a *AgentAPI) mcpPromptHint(agentID string) string {
 
 // injectMCP appends Hylo's MCP endpoint to argv/env for agentID. A failure only
 // costs the run its MCP tools, so it is logged and the run proceeds.
-func (a *AgentAPI) injectMCP(agentID, cwd string, argv, env []string) ([]string, []string) {
+func (a *AgentAPI) injectMCP(agentID, runID, cwd string, argv, env []string) ([]string, []string) {
 	url := a.mcpURL(agentID)
 	if url == "" {
 		return argv, env
 	}
-	inj, err := agent.PrepareMCP(agentID, agent.MCPEndpoint{URL: url, APIKey: a.cfg.Server.APIKey}, cwd, env)
+	inj, err := agent.PrepareMCP(agentID, agent.MCPEndpoint{URL: url, APIKey: a.cfg.Server.APIKey, RunID: runID}, cwd, env)
 	if err != nil {
 		a.logger.Warn("mcp injection skipped", slog.String("agentId", agentID), slog.String("err", err.Error()))
 		return argv, env
