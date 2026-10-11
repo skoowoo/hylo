@@ -425,6 +425,25 @@
        as above. */
     .content-pane-more-btn.active { color: var(--accent-text); background: var(--tint-md); }
 
+    /* Info view swaps in for the menu rows inside the same panel (no second
+       popover), so its width only applies while it's the visible child. */
+    .content-pane-info { width: 250px; max-width: 100%; }
+    .content-pane-info-head { color: var(--muted-soft); }
+    .content-pane-info-row {
+      display: flex; align-items: baseline; justify-content: space-between; gap: 1rem;
+      padding: 0.3rem 0.55rem; font-size: var(--text-sm);
+    }
+    .content-pane-info-label { color: var(--muted-soft); flex-shrink: 0; }
+    .content-pane-info-value {
+      min-width: 0; color: var(--muted); text-align: right;
+      font-family: var(--font-mono); font-size: var(--text-xs);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .content-pane-info-copy { padding: 0; border: none; background: transparent; cursor: pointer; }
+    .content-pane-info-copy:hover { color: var(--fg); }
+    .content-pane-info-link span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+    .content-pane-info-more { padding: 0.3rem 0.55rem; font-size: var(--text-xs); color: var(--muted-soft); }
+
     /* ── Editor area ─────────────────────────────────────────────── */
     /* One CodeMirror 6 view mounts directly into #content-pane-edit-area now
        (both live-preview and source modes — see content_pane.js's editorMode) —

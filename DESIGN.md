@@ -384,11 +384,11 @@ Full-viewport or edge-docked chrome (drawer panel and its tab bar, scrims, `<htm
 
 ### Identity & Media
 
-**`entity-chip`** / **`agent-bot-avatar`** — Colored dot or avatar fallback drawing from the four-color identity palette (cyan, pink, violet, green), theme-invariant. The graph's entity-type nodes default to the violet slot.
+**`entity-chip`** — Colored dot drawing from the four-color identity palette (cyan, pink, violet, green), theme-invariant. The graph's entity-type nodes default to the violet slot.
 
 **`image-tile`** — Grid tile in the image gallery: `--surface-soft` background, rounded `{rounded.xl}`. Selection state uses a fixed white border + black scrim overlay (not theme tokens), since tiles sit on top of arbitrary photo content.
 
-**`avatar`** — `{rounded.full}` circle, sized per context (agent bot chips, testimonial-style contexts if introduced later).
+**`avatar`** — Agent bot identity: a disc in the bot's `--bot0…7` color with its initial drawn as solid 5×7 pixel blocks in a deep shade of the same hue (30% bot color in black). The pixel face cuts corners for curves, puts crossbars and joints on the middle row and runs diagonals the full height, so every letter fills its cell as fully as C or D. The glyph spans only the middle ~half of the disc so the color has room around it. Letters A–Z and digits 0–9 have glyphs (0 carries a slash to stay distinct from O); other initials (CJK, symbols) fall back to a mirrored hash identicon. Sizes 20 / 28 / 36px.
 
 ## Do's and Don'ts
 
@@ -400,6 +400,7 @@ Full-viewport or edge-docked chrome (drawer panel and its tab bar, scrims, `<htm
 - Pair a semantic color's bright running-text tone with its own `-fg` token when using it as a solid fill, never with plain white/black.
 - Apply the shared `.icon-btn`/`.icon-btn-ghost`/`.seg`/`.seg-btn` components instead of a new per-page near-copy.
 - Build any new button from the `--btn-bg` / `--btn-bg-hov` / `--btn-bg-on` ladder; never add a border to one.
+- Secondary detail for a floating menu (e.g. the editor's note Info) swaps into the same panel behind a `‹` back row rather than opening a second popover; label/value rows use `--muted-soft` / `--muted` with mono values.
 
 ### Don't
 - Don't use the accent color as a section background or card fill.

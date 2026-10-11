@@ -195,10 +195,8 @@ func settingsAgentBotsTabHTML() string {
                   </template>
                   <template x-for="(m, mi) in agentBotsList" :key="m.id">
                     <div class="list-card list-card--hover list-card--soft agent-bot-card" :class="m.enabled ? '' : 'disabled-card'">
-                      <div class="avatar avatar--lg avatar--neutral agent-bot-avatar"
-                           :style="'background:' + agentBotColor(m.name)">
-                        <span x-text="m.name ? m.name.charAt(0).toUpperCase() : '?'"></span>
-                      </div>
+                      <div class="avatar avatar--lg agent-bot-avatar"
+                           x-html="window.agentBotAvatarSVG(m.name, agentBotsList)"></div>
                       <div class="agent-bot-card-body">
                         <div class="agent-bot-card-header">
                           <span class="agent-bot-card-name" x-text="m.name"></span>
@@ -572,10 +570,6 @@ const settingsAgentBotsJS = `
           const d = await r.json();
           this.agentBotEventDefs = d.events || [];
         } catch(_) {}
-      },
-
-      agentBotColor(name) {
-        return window.agentBotColorFor(name, this.agentBotsList);
       },
 
       newAgentBot() {

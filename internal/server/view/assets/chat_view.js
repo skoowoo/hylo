@@ -885,13 +885,12 @@
     var wrap = el('div', 'msg-assistant-wrap');
     var header = el('div', 'msg-agent-header');
     var name = snap.mateName(msg);
-    var avatar = el('div', 'avatar avatar--md avatar--accent msg-agent-avatar');
+    var avatar = el('div', 'avatar avatar--md msg-agent-avatar');
     var mate = null;
     for (var i = 0; i < snap.mates.length; i++) if (snap.mates[i].id === msg.agentBotId) { mate = snap.mates[i]; break; }
     var colorKey = mate ? mate.name : (msg.agentBotId || '');
-    if (root.agentBotColorFor) avatar.style.background = root.agentBotColorFor(colorKey, snap.mates);
-    avatar.style.color = 'var(--inverse-ink)';
-    avatar.textContent = initials(name);
+    if (root.agentBotAvatarSVG) avatar.innerHTML = root.agentBotAvatarSVG(colorKey, snap.mates, name);
+    else avatar.textContent = initials(name);
     header.appendChild(avatar);
     var nameEl = el('div', 'msg-agent-name');
     nameEl.textContent = name;

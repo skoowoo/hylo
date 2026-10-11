@@ -1204,15 +1204,74 @@
     __hyloCM.openSearchPanel(s.view);
   }
 
-  async function __hyloEditorCopyMarkdown() {
-    var s = __hyloEditor;
-    var text = s.view ? s.view.state.doc.toString() : s.currentMd;
+  async function __hyloEditorCopyText(text) {
     try {
       await navigator.clipboard.writeText(text);
       return true;
     } catch (e) {
       if (window.showError) window.showError((e && e.message) || 'Could not copy to clipboard.', 'Copy error');
       return false;
+    }
+  }
+
+  function __hyloEditorCopyMarkdown() {
+    var s = __hyloEditor;
+    return __hyloEditorCopyText(s.view ? s.view.state.doc.toString() : s.currentMd);
+  }
+
+  // CJK counts per character, everything else per word; frontmatter excluded.
+  function __hyloEditorCountWords(text) {
+    var body = text.replace(/^---\r?\n[\s\S]*?\r?\n---[ \t]*(\r?\n|$)/, '');
+    var cjk = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/gu;
+    var n = (body.match(cjk) || []).length;
+    var words = body.replace(cjk, ' ').match(/[\p{L}\p{N}]+(?:['’-][\p{L}\p{N}]+)*/gu);
+    return n + (words ? words.length : 0);
+  }
+
+  var __HYLO_INFO_MAX_LINKS = 6;
+
+  function __hyloEditorFormatTime(ms) {
+    if (!ms) return '—';
+    var d = new Date(ms), p = function(n) { return String(n).padStart(2, '0'); };
+    return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+  }
+
+  // Info panel model. Editor-side fields are live (include unsaved edits);
+  // `meta` is the /api/notes/meta response, null until it arrives or if it fails.
+  function __hyloEditorInfo(meta) {
+    var s = __hyloEditor;
+    var text = s.view ? s.view.state.doc.toString() : (s.currentMd || '');
+    var path = s.currentPath || '';
+    var links = meta ? meta.links : [];
+    var label = '';
+    if (meta && meta.kind !== 'index') {
+      label = meta.kind === 'knowledge' ? 'Sources' : (links.length ? 'Compiled' : 'Not compiled');
+    }
+    return {
+      path: path,
+      dir: path.replace(/\/[^/]*$/, '') || '/',
+      words: __hyloEditorCountWords(text).toLocaleString(),
+      lines: (s.view ? s.view.state.doc.lines : text.split('\n').length).toLocaleString(),
+      created: meta ? __hyloEditorFormatTime(meta.createdAt) : '…',
+      modified: s.dirty ? 'Unsaved changes' : (meta ? __hyloEditorFormatTime(meta.updatedAt) : '…'),
+      linksLabel: label,
+      linkCount: links.length,
+      links: links.slice(0, __HYLO_INFO_MAX_LINKS),
+      linksMore: Math.max(0, links.length - __HYLO_INFO_MAX_LINKS),
+      linksAreKnowledge: !!meta && meta.kind !== 'knowledge',
+    };
+  }
+
+  async function __hyloEditorFetchNoteMeta(path) {
+    try {
+      var resp = await fetch('/api/notes/meta', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({path: path}),
+      });
+      return resp.ok ? await resp.json() : null;
+    } catch (_) {
+      return null;
     }
   }
 

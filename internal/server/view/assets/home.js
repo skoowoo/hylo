@@ -29,7 +29,7 @@ window.handleSearchResultSelection = function (el) {
   return false;
 };
 
-// ── Agent bot avatar color ──────────────────────────────────────────────────
+// ── Agent bot avatar ────────────────────────────────────────────────────────
 // Global (not a homeCtrl method) because the settings modal's agent-bots list
 // renders in its own Alpine scope (settingsCtrl(), shared_settings_modal.go)
 // which doesn't inherit homeCtrl's methods — both call this directly instead.
@@ -59,6 +59,69 @@ window.agentBotColorFor = function(name, bots) {
     if (mine === -1 && bn === name) mine = idx;
   }
   return palette[mine === -1 ? _agentBotHash(name) % n : mine];
+};
+
+// 5×7 pixel glyphs (A–Z, 0–9), rows top to bottom. Curves are cut corners;
+// crossbars and joints sit on the middle row and diagonals span the full
+// height, so every glyph fills the cell as fully as C or D instead of a small
+// bowl on a long stem. 0 is slashed to stay distinct from O.
+var _AGENT_BOT_GLYPHS = {
+  0: '.###. #...# #..## #.#.# ##..# #...# .###.',
+  1: '..#.. .##.. ..#.. ..#.. ..#.. ..#.. #####',
+  2: '.###. #...# ....# ..##. .#... #.... #####',
+  3: '.###. #...# ....# ..##. ....# #...# .###.',
+  4: '...## ..#.# .#..# #...# ##### ....# ....#',
+  5: '##### #.... ####. ....# ....# #...# .###.',
+  6: '..##. .#... #.... ####. #...# #...# .###.',
+  7: '##### #...# ....# ...#. ..#.. ..#.. ..#..',
+  8: '.###. #...# #...# .###. #...# #...# .###.',
+  9: '.###. #...# #...# .#### ....# ...#. .##..',
+  A: '.###. #...# #...# ##### #...# #...# #...#',
+  B: '####. #...# #...# ####. #...# #...# ####.',
+  C: '.###. #...# #.... #.... #.... #...# .###.',
+  D: '####. #...# #...# #...# #...# #...# ####.',
+  E: '##### #.... #.... ####. #.... #.... #####',
+  F: '##### #.... #.... ####. #.... #.... #....',
+  G: '.###. #...# #.... #.### #...# #...# .###.',
+  H: '#...# #...# #...# ##### #...# #...# #...#',
+  I: '.###. ..#.. ..#.. ..#.. ..#.. ..#.. .###.',
+  J: '..### ....# ....# ....# #...# #...# .###.',
+  K: '#...# #..#. #.#.. ##... #.#.. #..#. #...#',
+  L: '#.... #.... #.... #.... #.... #.... #####',
+  M: '#...# ##.## #.#.# #.#.# #...# #...# #...#',
+  N: '#...# ##..# ##..# #.#.# #..## #..## #...#',
+  O: '.###. #...# #...# #...# #...# #...# .###.',
+  P: '####. #...# #...# ####. #.... #.... #....',
+  Q: '.###. #...# #...# #...# #.#.# #..#. .##.#',
+  R: '####. #...# #...# ####. #..#. #...# #...#',
+  S: '.###. #...# #.... .###. ....# #...# .###.',
+  T: '##### ..#.. ..#.. ..#.. ..#.. ..#.. ..#..',
+  U: '#...# #...# #...# #...# #...# #...# .###.',
+  V: '#...# #...# #...# #...# .#.#. .#.#. ..#..',
+  W: '#...# #...# #...# #.#.# #.#.# ##.## #...#',
+  X: '#...# #...# .#.#. ..#.. .#.#. #...# #...#',
+  Y: '#...# #...# .#.#. ..#.. ..#.. ..#.. ..#..',
+  Z: '##### ....# ...#. ..#.. .#... #.... #####',
+};
+
+// Pixel avatar: the initial as solid 5×7 blocks on a disc, held to ~40% of
+// its height so the color field has room around it. Blocks are a
+// deep shade of the disc's own hue rather than black, merged into one path
+// so adjacent cells never show anti-aliased seams. Initials without a glyph
+// (CJK, symbols) fall back to a mirrored identicon from the name hash.
+// label overrides the drawn initial when the hash key isn't the display name.
+window.agentBotAvatarSVG = function(name, bots, label) {
+  var color = window.agentBotColorFor(name, bots);
+  var ch = (Array.from((label || name || '').trim())[0] || '?').toUpperCase();
+  var g = _AGENT_BOT_GLYPHS[ch], h = _agentBotHash(name);
+  var d = '';
+  for (var y = 0; y < 7; y++) for (var x = 0; x < 5; x++) {
+    var on = g ? g.charAt(y * 6 + x) === '#' : (h >>> (y * 3 + (x < 3 ? x : 4 - x))) & 1;
+    if (on) d += 'M' + (35 + x * 6) + ' ' + (29 + y * 6) + 'h6v6h-6z';
+  }
+  return '<svg class="avatar-pixel" viewBox="0 0 100 100" aria-hidden="true">' +
+    '<circle cx="50" cy="50" r="50" style="fill:' + color + '"/>' +
+    '<path d="' + d + '" style="fill:color-mix(in oklab, ' + color + ' 30%, #000)"/></svg>';
 };
 
 // ── Per-section list/grid layout preference ────────────────────────────────
@@ -207,13 +270,8 @@ function homeCtrl() {
       void this._chat.bootstrap();
     },
 
-    agentBotColor(name) {
-      return window.agentBotColorFor(name, this.agentBots);
-    },
-
-    agentBotInitials(name) {
-      if (!name) return '?';
-      return name.trim().slice(0, 1).toUpperCase();
+    agentBotAvatar(name) {
+      return window.agentBotAvatarSVG(name, this.agentBots);
     },
 
     referenceNote(e) {

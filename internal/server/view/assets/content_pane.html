@@ -245,9 +245,8 @@
                   <button type="button" class="content-pane-bot-menu-row"
                           @click.stop="botMenuOpen = false; sendActiveNoteToAgentBot(m.id)"
                           :title="m.name">
-                    <span class="avatar avatar--sm avatar--accent content-pane-bot-menu-avatar"
-                          :style="'background:' + window._homeData.agentBotColor(m.name) + ';color:var(--inverse-ink)'"
-                          x-text="window._homeData.agentBotInitials(m.name)"></span>
+                    <span class="avatar avatar--sm content-pane-bot-menu-avatar"
+                          x-html="window._homeData.agentBotAvatar(m.name)"></span>
                     <span class="content-pane-bot-menu-name" x-text="m.name"></span>
                   </button>
                 </template>
@@ -255,7 +254,17 @@
               </div>
             </div>
           </div>
-          <div class="content-pane-more-wrap" x-data="{ moreOpen: false, copied: false }"
+          <div class="content-pane-more-wrap" x-data="{ moreOpen: false, copied: false, view: 'menu', info: null, infoSeq: 0, dirCopied: false,
+                        openInfo() {
+                          const seq = ++this.infoSeq;
+                          this.info = __hyloEditorInfo(null); this.view = 'info';
+                          if (!this.info.path) return;
+                          __hyloEditorFetchNoteMeta(this.info.path).then(m => { if (seq === this.infoSeq && m) this.info = __hyloEditorInfo(m); });
+                        },
+                        copyDir() {
+                          __hyloEditorCopyText(this.info.dir).then(ok => { if (!ok) return; this.dirCopied = true; setTimeout(() => this.dirCopied = false, 900); });
+                        } }"
+               x-init="$watch('moreOpen', o => { if (o) { view = 'menu'; info = null; dirCopied = false; } })"
                @mousedown.outside="moreOpen = false"
                @content-pane:close-more.document="moreOpen = false">
             <button type="button" class="icon-btn-ghost content-pane-more-btn"
@@ -275,6 +284,7 @@
                  x-transition:leave="transition ease-in duration-100"
                  x-transition:leave-start="opacity-100 translate-y-0 scale-100"
                  x-transition:leave-end="opacity-0 -translate-y-1 scale-[0.98]">
+              <div x-show="view === 'menu'">
               <button type="button" class="content-pane-more-item content-pane-find-btn"
                       @click.stop="moreOpen = false; __hyloEditorOpenFind()"
                       :title="'Find (' + (isMac ? '⌘F' : 'Ctrl+F') + ')'">
@@ -351,6 +361,16 @@
                 </svg>
                 Delete
               </button>
+              <button type="button" class="content-pane-more-item content-pane-info-btn"
+                      x-show="tabs[activeTab] && tabs[activeTab].path"
+                      @click.stop="openInfo()"
+                      title="Note info">
+                <!-- lucide "info" -->
+                <svg fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                  <circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>
+                </svg>
+                <span>Info</span>
+              </button>
               <div class="content-pane-more-divider hairline" role="separator"></div>
               <!-- Not a feature — mousedown-outside/Esc/picking any row above
                    already dismisses the menu; this just gives mouse-only
@@ -364,6 +384,57 @@
                 <span>Close</span>
                 <span class="content-pane-more-item-kbd">Esc</span>
               </button>
+              </div>
+              <div class="content-pane-info" x-show="view === 'info'" x-cloak>
+                <button type="button" class="content-pane-more-item content-pane-info-head"
+                        @click.stop="view = 'menu'">
+                  <svg fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                    <path d="m15 18-6-6 6-6"/>
+                  </svg>
+                  <span>Info</span>
+                </button>
+                <div class="content-pane-more-divider hairline" role="separator"></div>
+                <div class="content-pane-info-body" x-show="info">
+                  <div class="content-pane-info-row">
+                    <span class="content-pane-info-label">Folder</span>
+                    <button type="button" class="content-pane-info-value content-pane-info-copy"
+                            @click.stop="copyDir()" :title="info && info.dir"
+                            x-text="dirCopied ? 'Copied' : (info && info.dir)"></button>
+                  </div>
+                  <div class="content-pane-info-row">
+                    <span class="content-pane-info-label">Words</span>
+                    <span class="content-pane-info-value" x-text="info && info.words"></span>
+                  </div>
+                  <div class="content-pane-info-row">
+                    <span class="content-pane-info-label">Lines</span>
+                    <span class="content-pane-info-value" x-text="info && info.lines"></span>
+                  </div>
+                  <div class="content-pane-info-row">
+                    <span class="content-pane-info-label">Created</span>
+                    <span class="content-pane-info-value" x-text="info && info.created"></span>
+                  </div>
+                  <div class="content-pane-info-row">
+                    <span class="content-pane-info-label">Modified</span>
+                    <span class="content-pane-info-value" x-text="info && info.modified"></span>
+                  </div>
+                  <div x-show="info && info.linksLabel">
+                    <div class="content-pane-more-divider hairline" role="separator"></div>
+                    <div class="content-pane-info-row">
+                      <span class="content-pane-info-label" x-text="info && info.linksLabel"></span>
+                      <span class="content-pane-info-value" x-show="info && info.linkCount" x-text="info && info.linkCount"></span>
+                    </div>
+                    <template x-for="l in (info ? info.links : [])" :key="l.path">
+                      <button type="button" class="content-pane-more-item content-pane-info-link"
+                              @click.stop="moreOpen = false; __hyloContentPane.openNoteInContentPane(l.path, l.title, info.linksAreKnowledge, false)"
+                              :title="l.path">
+                        <span x-text="l.title"></span>
+                      </button>
+                    </template>
+                    <div class="content-pane-info-more" x-show="info && info.linksMore"
+                         x-text="info && ('+' + info.linksMore + ' more')"></div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>

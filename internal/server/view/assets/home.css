@@ -292,11 +292,6 @@
        (13px vs .side-nav-icon's 15px) as this group's depth cue. */
     .home-side-child-icon { flex-shrink: 0; width: 13px; height: 13px; opacity: 0.6; }
     .home-side-child.is-active .home-side-child-icon { opacity: 1; }
-    /* Agent bot avatar in the Chats group's child rows — structure/size/
-       default color come from the shared .avatar.avatar--sm.avatar--accent
-       (base.css). Keeps each agent bot's own color even when active (no
-       more knockout-to-black) — the active row's background is light
-       now, so the identity color still reads fine. */
     .home-side-child-name {
       flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }

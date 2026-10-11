@@ -420,8 +420,6 @@
       flex-wrap: wrap;
     }
 
-    /* .msg-agent-avatar now uses the shared .avatar.avatar--md.avatar--accent (base.css). */
-
     .msg-agent-name {
       font-size: var(--text-title-sm);
       font-weight: var(--fw-semibold);

@@ -67,6 +67,11 @@
     button:disabled, [role="button"][aria-disabled="true"] {
       cursor: default;
     }
+    /* Control labels aren't content; double-click/drag shouldn't select them. */
+    button, [role="button"], [role="tab"], summary, .seg, .seg-btn, .icon-btn, .icon-btn-ghost,
+    .content-pane-tabstrip, .home-list-head, .home-side-top {
+      -webkit-user-select: none; user-select: none;
+    }
 
     /* ── Shared icon-only action buttons, two variants, both defaulting to
        --action-btn-sz (28px).
@@ -304,32 +309,18 @@
     .kbd-combo { display: inline-flex; align-items: center; line-height: 1; }
     .kbd-combo .kbd-cmd { font-size: 1.3em; line-height: 1; }
 
-    /* ── Shared avatar circle — a colored circle with a name's initials.
-       One recipe backs every agent/bot identity marker app-wide; only
-       size and default color differ per caller (both still accept a
-       per-instance color override via inline style for a specific
-       bot's own color). ── */
+    /* ── Agent bot avatar — the initial as 5×7 pixel blocks on a disc in
+       the bot's color, drawn by agentBotAvatarSVG (home.js). The disc is
+       the fill, so the box itself stays transparent. ── */
     .avatar {
       display: flex; align-items: center; justify-content: center;
-      flex-shrink: 0; border-radius: 50%;
+      flex-shrink: 0; color: var(--inverse-ink);
       font-weight: 700; letter-spacing: 0.02em; user-select: none; line-height: 1;
     }
     .avatar--sm { width: 20px; height: 20px; font-size: 8px; }
     .avatar--md { width: 28px; height: 28px; font-size: var(--text-xs); }
     .avatar--lg { width: 36px; height: 36px; font-size: 0.875rem; }
-    /* Fixed accent fill — safe to pair with white text since the
-       fallback color itself is fixed and reliably dark enough. This is
-       the true "no bot color assigned" fallback only; every real
-       per-bot color (agentBotColors: p0-p3) is a light/pastel swatch
-       that white text reads poorly on, so any caller applying one of
-       those via inline style must also set `color:var(--inverse-ink)`
-       in that same inline style — see .msg-agent-avatar's binding. */
-    .avatar--accent { background: var(--accent); color: var(--accent-fg); }
-    /* Muted default fill, always paired with inverse-ink (black) — this
-       stays correct both at rest (muted gray) and when a per-bot color
-       overrides the background (same light p0-p3 palette above), so
-       unlike .avatar--accent it needs no conditional override. */
-    .avatar--neutral { background: var(--muted); color: var(--inverse-ink); }
+    .avatar-pixel { display: block; width: 100%; height: 100%; }
 
     /* ── Shared form field control — text input / select / textarea. One
        recipe backs every field in the app (Settings' every config/Agent
