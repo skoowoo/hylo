@@ -104,6 +104,12 @@
           <span class="home-side-label">Pinned</span>
         </button>
 
+        <button type="button" class="side-nav-item home-side-item" :class="{'is-active': curType() === 'recent'}"
+                x-press="go('/home/section?type=recent')">
+          {{sideIcon "recent"}}
+          <span class="home-side-label">Recent</span>
+        </button>
+
         <button type="button" class="side-nav-item home-side-item" :class="{'is-active': curType() === 'shorts'}"
                 x-press="go('/home/section?type=shorts')">
           {{sideIcon "shorts"}}

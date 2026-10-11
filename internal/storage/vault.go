@@ -1375,6 +1375,13 @@ func (g *Vault) ListPinnedNotes() ([]Note, error) {
 	return dbListPinned(g.db)
 }
 
+// ListRecentNotes returns every note updated at or after since, newest first.
+func (g *Vault) ListRecentNotes(since time.Time) ([]Note, error) {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+	return dbListUpdatedSince(g.db, since.UnixNano())
+}
+
 // ListDirNotes returns notes whose dir column exactly matches dir, queried from
 // the metadata DB only (no filesystem check). Use for dirs that are known to
 // exist in the DB (e.g. returned by ListDirs). dir should be "/" for the vault

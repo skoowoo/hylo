@@ -1075,6 +1075,19 @@ func dbListPinned(db *sql.DB) ([]Note, error) {
 	return dbScan_(rows)
 }
 
+// dbListUpdatedSince returns all notes with updated_at >= sinceNs, newest first.
+func dbListUpdatedSince(db *sql.DB, sinceNs int64) ([]Note, error) {
+	rows, err := db.Query(`
+		SELECT dir, name, size, created_at, updated_at, indexed, kind, title, pinned, compile_count, tags, preview
+		FROM notes WHERE updated_at >= ?
+		ORDER BY updated_at DESC`, sinceNs)
+	if err != nil {
+		return nil, fmt.Errorf("storage: list recent notes: %w", err)
+	}
+	defer rows.Close()
+	return dbScan_(rows)
+}
+
 // dbSetTitle sets the title column for the note path.
 func dbSetTitle(db *sql.DB, p Path, title string) error {
 	_, err := db.Exec(`UPDATE notes SET title = ? WHERE dir = ? AND name = ?`, title, p.Dir(), p.Base())

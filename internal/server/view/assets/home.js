@@ -131,7 +131,7 @@ window.agentBotAvatarSVG = function(name, bots, label) {
 // drilldown shares the single 'tags' bucket — rather than one per selection).
 // Knowledge's value can also be 'graph' — see setListView()/listViewKey().
 function loadListViewModes() {
-  var defaults = { knowledge: 'list', memory: 'list', pinned: 'list', folder: 'list', tags: 'list' };
+  var defaults = { knowledge: 'list', memory: 'list', pinned: 'list', recent: 'list', folder: 'list', tags: 'list' };
   try {
     return Object.assign(defaults, JSON.parse(localStorage.getItem('hylo-list-view') || '{}'));
   } catch (_) {

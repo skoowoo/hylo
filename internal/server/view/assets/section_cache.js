@@ -29,7 +29,7 @@ var __hyloSectionShownURL = '';
 var __hyloSectionShownAt = Date.now();
 var __hyloSectionShownStale = false;
 var __hyloSectionCacheableTypes = {
-  pinned: true, folder: true, memory: true, knowledge: true,
+  pinned: true, recent: true, folder: true, memory: true, knowledge: true,
   tags: true, images: true, shorts: true, inbox: true,
 };
 
@@ -130,13 +130,13 @@ function __hyloIsType(type) {
 
 function __hyloIsNoteList(key) {
   var type = __hyloSectionType(key);
-  return type === 'folder' || type === 'memory' || type === 'pinned' || type === 'tags' || type === 'knowledge';
+  return type === 'folder' || type === 'memory' || type === 'pinned' || type === 'recent' || type === 'tags' || type === 'knowledge';
 }
 
-// A save can't say whether tags or links changed, so cached derived views go.
+// A save can't say whether tags or links changed, and it reorders Recent, so cached derived views go.
 function __hyloIsDerived(key) {
   var type = __hyloSectionType(key);
-  return type === 'tags' || type === 'knowledge';
+  return type === 'tags' || type === 'knowledge' || type === 'recent';
 }
 
 function __hyloDropParked(pred) {
@@ -196,6 +196,7 @@ function __hyloVaultChanged(change) {
       break;
     case 'short':
       drop(__hyloIsType('shorts'));
+      drop(__hyloIsType('recent'));
       if (change.hasImages) drop(__hyloIsType('images'));
       break;
     case 'images':

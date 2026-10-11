@@ -163,6 +163,15 @@ func (vh *ViewHandler) homeSectionData(r *http.Request, itemsOnly bool) (homeSec
 				data.Items = vh.noteItemsFromNotes(notes)
 			}
 		}
+	case "recent":
+		notes, err := vh.vault.ListRecentNotes(time.Now().AddDate(0, 0, -7))
+		if err != nil {
+			return data, err
+		}
+		data.Items = vh.noteItemsFromNotes(notes)
+		data.Title = "Recent"
+		data.EmptyMsg = "No notes updated in the last 7 days"
+		data.Count = len(data.Items)
 	default: // "pinned"
 		pinned, err := vh.vault.ListPinnedNotes()
 		if err != nil {
