@@ -1,5 +1,3 @@
-use std::path::Path;
-use std::process::Command;
 use std::time::Duration;
 
 use reqwest::{redirect::Policy, Client, StatusCode};
@@ -9,24 +7,35 @@ use serde::Deserialize;
 #[derive(Debug, PartialEq, Eq)]
 pub enum ServerError {
     Unreachable(String),
+    TimedOut,
     NotHylo,
     BadKey,
+    /// Something answers but Hylo doesn't, e.g. a reverse proxy whose Hylo is down.
+    Unavailable(u16),
 }
 
 impl ServerError {
     pub fn code(&self) -> &'static str {
         match self {
-            Self::Unreachable(_) => "unreachable",
+            Self::Unreachable(_) | Self::TimedOut => "unreachable",
             Self::NotHylo => "not_hylo",
             Self::BadKey => "bad_key",
+            Self::Unavailable(_) => "unavailable",
         }
+    }
+
+    /// Down for sure. A slow answer isn't: a busy server must not end the session.
+    pub fn is_down(&self) -> bool {
+        matches!(self, Self::Unreachable(_) | Self::Unavailable(_))
     }
 
     pub fn message(&self) -> String {
         match self {
             Self::Unreachable(e) => format!("cannot reach the server ({e})"),
+            Self::TimedOut => "the server took too long to answer".into(),
             Self::NotHylo => "this address is not a Hylo server".into(),
             Self::BadKey => "the API key was rejected".into(),
+            Self::Unavailable(status) => format!("the server answered HTTP {status} instead of Hylo"),
         }
     }
 }
@@ -34,6 +43,14 @@ impl ServerError {
 #[derive(Deserialize)]
 struct Identity {
     app: String,
+}
+
+fn sent(e: reqwest::Error) -> ServerError {
+    if e.is_timeout() {
+        ServerError::TimedOut
+    } else {
+        ServerError::Unreachable(e.to_string())
+    }
 }
 
 fn client() -> Result<Client, ServerError> {
@@ -46,12 +63,12 @@ fn client() -> Result<Client, ServerError> {
 }
 
 /// POST /version is unauthenticated and says whether the URL is a Hylo server.
-async fn ensure_hylo(base: &str) -> Result<(), ServerError> {
+pub async fn ensure_hylo(base: &str) -> Result<(), ServerError> {
     let resp = client()?
         .post(format!("{base}/version"))
         .send()
         .await
-        .map_err(|e| ServerError::Unreachable(e.to_string()))?;
+        .map_err(sent)?;
     let ident: Identity = resp.json().await.map_err(|_| ServerError::NotHylo)?;
     if ident.app == "hylo" {
         Ok(())
@@ -60,26 +77,25 @@ async fn ensure_hylo(base: &str) -> Result<(), ServerError> {
     }
 }
 
-/// Whether the server accepts `key` (none is sent when absent).
-async fn check_key(base: &str, key: Option<&str>) -> Result<(), ServerError> {
+/// Whether the server is up and accepts `key` (none is sent when absent): the
+/// one check behind entering, probing and watching a server.
+pub async fn check(base: &str, key: Option<&str>) -> Result<(), ServerError> {
     let mut req = client()?.post(format!("{base}/api/status"));
     if let Some(k) = key.filter(|k| !k.is_empty()) {
         req = req.header("X-Hylo-API-Key", k);
     }
-    let resp = req
-        .send()
-        .await
-        .map_err(|e| ServerError::Unreachable(e.to_string()))?;
-    match resp.status() {
+    let status = req.send().await.map_err(sent)?.status();
+    match status {
+        s if s.is_success() => Ok(()),
         StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => Err(ServerError::BadKey),
-        _ => Ok(()),
+        s => Err(ServerError::Unavailable(s.as_u16())),
     }
 }
 
 /// Confirms `base` is a Hylo server and that `key` (if any) is accepted.
 pub async fn verify(base: &str, key: Option<&str>) -> Result<(), ServerError> {
     ensure_hylo(base).await?;
-    check_key(base, key).await
+    check(base, key).await
 }
 
 /// A session cookie obtained by logging in with `key`.
@@ -95,9 +111,10 @@ pub async fn login(base: &str, key: &str) -> Result<Session, ServerError> {
         .form(&[("key", key), ("next", "/home")])
         .send()
         .await
-        .map_err(|e| ServerError::Unreachable(e.to_string()))?;
+        .map_err(sent)?;
     match resp.status() {
         StatusCode::UNAUTHORIZED => return Err(ServerError::BadKey),
+        s if s.is_server_error() => return Err(ServerError::Unavailable(s.as_u16())),
         _ => {}
     }
     resp.headers()
@@ -111,24 +128,6 @@ pub async fn login(base: &str, key: &str) -> Result<Session, ServerError> {
         .ok_or(ServerError::NotHylo)
 }
 
-/// Asks the installed CLI for the local server's key. A key is never served
-/// over HTTP without credentials; the CLI reads the same 0600 config file the
-/// server wrote it to, so only this OS user can get it.
-pub fn read_local_key(bin: &Path) -> Option<String> {
-    // A GUI app starts with a minimal PATH; use the same one that launched the server.
-    let out = Command::new(bin)
-        .args(["auth", "show", "--raw"])
-        .env("PATH", crate::server::expanded_path())
-        .stdin(std::process::Stdio::null())
-        .output()
-        .ok()?;
-    if !out.status.success() {
-        return None;
-    }
-    let key = String::from_utf8(out.stdout).ok()?.trim().to_string();
-    (!key.is_empty() && !key.contains(char::is_whitespace)).then_some(key)
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Health {
@@ -139,7 +138,7 @@ pub enum Health {
 
 /// Reachability plus whether the stored key (if any) is still accepted.
 pub async fn health(base: &str, key: Option<&str>) -> Health {
-    match check_key(base, key).await {
+    match check(base, key).await {
         Ok(()) => Health::Online,
         Err(ServerError::BadKey) => Health::AuthRequired,
         Err(_) => Health::Offline,
@@ -237,41 +236,19 @@ mod tests {
         assert_eq!(login(&base, "bad").await.unwrap_err(), ServerError::BadKey);
     }
 
-    #[cfg(unix)]
-    fn script(body: &str) -> std::path::PathBuf {
-        use std::os::unix::fs::PermissionsExt;
-        use std::sync::atomic::{AtomicUsize, Ordering};
-        static N: AtomicUsize = AtomicUsize::new(0);
-        let path = std::env::temp_dir().join(format!(
-            "hylo-stub-{}-{}",
-            std::process::id(),
-            N.fetch_add(1, Ordering::Relaxed)
-        ));
-        std::fs::write(&path, format!("#!/bin/sh\n{body}\n")).unwrap();
-        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
-        path
-    }
-
-    #[cfg(unix)]
-    #[test]
-    fn local_key_comes_from_the_cli() {
-        let ok = script(r#"[ "$1 $2 $3" = "auth show --raw" ] && echo hylo_abc123"#);
-        assert_eq!(read_local_key(&ok).as_deref(), Some("hylo_abc123"));
-
-        let no_key = script("echo 'Error: no API key yet' >&2; exit 1");
-        assert_eq!(read_local_key(&no_key), None);
-
-        let noisy = script("echo 'two words'");
-        assert_eq!(read_local_key(&noisy), None);
-
-        assert_eq!(read_local_key(Path::new("/nonexistent/hylo")), None);
-    }
-
     #[tokio::test]
     async fn health_maps_errors() {
         let base = hylo_server("secret");
         assert_eq!(health(&base, Some("secret")).await, Health::Online);
         assert_eq!(health(&base, Some("x")).await, Health::AuthRequired);
         assert_eq!(health("http://127.0.0.1:1", None).await, Health::Offline);
+    }
+
+    #[tokio::test]
+    async fn proxy_without_hylo_is_unavailable() {
+        let base = serve(|_| http("502 Bad Gateway", "", "bad gateway"));
+        assert_eq!(check(&base, Some("k")).await.unwrap_err(), ServerError::Unavailable(502));
+        assert_eq!(health(&base, Some("k")).await, Health::Offline);
+        assert!(ServerError::Unavailable(502).is_down() && !ServerError::TimedOut.is_down());
     }
 }

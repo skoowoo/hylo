@@ -1,26 +1,25 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Mutex;
-use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager, State};
 use tauri_plugin_dialog::DialogExt;
-use tauri_plugin_opener::OpenerExt;
 
-use crate::cli::{self, InstallOutcome};
-use crate::config::{ConfigFile, InboxNotify};
-use crate::nav::{allow_navigation, http_origin, is_shell_url, shell_start_url};
+use crate::config::{ConfigFile, InboxNotify, LOCAL_ID};
+use crate::local::{self, LocalServer, ProcessStatus};
 use crate::notify::{self, InboxHandle};
-use crate::server::{self, DiagPaths, ProcessStatus, SpawnResult};
+use crate::server::{self, DiagPaths};
 use crate::servers;
+use crate::session::show_start;
 
 pub struct ShellState {
     pub data_dir: PathBuf,
-    pub archive: Option<PathBuf>,
     pub config: Mutex<ConfigFile>,
-    pub managed_pid: Mutex<u32>,
+    pub local: LocalServer,
     pub connected_url: Mutex<Option<String>>,
+    /// Where the next entry into the local server lands, set once by onboarding.
+    pub landing: Mutex<Option<String>>,
     /// Inbox stream per server id; see servers::sync_inboxes.
     pub inboxes: Mutex<HashMap<String, InboxHandle>>,
 }
@@ -56,9 +55,27 @@ impl ShellState {
 
 #[derive(Debug, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
-struct StartOpts {
+struct ControlOpts {
+    /// The servers view acts in place; the app's own pages are sent back to it.
     #[serde(default)]
-    user_initiated: bool,
+    stay: bool,
+}
+
+/// Stop and restart answers; the Go settings page reads these fields.
+#[derive(Debug, Serialize, Default)]
+#[serde(rename_all = "camelCase")]
+struct ControlResult {
+    ok: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    reason: Option<&'static str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    error: Option<String>,
+}
+
+impl ControlResult {
+    fn failed(reason: &'static str, error: String) -> Self {
+        Self { ok: false, reason: Some(reason), error: Some(error) }
+    }
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -85,196 +102,58 @@ struct InboxPatch {
 }
 
 #[tauri::command]
-async fn check_server(url: String) -> bool {
-    let url = format!("{}/home", url.trim().trim_end_matches('/'));
-    // Any HTTP response means the process is up.
-    http_responds(&url).await
-}
-
-async fn http_responds(url: &str) -> bool {
-    let Ok(client) = reqwest::Client::builder()
-        .timeout(Duration::from_secs(3))
-        .no_proxy()
-        .build()
-    else {
-        return false;
-    };
-    client.get(url).send().await.is_ok()
-}
-
-/// True only for a refused/unreachable host. Timeouts stay false so a slow
-/// server is not treated as a failed navigation.
-async fn origin_unreachable(base: &str) -> bool {
-    let url = format!("{}/home", base.trim_end_matches('/'));
-    let Ok(client) = reqwest::Client::builder()
-        .timeout(Duration::from_secs(4))
-        .connect_timeout(Duration::from_secs(2))
-        .no_proxy()
-        .build()
-    else {
-        return false;
-    };
-    match client.get(url).send().await {
-        Ok(_) => false,
-        Err(err) if err.is_timeout() => false,
-        Err(err) => err.is_connect(),
-    }
-}
-
-#[tauri::command(rename_all = "camelCase")]
-async fn start_hylo_server_detached(app: AppHandle, opts: Option<StartOpts>) -> SpawnResult {
-    let state = app.state::<ShellState>();
-    let opts = opts.unwrap_or_default();
-    if !opts.user_initiated && !server::autostart_enabled(&state.data_dir) {
-        server::diag_log(
-            &state.data_dir,
-            "start-server: autoStart disabled, skip spawn",
-        );
-        return SpawnResult {
-            ok: false,
-            reason: Some("stopped_by_user".into()),
-            error: None,
-            pid: None,
-        };
-    }
-    if opts.user_initiated {
-        let _ = server::set_autostart(&state.data_dir, true);
-        if let Ok(mut cfg) = state.config.lock() {
-            cfg.auto_start_server = true;
-        }
-    }
-    let managed = *state.managed_pid.lock().unwrap_or_else(|e| e.into_inner());
-    if managed > 0 && server::pid_is_hylo(managed) {
-        server::diag_log(
-            &state.data_dir,
-            &format!("start-server: managed server pid={managed} alive, skip duplicate spawn"),
-        );
-        return SpawnResult {
-            ok: true,
-            reason: None,
-            error: None,
-            pid: Some(managed),
-        };
-    }
-    let data_dir = state.data_dir.clone();
-    let archive = state.archive.clone();
-    let result =
-        tauri::async_runtime::spawn_blocking(move || server::start_server(&data_dir, archive))
-            .await
-            .unwrap_or_else(|e| SpawnResult {
-                ok: false,
-                reason: None,
-                error: Some(e.to_string()),
-                pid: None,
-            });
-    if let Some(pid) = result.pid {
-        if let Ok(mut slot) = state.managed_pid.lock() {
-            *slot = pid;
-        }
-    }
-    result
-}
-
-#[tauri::command]
 fn get_shell_debug_paths(state: State<ShellState>) -> DiagPaths {
     server::diag_paths(&state.data_dir)
 }
 
 #[tauri::command]
 fn get_server_process_status(state: State<ShellState>) -> ProcessStatus {
-    server::status(&state.data_dir)
+    state.local.status()
 }
 
-#[tauri::command]
-async fn stop_hylo_server(app: AppHandle) -> SpawnResult {
+/// Remote pages may call these too (see capabilities/remote.json); only the
+/// shell page and the local server's own pages control this computer's server.
+fn may_control(app: &AppHandle) -> bool {
     let state = app.state::<ShellState>();
-    let Some(pid) = server::read_pid(&state.data_dir) else {
-        return SpawnResult {
-            ok: false,
-            reason: Some("no_pid".into()),
-            error: Some("No managed server process found".into()),
-            pid: None,
-        };
-    };
-    state.end_session();
-    server::diag_log(
-        &state.data_dir,
-        &format!("stop-server: stopping managed server pid {pid}"),
-    );
-    let data_dir = state.data_dir.clone();
-    let killed = tauri::async_runtime::spawn_blocking(move || server::kill_hylo(&data_dir, pid))
-        .await
-        .unwrap_or(false);
-    if let Ok(mut slot) = state.managed_pid.lock() {
-        *slot = 0;
-    }
-    let _ = server::set_autostart(&state.data_dir, false);
-    if let Ok(mut cfg) = state.config.lock() {
-        cfg.auto_start_server = false;
-    }
-    show_start(&app);
-    SpawnResult {
-        ok: killed,
-        reason: None,
-        error: if killed {
-            None
-        } else {
-            Some("process did not exit".into())
-        },
-        pid: None,
+    match state.connected() {
+        None => true,
+        Some(url) => state
+            .read_config(|cfg| cfg.find(LOCAL_ID).is_some_and(|s| s.url == url))
+            .unwrap_or(false),
     }
 }
 
 #[tauri::command]
-async fn restart_hylo_server(app: AppHandle) -> SpawnResult {
-    let state = app.state::<ShellState>();
-    let Some(pid) = server::read_pid(&state.data_dir) else {
-        return SpawnResult {
-            ok: false,
-            reason: Some("no_pid".into()),
-            error: Some("No valid PID file — server was not started by the desktop app".into()),
-            pid: None,
-        };
+async fn stop_hylo_server(app: AppHandle, opts: Option<ControlOpts>) -> ControlResult {
+    if !may_control(&app) {
+        return ControlResult::failed("forbidden", "Only this computer's Hylo can stop it.".into());
+    }
+    let result = match local::stop(&app).await {
+        Ok(true) => ControlResult { ok: true, ..Default::default() },
+        Ok(false) => ControlResult::failed("no_pid", "No server started by this app is running.".into()),
+        Err(e) => ControlResult::failed("stop_failed", e),
     };
-    if server::pid_is_hylo(pid) {
-        server::diag_log(
-            &state.data_dir,
-            &format!("restart-server: stopping pid {pid}"),
-        );
-        let data_dir = state.data_dir.clone();
-        let _ =
-            tauri::async_runtime::spawn_blocking(move || server::kill_hylo(&data_dir, pid)).await;
+    if !opts.unwrap_or_default().stay {
+        show_start(&app);
     }
-    if let Ok(mut slot) = state.managed_pid.lock() {
-        *slot = 0;
+    result
+}
+
+#[tauri::command]
+async fn restart_hylo_server(app: AppHandle, opts: Option<ControlOpts>) -> ControlResult {
+    if !may_control(&app) {
+        return ControlResult::failed("forbidden", "Only this computer's Hylo can restart it.".into());
     }
-    let data_dir = state.data_dir.clone();
-    let archive = state.archive.clone();
-    let spawned =
-        tauri::async_runtime::spawn_blocking(move || server::start_server(&data_dir, archive))
-            .await
-            .unwrap_or_else(|e| SpawnResult {
-                ok: false,
-                reason: Some("spawn_failed".into()),
-                error: Some(e.to_string()),
-                pid: None,
-            });
-    if !spawned.ok {
-        return SpawnResult {
-            ok: false,
-            reason: Some("spawn_failed".into()),
-            error: spawned.error,
-            pid: None,
-        };
+    let result = match local::restart(&app).await {
+        Ok(true) => ControlResult { ok: true, ..Default::default() },
+        // Started from the CLI: it picks up the new config when restarted there.
+        Ok(false) => ControlResult::failed("no_pid", "Hylo wasn't started by this app.".into()),
+        Err(e) => ControlResult::failed(e.code(), e.message()),
+    };
+    if result.ok && !opts.unwrap_or_default().stay {
+        show_start(&app);
     }
-    if let Some(pid) = spawned.pid {
-        if let Ok(mut slot) = state.managed_pid.lock() {
-            *slot = pid;
-        }
-    }
-    state.end_session();
-    show_start(&app);
-    spawned
+    result
 }
 
 #[tauri::command(rename_all = "camelCase")]
@@ -320,15 +199,19 @@ async fn pick_folder(app: AppHandle, opts: Option<PickOpts>) -> PickResult {
 }
 
 #[tauri::command]
-fn set_view_bg_color(app: AppHandle, color: String, theme: String) {
+fn set_view_bg_color(app: AppHandle, state: State<ShellState>, color: String, theme: String) {
     let _ = color;
-    let parsed = match theme.as_str() {
-        "light" => Some(tauri::Theme::Light),
-        "dark" => Some(tauri::Theme::Dark),
-        _ => None,
-    };
+    let parsed = crate::config::theme_choice(&theme);
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.set_theme(parsed);
+    }
+    // Every page load calls this; only a real change touches the file.
+    let theme = if parsed.is_some() { theme } else { String::new() };
+    if state.read_config(|cfg| cfg.theme != theme).unwrap_or(false) {
+        let _ = state.edit_config(|cfg| {
+            cfg.theme = theme;
+            Ok(())
+        });
     }
 }
 
@@ -376,109 +259,9 @@ fn inbox_notify_preview_sound(sound: String) {
     notify::play_sound(&sound);
 }
 
-pub fn show_start(app: &AppHandle) {
-    show_start_at(app, "");
-}
-
-/// `hash` picks the shell page's view, e.g. "#servers".
-pub fn show_start_at(app: &AppHandle, hash: &str) {
-    let url = format!("{}{hash}", shell_start_url());
-    let app2 = app.clone();
-    std::thread::spawn(move || {
-        std::thread::sleep(Duration::from_millis(60));
-        let nav = app2.clone();
-        let _ = app2.run_on_main_thread(move || navigate(&nav, &url));
-    });
-}
-
-pub fn navigate(app: &AppHandle, url: &str) {
-    let Ok(parsed) = url.parse() else {
-        return;
-    };
-    if let Some(window) = app.get_webview_window("main") {
-        let _ = window.navigate(parsed);
-    }
-}
-
-pub fn allow_url(app: &AppHandle, url: &url::Url) -> bool {
-    let state = app.state::<ShellState>();
-    let server = state.connected();
-    if allow_navigation(url, server.as_deref()) {
-        if !is_shell_url(url) {
-            // Tauri has no load-failure event, so a refused connection to this
-            // origin is the signal to fall back to the start page.
-            watch_server_navigation(app.clone(), url.clone());
-        }
-        return true;
-    }
-    let _ = app.opener().open_url(url.as_str(), None::<&str>);
-    false
-}
-
-fn watch_server_navigation(app: AppHandle, url: url::Url) {
-    let Some(origin) = http_origin(&url) else {
-        return;
-    };
-    tauri::async_runtime::spawn(async move {
-        if !origin_unreachable(&origin).await {
-            return;
-        }
-        recover_failed_navigation(&app, &url);
-    });
-}
-
-fn recover_failed_navigation(app: &AppHandle, url: &url::Url) {
-    let state = app.state::<ShellState>();
-    let Some(saved) = state.connected() else {
-        return;
-    };
-    if !crate::nav::same_origin(url, &saved) {
-        return;
-    }
-    if let Some(window) = app.get_webview_window("main") {
-        if let Ok(current) = window.url() {
-            if is_shell_url(&current) {
-                return;
-            }
-        }
-    }
-    server::diag_log(
-        &state.data_dir,
-        &format!("page load failed, returning to start ({url})"),
-    );
-    state.end_session();
-    show_start(app);
-}
-
-pub fn install_cli_on_launch(app: &AppHandle) {
-    let state = app.state::<ShellState>();
-    let data_dir = state.data_dir.clone();
-    let archive = state.archive.clone();
-    match cli::install(&data_dir, archive, false) {
-        Ok(InstallOutcome::Installed) => {
-            if let Some(pid) = server::read_pid(&data_dir) {
-                if server::pid_is_hylo(pid) {
-                    server::diag_log(
-                        &data_dir,
-                        &format!("cli-upgrade: killing old server pid {pid}"),
-                    );
-                    let _ = server::kill_hylo(&data_dir, pid);
-                    if let Ok(mut slot) = app.state::<ShellState>().managed_pid.lock() {
-                        *slot = 0;
-                    }
-                    show_start(app);
-                }
-            }
-        }
-        Ok(InstallOutcome::Skipped) => {}
-        Err(e) => server::diag_log(&data_dir, &format!("cli auto-install failed: {e}")),
-    }
-}
-
 pub fn invoke_handler() -> impl Fn(tauri::ipc::Invoke<tauri::Wry>) -> bool + Send + Sync + 'static {
     tauri::generate_handler![
-        check_server,
-        start_hylo_server_detached,
+        servers::check_server,
         stop_hylo_server,
         get_server_process_status,
         get_shell_debug_paths,
@@ -487,6 +270,7 @@ pub fn invoke_handler() -> impl Fn(tauri::ipc::Invoke<tauri::Wry>) -> bool + Sen
         servers::update_server,
         servers::remove_server,
         servers::switch_server,
+        servers::enter_server,
         servers::probe_servers,
         servers::open_manager,
         restart_hylo_server,
@@ -497,5 +281,16 @@ pub fn invoke_handler() -> impl Fn(tauri::ipc::Invoke<tauri::Wry>) -> bool + Sen
         inbox_notify_set_settings,
         inbox_notify_preview_sound,
         toggle_maximize,
+        crate::onboarding::onboarding_get,
+        crate::onboarding::onboarding_set_step,
+        crate::onboarding::onboarding_finish,
+        crate::vault_setup::onboarding_vaults,
+        crate::vault_setup::onboarding_set_vault,
+        crate::shell_path::onboarding_path_needed,
+        crate::shell_path::onboarding_add_to_path,
+        crate::agent_setup::onboarding_ready,
+        crate::agent_setup::onboarding_agents,
+        crate::agent_setup::onboarding_hello,
+        crate::agent_setup::onboarding_create_bot,
     ]
 }

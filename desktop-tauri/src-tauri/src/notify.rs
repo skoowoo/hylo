@@ -1,12 +1,15 @@
-use std::path::Path;
 use std::process::Command;
 use std::time::Duration;
 
 use serde::Deserialize;
-use tauri::AppHandle;
+use tauri::{AppHandle, Manager};
 use tokio::sync::watch;
 
-use crate::config::ConfigFile;
+use crate::commands::ShellState;
+
+const RETRY_FIRST: Duration = Duration::from_secs(5);
+/// A server that stays away (a laptop's remote, off for the night) is asked rarely.
+const RETRY_MAX: Duration = Duration::from_secs(120);
 
 /// Connection to one server's inbox stream.
 #[derive(Clone, PartialEq, Eq)]
@@ -24,11 +27,11 @@ pub struct InboxHandle {
 }
 
 impl InboxHandle {
-    pub fn start(app: AppHandle, data_dir: std::path::PathBuf, target: Target) -> Self {
+    pub fn start(app: AppHandle, target: Target) -> Self {
         let (stop, rx) = watch::channel(false);
         let handle = Self { stop, target: target.clone() };
         tauri::async_runtime::spawn(async move {
-            run_loop(app, data_dir, target, rx).await;
+            run_loop(app, target, rx).await;
         });
         handle
     }
@@ -44,33 +47,31 @@ impl InboxHandle {
 
 enum Loop {
     Stopped,
-    Retry,
+    /// `true` once the stream was open: the server was there, so retry soon.
+    Retry(bool),
 }
 
-async fn run_loop(
-    app: AppHandle,
-    data_dir: std::path::PathBuf,
-    target: Target,
-    mut stop: watch::Receiver<bool>,
-) {
+async fn run_loop(app: AppHandle, target: Target, mut stop: watch::Receiver<bool>) {
     let Some(endpoint) = join_notifications(&target.base_url) else {
         return;
     };
     let Ok(client) = reqwest::Client::builder().no_proxy().build() else {
         return;
     };
+    let mut wait = RETRY_FIRST;
     loop {
         if *stop.borrow() {
             break;
         }
-        match connect(&client, &app, &data_dir, &endpoint, &target, &mut stop).await {
+        match connect(&client, &app, &endpoint, &target, &mut stop).await {
             Loop::Stopped => break,
-            Loop::Retry => {
+            Loop::Retry(was_open) => {
+                wait = if was_open { RETRY_FIRST } else { (wait * 2).min(RETRY_MAX) };
                 tokio::select! {
                     _ = stop.changed() => {
                         if *stop.borrow() { break; }
                     }
-                    _ = tokio::time::sleep(Duration::from_secs(5)) => {}
+                    _ = tokio::time::sleep(wait) => {}
                 }
             }
         }
@@ -80,7 +81,6 @@ async fn run_loop(
 async fn connect(
     client: &reqwest::Client,
     app: &AppHandle,
-    data_dir: &Path,
     endpoint: &str,
     target: &Target,
     stop: &mut watch::Receiver<bool>,
@@ -91,7 +91,7 @@ async fn connect(
     }
     let mut resp = match req.send().await {
         Ok(r) if r.status().is_success() => r,
-        _ => return Loop::Retry,
+        _ => return Loop::Retry(false),
     };
     let mut buf = String::new();
     loop {
@@ -109,10 +109,10 @@ async fn connect(
                     Ok(Ok(Some(bytes))) => {
                         buf.push_str(&String::from_utf8_lossy(&bytes));
                         for raw in drain_events(&mut buf) {
-                            show_message(app, data_dir, &raw, target.label.as_deref());
+                            show_message(app, &raw, target.label.as_deref());
                         }
                     }
-                    _ => return Loop::Retry,
+                    _ => return Loop::Retry(true),
                 }
             }
         }
@@ -144,11 +144,13 @@ struct InboxMsg {
     source: Option<String>,
 }
 
-pub fn show_message(app: &AppHandle, data_dir: &Path, raw: &str, label: Option<&str>) {
+fn show_message(app: &AppHandle, raw: &str, label: Option<&str>) {
     let Ok(msg) = serde_json::from_str::<InboxMsg>(raw) else {
         return;
     };
-    let settings = ConfigFile::load(data_dir).inbox_notify;
+    let Ok(settings) = app.state::<ShellState>().read_config(|cfg| cfg.inbox_notify.clone()) else {
+        return;
+    };
     if settings.text_enabled {
         let title = msg
             .title

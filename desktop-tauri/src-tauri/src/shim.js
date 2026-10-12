@@ -15,14 +15,8 @@
   window.hyloDesktop = {
     platform: platform,
     shell: "tauri",
-    checkServer: function (url) {
-      return invoke("check_server", { url: url });
-    },
-    startHyloServerDetached: function (opts) {
-      return invoke("start_hylo_server_detached", { opts: opts || {} });
-    },
-    stopServer: function () {
-      return invoke("stop_hylo_server");
+    stopServer: function (opts) {
+      return invoke("stop_hylo_server", { opts: opts || {} });
     },
     getServerProcessStatus: function () {
       return invoke("get_server_process_status");
@@ -46,8 +40,18 @@
       remove: function (id) {
         return invoke("remove_server", { id: id });
       },
+      // Resolves once the server can be entered (the local one is started and
+      // waited for); rejects with { code, message }.
+      check: function (id, opts) {
+        return invoke("check_server", { id: id, opts: opts || {} });
+      },
+      // From a server's page: the shell page takes over and enters it.
       switchTo: function (id) {
         return invoke("switch_server", { id: id });
+      },
+      // The shell page's own last step in, after check().
+      enter: function (id) {
+        return invoke("enter_server", { id: id });
       },
       probe: function () {
         return invoke("probe_servers");
@@ -56,8 +60,43 @@
         return invoke("open_manager");
       },
     },
-    restartServer: function () {
-      return invoke("restart_hylo_server");
+    onboarding: {
+      get: function () {
+        return invoke("onboarding_get");
+      },
+      setStep: function (step) {
+        return invoke("onboarding_set_step", { step: step || "" });
+      },
+      finish: function (landing) {
+        return invoke("onboarding_finish", { landing: landing || null });
+      },
+      vaults: function () {
+        return invoke("onboarding_vaults");
+      },
+      setVault: function (path, pauseGitSync) {
+        return invoke("onboarding_set_vault", { path: path, pauseGitSync: !!pauseGitSync });
+      },
+      pathNeeded: function () {
+        return invoke("onboarding_path_needed");
+      },
+      addToPath: function () {
+        return invoke("onboarding_add_to_path");
+      },
+      ready: function () {
+        return invoke("onboarding_ready");
+      },
+      agents: function () {
+        return invoke("onboarding_agents");
+      },
+      hello: function (agentId, token, context) {
+        return invoke("onboarding_hello", { agentId: agentId, token: token, context: context || null });
+      },
+      createBot: function (agentId, greeting) {
+        return invoke("onboarding_create_bot", { agentId: agentId, greeting: greeting || null });
+      },
+    },
+    restartServer: function (opts) {
+      return invoke("restart_hylo_server", { opts: opts || {} });
     },
     setViewBgColor: function (color, theme) {
       return invoke("set_view_bg_color", { color: color, theme: theme || "" });

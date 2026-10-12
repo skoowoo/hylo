@@ -7,5 +7,7 @@
 		<key>NSAllowsArbitraryLoads</key>
 		<true/>
 	</dict>
+	<key>NSDocumentsFolderUsageDescription</key>
+	<string>Hylo keeps your notes as Markdown files in a folder in Documents.</string>
 </dict>
 </plist>

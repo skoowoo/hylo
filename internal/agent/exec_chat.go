@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"os/exec"
+	"strings"
 	"sync"
 )
 
@@ -105,8 +106,8 @@ func ExecChat(
 		buf := make([]byte, 32*1024)
 		for {
 			n, err := stderr.Read(buf)
-			if n > 0 {
-				emit("stderr", map[string]any{"chunk": string(buf[:n])})
+			if chunk := dropExpectedNoise(def.ID, string(buf[:n])); chunk != "" {
+				emit("stderr", map[string]any{"chunk": chunk})
 			}
 			if err != nil {
 				break
@@ -188,4 +189,19 @@ type writerFunc struct{ f func([]byte) }
 func (w *writerFunc) Write(p []byte) (int, error) {
 	w.f(p)
 	return len(p), nil
+}
+
+// dropExpectedNoise drops stderr lines that only echo what Hylo asked for: Pi warns
+// on every first turn that the session id Hylo assigned is new.
+func dropExpectedNoise(agentID, chunk string) string {
+	if agentID != "pi" || !strings.Contains(chunk, "No project session found") {
+		return chunk
+	}
+	var kept []string
+	for _, line := range strings.SplitAfter(chunk, "\n") {
+		if !strings.Contains(line, "No project session found") {
+			kept = append(kept, line)
+		}
+	}
+	return strings.Join(kept, "")
 }

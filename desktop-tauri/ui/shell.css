@@ -1,0 +1,329 @@
+/* Shell page chrome: the servers view, which is also the launch screen. */
+[x-cloak] { display: none !important; }
+
+/* Hidden until init() knows whether this launch onboards. */
+.is-booting body > * { visibility: hidden; }
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  border-radius: var(--r-md);
+}
+
+html, body {
+  height: 100%;
+  border-radius: 0;
+}
+
+*:focus-visible {
+  outline: 2px solid rgba(var(--accent-rgb), 0.5);
+  outline-offset: 1px;
+}
+
+button:not(:disabled) { cursor: pointer; }
+button:disabled { cursor: default; }
+
+body {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-ui);
+  font-size: var(--text-base);
+  -webkit-font-smoothing: antialiased;
+  -webkit-app-region: drag;
+}
+
+/* ── Servers: onboarding's cards and buttons, in a centred column ── */
+.sv {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  justify-content: center;
+  overflow-y: auto;
+  padding: clamp(40px, 9vh, 104px) 48px 24px;
+  border-radius: 0;
+  background: var(--bg);
+  -webkit-app-region: no-drag;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.sv-inner { width: min(480px, 100%); min-height: 100%; display: flex; flex-direction: column; }
+.sv-body { flex: 1; display: flex; flex-direction: column; transition: opacity 360ms var(--ease-out) 180ms; }
+.sv-list { margin-top: 1.75rem; display: flex; flex-direction: column; gap: 8px; }
+
+.sv-brand { display: flex; margin-bottom: 28px; transition: opacity 360ms var(--ease-out) 180ms; }
+.sv-lockup { display: flex; align-items: center; gap: 9px; }
+.sv-mark {
+  width: 28px;
+  height: 28px;
+  border-radius: 0;
+  -webkit-user-drag: none;
+  filter: drop-shadow(0 0 0.75px rgba(var(--ink-rgb), 0.4));
+}
+.sv-wordmark { font-size: 0.8125rem; font-weight: var(--fw-semibold); letter-spacing: 0.32em; color: var(--fg); }
+/* While a server is entered the list hides behind the splash; it fades back
+   in only if entering needs the user. */
+.sv.is-splash .sv-brand,
+.sv.is-splash .sv-body { opacity: 0; pointer-events: none; transition: none; }
+
+/* ── Splash: the logo assembles card by card ──
+   Drawn at its final size and moved only by transform/opacity on their own
+   layers: no filters and no scaled bitmaps, so edges stay still. */
+.sv-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  padding-bottom: 6vh;
+  border-radius: 0;
+  pointer-events: none;
+}
+.sv-splash-leave { transition: opacity 240ms var(--ease-out), transform 240ms var(--ease-out); }
+.sv-splash-gone { opacity: 0; transform: scale(0.97); }
+
+.sv-logo {
+  position: relative;
+  width: 84px;
+  height: 84px;
+  border-radius: 23.5%;
+  box-shadow: 0 14px 32px -10px rgba(0, 0, 0, 0.45);
+  will-change: transform, opacity;
+  /* The pop in, then a small beat as the last card lands: the stack is complete. */
+  animation: sv-tile-pop 620ms cubic-bezier(0.2, 0.9, 0.25, 1.15) both, sv-lock 420ms ease-out 1000ms;
+}
+.sv-logo-svg { position: relative; display: block; width: 100%; height: 100%; border-radius: 0; overflow: visible; }
+.sv-logo-card,
+.sv-logo-sheen { transform-box: fill-box; transform-origin: center; }
+.sv-logo-card.is-front { animation: sv-card-drop 520ms cubic-bezier(0.25, 1, 0.3, 1.2) 180ms both; }
+.sv-logo-card.is-mid { animation: sv-card-rise 440ms cubic-bezier(0.3, 1, 0.4, 1.25) 520ms both; }
+.sv-logo-card.is-back { animation: sv-card-rise 440ms cubic-bezier(0.3, 1, 0.4, 1.25) 640ms both; }
+.sv-logo-sheen { animation: sv-sheen 620ms ease-in-out 1000ms both; }
+
+.sv-logo-word {
+  display: flex;
+  gap: 0.42em;
+  font-size: 0.9375rem;
+  font-weight: var(--fw-semibold);
+  color: var(--fg);
+}
+.sv-logo-word span { display: inline-block; border-radius: 0; animation: sv-letter 420ms var(--ease-out) both; }
+.sv-logo-word span:nth-child(1) { animation-delay: 760ms; }
+.sv-logo-word span:nth-child(2) { animation-delay: 830ms; }
+.sv-logo-word span:nth-child(3) { animation-delay: 900ms; }
+.sv-logo-word span:nth-child(4) { animation-delay: 970ms; }
+
+@keyframes sv-tile-pop { from { opacity: 0; transform: scale(0.6); } 35% { opacity: 1; } }
+@keyframes sv-card-drop { from { opacity: 0; transform: translateY(-58px); } 40% { opacity: 1; } }
+/* From behind the front card, which hides where they start. */
+@keyframes sv-card-rise { from { opacity: 0; transform: translateY(26px); } 30% { opacity: 1; } }
+@keyframes sv-sheen { from { transform: translateX(0) skewX(-18deg); } to { transform: translateX(340px) skewX(-18deg); } }
+@keyframes sv-letter { from { opacity: 0; transform: translateY(8px); } }
+@keyframes sv-lock { 40% { transform: scale(1.045); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .sv-logo, .sv-logo-card, .sv-logo-word span { animation: sv-fade 400ms ease-out both; }
+  .sv-logo-sheen { animation: none; opacity: 0; }
+}
+
+/* One rhythm for every row: 14px in from the card's edges, icon centred on 30px. */
+.sv-card {
+  position: relative;
+  border-radius: var(--r-lg);
+  background: var(--surface-soft);
+  transition: background-color var(--motion-fast), box-shadow var(--motion-base);
+}
+.sv-row { display: flex; align-items: center; gap: 4px; padding-right: 8px; }
+.sv-card:hover, .sv-card.is-menu { background: var(--card-hov); }
+.sv-card.is-live.is-error { box-shadow: inset 0 0 0 1px var(--s-err-bd); }
+/* Cards stack in DOM order; the one with its menu open must sit above the next. */
+.sv-card.is-menu { z-index: 5; }
+.sv-open {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 6px 12px 14px;
+  border: none;
+  border-radius: var(--r-lg);
+  background: none;
+  color: var(--fg);
+  font-family: inherit;
+  text-align: left;
+}
+.sv-open .ob-card-text { flex: 1; gap: 4px; }
+.sv-card.is-current .ob-card-icon { color: var(--accent-text); background: var(--tint-md); }
+.sv-name { display: flex; align-items: center; gap: 8px; }
+.sv-current {
+  padding: 1px 7px;
+  border-radius: var(--r-full);
+  background: var(--tint-md);
+  color: var(--accent-text);
+  font-size: var(--text-3xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.02em;
+}
+.sv-meta { display: flex; align-items: center; gap: 6px; }
+.sv-dot { width: 6px; height: 6px; flex-shrink: 0; border-radius: var(--r-full); background: var(--muted-soft); }
+.sv-dot.is-online { background: var(--s-ok); }
+.sv-dot.is-offline { background: var(--s-err); }
+.sv-dot.is-auth_required { background: var(--s-warn); }
+.sv-dot.is-idle { background: var(--muted-soft); }
+.sv-card.is-live.is-error .sv-meta { color: var(--s-err); }
+
+.sv-spin {
+  width: 15px;
+  height: 15px;
+  margin-right: 2px;
+  flex-shrink: 0;
+  border-radius: var(--r-full);
+  border: 1.75px solid var(--line-edge);
+  border-top-color: var(--accent);
+  animation: ob-spin 800ms linear infinite;
+}
+
+/* Hangs under the row, aligned with the server's name. */
+.sv-status { display: flex; flex-direction: column; gap: 12px; padding: 0 16px 14px 58px; animation: sv-fade 200ms var(--ease-out); }
+@keyframes sv-fade { from { opacity: 0; } }
+.sv-status-desc { margin-top: -4px; font-size: var(--text-sm); line-height: 1.55; color: var(--muted); }
+/* No padding on the text button, so alone it lines up with the text above. */
+.sv-status-actions { display: flex; align-items: center; gap: 18px; }
+.sv-details-btn { height: 34px; padding: 0; font-size: var(--text-sm); }
+.sv-log {
+  max-height: 168px;
+  padding: 10px 12px;
+  overflow: auto;
+  border-radius: var(--r-md);
+  background: var(--bg);
+  box-shadow: inset 0 0 0 1px var(--line-hair);
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* A launch with no server to attach its status to. */
+.sv-orphan { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; border-radius: var(--r-lg); background: var(--s-err-bg); color: var(--s-err); font-size: var(--text-sm); }
+.sv-orphan span + span { color: var(--muted); }
+
+/* At rest an arrow says "enters"; on hover it spells it out, like Enter Hylo. */
+.sv-enter {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  color: var(--muted-soft);
+  font-size: var(--text-sm);
+  font-weight: var(--fw-medium);
+  transition: color var(--motion-fast);
+}
+.sv-enter svg { width: 15px; height: 15px; transition: transform var(--motion-base) var(--ease-out); }
+.sv-enter-label { opacity: 0; transform: translateX(4px); transition: opacity var(--motion-base), transform var(--motion-base) var(--ease-out); }
+.sv-open:hover .sv-enter, .sv-open:focus-visible .sv-enter { color: var(--accent-text); }
+.sv-open:hover .sv-enter-label, .sv-open:focus-visible .sv-enter-label { opacity: 1; transform: none; }
+.sv-open:hover .sv-enter svg { transform: translateX(2px); }
+
+.sv-more { position: relative; flex-shrink: 0; }
+/* Takes no room at rest, so the arrow keeps the card's edge spacing; it opens
+   on hover and the Enter cue slides over to make way. */
+.sv-more-btn {
+  display: grid;
+  place-items: center;
+  width: 0;
+  height: 28px;
+  overflow: hidden;
+  border: none;
+  border-radius: 7px;
+  background: none;
+  color: var(--muted);
+  opacity: 0;
+  transition: width var(--motion-base) var(--ease-out), opacity var(--motion-fast),
+    background-color var(--motion-fast), color var(--motion-fast);
+}
+.sv-more-btn svg { width: 16px; height: 16px; flex-shrink: 0; }
+.sv-row:hover .sv-more-btn, .sv-card.is-menu .sv-more-btn, .sv-more-btn:focus-visible { width: 28px; opacity: 1; }
+.sv-more-btn:hover, .sv-card.is-menu .sv-more-btn { background: var(--btn-bg-hov); color: var(--fg); }
+
+.sv-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  z-index: 10;
+  min-width: 176px;
+  padding: 4px;
+  border-radius: 10px;
+  background: var(--surface-2);
+  box-shadow: 0 0 0 1px var(--line-edge), 0 8px 24px var(--shadow-color);
+}
+.sv-menu button {
+  display: block;
+  width: 100%;
+  height: 32px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: var(--fg);
+  font-family: inherit;
+  font-size: var(--text-sm);
+  text-align: left;
+}
+.sv-menu button:hover { background: var(--btn-bg-hov); }
+.sv-menu button.is-danger { color: var(--s-err); }
+.sv-menu button.is-danger:hover { background: var(--s-err-bg); }
+
+/* Lines up with the cards: the plus sits where their icons are centred. */
+.sv-list .ob-pick { padding: 10px 14px; }
+
+/* Edit and add forms unfold in place, as a card of their own. */
+.sv-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 4px;
+  padding: 16px;
+  border-radius: var(--r-lg);
+  background: var(--surface-soft);
+}
+.sv-form-title { font-size: var(--text-base); font-weight: var(--fw-semibold); }
+.sv-field { display: flex; flex-direction: column; gap: 6px; }
+.sv-field > span { font-size: var(--text-xs); color: var(--muted); }
+.sv-field em { font-style: normal; color: var(--muted-soft); }
+.sv-field input {
+  height: 36px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 8px;
+  background: var(--bg);
+  box-shadow: inset 0 0 0 1px var(--line-hair);
+  color: var(--fg);
+  font-family: inherit;
+  font-size: var(--text-sm);
+  outline: none;
+  user-select: text;
+  -webkit-user-select: text;
+  transition: box-shadow var(--motion-fast);
+}
+.sv-field input:focus { box-shadow: inset 0 0 0 1.5px var(--accent), 0 0 0 3px var(--input-focus-ring); }
+.sv-field input::placeholder { color: var(--muted-soft); }
+.sv-msg { margin-top: -4px; font-size: var(--text-xs); line-height: 1.5; }
+.sv-msg.is-error { color: var(--s-err); }
+.sv-msg.is-warn { color: var(--s-warn); }
+.sv-actions { display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin-top: 2px; }
+.sv-actions .ob-quiet { padding: 0 12px; }
+.sv-primary { height: 34px; padding: 0 16px; font-size: var(--text-sm); border-radius: 9px; }
+
+/* Same footer as onboarding's: Back sits on the bottom edge, below a gap. */
+.sv-foot { position: relative; height: 32px; margin-top: auto; padding-top: 2rem; box-sizing: content-box; }
+.sv-foot .ob-back { top: 2rem; }

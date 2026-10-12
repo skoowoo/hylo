@@ -44,15 +44,28 @@ func (c *ConversationAPI) ConversationsPOST(w http.ResponseWriter, r *http.Reque
 	var body struct {
 		MateID string `json:"mateId"`
 		Title  string `json:"title"`
+		// Opens the chat with the bot's first words (onboarding's hello).
+		Greeting string `json:"greeting"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		http.Error(w, "invalid json", http.StatusBadRequest)
 		return
 	}
-	conv, err := c.store.EnsureNewConv(strings.TrimSpace(body.MateID), mate.ConvTypeChat, "", strings.TrimSpace(body.Title), 10)
+	mateID := strings.TrimSpace(body.MateID)
+	conv, err := c.store.EnsureNewConv(mateID, mate.ConvTypeChat, "", strings.TrimSpace(body.Title), 10)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
+	}
+	if g := strings.TrimSpace(body.Greeting); g != "" {
+		m := mate.Message{ConversationID: conv.ID, Role: "assistant", Content: g, MateID: mateID, Status: "succeeded"}
+		if bot, err := c.store.GetMate(mateID); err == nil && bot != nil {
+			m.AgentID = bot.AgentID
+		}
+		if _, err := c.store.InsertMessage(m); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 	}
 	respondJSON(w, http.StatusCreated, map[string]any{"conversation": conv})
 }

@@ -473,6 +473,15 @@ const settingsAgentBotsJS = `
           placeholder: 'Reply to this WeChat message:\n\n{Content}',
           hint: 'WeChat DM trigger — use Content and WechatUserID in the prompt',
         },
+        discord_message: {
+          vars: [
+            { token: '{Content}', desc: 'Incoming Discord DM text' },
+            { token: '{DiscordChannelID}', desc: 'DM channel ID' },
+            { token: '{DiscordUserID}', desc: 'Sender Discord user ID' },
+          ],
+          placeholder: 'Reply to this Discord message:\n\n{Content}',
+          hint: 'Discord DM trigger — use Content, DiscordChannelID and DiscordUserID in the prompt',
+        },
         compile_requested: {
           vars: [
             { token: '{Path}', desc: 'Vault path of the note to compile' },
@@ -701,9 +710,13 @@ const settingsAgentBotsJS = `
       eventOf(t) { return (t.eventTypes || [])[0] || ''; },
       agentBotEventKind(t) { return this.AGENT_BOT_EVENT_KINDS[this.eventOf(t)] || null; },
 
-      // Schedule and WeChat triggers carry no path; the rest filter by path prefix
-      // (or, for agent_run_completed, by source bot name — same field).
-      hasPathFilter(t) { return ['scheduled', 'wechat_message'].indexOf(this.eventOf(t)) < 0; },
+      // Schedule and chat (WeChat/Discord) triggers carry no path; the rest filter
+      // by path prefix (or, for agent_run_completed, by source bot name — same field).
+      filterKindOf(et) {
+        if (['scheduled', 'wechat_message', 'discord_message'].indexOf(et) >= 0) return 'none';
+        return et === 'agent_run_completed' ? 'bots' : 'path';
+      },
+      hasPathFilter(t) { return this.filterKindOf(this.eventOf(t)) !== 'none'; },
       agentBotFilterFor(t) {
         if (this.eventOf(t) === 'agent_run_completed') {
           return {
@@ -735,6 +748,9 @@ const settingsAgentBotsJS = `
       },
 
       setAgentBotET(trigger, et) {
+        // Paths and bot names share pathPrefixes; a value meant for the old kind
+        // would linger hidden, or fail the backend's "/" check.
+        if (this.filterKindOf(this.eventOf(trigger)) !== this.filterKindOf(et)) trigger.pathPrefixes = [];
         if (et === 'scheduled') {
           trigger.eventTypes = ['scheduled'];
           if (!trigger.schedule) trigger.schedule = 'daily 09:00';

@@ -11,7 +11,7 @@ port = 54321
 [vault]
 # Root directory of the Vault (Hylo's personal data store).
 # Supports ~ for the home directory.
-path = "~/.hylo/root"
+path = "~/Documents/Hylo Vault"
 
 [log]
 level = "info"  # debug | info | warn | error

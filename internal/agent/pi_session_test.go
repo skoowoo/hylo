@@ -144,3 +144,13 @@ func TestPiStreamErrorPrefersMessage(t *testing.T) {
 		t.Fatalf("got %q", got)
 	}
 }
+
+func TestPiNewSessionWarningIsDropped(t *testing.T) {
+	in := "Warning: No project session found with id 'x'; creating a new session with that id.\nreal error\n"
+	if got := dropExpectedNoise("pi", in); got != "real error\n" {
+		t.Fatalf("got %q", got)
+	}
+	if got := dropExpectedNoise("claude", in); got != in {
+		t.Fatalf("other agents keep stderr, got %q", got)
+	}
+}

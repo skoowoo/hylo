@@ -1,0 +1,595 @@
+.ob {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 64px 48px 24px;
+  border-radius: 0;
+  background: var(--bg);
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-app-region: no-drag;
+  transition: opacity 240ms var(--ease-out), transform 240ms var(--ease-out);
+}
+.ob[hidden], .ob [x-cloak] { display: none !important; }
+.ob.is-intro { animation: ob-fade 420ms var(--ease-out) both; }
+@keyframes ob-fade { from { opacity: 0; } }
+.ob.is-leaving { opacity: 0; transform: scale(0.985); }
+
+.ob-stage { position: relative; flex: 1; min-height: 0; }
+
+.ob-step {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Steps cross-slide; the direction follows the move. */
+.ob-enter, .ob-leave {
+  transition: opacity var(--motion-view) var(--ease-out), transform var(--motion-view) var(--ease-out);
+}
+.ob-enter-from { opacity: 0; transform: translateX(28px); }
+.ob-leave-to { opacity: 0; transform: translateX(-28px); }
+.ob[data-dir="back"] .ob-enter-from { transform: translateX(-28px); }
+.ob[data-dir="back"] .ob-leave-to { transform: translateX(28px); }
+/* The first step appears in place; the intro animation carries it. */
+.ob.is-intro .ob-enter-from { opacity: 1; transform: none; }
+
+/* ── Type ─────────────────────────────────────────────── */
+.ob-title {
+  font-size: 1.5rem;
+  font-weight: var(--fw-semibold);
+  line-height: 1.25;
+  letter-spacing: -0.015em;
+}
+.ob-lead {
+  margin-top: 0.75rem;
+  font-size: var(--text-base);
+  line-height: 1.6;
+  color: var(--muted);
+}
+.ob-lead code {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  color: var(--fg);
+}
+
+/* ── Welcome ──────────────────────────────────────────── */
+.ob-step--welcome { justify-content: center; align-items: center; text-align: center; }
+.ob-hero { display: flex; flex-direction: column; align-items: center; margin-top: -24px; }
+.ob-hero .ob-title { font-size: 1.75rem; }
+.ob-hero .ob-lead { max-width: 360px; }
+.ob-points {
+  margin-top: 1rem;
+  font-size: var(--text-xs);
+  color: var(--muted);
+  opacity: 0.8;
+}
+
+.ob-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 2rem;
+}
+/* The icon carries its own transparent margin, so it sits a touch larger than the type. */
+.ob-logo-mark {
+  width: 36px;
+  height: 36px;
+  border-radius: 0;
+  -webkit-user-drag: none;
+  /* Traces the icon's own shape, so its dark tile still reads on the dark page. */
+  filter: drop-shadow(0 0 0.75px rgba(var(--ink-rgb), 0.4));
+}
+.ob-logo-name {
+  display: flex;
+  gap: 0.32em;
+  font-size: 0.9375rem;
+  font-weight: var(--fw-semibold);
+  color: var(--fg);
+}
+
+.ob-step.ob-step--welcome .ob-actions { width: 240px; margin-top: 2.5rem; }
+
+/* First paint only: the welcome copy rises in, letter by letter for the logo. */
+.ob.is-intro .ob-rise {
+  animation: ob-rise 560ms var(--ease-out) both;
+  animation-delay: var(--d, 0ms);
+}
+@keyframes ob-rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ── Content steps ────────────────────────────────────── */
+.ob-body { margin-top: 1.75rem; display: flex; flex-direction: column; gap: 8px; }
+.ob-step .ob-actions { margin-top: auto; display: flex; flex-direction: column; align-items: stretch; gap: 0.5rem; }
+
+.ob-card {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.625rem 0.75rem;
+  border-radius: var(--r-lg);
+  background: var(--surface-soft);
+  box-shadow: inset 0 0 0 1px transparent;
+  transition: background-color var(--motion-fast), box-shadow var(--motion-fast);
+}
+.ob-card.is-selected { box-shadow: inset 0 0 0 1.5px var(--accent); background: var(--tint-soft); }
+.ob-card-icon {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: 9px;
+  background: var(--btn-bg);
+  color: var(--muted);
+}
+.ob-card-icon svg { width: 17px; height: 17px; }
+.ob-card-icon img { width: 20px; height: 20px; }
+.ob-card.is-selected .ob-card-icon { color: var(--accent-text); background: var(--tint-md); }
+.ob-card-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.ob-card-name { font-size: var(--text-base); font-weight: var(--fw-medium); }
+.ob-card-meta {
+  font-size: var(--text-xs);
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ob-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.ob-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: var(--r-full);
+  background: var(--surface-soft);
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+/* ── Buttons ──────────────────────────────────────────── */
+.ob-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  height: 40px;
+  padding: 0 1.25rem;
+  border: none;
+  border-radius: 10px;
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-family: inherit;
+  font-size: var(--text-base);
+  font-weight: var(--fw-medium);
+  transition: background-color var(--motion-fast), transform var(--motion-fast) var(--ease-out);
+}
+.ob-primary:hover { background: var(--accent-hov); }
+.ob-primary:active { transform: scale(0.98); }
+.ob-primary svg { width: 14px; height: 14px; transition: transform var(--motion-base) var(--ease-out); }
+.ob-primary:hover svg { transform: translateX(2px); }
+
+.ob-quiet {
+  height: 32px;
+  border: none;
+  background: none;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: var(--text-sm);
+  transition: color var(--motion-fast);
+}
+.ob-quiet:hover { color: var(--fg); }
+
+/* ── Footer ───────────────────────────────────────────── */
+.ob-foot {
+  position: relative;
+  height: 32px;
+  margin-top: 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ob-back {
+  position: absolute;
+  left: -8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 28px;
+  padding: 0 8px;
+  border: none;
+  background: none;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: var(--text-sm);
+  transition: color var(--motion-fast), opacity var(--motion-base);
+}
+.ob-back:hover { color: var(--fg); }
+.ob-back svg { width: 14px; height: 14px; }
+.ob-back[disabled] { opacity: 0; pointer-events: none; }
+
+.ob-dots { display: flex; gap: 6px; }
+.ob-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--r-full);
+  background: var(--line-edge);
+  transition: width var(--motion-slow) var(--ease-out), background-color var(--motion-slow);
+}
+.ob-dot.is-done { background: var(--muted-soft); }
+.ob-dot.is-on { width: 18px; background: var(--accent); }
+
+/* ── Welcome: terminal opt-in ─────────────────────────── */
+.ob-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 1.125rem;
+  font-size: var(--text-sm);
+  color: var(--muted);
+  cursor: pointer;
+}
+.ob-toggle code { font-family: var(--font-mono); font-size: 0.92em; color: var(--fg); }
+.ob-toggle input {
+  appearance: none;
+  -webkit-appearance: none;
+  display: grid;
+  place-items: center;
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  border-radius: 4px;
+  box-shadow: inset 0 0 0 1.5px var(--line-edge);
+  transition: background-color var(--motion-fast), box-shadow var(--motion-fast);
+  cursor: pointer;
+}
+.ob-toggle input::after {
+  content: "";
+  width: 8px;
+  height: 4px;
+  margin-top: -2px;
+  border: solid var(--accent-fg);
+  border-width: 0 0 1.75px 1.75px;
+  border-radius: 0;
+  transform: rotate(-45deg) scale(0.6);
+  opacity: 0;
+  transition: opacity var(--motion-fast), transform var(--motion-base) var(--ease-spring);
+}
+.ob-toggle input:checked { background: var(--accent); box-shadow: none; }
+.ob-toggle input:checked::after { opacity: 1; transform: rotate(-45deg) scale(1); }
+
+/* ── Vault ────────────────────────────────────────────── */
+.ob-body--fill {
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 1.25rem -4px 0;
+  padding: 4px 4px 12px;
+  overflow-y: auto;
+  scrollbar-width: none;
+  /* Rows fade out at the edges instead of being cut. */
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 6px, #000 calc(100% - 16px), transparent);
+  mask-image: linear-gradient(to bottom, transparent, #000 6px, #000 calc(100% - 16px), transparent);
+}
+.ob-body--fill::-webkit-scrollbar { display: none; }
+.ob-opt { display: flex; flex-direction: column; }
+.ob-group {
+  margin: 0.875rem 0 0.375rem 2px;
+  font-size: var(--text-2xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted-soft);
+}
+
+.ob-card--option {
+  width: 100%;
+  border: none;
+  color: var(--fg);
+  font-family: inherit;
+  text-align: left;
+}
+.ob-card--option:hover:not(.is-selected) { background: var(--card-hov); }
+.ob-card--option .ob-card-text { flex: 1; }
+
+.ob-tick {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  border-radius: var(--r-full);
+  background: var(--accent);
+  color: var(--accent-fg);
+  opacity: 0;
+  transform: scale(0.5);
+  transition: opacity var(--motion-fast), transform var(--motion-base) var(--ease-spring);
+}
+.ob-tick svg { width: 11px; height: 11px; }
+.ob-card.is-selected .ob-tick { opacity: 1; transform: none; }
+
+.ob-pick {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  width: 100%;
+  margin-top: 2px;
+  padding: 0.625rem 0.75rem;
+  border: none;
+  border-radius: var(--r-lg);
+  background: none;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: var(--text-sm);
+  text-align: left;
+  transition: color var(--motion-fast), background-color var(--motion-fast);
+}
+.ob-pick svg { width: 15px; height: 15px; margin: 0 8.5px; }
+.ob-pick:hover { color: var(--fg); background: var(--btn-bg); }
+
+.ob-note {
+  min-height: 1.25rem;
+  margin: 0.5rem 0 1rem;
+  font-size: var(--text-xs);
+  line-height: 1.5;
+  color: var(--muted);
+  transition: color var(--motion-fast);
+}
+.ob-note.is-error { color: var(--s-err); }
+
+.ob-primary:disabled { cursor: default; }
+.ob-primary:disabled:not(.is-busy) { opacity: 0.5; }
+.ob-primary.is-busy { background: var(--accent); }
+.ob-spinner {
+  width: 14px;
+  height: 14px;
+  border-radius: var(--r-full);
+  border: 1.75px solid rgba(255, 255, 255, 0.35);
+  border-top-color: var(--accent-fg);
+  animation: ob-spin 700ms linear infinite;
+}
+@keyframes ob-spin { to { transform: rotate(360deg); } }
+
+/* ── AI: discovery ───────────────────────────────────── */
+.ob-scan {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 20px;
+  margin-top: 1.5rem;
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+.ob-radar {
+  position: relative;
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+  border-radius: var(--r-full);
+  background: var(--accent);
+  transition: background-color var(--motion-slow);
+}
+.ob-scan.is-waiting .ob-radar::before,
+.ob-scan.is-waiting .ob-radar::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--accent);
+  animation: ob-ping 1.6s var(--ease-out) infinite;
+}
+.ob-scan.is-waiting .ob-radar::after { animation-delay: 0.8s; }
+@keyframes ob-ping { from { transform: scale(1); opacity: 0.55; } to { transform: scale(3.6); opacity: 0; } }
+.ob-scan.has-found .ob-radar { background: var(--s-ok); }
+.ob-scan.is-ready:not(.has-found) .ob-radar { background: var(--muted-soft); }
+.ob-scan.is-error .ob-radar { background: var(--s-err); }
+.ob-scan-name {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  color: var(--muted-soft);
+}
+
+.ob-found {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 0.875rem;
+}
+.ob-agent {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  min-width: 70px;
+  padding: 0.75rem 0.5rem 0.5rem;
+  border: none;
+  border-radius: var(--r-lg);
+  background: var(--surface-soft);
+  box-shadow: inset 0 0 0 1px transparent;
+  color: var(--fg);
+  font-family: inherit;
+  transition: background-color var(--motion-fast), box-shadow var(--motion-fast);
+  animation: ob-pop 560ms var(--ease-spring) both;
+}
+@keyframes ob-pop {
+  from { opacity: 0; transform: translateY(8px) scale(0.7); }
+  60% { opacity: 1; }
+  to { opacity: 1; transform: none; }
+}
+/* A brief glow marks each find as it lands. */
+.ob-agent::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: 0 0 0 1.5px var(--accent);
+  opacity: 0;
+  animation: ob-found 900ms var(--ease-out) 120ms;
+  pointer-events: none;
+}
+@keyframes ob-found { 20% { opacity: 0.9; } }
+.ob-agent:hover:not(.is-selected) { background: var(--card-hov); }
+.ob-agent.is-selected { box-shadow: inset 0 0 0 1.5px var(--accent); background: var(--tint-soft); }
+.ob-agent-name { font-size: var(--text-2xs); color: var(--muted); white-space: nowrap; }
+.ob-agent.is-selected .ob-agent-name { color: var(--fg); }
+
+.ob-agent-logo {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  overflow: hidden;
+  border-radius: 10px;
+  background: var(--btn-bg);
+  color: var(--fg);
+}
+.ob-agent-logo img { width: 22px; height: 22px; }
+/* The page-wide corner radius would clip square marks like Pi's. */
+.ob-agent-logo img, .ob-glyph, .ob-card-icon img { border-radius: 0; }
+.ob-agent-logo img.is-full { width: 100%; height: 100%; }
+.ob-glyph {
+  width: 18px;
+  height: 18px;
+  background: currentColor;
+  -webkit-mask: var(--src) center / contain no-repeat;
+  mask: var(--src) center / contain no-repeat;
+}
+.ob-agent-logo--sm { width: 28px; height: 28px; border-radius: 8px; }
+.ob-agent-logo--sm img { width: 17px; height: 17px; }
+.ob-agent-logo--sm .ob-glyph { width: 14px; height: 14px; }
+.ob-on-light { display: none; }
+:root[data-theme="light"] .ob-on-light { display: block; }
+:root[data-theme="light"] .ob-on-dark { display: none; }
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) .ob-on-light { display: block; }
+  :root:not([data-theme="dark"]) .ob-on-dark { display: none; }
+}
+
+/* ── AI: status ───────────────────────────────────────── */
+.ob-ai-status { position: relative; flex: 1 1 auto; min-height: 0; margin-top: 1rem; }
+.ob-ai-status > * { position: absolute; left: 0; right: 0; top: 0; }
+.ob-ai-status .ob-note { margin: 0; }
+.ob-ai-status .ob-note + .ob-note { margin-top: 0.5rem; }
+
+.ob-hello {
+  animation: ob-rise 420ms var(--ease-out) both;
+  /* Never reaches the buttons, however many agents sit above it. */
+  max-height: 100%;
+  overflow: hidden;
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.875rem 1rem;
+  border-radius: var(--r-lg);
+  background: var(--surface-soft);
+}
+.ob-hello-body { display: flex; flex-direction: column; min-width: 0; min-height: 0; flex: 1; }
+.ob-hello-name { display: flex; align-items: center; gap: 8px; font-size: var(--text-sm); font-weight: var(--fw-semibold); }
+.ob-hello-ok {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--text-2xs);
+  font-weight: var(--fw-medium);
+  color: var(--s-ok);
+}
+.ob-hello-ok::before { content: ""; width: 6px; height: 6px; border-radius: var(--r-full); background: currentColor; }
+.ob-hello-text {
+  min-height: 1.5em;
+  overflow: hidden;
+  margin-top: 4px;
+  font-size: var(--text-base);
+  line-height: 1.5;
+  user-select: text;
+  -webkit-user-select: text;
+}
+.ob-hello-text.is-over {
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 1.5em), transparent);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 1.5em), transparent);
+}
+.ob-caret {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  margin-left: 1px;
+  vertical-align: -2px;
+  border-radius: 1px;
+  background: var(--accent);
+  animation: ob-caret 1s steps(1) infinite;
+}
+@keyframes ob-rise { from { opacity: 0; transform: translateY(10px); } }
+@keyframes ob-caret { 50% { opacity: 0; } }
+.ob-hello-fail { margin-top: 4px; font-size: var(--text-sm); line-height: 1.5; color: var(--fg); }
+.ob-hello-fail code { font-family: var(--font-mono); font-size: 0.92em; padding: 1px 5px; border-radius: 4px; background: var(--btn-bg); }
+.ob-hello-detail {
+  margin-top: 6px;
+  max-height: 3.2em;
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  line-height: 1.6;
+  color: var(--muted);
+  word-break: break-word;
+}
+
+/* ── AI: install Pi ───────────────────────────────────── */
+.ob-install { display: flex; flex-direction: column; gap: 0.625rem; }
+.ob-install-title { font-size: var(--text-sm); font-weight: var(--fw-semibold); }
+.ob-cmd {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0.375rem 0.375rem 0.375rem 0.75rem;
+  border-radius: var(--r-md);
+  background: var(--surface-soft);
+}
+.ob-cmd code {
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  user-select: text;
+  -webkit-user-select: text;
+  scrollbar-width: none;
+}
+.ob-copy {
+  height: 26px;
+  min-width: 58px;
+  padding: 0 10px;
+  border: none;
+  border-radius: 6px;
+  background: var(--btn-bg);
+  color: var(--fg);
+  font-family: inherit;
+  font-size: var(--text-xs);
+  transition: background-color var(--motion-fast);
+}
+.ob-copy:hover { background: var(--btn-bg-hov); }
+.ob-install-foot { font-size: var(--text-xs); line-height: 1.6; color: var(--muted); }
+.ob-install-foot code { font-family: var(--font-mono); color: var(--fg); }
+.ob-install-foot a { color: var(--accent-text); text-decoration: none; margin-left: 2px; }
+.ob-install-foot a:hover { text-decoration: underline; }
+
+.ob-toggle--sync { margin: -0.5rem 0 1rem; font-size: var(--text-xs); }
+.ob-toggle--sync code { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 220px; display: inline-block; vertical-align: bottom; }
+
+
+/* Entrances and flourishes settle at once; the spinner keeps turning, since it says work is going on. */
+@media (prefers-reduced-motion: reduce) {
+  .ob, .ob *, .ob *::before, .ob *::after {
+    animation-duration: 1ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+  .ob .ob-spinner { animation-duration: 700ms !important; animation-iteration-count: infinite !important; }
+}

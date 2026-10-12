@@ -4,6 +4,9 @@ package view
 // flash of the wrong theme. Dark lives on bare :root (shared_tokens.go);
 // light applies via :root[data-theme="light"] or an unforced OS preference.
 //
+// With nothing stored, the desktop shell's theme (window.__HYLO_THEME__)
+// seeds the choice once.
+//
 // The Settings → Editor "Theme" toggle stores light/dark/auto under the
 // 'hylo-theme' localStorage key and calls window.__hyloApplyTheme (see
 // shared_settings_modal.go's setTheme()); "auto" also gets a live
@@ -23,6 +26,9 @@ const themeBootstrapScript = `  <script>(function(){
     }catch(_){}
   };
   var stored=localStorage.getItem('hylo-theme');
+  // A page with no theme of its own starts on the desktop app's (dark for a new install).
+  var shellTheme=window.__HYLO_THEME__;
+  if(!stored&&(shellTheme==='light'||shellTheme==='dark')){stored=shellTheme;localStorage.setItem('hylo-theme',stored);}
   window.__hyloApplyTheme(stored==='light'||stored==='dark'?stored:'auto');
   if(window.matchMedia){
     window.matchMedia('(prefers-color-scheme: light)').addEventListener('change',function(){

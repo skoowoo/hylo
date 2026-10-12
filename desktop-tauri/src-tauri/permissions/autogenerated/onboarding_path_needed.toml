@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-onboarding-path-needed"
+description = "Enables the onboarding_path_needed command without any pre-configured scope."
+commands.allow = ["onboarding_path_needed"]
+
+[[permission]]
+identifier = "deny-onboarding-path-needed"
+description = "Denies the onboarding_path_needed command without any pre-configured scope."
+commands.deny = ["onboarding_path_needed"]

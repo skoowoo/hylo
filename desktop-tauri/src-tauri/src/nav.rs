@@ -23,21 +23,6 @@ pub fn is_shell_url(url: &Url) -> bool {
         || s.starts_with("http://localhost:1430")
 }
 
-/// `scheme://host:port` with brackets around IPv6, no path.
-pub fn http_origin(url: &Url) -> Option<String> {
-    if !matches!(url.scheme(), "http" | "https") {
-        return None;
-    }
-    let host = match url.host()? {
-        url::Host::Ipv6(addr) => format!("[{addr}]"),
-        other => other.to_string(),
-    };
-    match url.port() {
-        Some(port) => Some(format!("{}://{host}:{port}", url.scheme())),
-        None => Some(format!("{}://{host}", url.scheme())),
-    }
-}
-
 pub fn same_origin(page: &Url, server: &str) -> bool {
     let Ok(base) = Url::parse(server) else {
         return false;
@@ -72,19 +57,5 @@ mod tests {
         assert!(allow_navigation(&home, Some("http://127.0.0.1:54321")));
         assert!(!allow_navigation(&other, Some("http://127.0.0.1:54321")));
         assert!(!allow_navigation(&home, None));
-    }
-
-    #[test]
-    fn http_origin_keeps_port_and_ipv6_brackets() {
-        let v4 = Url::parse("http://127.0.0.1:54321/home").unwrap();
-        let v6 = Url::parse("http://[::1]:54321/home").unwrap();
-        let named = Url::parse("https://notes.example/a/b").unwrap();
-        assert_eq!(http_origin(&v4).as_deref(), Some("http://127.0.0.1:54321"));
-        assert_eq!(http_origin(&v6).as_deref(), Some("http://[::1]:54321"));
-        assert_eq!(
-            http_origin(&named).as_deref(),
-            Some("https://notes.example")
-        );
-        assert!(http_origin(&Url::parse("tauri://localhost/index.html").unwrap()).is_none());
     }
 }

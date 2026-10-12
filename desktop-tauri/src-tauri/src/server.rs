@@ -7,29 +7,6 @@ use std::time::{Duration, Instant};
 
 use serde::Serialize;
 
-use crate::cli;
-use crate::config::ConfigFile;
-
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct SpawnResult {
-    pub ok: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub reason: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub error: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub pid: Option<u32>,
-}
-
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ProcessStatus {
-    pub managed: bool,
-    pub pid: Option<u32>,
-    pub alive: bool,
-}
-
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DiagPaths {
@@ -53,7 +30,7 @@ pub fn diag_paths(data_dir: &Path) -> DiagPaths {
 }
 
 pub fn diag_log(data_dir: &Path, msg: &str) {
-    let line = format!("[{}] {msg}\n", chrono_stamp());
+    let line = format!("[{}] {msg}\n", stamp());
     eprintln!("[hylo-tauri] {msg}");
     if let Ok(mut f) = OpenOptions::new()
         .create(true)
@@ -64,16 +41,15 @@ pub fn diag_log(data_dir: &Path, msg: &str) {
     }
 }
 
-fn chrono_stamp() -> String {
+pub fn stamp() -> String {
     // Avoid a time crate: ISO-ish local stamp is enough for the shell log.
     let d = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs();
-    format!("{d}")
+        .unwrap_or_default();
+    format!("{}.{:03}", d.as_secs(), d.subsec_millis())
 }
 
-fn home_dir() -> PathBuf {
+pub fn home_dir() -> PathBuf {
     std::env::var_os("HOME")
         .or_else(|| std::env::var_os("USERPROFILE"))
         .map(PathBuf::from)
@@ -108,7 +84,7 @@ pub fn expanded_path() -> String {
     parts.join(if cfg!(windows) { ";" } else { ":" })
 }
 
-fn pid_path(data_dir: &Path) -> PathBuf {
+pub fn pid_path(data_dir: &Path) -> PathBuf {
     data_dir.join("hylo-server.pid")
 }
 
@@ -175,13 +151,16 @@ pub fn pid_is_hylo(pid: u32) -> bool {
     is_alive(pid) && looks_like_hylo(pid)
 }
 
-pub fn status(data_dir: &Path) -> ProcessStatus {
-    let pid = read_pid(data_dir);
-    ProcessStatus {
-        managed: pid.is_some(),
-        alive: pid.is_some_and(pid_is_hylo),
-        pid,
-    }
+/// The `Error: …` line the server printed when its latest start failed.
+pub fn last_error(data_dir: &Path) -> Option<String> {
+    let raw = fs::read(diag_paths(data_dir).server_output).ok()?;
+    let tail = String::from_utf8_lossy(&raw[raw.len().saturating_sub(8192)..]).into_owned();
+    let latest = tail.rfind("spawn hylo start server").map_or(tail.as_str(), |i| &tail[i..]);
+    latest
+        .lines()
+        .rev()
+        .find_map(|l| l.strip_prefix("Error: "))
+        .map(str::to_string)
 }
 
 fn bin_works(bin: &Path, path_env: &str) -> bool {
@@ -214,12 +193,7 @@ pub fn resolve_hylo_bin() -> Option<PathBuf> {
     let home = home_dir();
     let mut candidates = vec![home.join(".local").join("bin").join(bin_name())];
     candidates.push(PathBuf::from(bin_name()));
-    for bin in candidates {
-        if bin_works(&bin, &path_env) {
-            return Some(bin);
-        }
-    }
-    None
+    candidates.into_iter().find(|bin| bin_works(bin, &path_env))
 }
 
 fn bin_name() -> &'static str {
@@ -230,12 +204,15 @@ fn bin_name() -> &'static str {
     }
 }
 
+/// The server's own graceful shutdown gives up after 15s; most finish in well under this.
+pub const STOP_GRACE: Duration = Duration::from_secs(10);
+
 pub fn kill_hylo(data_dir: &Path, pid: u32) -> bool {
     if !pid_is_hylo(pid) {
         return true;
     }
     signal(pid, false);
-    let deadline = Instant::now() + Duration::from_secs(8);
+    let deadline = Instant::now() + STOP_GRACE;
     while Instant::now() < deadline {
         if !is_alive(pid) {
             return true;
@@ -244,14 +221,14 @@ pub fn kill_hylo(data_dir: &Path, pid: u32) -> bool {
     }
     diag_log(
         data_dir,
-        &format!("kill-process: still alive after 8s, forcing pid {pid}"),
+        &format!("kill-process: pid {pid} ignored SIGTERM, killing"),
     );
     signal(pid, true);
     thread::sleep(Duration::from_millis(300));
     !is_alive(pid)
 }
 
-fn signal(pid: u32, force: bool) {
+pub fn signal(pid: u32, force: bool) {
     #[cfg(unix)]
     {
         let sig = if force { libc::SIGKILL } else { libc::SIGTERM };
@@ -266,125 +243,4 @@ fn signal(pid: u32, force: bool) {
         }
         let _ = cmd.output();
     }
-}
-
-pub fn start_server(data_dir: &Path, archive: Option<PathBuf>) -> SpawnResult {
-    let paths = diag_paths(data_dir);
-    let _ = fs::create_dir_all(data_dir);
-    if let Ok(mut f) = OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(&paths.server_output)
-    {
-        let _ = writeln!(f, "\n--- {} spawn hylo start server ---", chrono_stamp());
-    }
-
-    let bin = match resolve_hylo_bin() {
-        Some(bin) => bin,
-        None => {
-            diag_log(
-                data_dir,
-                "start-server: hylo binary not found, attempting fallback CLI install",
-            );
-            match cli::install(data_dir, archive, true) {
-                Ok(cli::InstallOutcome::Skipped) => {
-                    return fail("`hylo` not found in PATH, /usr/local/bin, or ~/.local/bin (no bundled CLI archive available to install (dev mode?)).");
-                }
-                Ok(cli::InstallOutcome::Installed) => {
-                    let mut found = resolve_hylo_bin();
-                    for delay in [300, 600] {
-                        if found.is_some() {
-                            break;
-                        }
-                        thread::sleep(Duration::from_millis(delay));
-                        found = resolve_hylo_bin();
-                    }
-                    match found {
-                        Some(bin) => bin,
-                        None => {
-                            return fail(
-                                "reinstalling the bundled CLI did not produce a working binary",
-                            );
-                        }
-                    }
-                }
-                Err(e) => {
-                    return fail(&format!(
-                        "`hylo` not found, and fallback install failed: {e}"
-                    ))
-                }
-            }
-        }
-    };
-
-    let log = match OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(&paths.server_output)
-    {
-        Ok(f) => f,
-        Err(e) => return fail(&format!("cannot open log file ({e})")),
-    };
-    let log_err = match log.try_clone() {
-        Ok(f) => f,
-        Err(e) => return fail(&e.to_string()),
-    };
-
-    let mut cmd = Command::new(&bin);
-    cmd.args(["start", "server", "--pid-file"])
-        .arg(pid_path(data_dir))
-        .env("PATH", expanded_path())
-        .stdin(Stdio::null())
-        .stdout(Stdio::from(log))
-        .stderr(Stdio::from(log_err));
-    #[cfg(unix)]
-    {
-        use std::os::unix::process::CommandExt;
-        // New process group so quitting the shell does not take the server with it.
-        cmd.process_group(0);
-    }
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        cmd.creation_flags(0x00000008 | 0x08000000);
-    }
-
-    match cmd.spawn() {
-        Ok(child) => {
-            let pid = child.id();
-            diag_log(
-                data_dir,
-                &format!(
-                    "started hylo server, pid={pid} logs append to {}",
-                    paths.server_output
-                ),
-            );
-            SpawnResult {
-                ok: true,
-                reason: None,
-                error: None,
-                pid: Some(pid),
-            }
-        }
-        Err(e) => fail(&e.to_string()),
-    }
-}
-
-fn fail(msg: &str) -> SpawnResult {
-    SpawnResult {
-        ok: false,
-        reason: None,
-        error: Some(msg.to_string()),
-        pid: None,
-    }
-}
-
-pub fn autostart_enabled(data_dir: &Path) -> bool {
-    ConfigFile::load(data_dir).auto_start_server
-}
-
-pub fn set_autostart(data_dir: &Path, on: bool) -> Result<(), String> {
-    let mut cfg = ConfigFile::load(data_dir);
-    cfg.auto_start_server = on;
-    cfg.save(data_dir)
 }

@@ -78,6 +78,7 @@ type chatBody struct {
 	TriggerRun         bool              `json:"triggerRun"`         // when true, skip persisting the user prompt message
 	TriggerReply       bool              `json:"triggerReply"`       // when true, trigger run with reply callback — uses persistent agent session like chat
 	TriggerEvent       string            `json:"triggerEvent"`       // mate event type label stored on assistant message
+	Intro              bool              `json:"intro"`              // first chat after onboarding; see introPrompt
 	eventReply         plugin.ReplyFunc  // optional; invoked when trigger run completes
 }
 
@@ -144,7 +145,8 @@ func (a *AgentAPI) RunsPOST(w http.ResponseWriter, r *http.Request) {
 	a.logger.Info("agent run queued",
 		slog.String("runId", run.ID),
 		slog.String("agentId", body.AgentID))
-	go a.executeChat(r.Context(), run, body)
+	// The request ends as soon as the runId is sent; the run must outlive it.
+	go a.executeChat(context.WithoutCancel(r.Context()), run, body)
 	respondJSON(w, http.StatusAccepted, map[string]any{"runId": run.ID})
 }
 
@@ -387,6 +389,13 @@ func (a *AgentAPI) executeChat(ctx context.Context, run *agent.Run, body chatBod
 	}
 	body.SystemPrompt = mergeSystemPrompts(a.cfg.Agent.EffectiveSystemPrompt(), body.SystemPrompt)
 	body.SystemPrompt = mergeSystemPrompts(body.SystemPrompt, a.mcpPromptHint(body.AgentID))
+	if body.Intro {
+		// The user is watching an empty editor; drafting fast matters more than depth.
+		if body.Reasoning == "" {
+			body.Reasoning = "low"
+		}
+		body.SystemPrompt = mergeSystemPrompts(body.SystemPrompt, introPrompt(a.openingWords(body.ConversationID), vaultOverview(a.vault)))
+	}
 
 	// Persist user message and create assistant placeholder when a conversation
 	// is active. assistantMsgID is carried through to the completion handler.
@@ -715,6 +724,26 @@ func truncateStr(s string, max int) string {
 		return s
 	}
 	return s[:max] + "…"
+}
+
+// openingWords is what the bot already said in a conversation before the user
+// wrote anything: onboarding seeds it with the hello.
+func (a *AgentAPI) openingWords(conversationID string) string {
+	if a.store == nil || conversationID == "" {
+		return ""
+	}
+	msgs, err := a.store.ListMessages(conversationID)
+	if err != nil {
+		return ""
+	}
+	var said []string
+	for _, m := range msgs {
+		if m.Role != "assistant" {
+			break
+		}
+		said = append(said, m.Content)
+	}
+	return strings.Join(said, "\n")
 }
 
 func mergeSystemPrompts(global, mate string) string {

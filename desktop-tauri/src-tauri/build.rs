@@ -2,7 +2,6 @@ fn main() {
     tauri_build::try_build(tauri_build::Attributes::new().app_manifest(
         tauri_build::AppManifest::new().commands(&[
             "check_server",
-            "start_hylo_server_detached",
             "stop_hylo_server",
             "get_server_process_status",
             "get_shell_debug_paths",
@@ -11,6 +10,7 @@ fn main() {
             "update_server",
             "remove_server",
             "switch_server",
+            "enter_server",
             "probe_servers",
             "open_manager",
             "restart_hylo_server",
@@ -21,6 +21,17 @@ fn main() {
             "inbox_notify_set_settings",
             "inbox_notify_preview_sound",
             "toggle_maximize",
+            "onboarding_get",
+            "onboarding_set_step",
+            "onboarding_finish",
+            "onboarding_vaults",
+            "onboarding_set_vault",
+            "onboarding_path_needed",
+            "onboarding_add_to_path",
+            "onboarding_ready",
+            "onboarding_agents",
+            "onboarding_hello",
+            "onboarding_create_bot",
         ]),
     ))
     .expect("failed to run tauri-build");

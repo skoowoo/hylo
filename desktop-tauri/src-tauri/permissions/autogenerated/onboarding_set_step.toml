@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-onboarding-set-step"
+description = "Enables the onboarding_set_step command without any pre-configured scope."
+commands.allow = ["onboarding_set_step"]
+
+[[permission]]
+identifier = "deny-onboarding-set-step"
+description = "Denies the onboarding_set_step command without any pre-configured scope."
+commands.deny = ["onboarding_set_step"]

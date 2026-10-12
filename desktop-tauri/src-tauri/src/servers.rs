@@ -4,11 +4,12 @@ use serde::{Deserialize, Serialize};
 use tauri::webview::cookie::{time::Duration as CookieAge, Cookie, SameSite};
 use tauri::{AppHandle, Manager, State};
 
-use crate::commands::{navigate, show_start_at, ShellState};
+use crate::commands::ShellState;
 use crate::config::{normalize_url, ServerEntry, ServerKind, LOCAL_ID};
 use crate::notify::{InboxHandle, Target};
+use crate::local::{self, StartError};
 use crate::remote::{self, Health, ServerError, Session};
-use crate::server;
+use crate::session::{self, show_start, show_start_at};
 
 /// Rejection payload for the page: `code` picks the wording, `message` is the detail.
 #[derive(Debug, Serialize)]
@@ -19,6 +20,12 @@ pub struct CmdError {
 
 impl From<ServerError> for CmdError {
     fn from(e: ServerError) -> Self {
+        Self { code: e.code(), message: e.message() }
+    }
+}
+
+impl From<StartError> for CmdError {
+    fn from(e: StartError) -> Self {
         Self { code: e.code(), message: e.message() }
     }
 }
@@ -71,6 +78,16 @@ pub struct AddOpts {
 
 #[derive(Debug, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
+pub struct CheckOpts {
+    #[serde(default)]
+    user_initiated: bool,
+    /// Only look: the local server failed to start, and only the user starts it again.
+    #[serde(default)]
+    look_only: bool,
+}
+
+#[derive(Debug, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
 pub struct UpdateOpts {
     name: Option<String>,
     key: Option<String>,
@@ -106,7 +123,6 @@ pub fn list_servers(state: State<ShellState>) -> CmdResult<ServerList> {
 /// Leaves the server page for the shell's server manager, which is not served by any server.
 #[tauri::command]
 pub fn open_manager(app: AppHandle) {
-    app.state::<ShellState>().end_session();
     show_start_at(&app, "#servers");
 }
 
@@ -147,85 +163,113 @@ pub async fn update_server(app: AppHandle, id: String, opts: UpdateOpts) -> CmdR
 }
 
 #[tauri::command]
-pub async fn remove_server(app: AppHandle, id: String) -> CmdResult<ServerList> {
+pub fn remove_server(app: AppHandle, id: String) -> CmdResult<ServerList> {
     let state = app.state::<ShellState>();
-    let was_active = state.edit_config(|cfg| {
-        let was_active = cfg.active_id == id;
-        cfg.remove(&id)?;
-        Ok(was_active)
-    })?;
+    state.edit_config(|cfg| cfg.remove(&id))?;
     sync_inboxes(&app);
-    if was_active {
-        let local = state.read_config(|cfg| cfg.active().clone())?;
-        enter(&app, &local).await;
-    }
     Ok(snapshot(&state)?)
 }
 
-/// The local server writes its own key on first start; ask the CLI for the
-/// current one and remember it. Falls back to the last stored key.
-async fn refresh_local_key(app: &AppHandle) -> Option<String> {
+/// A key the local server accepts. The stored one is tried first; the CLI is
+/// asked (each read spawns it) only when there is none or it was refused,
+/// since the server writes its key on first start and it can be reset.
+pub async fn local_key(app: &AppHandle, base: &str) -> Result<Option<String>, ServerError> {
     let state = app.state::<ShellState>();
-    let fresh = match server::resolve_hylo_bin() {
-        Some(bin) => tauri::async_runtime::spawn_blocking(move || remote::read_local_key(&bin))
-            .await
-            .ok()
-            .flatten(),
-        None => None,
-    };
-    match fresh {
-        Some(key) => {
-            let stale = state
-                .read_config(|cfg| cfg.find(LOCAL_ID).and_then(|s| s.key.as_deref()) != Some(key.as_str()))
-                .ok()?;
-            if stale {
-                state.edit_config(|cfg| cfg.set_key(LOCAL_ID, key.clone())).ok()?;
-            }
-            Some(key)
+    let stored = state.read_config(|cfg| cfg.find(LOCAL_ID).and_then(|s| s.key.clone())).ok().flatten();
+    if let Some(key) = &stored {
+        match remote::check(base, Some(key)).await {
+            Err(ServerError::BadKey) => {}
+            other => return other.map(|_| stored),
         }
-        None => state.read_config(|cfg| cfg.find(LOCAL_ID).and_then(|s| s.key.clone())).ok()?,
     }
+    let handle = app.clone();
+    let fresh = tauri::async_runtime::spawn_blocking(move || handle.state::<ShellState>().local.read_key())
+        .await
+        .ok()
+        .flatten();
+    remote::check(base, fresh.as_deref()).await?;
+    if let Some(key) = &fresh {
+        if fresh != stored {
+            let _ = state.edit_config(|cfg| cfg.set_key(LOCAL_ID, key.clone()));
+            sync_inboxes(app);
+        }
+    }
+    Ok(fresh)
 }
 
-#[tauri::command]
-pub async fn switch_server(app: AppHandle, id: String) -> CmdResult<()> {
-    let state = app.state::<ShellState>();
-    let entry = state.edit_config(|cfg| {
-        let entry = cfg.find(&id).cloned().ok_or("unknown server")?;
-        cfg.active_id = entry.id.clone();
-        cfg.auto_start_server = true;
-        Ok(entry)
-    })?;
-    enter(&app, &entry).await;
+fn entry(app: &AppHandle, id: &str) -> Result<ServerEntry, String> {
+    app.state::<ShellState>()
+        .read_config(|cfg| cfg.find(id).cloned())?
+        .ok_or_else(|| "unknown server".into())
+}
+
+/// Whether the server can be entered now: up, Hylo, and taking its key. The
+/// local one is started first, and waited for.
+#[tauri::command(rename_all = "camelCase")]
+pub async fn check_server(app: AppHandle, id: String, opts: Option<CheckOpts>) -> CmdResult<()> {
+    let opts = opts.unwrap_or_default();
+    let entry = entry(&app, &id)?;
+    match entry.kind {
+        ServerKind::Local => {
+            if !opts.look_only {
+                local::ensure(&app, opts.user_initiated).await?;
+            }
+            local_key(&app, &entry.url).await?;
+        }
+        ServerKind::Remote => remote::check(&entry.url, entry.key.as_deref()).await?,
+    }
     Ok(())
 }
 
-/// Signs the webview in when a key is available, then loads the server.
-async fn enter(app: &AppHandle, entry: &ServerEntry) {
-    let state = app.state::<ShellState>();
+/// Makes `id` the server Hylo opens.
+fn make_active(app: &AppHandle, id: &str) -> Result<ServerEntry, String> {
+    app.state::<ShellState>().edit_config(|cfg| {
+        let entry = cfg.find(id).cloned().ok_or("unknown server")?;
+        cfg.active_id = entry.id.clone();
+        if entry.kind == ServerKind::Local {
+            cfg.auto_start_server = true;
+        }
+        Ok(entry)
+    })
+}
+
+/// From a server's page. The shell page takes over and enters `id` behind the
+/// logo, like every other way in; a remote that can't be entered is reported
+/// here instead, so the current page stays.
+#[tauri::command]
+pub async fn switch_server(app: AppHandle, id: String) -> CmdResult<()> {
+    let entry = entry(&app, &id)?;
+    if entry.kind == ServerKind::Remote {
+        remote::check(&entry.url, entry.key.as_deref()).await?;
+    }
+    make_active(&app, &id)?;
+    show_start(&app);
+    Ok(())
+}
+
+/// The shell page's last step in, once check_server passed: signs the window
+/// in and loads the server.
+#[tauri::command]
+pub async fn enter_server(app: AppHandle, id: String) -> CmdResult<()> {
+    let entry = make_active(&app, &id)?;
     let key = match entry.kind {
-        ServerKind::Local => refresh_local_key(app).await,
+        ServerKind::Local => local_key(&app, &entry.url).await?,
         ServerKind::Remote => entry.key.clone(),
     };
-
-    // With a key there is no login page: hand the webview a ready session.
-    if let Some(key) = key {
-        match remote::login(&entry.url, &key).await {
-            Ok(session) => inject_session(app, &entry.url, &session),
-            Err(e) => server::diag_log(
-                &state.data_dir,
-                &format!("switch {}: auto-login skipped: {}", entry.name, e.code()),
-            ),
-        }
+    // With a key there is no login page: hand the window a ready session.
+    if let Some(key) = &key {
+        let session = remote::login(&entry.url, key).await?;
+        inject_session(&app, &entry.url, &session);
     }
-
-    if let Ok(mut slot) = state.connected_url.lock() {
-        *slot = Some(entry.url.clone());
-    }
-    sync_inboxes(app);
-    let target = format!("{}/home", entry.url);
-    server::diag_log(&state.data_dir, &format!("navigate {target}"));
-    navigate(app, &target);
+    sync_inboxes(&app);
+    let state = app.state::<ShellState>();
+    let landing = match entry.kind {
+        ServerKind::Local => state.landing.lock().ok().and_then(|mut l| l.take()),
+        ServerKind::Remote => None,
+    };
+    let target = format!("{}{}", entry.url, landing.as_deref().unwrap_or("/home"));
+    session::open(&app, &entry.url, &target);
+    Ok(())
 }
 
 #[tauri::command]
@@ -314,6 +358,6 @@ pub fn sync_inboxes(app: &AppHandle) {
         if let Some(old) = live.remove(&id) {
             old.shutdown();
         }
-        live.insert(id, InboxHandle::start(app.clone(), state.data_dir.clone(), target));
+        live.insert(id, InboxHandle::start(app.clone(), target));
     }
 }

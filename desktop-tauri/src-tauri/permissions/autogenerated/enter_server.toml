@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-enter-server"
+description = "Enables the enter_server command without any pre-configured scope."
+commands.allow = ["enter_server"]
+
+[[permission]]
+identifier = "deny-enter-server"
+description = "Denies the enter_server command without any pre-configured scope."
+commands.deny = ["enter_server"]

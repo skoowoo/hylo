@@ -41,7 +41,7 @@ func buildConfigSchema() []SchemaField {
 
 		{Key: "vault.path", Type: "string", Section: "vault", Label: "Vault root",
 			Description: "Filesystem root directory for markdown notes (~ allowed).",
-			Default:     "~/.hylo/root"},
+			Default:     config.DefaultVaultPath},
 
 		{Key: "log.level", Type: "string", Section: "log", Label: "Log level",
 			Description: "Minimum log verbosity.",

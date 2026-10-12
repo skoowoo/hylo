@@ -527,6 +527,7 @@ const settingsServerJS = `
           case 'bad_key': return 'The API key was rejected. Run "hylo auth show" on that server to see it.';
           case 'not_hylo': return 'This address does not look like a Hylo server.';
           case 'unreachable': return 'Cannot reach this address. Check the URL and that the server is running.';
+          case 'unavailable': return 'This address answers, but Hylo on it is not running.';
           default: return err.message;
         }
       },

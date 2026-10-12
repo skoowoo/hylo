@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/spf13/viper"
@@ -327,6 +328,23 @@ Personal memory: the user may have structured memory files under _memory/. At th
 - Casual conversation or daily check-in       → _memory/_state.md + _memory/_identity.md
 Skip files that do not exist. Treat items under ## Active as current facts; treat ## Fading items with lower confidence.`
 
+// DefaultVaultPath is where a new install keeps its notes: visible in Finder,
+// unlike the legacy ~/.hylo/root.
+const DefaultVaultPath = "~/Documents/Hylo Vault"
+
+const legacyVaultPath = "~/.hylo/root"
+
+// defaultVaultPath keeps an install that predates DefaultVaultPath, and never
+// set vault.path, on the vault it already has.
+func defaultVaultPath() string {
+	if home, err := os.UserHomeDir(); err == nil {
+		if info, err := os.Stat(filepath.Join(home, ".hylo", "root")); err == nil && info.IsDir() {
+			return legacyVaultPath
+		}
+	}
+	return DefaultVaultPath
+}
+
 func setDefaults(v *viper.Viper) {
 	v.SetDefault("server.host", "127.0.0.1")
 	v.SetDefault("server.port", 54321)
@@ -336,7 +354,7 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("log.level", "info")
 	v.SetDefault("log.format", "text")
 
-	v.SetDefault("vault.path", "~/.hylo/root")
+	v.SetDefault("vault.path", defaultVaultPath())
 	v.SetDefault("vault.shorts_dir", "_shorts")
 	v.SetDefault("vault.knowledge_dir", "_knowledge")
 

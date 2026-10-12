@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-onboarding-hello"
+description = "Enables the onboarding_hello command without any pre-configured scope."
+commands.allow = ["onboarding_hello"]
+
+[[permission]]
+identifier = "deny-onboarding-hello"
+description = "Denies the onboarding_hello command without any pre-configured scope."
+commands.deny = ["onboarding_hello"]

@@ -20,7 +20,7 @@ LDFLAGS := -s -w \
   -X $(MODULE)/internal/build.Commit=$(COMMIT) \
   -X $(MODULE)/internal/build.BuildDate=$(BUILD_DATE)
 
-.PHONY: build run serve lint test test-js clean tidy clip-zip icons editor dist-all dist-clean dist-cli dist-cli-snapshot dist-cli-linux dist-clip dist-dmg dist-win-app dist-checksum
+.PHONY: build run serve lint test test-js clean tidy clip-zip icons editor desktop-ui dist-all dist-clean dist-cli dist-cli-snapshot dist-cli-linux dist-clip dist-dmg dist-win-app dist-checksum
 
 ## build: compile the binary into ./bin/hylo
 build:
@@ -62,6 +62,11 @@ icons:
 ## editor: bundle editor JS into internal/server/static/editor.js
 editor:
 	cd editor && npm run build
+
+## desktop-ui: sync tokens, Alpine and fonts into the desktop shell page
+desktop-ui:
+	UPDATE_DESKTOP_TOKENS=1 go test ./internal/server/view -run TestDesktopShellTokens -count=1
+	node desktop-tauri/scripts/sync-ui.mjs
 
 ## clean: remove build artifacts
 clean:

@@ -68,6 +68,32 @@ pub struct ConfigFile {
     pub auto_start_server: bool,
     #[serde(default)]
     pub inbox_notify: InboxNotify,
+    /// Missing means done: only a fresh install starts with it pending.
+    #[serde(default)]
+    pub onboarding: Onboarding,
+    /// The app's theme as the page last applied it: "dark", "light", or empty
+    /// for following the OS. Paints the shell page and native chrome before
+    /// any page loads, and seeds a page that has no theme of its own.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub theme: String,
+}
+
+/// "dark" / "light", or None for following the OS.
+pub fn theme_choice(theme: &str) -> Option<tauri::Theme> {
+    match theme {
+        "dark" => Some(tauri::Theme::Dark),
+        "light" => Some(tauri::Theme::Light),
+        _ => None,
+    }
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct Onboarding {
+    #[serde(default)]
+    pub pending: bool,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub step: String,
 }
 
 impl Default for ConfigFile {
@@ -77,6 +103,8 @@ impl Default for ConfigFile {
             active_id: String::new(),
             auto_start_server: true,
             inbox_notify: InboxNotify::default(),
+            onboarding: Onboarding::default(),
+            theme: String::new(),
         };
         cfg.ensure_valid();
         cfg
@@ -128,10 +156,6 @@ impl ConfigFile {
             .map(|n| format!("srv-{n}"))
             .find(|id| !self.servers.iter().any(|s| &s.id == id))
             .expect("unbounded range")
-    }
-
-    pub fn active(&self) -> &ServerEntry {
-        self.find(&self.active_id).expect("ensure_valid keeps active_id valid")
     }
 
     pub fn find(&self, id: &str) -> Option<&ServerEntry> {
@@ -262,8 +286,17 @@ mod tests {
         let cfg = parse("{}");
         assert_eq!(cfg.servers.len(), 1);
         assert_eq!(cfg.active_id, LOCAL_ID);
-        assert_eq!(cfg.active().url, DEFAULT_SERVER_URL);
-        assert_eq!(cfg.active().kind, ServerKind::Local);
+        let active = cfg.find(&cfg.active_id).unwrap();
+        assert_eq!(active.url, DEFAULT_SERVER_URL);
+        assert_eq!(active.kind, ServerKind::Local);
+    }
+
+    #[test]
+    fn existing_config_skips_onboarding() {
+        assert!(!parse("{}").onboarding.pending);
+        let cfg = parse(r#"{"onboarding":{"pending":true,"step":"vault"}}"#);
+        assert!(cfg.onboarding.pending);
+        assert_eq!(cfg.onboarding.step, "vault");
     }
 
     #[test]

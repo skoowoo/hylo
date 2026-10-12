@@ -164,16 +164,14 @@ fn copy_defaults(tmp: &Path, data_dir: &Path) {
         return;
     }
     let config_dst = hylo_dir.join("config.toml");
-    if !config_dst.exists() {
-        if fs::copy(tmp.join("config.example.toml"), &config_dst).is_ok() {
-            server::diag_log(
-                data_dir,
-                &format!(
-                    "cli-installer: installed default config to {}",
-                    config_dst.display()
-                ),
-            );
-        }
+    if !config_dst.exists() && fs::copy(tmp.join("config.example.toml"), &config_dst).is_ok() {
+        server::diag_log(
+            data_dir,
+            &format!(
+                "cli-installer: installed default config to {}",
+                config_dst.display()
+            ),
+        );
     }
     let skills_src = tmp.join("skills");
     if skills_src.is_dir() {

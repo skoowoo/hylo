@@ -5,6 +5,13 @@ import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../ui");
 const port = 1430;
+const types = {
+  ".html": "text/html; charset=utf-8",
+  ".css": "text/css; charset=utf-8",
+  ".js": "text/javascript; charset=utf-8",
+  ".woff2": "font/woff2",
+  ".svg": "image/svg+xml",
+};
 
 http
   .createServer((req, res) => {
@@ -23,7 +30,7 @@ http
         res.end("not found");
         return;
       }
-      res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+      res.writeHead(200, { "content-type": types[path.extname(file)] || "application/octet-stream" });
       res.end(data);
     });
   })

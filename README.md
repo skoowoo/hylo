@@ -1,4 +1,6 @@
-# Hylo: AI-native note space compatible with Obsidian. AI agents organize and help you use your notes.
+# Hylo: a personal AI agent powered by your notes. Always on, Obsidian-compatible.
+
+You just write. Hylo learns who you are from your notes, then works for you around the clock: organizing your notes into knowledge, answering from them, and going beyond them, like picking the news you'll care about.
 
 [中文文档](./README_ZH.md)
 
@@ -59,7 +61,6 @@
 - **Shorts**: a daily capture stream for quick notes, accessible from anywhere
 - **Instant search** inspired by Raycast: find anything as you type
 - **Clip browser extension**: save any webpage as Markdown with one click
-- Can also be self-hosted on a remote server
 
 #### 🤖 Event-Driven Multi-Agent System
 - **7 agent CLIs** supported out of the box
@@ -73,16 +74,19 @@
 - Automatically extracts **personal memories** from your notes (identity, preferences, goals, beliefs, people, and current state) into structured files that stay current
 - Lets your AI agents truly **know you**: every conversation carries memory instead of starting cold
 
-#### 🔒 Local-First, Fully Offline
-- All your data lives on your own machine: Markdown files, SQLite metadata, full-text index
-- The desktop app bundles every dependency: no CDN, no cloud account, no internet required
+#### ☁️ Always On, Self-Hosted
+- Deploy Hylo on a home server or cloud instance and your agent stays **online 24/7**, even when your laptop is closed
+- Scheduled bots keep running, and the agent answers on WeChat or Discord anytime
+- Your data stays on a machine you own: Markdown files, SQLite metadata, full-text index. See [Remote Deployment](./docs/remote-deployment.md)
 
 #### 🌐 Multiple Access Channels
 - Available via **CLI**, **desktop app**, **WeChat**, and **Discord**
 
 ## Design
 
-Hylo has one core idea: **let AI organize your notes, not you.**
+Hylo has one core idea: **you write, your agent does the rest.**
+
+Your notes are how the agent gets to know you. What you write tells it what you're working on, what you care about, and how you think. With that, it does more than manage notes: it organizes them for you, answers from them, and works for you beyond them, like a morning news digest picked for your interests.
 
 #### Write freely, don't manage
 
@@ -103,6 +107,10 @@ The entire pipeline runs automatically. You don't need to be involved in any org
 #### AI retrieves, you don't browse
 
 Hylo ships full-text search, but the more important capability is letting agents retrieve on your behalf. When you need something, ask an agent directly. It searches your notes and knowledge base and surfaces the answer.
+
+#### Always on
+
+An agent that works for you should not stop when your laptop sleeps. Run Hylo Server on a home server or cloud instance, connect the desktop app to it, and your agent keeps working around the clock: scheduled bots run on time, and you can reach it from WeChat or Discord wherever you are.
 
 #### ⚠️ Things you must know before using Hylo
 
@@ -140,7 +148,7 @@ Because it's a plain HTTP server, it deploys equally well on your local machine 
 
 ## Installation
 
-> **For most users:** install the Desktop App and the Clip extension — that's it. The Desktop App detects the CLI on first launch and offers one-click installation if it is not found. A standalone Server & CLI installation is only needed if you want to deploy Hylo on a remote or headless host.
+> **To get started:** install the Desktop App and the Clip extension. The Desktop App detects the CLI on first launch and offers one-click installation if it is not found. To keep your agent online 24/7, also deploy the Server on a remote or home host (see [Remote Deployment](./docs/remote-deployment.md)).
 
 #### 💻 Desktop App
 
@@ -178,6 +186,8 @@ Run the following command to install the Hylo server and CLI:
 ```sh
 curl -sL https://raw.githubusercontent.com/skoowoo/hylo/main/install-cli.sh | sh
 ```
+
+To run it on a remote host behind HTTPS, follow [Remote Deployment](./docs/remote-deployment.md). Then in the Desktop App, open the server switcher → **Manage servers…** → **Add a remote server**, and paste the key from `hylo auth show` on that host.
 
 ## Obsidian Compatibility
 

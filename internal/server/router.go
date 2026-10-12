@@ -188,6 +188,7 @@ func newRouter(
 	mux.HandleFunc("POST /api/vault/move", gh.Move)
 	mux.HandleFunc("POST /api/vault/rename", gh.Rename)
 	mux.HandleFunc("GET /api/vault/check-name", gh.CheckName)
+	mux.Handle("GET /api/vault/overview", handler.NewVaultOverview(vault))
 	mux.HandleFunc("GET /api/vault/rename-status", gh.RenameStatus)
 	mux.HandleFunc("POST /api/vault/upload-image", gh.UploadImage)
 	mux.HandleFunc("POST /api/vault/pin", gh.Pin)

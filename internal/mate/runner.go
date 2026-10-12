@@ -300,7 +300,7 @@ func matchMateEvent(triggerTypes []string, events []MateEvent) (MateEvent, bool)
 }
 
 // matchPathPrefixes returns true when the event should pass through the trigger's path filter.
-// Events without a path (scheduled, wechat_message) always pass. An empty prefix list passes all.
+// Events without a path (scheduled, wechat_message, discord_message) always pass. An empty prefix list passes all.
 func matchPathPrefixes(prefixes []string, me MateEvent) bool {
 	if len(prefixes) == 0 || me.Path == "" {
 		return true

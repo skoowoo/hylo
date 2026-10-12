@@ -1,0 +1,319 @@
+use std::collections::HashMap;
+use std::fs;
+use std::io::ErrorKind;
+use std::path::{Path, PathBuf};
+
+use serde::{Deserialize, Serialize};
+use tauri::AppHandle;
+
+use crate::server;
+
+/// Mirrors config.DefaultVaultPath on the Go side.
+pub const DEFAULT_VAULT: &str = "~/Documents/Hylo Vault";
+
+#[derive(Debug, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct VaultChoice {
+    name: String,
+    path: String,
+    display: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    last_opened: Option<u64>,
+    /// The vault config.toml already points at (a replayed onboarding).
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    current: bool,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VaultChoices {
+    default: VaultChoice,
+    obsidian: Vec<VaultChoice>,
+    /// The current vault when it is neither the default nor an Obsidian one.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    current: Option<VaultChoice>,
+    /// Where git sync pushes, when it is on: switching vaults would point it
+    /// at the same remote.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    git_sync: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct Registry {
+    #[serde(default)]
+    vaults: HashMap<String, RegistryEntry>,
+}
+
+#[derive(Deserialize)]
+struct RegistryEntry {
+    path: String,
+    #[serde(default)]
+    ts: Option<u64>,
+}
+
+fn obsidian_registry(home: &Path) -> Option<PathBuf> {
+    if cfg!(target_os = "macos") {
+        return Some(home.join("Library/Application Support/obsidian/obsidian.json"));
+    }
+    if cfg!(windows) {
+        return std::env::var_os("APPDATA")
+            .map(|d| PathBuf::from(d).join("obsidian").join("obsidian.json"));
+    }
+    let config = std::env::var_os("XDG_CONFIG_HOME")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| home.join(".config"));
+    Some(config.join("obsidian").join("obsidian.json"))
+}
+
+fn display_path(path: &str, home: &Path) -> String {
+    let home = home.to_string_lossy();
+    match path.strip_prefix(home.as_ref()) {
+        Some(rest) if rest.is_empty() || rest.starts_with('/') => format!("~{rest}"),
+        _ => path.to_string(),
+    }
+}
+
+fn choice(path: &str, last_opened: Option<u64>, home: &Path) -> VaultChoice {
+    let name = Path::new(path.trim_end_matches('/'))
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_else(|| path.to_string());
+    VaultChoice {
+        name,
+        path: path.to_string(),
+        display: display_path(path, home),
+        last_opened,
+        current: false,
+    }
+}
+
+/// Reads Obsidian's own list of vaults, most recently opened first. The vault
+/// folders are never touched: most sit under Documents or iCloud Drive, and
+/// reading them would raise macOS's folder-access prompt before the user has
+/// picked anything.
+fn parse_registry(raw: &str, home: &Path) -> Vec<VaultChoice> {
+    let Ok(reg) = serde_json::from_str::<Registry>(raw) else {
+        return Vec::new();
+    };
+    let mut entries: Vec<RegistryEntry> = reg
+        .vaults
+        .into_values()
+        .filter(|e| Path::new(&e.path).is_absolute())
+        .collect();
+    entries.sort_by(|a, b| b.ts.cmp(&a.ts).then_with(|| a.path.cmp(&b.path)));
+    entries.dedup_by(|a, b| a.path == b.path);
+    entries.iter().map(|e| choice(&e.path, e.ts, home)).collect()
+}
+
+fn config_file(home: &Path) -> PathBuf {
+    home.join(".hylo").join("config.toml")
+}
+
+fn read_doc(file: &Path) -> Result<toml_edit::DocumentMut, String> {
+    let raw = match fs::read_to_string(file) {
+        Ok(raw) => raw,
+        Err(e) if e.kind() == ErrorKind::NotFound => String::new(),
+        Err(e) => return Err(e.to_string()),
+    };
+    raw.parse()
+        .map_err(|e| format!("{} is not valid TOML: {e}", file.display()))
+}
+
+fn vault_path(doc: &toml_edit::DocumentMut) -> Option<String> {
+    doc.get("vault")?.get("path")?.as_str().map(str::to_string)
+}
+
+fn git_sync_remote(doc: &toml_edit::DocumentMut) -> Option<String> {
+    let sync = doc.get("plugins")?.get("git_sync")?;
+    if sync.get("enabled")?.as_bool() != Some(true) {
+        return None;
+    }
+    let remote = sync.get("remote")?.as_str()?.trim();
+    (!remote.is_empty()).then(|| short_remote(remote))
+}
+
+/// `https://github.com/a/b.git` and `git@github.com:a/b.git` both read `github.com/a/b`.
+fn short_remote(remote: &str) -> String {
+    let r = remote
+        .trim_start_matches("https://")
+        .trim_start_matches("http://")
+        .trim_start_matches("ssh://")
+        .trim_start_matches("git@");
+    let r = r.rsplit_once('@').map_or(r, |(_, host)| host);
+    r.trim_end_matches(".git").replacen(':', "/", 1)
+}
+
+#[tauri::command]
+pub fn onboarding_vaults() -> VaultChoices {
+    let home = server::home_dir();
+    let mut obsidian = obsidian_registry(&home)
+        .and_then(|p| fs::read_to_string(p).ok())
+        .map(|raw| parse_registry(&raw, &home))
+        .unwrap_or_default();
+    let mut default = choice(DEFAULT_VAULT, None, &home);
+    default.display = DEFAULT_VAULT.to_string();
+
+    let doc = read_doc(&config_file(&home)).unwrap_or_default();
+    let mut current = None;
+    if let Some(path) = vault_path(&doc) {
+        let target = expand(&path, &home);
+        if target == expand(DEFAULT_VAULT, &home) {
+            default.current = true;
+        } else if let Some(o) = obsidian.iter_mut().find(|o| Path::new(&o.path) == target) {
+            o.current = true;
+        } else {
+            let mut c = choice(&target.to_string_lossy(), None, &home);
+            c.path = path;
+            c.current = true;
+            current = Some(c);
+        }
+    }
+    VaultChoices { default, obsidian, current, git_sync: git_sync_remote(&doc) }
+}
+
+fn expand(path: &str, home: &Path) -> PathBuf {
+    match path.strip_prefix("~/") {
+        Some(rest) => home.join(rest),
+        None => PathBuf::from(path),
+    }
+}
+
+fn access_error(e: std::io::Error) -> String {
+    match e.kind() {
+        ErrorKind::PermissionDenied => "Hylo can't open this folder. Allow access in System Settings › Privacy & Security › Files & Folders, or pick another folder.".into(),
+        ErrorKind::NotFound => "This folder no longer exists. Pick another one.".into(),
+        _ => e.to_string(),
+    }
+}
+
+/// Points the server at `path`; false when config.toml already did. A
+/// different vault already on file is kept in config.toml.bak, so switching
+/// never loses where the old notes were. `pause_git_sync` turns sync off so
+/// the new vault isn't wired to the old vault's remote.
+fn write_vault_path(file: &Path, path: &str, pause_git_sync: bool, home: &Path) -> Result<bool, String> {
+    let mut doc = read_doc(file)?;
+    let prev = vault_path(&doc);
+    if prev.as_deref().is_some_and(|p| expand(p, home) == expand(path, home)) {
+        return Ok(false);
+    }
+    if prev.is_some() {
+        fs::copy(file, file.with_extension("toml.bak")).map_err(|e| e.to_string())?;
+    }
+    doc["vault"]["path"] = toml_edit::value(path);
+    if pause_git_sync && git_sync_remote(&doc).is_some() {
+        doc["plugins"]["git_sync"]["enabled"] = toml_edit::value(false);
+    }
+    if let Some(dir) = file.parent() {
+        fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+    }
+    fs::write(file, doc.to_string()).map_err(|e| e.to_string())?;
+    Ok(true)
+}
+
+/// Creating the default folder here, on the user's click, is what raises
+/// macOS's Documents prompt at a moment it makes sense. Returns whether the
+/// vault changed.
+#[tauri::command]
+pub async fn onboarding_set_vault(
+    app: AppHandle,
+    path: String,
+    pause_git_sync: Option<bool>,
+) -> Result<bool, String> {
+    let home = server::home_dir();
+    let target = expand(&path, &home);
+    if path == DEFAULT_VAULT {
+        fs::create_dir_all(&target).map_err(access_error)?;
+    } else {
+        fs::read_dir(&target).map_err(access_error)?;
+    }
+    if !write_vault_path(&config_file(&home), &path, pause_git_sync.unwrap_or(false), &home)? {
+        return Ok(false);
+    }
+
+    // A server already up or still indexing (a replayed onboarding, or Back
+    // from the AI step) has the old vault open.
+    crate::local::kill(&app).await?;
+    Ok(true)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn registry_newest_first_with_home_shortened() {
+        let home = Path::new("/Users/me");
+        let raw = r#"{"vaults":{
+            "a":{"path":"/Users/me/Documents/Old","ts":100},
+            "b":{"path":"/Users/me/Notes","ts":300,"open":true},
+            "c":{"path":"relative/skip","ts":999},
+            "d":{"path":"/Volumes/Ext/Work","ts":200}
+        }}"#;
+        let got = parse_registry(raw, home);
+        let names: Vec<_> = got.iter().map(|c| c.name.as_str()).collect();
+        assert_eq!(names, ["Notes", "Work", "Old"]);
+        assert_eq!(got[0].display, "~/Notes");
+        assert_eq!(got[1].display, "/Volumes/Ext/Work");
+        assert_eq!(got[0].last_opened, Some(300));
+        assert!(parse_registry("not json", home).is_empty());
+    }
+
+    #[test]
+    fn display_only_shortens_whole_home_segment() {
+        let home = Path::new("/Users/me");
+        assert_eq!(display_path("/Users/me", home), "~");
+        assert_eq!(display_path("/Users/meg/x", home), "/Users/meg/x");
+    }
+
+    #[test]
+    fn vault_path_written_and_old_one_backed_up() {
+        let dir = std::env::temp_dir().join(format!("hylo-vault-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        let file = dir.join("config.toml");
+
+        let home = Path::new("/Users/me");
+        assert!(write_vault_path(&file, DEFAULT_VAULT, false, home).unwrap());
+        assert!(fs::read_to_string(&file).unwrap().contains("path = \"~/Documents/Hylo Vault\""));
+        assert!(!file.with_extension("toml.bak").exists());
+        // The same folder spelled out in full is no switch.
+        assert!(!write_vault_path(&file, "/Users/me/Documents/Hylo Vault", false, home).unwrap());
+        assert!(!file.with_extension("toml.bak").exists());
+
+        fs::write(&file, "# keep me\n[server]\nport = 1\n\n[vault]\npath = \"~/.hylo/root\"\n").unwrap();
+        assert!(write_vault_path(&file, "/Users/me/Notes", false, home).unwrap());
+        let out = fs::read_to_string(&file).unwrap();
+        assert!(out.contains("# keep me") && out.contains("port = 1"));
+        assert!(out.contains("path = \"/Users/me/Notes\""));
+        assert!(fs::read_to_string(file.with_extension("toml.bak")).unwrap().contains("~/.hylo/root"));
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn switching_can_pause_git_sync() {
+        let dir = std::env::temp_dir().join(format!("hylo-sync-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("config.toml");
+        let cfg = "[vault]\npath = \"/old\"\n\n[plugins.git_sync]\nenabled = true\nremote = \"git@github.com:me/notes.git\"\n";
+        fs::write(&file, cfg).unwrap();
+        assert_eq!(git_sync_remote(&read_doc(&file).unwrap()).as_deref(), Some("github.com/me/notes"));
+
+        let home = Path::new("/Users/me");
+        write_vault_path(&file, "/new", false, home).unwrap();
+        assert!(git_sync_remote(&read_doc(&file).unwrap()).is_some());
+
+        fs::write(&file, cfg).unwrap();
+        write_vault_path(&file, "/new", true, home).unwrap();
+        let doc = read_doc(&file).unwrap();
+        assert!(git_sync_remote(&doc).is_none());
+        assert_eq!(doc["plugins"]["git_sync"]["remote"].as_str(), Some("git@github.com:me/notes.git"));
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn remotes_read_the_same_either_way() {
+        assert_eq!(short_remote("https://github.com/a/b.git"), "github.com/a/b");
+        assert_eq!(short_remote("git@github.com:a/b.git"), "github.com/a/b");
+        assert_eq!(short_remote("https://token@github.com/a/b"), "github.com/a/b");
+    }
+}

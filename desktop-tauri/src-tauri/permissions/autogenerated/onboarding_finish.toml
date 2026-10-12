@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-onboarding-finish"
+description = "Enables the onboarding_finish command without any pre-configured scope."
+commands.allow = ["onboarding_finish"]
+
+[[permission]]
+identifier = "deny-onboarding-finish"
+description = "Denies the onboarding_finish command without any pre-configured scope."
+commands.deny = ["onboarding_finish"]

@@ -10,7 +10,6 @@
     "notification:default",
     "opener:default",
     "allow-check-server",
-    "allow-start-hylo-server-detached",
     "allow-stop-hylo-server",
     "allow-get-server-process-status",
     "allow-get-shell-debug-paths",
@@ -19,6 +18,7 @@
     "allow-update-server",
     "allow-remove-server",
     "allow-switch-server",
+    "allow-enter-server",
     "allow-probe-servers",
     "allow-open-manager",
     "allow-restart-hylo-server",
@@ -28,6 +28,17 @@
     "allow-inbox-notify-get-settings",
     "allow-inbox-notify-set-settings",
     "allow-inbox-notify-preview-sound",
-    "allow-toggle-maximize"
+    "allow-toggle-maximize",
+    "allow-onboarding-get",
+    "allow-onboarding-set-step",
+    "allow-onboarding-finish",
+    "allow-onboarding-vaults",
+    "allow-onboarding-set-vault",
+    "allow-onboarding-path-needed",
+    "allow-onboarding-add-to-path",
+    "allow-onboarding-ready",
+    "allow-onboarding-agents",
+    "allow-onboarding-hello",
+    "allow-onboarding-create-bot"
   ]
 }

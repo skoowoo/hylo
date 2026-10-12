@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-onboarding-create-bot"
+description = "Enables the onboarding_create_bot command without any pre-configured scope."
+commands.allow = ["onboarding_create_bot"]
+
+[[permission]]
+identifier = "deny-onboarding-create-bot"
+description = "Denies the onboarding_create_bot command without any pre-configured scope."
+commands.deny = ["onboarding_create_bot"]

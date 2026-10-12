@@ -10,8 +10,6 @@
     "core:window:allow-set-theme",
     "dialog:default",
     "notification:default",
-    "allow-check-server",
-    "allow-start-hylo-server-detached",
     "allow-stop-hylo-server",
     "allow-get-server-process-status",
     "allow-get-shell-debug-paths",

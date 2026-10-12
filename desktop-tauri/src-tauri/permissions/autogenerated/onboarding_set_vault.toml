@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-onboarding-set-vault"
+description = "Enables the onboarding_set_vault command without any pre-configured scope."
+commands.allow = ["onboarding_set_vault"]
+
+[[permission]]
+identifier = "deny-onboarding-set-vault"
+description = "Denies the onboarding_set_vault command without any pre-configured scope."
+commands.deny = ["onboarding_set_vault"]
