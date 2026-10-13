@@ -6,20 +6,6 @@ import (
 	"github.com/hardhacker/hylo/internal/agent"
 )
 
-func TestComposePromptResumeSession(t *testing.T) {
-	body := chatBody{
-		SystemPrompt: "You are helpful.",
-		Message:      "Follow up question",
-	}
-	full := composePrompt(body, "/vault", false)
-	if full == body.Message {
-		t.Fatal("expected full composed prompt on first turn")
-	}
-	if resume := composePrompt(body, "/vault", true); resume != body.Message {
-		t.Fatalf("resume prompt = %q, want user message only", resume)
-	}
-}
-
 func TestResolveTriggerSession(t *testing.T) {
 	sid, first := resolveTriggerSession(agent.GetAgentDef("claude"))
 	if sid == "" || !first {

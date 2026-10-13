@@ -16,6 +16,7 @@ const CSS = `
 .hy-btn:hover{color:var(--fg,#18181b);background:var(--btn-bg-hov,rgba(24,24,27,.1))}
 .hy-btn:focus-visible{outline:2px solid rgba(var(--accent-rgb,94,106,210),.5);outline-offset:1px}
 .hy-card-bar .hy-btn:not(:hover){background:var(--btn-bg,rgba(24,24,27,.06))}
+.hy-card-inline{background:none;overflow:visible;contain:inline-size}
 .hy-card-error{padding:12px;font-size:var(--text-xs,.75rem);color:var(--s-err,#dc2626)}
 .hy-card-full{position:fixed;inset:0;z-index:800;display:flex;align-items:center;justify-content:center;padding:2rem;background:var(--lightbox-overlay-bg,rgba(0,0,0,.4));backdrop-filter:var(--glass-scrim-filter,blur(3px));-webkit-backdrop-filter:var(--glass-scrim-filter,blur(3px));-webkit-app-region:no-drag;transition:opacity var(--motion-base,160ms) ease}
 .hy-card-full.hy-card-full-hidden{opacity:0}
@@ -217,6 +218,34 @@ export function mountShell({ lang, source, renderer, minHeight, onEdit, mode = '
     destroy() {
       destroyed = true;
       if (closeOverlay) closeOverlay();
+      if (inst) inst.destroy();
+    },
+  };
+}
+
+// Chrome for inline cards: none, the body just grows with the content.
+export function mountInline({ lang, source, renderer }) {
+  ensureStyle();
+  const root = document.createElement('div');
+  root.className = `hy-card hy-card-inline hy-card-${lang}`;
+  const body = document.createElement('div');
+  body.className = 'hy-card-body';
+  root.appendChild(body);
+  let inst = null;
+  try {
+    inst = renderer.mount(body, source, { mode: 'card' });
+  } catch (e) {
+    const msg = document.createElement('div');
+    msg.className = 'hy-card-error';
+    msg.textContent = `${lang}: ${e && e.message ? e.message : e}`;
+    body.replaceChildren(msg);
+  }
+  return {
+    el: root,
+    update(next) {
+      if (inst) inst.update(next);
+    },
+    destroy() {
       if (inst) inst.destroy();
     },
   };

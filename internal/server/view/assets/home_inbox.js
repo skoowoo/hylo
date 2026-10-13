@@ -40,21 +40,15 @@ function homeInboxMixin() {
     },
     // ── Inbox: message list + unread badge + read-only sheet ───────────────
     initInboxStream() {
-      // Subscribes to /api/inbox/notifications (internal/inbox.Bus) so a
-      // message created while home is open updates the badge/list live
-      // instead of waiting for a manual refresh. Runs regardless of which
-      // sidebar section is active since the unread badge is always visible.
-      if (typeof EventSource === 'undefined') return;
-      var es = new EventSource('/api/inbox/notifications');
-      // Fires on first connect and every auto-reconnect; messages created
-      // while disconnected never arrive over the stream.
-      es.addEventListener('open', () => this.refreshUnreadCount());
-      es.addEventListener('message', (e) => {
-        var msg;
-        try { msg = JSON.parse(e.data); } catch (err) { return; }
-        if (this.inboxMessages.some((m) => m.id === msg.id)) return;
-        this.inboxMessages.unshift(msg);
-        if (!msg.isRead) this.unreadCount++;
+      // Messages created while the feed was down never arrive; a resync recounts.
+      window.__hyloLive.on('inbox', (changes) => {
+        changes.forEach((c) => {
+          if (c.op === 'resync') { this.refreshUnreadCount(); return; }
+          var msg = c.data;
+          if (!msg || this.inboxMessages.some((m) => m.id === msg.id)) return;
+          this.inboxMessages.unshift(msg);
+          if (!msg.isRead) this.unreadCount++;
+        });
       });
     },
     visibleInboxMessages() {

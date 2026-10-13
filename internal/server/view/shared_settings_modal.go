@@ -186,6 +186,15 @@ const settingsCtrlJS = `
           const id = (e.detail && e.detail.id) || '';
           if (id) this.requestSwitch(id);
         });
+        // Bots and skills change from anywhere (an agent, another window): keep an open tab current.
+        if (window.__hyloLive) {
+          __hyloLive.on('bots', () => {
+            if (Alpine.store('settingsModal').open && this.tab === 'agent-bots' && this.botSetup.phase === 'idle') this.loadAgentBots();
+          });
+          __hyloLive.on('skills', () => {
+            if (Alpine.store('settingsModal').open && this.tab === 'skills') this.loadSkills();
+          });
+        }
         window.__hyloHotkeys.register('open-settings', ',', function() {
           Alpine.store('settingsModal').open = true;
         });

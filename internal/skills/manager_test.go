@@ -96,3 +96,42 @@ func TestEditorSkillIsDefault(t *testing.T) {
 }
 
 func discardLogger() *slog.Logger { return slog.New(slog.NewTextHandler(io.Discard, nil)) }
+
+func TestCatalogCategoryAndSummary(t *testing.T) {
+	c := parseCatalog("a/b:skills/x:x\nc/d::y:news:Headlines: 20 countries\n")
+	if c["x"].Category != "" || c["x"].SubPath != "skills/x" {
+		t.Fatalf("x = %+v", c["x"])
+	}
+	if y := c["y"]; y.Category != "news" || y.Summary != "Headlines: 20 countries" || y.SubPath != "" {
+		t.Fatalf("y = %+v", y)
+	}
+	m, _ := newTestManager(t)
+	list, err := m.List()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, s := range list {
+		if s.Name == "hackernews" && (s.Category != "news" || s.Description == "") {
+			t.Fatalf("hackernews = %+v", s)
+		}
+	}
+}
+
+func TestManagerReportsSkillChanges(t *testing.T) {
+	m, _ := newTestManager(t)
+	writeSkill(t, filepath.Join(m.sourceDir, "mine"))
+	n := 0
+	m.SetOnChange(func() { n++ })
+	if err := m.Enable("mine"); err != nil {
+		t.Fatal(err)
+	}
+	if err := m.Disable("mine"); err != nil {
+		t.Fatal(err)
+	}
+	if err := m.Remove("mine"); err != nil {
+		t.Fatal(err)
+	}
+	if n != 3 {
+		t.Fatalf("%d changes reported, want 3", n)
+	}
+}

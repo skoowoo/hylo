@@ -1046,6 +1046,35 @@
       if (scrollEl) scrollEl.scrollTop = scrollEl.scrollHeight;
     }
 
+    // A choices card answers to the message right after its own, so it's live only on
+    // the newest reply in a chat; once answered it shows what was picked.
+    function choiceState(snap, card) {
+      var row = card.closest('.msg-row');
+      var id = row && row._msgId;
+      var msgs = snap.messages;
+      var i = msgs.length - 1;
+      while (i >= 0 && (msgs[i].id || ('i' + i)) !== id) i--;
+      if (i < 0 || msgs[i].role !== 'assistant') return { mode: 'static' };
+      var next = msgs[i + 1];
+      if (next) return { mode: 'answered', picked: next.role === 'user' ? next.content || '' : '' };
+      if (snap.convType === 'chat' && !snap.busy && msgs[i].status !== 'running') return { mode: 'active' };
+      return { mode: 'answered' };
+    }
+    // Scanned rather than registered: a card mounted while the thread was out of
+    // the page never got to announce itself.
+    function syncChoices(snap) {
+      thread.querySelectorAll('.hy-choices-host').forEach(function (card) {
+        if (card._hyChoices) card._hyChoices.setState(choiceState(snap, card));
+      });
+    }
+    on(thread, 'hylo:choices-mount', function () {
+      syncChoices(api.state());
+    });
+    on(thread, 'hylo:choice', function (e) {
+      if (choiceState(api.state(), e.target).mode !== 'active') return;
+      void api.sendChoice(e.detail.text);
+    });
+
     function onContentHydrated() {
       if (!detaching && api.stick()) scrollToBottom();
     }
@@ -1183,10 +1212,12 @@
         }
         row._rev = msg.rev;
         row._stop = stopBit;
+        row._msgId = id;
         prev = place(row, prev);
       }
       if (spacer.parentNode !== thread || (prev && prev.nextSibling !== spacer)) thread.appendChild(spacer);
       rows.forEach(function (row, id) { if (!seen[id]) retire(id); });
+      syncChoices(snap);
     }
 
     function updateTimes() {

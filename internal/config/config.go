@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/spf13/viper"
 )
@@ -180,25 +179,12 @@ type AgentConfig struct {
 	// resolve under this folder (mirrors UPLOAD_DIR validation in open-design).
 	UploadDir string `mapstructure:"upload_dir" json:"upload_dir" toml:"upload_dir"`
 
-	// SystemPrompt is a global system prompt prepended to every agent run.
-	// When a mate also has a system prompt the two are joined with a markdown
-	// horizontal rule: <agent.system_prompt> + "\n\n---\n\n" + <mate.system_prompt>.
-	// If only one side is non-empty, it is used as-is.
+	// SystemPrompt replaces the built-in global layer of the system prompt
+	// (prompt.GlobalDefault) when set; see internal/prompt.
 	SystemPrompt string `mapstructure:"system_prompt" json:"system_prompt" toml:"system_prompt"`
 
 	// MCPEnabled injects Hylo's MCP endpoint into every agent CLI run.
 	MCPEnabled bool `mapstructure:"mcp_enabled" json:"mcp_enabled" toml:"mcp_enabled"`
-}
-
-// EffectiveSystemPrompt returns the agent global system prompt.
-// When the user has not set a custom prompt (empty string), it falls back to
-// DefaultAgentSystemPrompt so that code improvements to the built-in default
-// are always picked up automatically.
-func (a AgentConfig) EffectiveSystemPrompt() string {
-	if strings.TrimSpace(a.SystemPrompt) == "" {
-		return DefaultAgentSystemPrompt
-	}
-	return a.SystemPrompt
 }
 
 // TCPAddr returns the host:port string for the TCP listener.
@@ -310,23 +296,6 @@ func MergedFromOptionalFile(absPath string) (*Config, error) {
 	}
 	return cfg, nil
 }
-
-// DefaultAgentSystemPrompt is the built-in global system prompt used when no
-// custom prompt has been set in the config file. Exported so the settings UI
-// can display it as a placeholder without writing it to disk.
-const DefaultAgentSystemPrompt = `You are operating inside Hylo, an AI-native personal note-taking system that stores notes as plain markdown files in a vault directory.
-
-Knowledge base: compiled knowledge live under /_knowledge/. The index of all knowledge units is at /_knowledge/_index/.
-
-Internal links: whenever you mention, cite, or reference a specific note — whether linking to it, naming it in a list, or surfacing it as a result — always use wiki-link syntax: [[stem]] or [[stem|display text]], where stem is the note filename without the .md extension. Never use relative file paths.
-
-Personal memory: the user may have structured memory files under _memory/. At the start of each conversation, proactively read the files relevant to the task directly:
-- Any question or task about the user themselves → read all 6 files
-- Writing, creative work, style, or taste     → _memory/_preferences.md + _memory/_beliefs.md
-- Planning, projects, or goals                → _memory/_goals.md + _memory/_state.md
-- A specific person or relationship           → _memory/_people.md + _memory/_identity.md
-- Casual conversation or daily check-in       → _memory/_state.md + _memory/_identity.md
-Skip files that do not exist. Treat items under ## Active as current facts; treat ## Fading items with lower confidence.`
 
 // DefaultVaultPath is where a new install keeps its notes: visible in Finder,
 // unlike the legacy ~/.hylo/root.

@@ -18,10 +18,19 @@ const instructions = `Tools mirror the hylo CLI. Paths are vault-absolute and st
 // Option customizes NewHandler.
 type Option func(*options)
 
-type options struct{ editor *editorbus.Bus }
+type options struct {
+	editor *editorbus.Bus
+	manage func(run string) error
+}
 
 // WithEditorBus registers the editor tools, which drive the user's live editor over bus.
 func WithEditorBus(b *editorbus.Bus) Option { return func(o *options) { o.editor = b } }
+
+// WithManageGate makes the tools that change bots, triggers and skills ask gate
+// whether the calling run may; a non-nil error refuses the call.
+func WithManageGate(gate func(run string) error) Option {
+	return func(o *options) { o.manage = gate }
+}
 
 // NewHandler returns the MCP endpoint handler. c talks to the vault in-process.
 func NewHandler(c *client.Client, opts ...Option) http.Handler {
@@ -39,6 +48,7 @@ func NewHandler(c *client.Client, opts ...Option) http.Handler {
 	registerExtractTools(srv, c)
 	registerTagTools(srv, c)
 	registerShortTools(srv, c)
+	registerBotTools(srv, c, o.manage)
 	if o.editor != nil {
 		registerEditorTools(srv, c, o.editor)
 	}

@@ -28,9 +28,9 @@ type MateTrigger struct {
 	Name         string    `json:"name,omitempty"`         // optional label shown in place of "Trigger N"
 	EventTypes   []string  `json:"eventTypes"`             // MateEventType values e.g. ["note_created", "note_updated"]
 	PathPrefixes []string  `json:"pathPrefixes,omitempty"` // directory whitelist; empty = no filter (ignored for scheduled/wechat/discord)
-	Prompt       string    `json:"prompt"`                 // template: {{.Path}} {{.Name}} {{.Now}}
+	Prompt       string    `json:"prompt"`                 // template: {Path} {Name} {Now}…, per EventDef.Vars
 	Schedule     string    `json:"schedule,omitempty"`     // "every 1h", "daily 09:00", or "weekly mon,wed 09:00" when eventTypes includes scheduled
-	LastFiredAt  time.Time `json:"lastFiredAt,omitempty"`  // set by runner; read-only for clients
+	LastFiredAt  time.Time `json:"lastFiredAt,omitempty"`  // last fire, or when the schedule was set; read-only for clients
 	Enabled      bool      `json:"enabled"`
 	CreatedAt    time.Time `json:"createdAt"`
 }

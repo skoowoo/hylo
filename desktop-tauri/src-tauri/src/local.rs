@@ -156,11 +156,14 @@ impl LocalServer {
         if let Some(bin) = self.bin() {
             return Ok(bin);
         }
-        diag_log(&self.data_dir, "start-server: hylo not found, installing the bundled CLI");
+        diag_log(
+            &self.data_dir,
+            "start-server: hylo not found, installing the bundled CLI",
+        );
         match cli::install(&self.data_dir, self.archive.clone(), true) {
-            Ok(InstallOutcome::Installed) => self
-                .bin()
-                .ok_or_else(|| StartError::NoCli("Reinstalling it didn't give a working one.".into())),
+            Ok(InstallOutcome::Installed) => self.bin().ok_or_else(|| {
+                StartError::NoCli("Reinstalling it didn't give a working one.".into())
+            }),
             Ok(InstallOutcome::Skipped) => Err(StartError::NoCli(
                 "Put `hylo` on your PATH or in ~/.local/bin.".into(),
             )),
@@ -177,7 +180,11 @@ impl LocalServer {
             .open(&out)
             .map_err(|e| StartError::Failed(format!("Couldn't open Hylo's log ({e}).")))?;
         // server::last_error reads from the last of these markers.
-        let _ = writeln!(&log, "\n--- {} spawn hylo start server ---", server::stamp());
+        let _ = writeln!(
+            &log,
+            "\n--- {} spawn hylo start server ---",
+            server::stamp()
+        );
         let log_err = log
             .try_clone()
             .map_err(|e| StartError::Failed(format!("Couldn't open Hylo's log ({e}).")))?;
@@ -204,7 +211,10 @@ impl LocalServer {
             *lock(&self.bin) = None;
             StartError::Failed(format!("Couldn't run {}: {e}", bin.display()))
         })?;
-        diag_log(&self.data_dir, &format!("start-server: pid {}, output in {out}", child.id()));
+        diag_log(
+            &self.data_dir,
+            &format!("start-server: pid {}, output in {out}", child.id()),
+        );
         *lock(&self.child) = Some(child);
         Ok(())
     }
@@ -222,7 +232,10 @@ impl LocalServer {
         }
         if let Some(pid) = self.leftover() {
             running = true;
-            diag_log(&self.data_dir, &format!("stop-server: pid {pid} from an earlier run"));
+            diag_log(
+                &self.data_dir,
+                &format!("stop-server: pid {pid} from an earlier run"),
+            );
             if !server::kill_hylo(&self.data_dir, pid) {
                 return Err("Hylo's local service did not exit.".into());
             }
@@ -239,7 +252,10 @@ impl LocalServer {
             }
             thread::sleep(Duration::from_millis(150));
         }
-        diag_log(&self.data_dir, &format!("stop-server: pid {} ignored SIGTERM, killing", child.id()));
+        diag_log(
+            &self.data_dir,
+            &format!("stop-server: pid {} ignored SIGTERM, killing", child.id()),
+        );
         let _ = child.kill();
         let _ = child.wait();
     }
@@ -280,7 +296,10 @@ fn base_url(state: &ShellState) -> String {
 }
 
 fn set_autostart(state: &ShellState, on: bool) {
-    if state.read_config(|cfg| cfg.auto_start_server != on).unwrap_or(true) {
+    if state
+        .read_config(|cfg| cfg.auto_start_server != on)
+        .unwrap_or(true)
+    {
         let _ = state.edit_config(|cfg| {
             cfg.auto_start_server = on;
             Ok(())
@@ -312,7 +331,10 @@ async fn probe(base: &str) -> Result<bool, StartError> {
 pub async fn ensure(app: &AppHandle, user_initiated: bool) -> Result<(), StartError> {
     let result = start_and_wait(app, user_initiated).await;
     if let Err(e) = &result {
-        diag_log(&app.state::<ShellState>().data_dir, &format!("start-server: {}", e.message()));
+        diag_log(
+            &app.state::<ShellState>().data_dir,
+            &format!("start-server: {}", e.message()),
+        );
     }
     result
 }
@@ -327,7 +349,10 @@ async fn start_and_wait(app: &AppHandle, user_initiated: bool) -> Result<(), Sta
         }
         if user_initiated {
             set_autostart(&state, true);
-        } else if !state.read_config(|cfg| cfg.auto_start_server).unwrap_or(true) {
+        } else if !state
+            .read_config(|cfg| cfg.auto_start_server)
+            .unwrap_or(true)
+        {
             return Err(StartError::StoppedByUser);
         }
         if !matches!(state.local.proc(), Proc::Running) {
@@ -374,11 +399,16 @@ pub async fn restart(app: &AppHandle) -> Result<bool, StartError> {
     let state = app.state::<ShellState>();
     let base = base_url(&state);
     let _op = state.local.ops.lock().await;
-    let ours = blocking(app, |l| matches!(l.proc(), Proc::Running) || l.leftover().is_some()).await;
+    let ours = blocking(app, |l| {
+        matches!(l.proc(), Proc::Running) || l.leftover().is_some()
+    })
+    .await;
     if !ours && probe(&base).await? {
         return Ok(false);
     }
-    blocking(app, |l| l.kill()).await.map_err(StartError::Failed)?;
+    blocking(app, |l| l.kill())
+        .await
+        .map_err(StartError::Failed)?;
     set_autostart(&state, true);
     blocking(app, |l| l.spawn()).await?;
     Ok(true)
@@ -396,17 +426,26 @@ pub fn hold_for_install(app: &AppHandle) -> OwnedMutexGuard<()> {
 }
 
 pub async fn install_on_launch(app: AppHandle, _op: OwnedMutexGuard<()>) {
-    let installed = blocking(&app, |l| cli::install(&l.data_dir, l.archive.clone(), false)).await;
+    let installed = blocking(&app, |l| {
+        cli::install(&l.data_dir, l.archive.clone(), false)
+    })
+    .await;
     match installed {
         Ok(InstallOutcome::Installed) => {
             *lock(&app.state::<ShellState>().local.bin) = None;
             // A server left from an earlier run is the old version; the next start runs the new one.
             if let Err(e) = blocking(&app, |l| l.kill()).await {
-                diag_log(&app.state::<ShellState>().data_dir, &format!("cli-upgrade: {e}"));
+                diag_log(
+                    &app.state::<ShellState>().data_dir,
+                    &format!("cli-upgrade: {e}"),
+                );
             }
         }
         Ok(InstallOutcome::Skipped) => {}
-        Err(e) => diag_log(&app.state::<ShellState>().data_dir, &format!("cli auto-install failed: {e}")),
+        Err(e) => diag_log(
+            &app.state::<ShellState>().data_dir,
+            &format!("cli auto-install failed: {e}"),
+        ),
     }
 }
 

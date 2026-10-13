@@ -155,7 +155,9 @@ pub fn pid_is_hylo(pid: u32) -> bool {
 pub fn last_error(data_dir: &Path) -> Option<String> {
     let raw = fs::read(diag_paths(data_dir).server_output).ok()?;
     let tail = String::from_utf8_lossy(&raw[raw.len().saturating_sub(8192)..]).into_owned();
-    let latest = tail.rfind("spawn hylo start server").map_or(tail.as_str(), |i| &tail[i..]);
+    let latest = tail
+        .rfind("spawn hylo start server")
+        .map_or(tail.as_str(), |i| &tail[i..]);
     latest
         .lines()
         .rev()

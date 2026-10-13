@@ -35,7 +35,9 @@ impl ServerError {
             Self::TimedOut => "the server took too long to answer".into(),
             Self::NotHylo => "this address is not a Hylo server".into(),
             Self::BadKey => "the API key was rejected".into(),
-            Self::Unavailable(status) => format!("the server answered HTTP {status} instead of Hylo"),
+            Self::Unavailable(status) => {
+                format!("the server answered HTTP {status} instead of Hylo")
+            }
         }
     }
 }
@@ -124,7 +126,10 @@ pub async fn login(base: &str, key: &str) -> Result<Session, ServerError> {
         .filter_map(|v| v.split(';').next())
         .filter_map(|pair| pair.split_once('='))
         .find(|(name, _)| *name == "hylo_session")
-        .map(|(name, value)| Session { name: name.into(), value: value.into() })
+        .map(|(name, value)| Session {
+            name: name.into(),
+            value: value.into(),
+        })
         .ok_or(ServerError::NotHylo)
 }
 
@@ -180,7 +185,10 @@ mod tests {
         serve(move |req| {
             if req.starts_with("POST /version") {
                 http("200 OK", "Content-Type: application/json\r\n", HYLO)
-            } else if req.to_lowercase().contains(&format!("x-hylo-api-key: {accept_key}")) {
+            } else if req
+                .to_lowercase()
+                .contains(&format!("x-hylo-api-key: {accept_key}"))
+            {
                 http("200 OK", "", "{}")
             } else {
                 http("401 Unauthorized", "", "Unauthorized")
@@ -197,7 +205,10 @@ mod tests {
     #[tokio::test]
     async fn verify_rejects_bad_or_missing_key() {
         let base = hylo_server("secret");
-        assert_eq!(verify(&base, Some("nope")).await.unwrap_err(), ServerError::BadKey);
+        assert_eq!(
+            verify(&base, Some("nope")).await.unwrap_err(),
+            ServerError::BadKey
+        );
         assert_eq!(verify(&base, None).await.unwrap_err(), ServerError::BadKey);
     }
 
@@ -232,7 +243,13 @@ mod tests {
             }
         });
         let s = login(&base, "good").await.unwrap();
-        assert_eq!(s, Session { name: "hylo_session".into(), value: "abc123".into() });
+        assert_eq!(
+            s,
+            Session {
+                name: "hylo_session".into(),
+                value: "abc123".into()
+            }
+        );
         assert_eq!(login(&base, "bad").await.unwrap_err(), ServerError::BadKey);
     }
 
@@ -247,7 +264,10 @@ mod tests {
     #[tokio::test]
     async fn proxy_without_hylo_is_unavailable() {
         let base = serve(|_| http("502 Bad Gateway", "", "bad gateway"));
-        assert_eq!(check(&base, Some("k")).await.unwrap_err(), ServerError::Unavailable(502));
+        assert_eq!(
+            check(&base, Some("k")).await.unwrap_err(),
+            ServerError::Unavailable(502)
+        );
         assert_eq!(health(&base, Some("k")).await, Health::Offline);
         assert!(ServerError::Unavailable(502).is_down() && !ServerError::TimedOut.is_down());
     }

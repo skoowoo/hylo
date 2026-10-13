@@ -546,64 +546,31 @@ const settingsAgentBotsJS = `
       agentBotSaving: false,
       agentBotSaveError: '',
       agentBotEventDefs: [],
-      // One table instead of the same 4-way "which kind of trigger is this"
-      // branch repeated across agentBotPromptVarsForTrigger/
-      // agentBotPromptPlaceholder/the Event block's hint text — a new
-      // trigger kind's vars/placeholder/hint get added once here, not in
-      // three separate places that have to be kept in sync by hand.
+      // One table instead of the same "which kind of trigger is this" branch
+      // repeated across agentBotPromptPlaceholder and the Event block's hint
+      // text. Prompt vars come from the server's event defs.
       AGENT_BOT_EVENT_KINDS: {
         scheduled: {
-          vars: [
-            { token: '{Now}', desc: 'Trigger time (RFC3339)' },
-            { token: '{Date}', desc: 'Date YYYY-MM-DD' },
-            { token: '{Time}', desc: 'Time HH:MM' },
-          ],
           placeholder: 'Review my vault and write a daily digest. Time: {Now}',
           hint: 'Scheduled triggers run on a timer — choose one schedule below',
         },
         wechat_message: {
-          vars: [
-            { token: '{Content}', desc: 'Incoming WeChat DM text' },
-            { token: '{WechatUserID}', desc: 'Sender WeChat user ID' },
-          ],
           placeholder: 'Reply to this WeChat message:\n\n{Content}',
           hint: 'WeChat DM trigger — use Content and WechatUserID in the prompt',
         },
         discord_message: {
-          vars: [
-            { token: '{Content}', desc: 'Incoming Discord DM text' },
-            { token: '{DiscordChannelID}', desc: 'DM channel ID' },
-            { token: '{DiscordUserID}', desc: 'Sender Discord user ID' },
-          ],
           placeholder: 'Reply to this Discord message:\n\n{Content}',
           hint: 'Discord DM trigger — use Content, DiscordChannelID and DiscordUserID in the prompt',
         },
         compile_requested: {
-          vars: [
-            { token: '{Path}', desc: 'Vault path of the note to compile' },
-            { token: '{Name}', desc: 'Filename without extension' },
-          ],
           placeholder: 'Compile {Path} into knowledge units.',
           hint: 'Fires when the user manually triggers compilation via the API — Path carries the note',
         },
         agent_run_completed: {
-          vars: [
-            { token: '{Name}', desc: 'Name of the bot whose run just succeeded' },
-            { token: '{Content}', desc: 'Last assistant message from the completed run' },
-            { token: '{Now}', desc: 'Trigger time (RFC3339)' },
-          ],
           placeholder: '{Name} just finished — review its output and take action.',
           hint: "Fires when another bot's run succeeds. Filter by source bot names below",
         },
       },
-      // Fallback for every other (vault) event type — note_created/
-      // note_updated/note_deleted/short_note_created all share this one
-      // set, so it doesn't fit the per-kind table as a single key.
-      agentBotPromptVarsVault: [
-        { token: '{Path}', desc: 'Full vault path of the affected note' },
-        { token: '{Name}', desc: 'Filename without extension' },
-        { token: '{Content}', desc: 'Appended short-note text (short_note_created only)' },
-      ],
       agentBotSchedulePresets: {
         every: [
           { label: 'Every hour', value: 'every 1h' },
@@ -904,7 +871,6 @@ const settingsAgentBotsJS = `
             this.agentBotsList = this.agentBotsList.map(function(m) { return m.id === saved.id ? saved : m; });
           }
           this.agentBotFormMode = null;
-          this.agentBotsChanged();
         } catch(e) { this.agentBotSaveError = e.message; }
         finally { this.agentBotSaving = false; }
       },
@@ -916,13 +882,9 @@ const settingsAgentBotsJS = `
           const r = await fetch('/api/mates/' + id, { method: 'DELETE' });
           if (!r.ok) { window.showError('Delete failed (server error)', 'Delete failed'); return; }
           this.agentBotsList = this.agentBotsList.filter(function(m) { return m.id !== id; });
-          this.agentBotsChanged();
           if (!this.agentBotsList.length) this.startBotSetup();
         } catch(e) { window.showError('Delete failed: ' + e.message, 'Delete failed'); }
       },
-
-      // The chat sidebar keeps its own copy of the bot list.
-      agentBotsChanged() { window.dispatchEvent(new Event('hylo:agent-bots-changed')); },
 
       async moveAgentBot(idx, dir) {
         var newIdx = idx + dir;
@@ -937,7 +899,6 @@ const settingsAgentBotsJS = `
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ ids: this.agentBotsList.map(function(m) { return m.id; }) }),
           });
-          this.agentBotsChanged();
         } catch(_) {}
       },
 
@@ -985,8 +946,9 @@ const settingsAgentBotsJS = `
       },
 
       agentBotPromptVarsForTrigger(t) {
-        const kind = this.agentBotEventKind(t);
-        return kind ? kind.vars : this.agentBotPromptVarsVault;
+        const et = this.eventOf(t);
+        const def = this.agentBotEventDefs.find(function(d){ return d.type === et; });
+        return (def && def.vars) || [];
       },
 
       agentBotPromptPlaceholder(t) {

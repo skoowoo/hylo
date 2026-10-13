@@ -262,7 +262,6 @@ func (c *Client) writeRaw(relPath string, data []byte, mode, section string) err
 	return nil
 }
 
-
 // DeleteNote permanently deletes the note at relPath.
 func (c *Client) DeleteNote(relPath string) error {
 	resp, err := c.postJSON(c.baseURL+"/api/vault/delete", map[string]any{"path": relPath})
@@ -575,12 +574,14 @@ func (c *Client) TagDelete(tag string) (*TagDeleteResponse, error) {
 
 // SkillInfo mirrors skills.SkillInfo for JSON decoding.
 type SkillInfo struct {
-	Name      string `json:"name"`
-	Default   bool   `json:"default"`
-	Installed bool   `json:"installed"`
-	Enabled   bool   `json:"enabled"`
-	RepoURL   string `json:"repoUrl,omitempty"`
-	SubPath   string `json:"subPath,omitempty"`
+	Name        string `json:"name"`
+	Default     bool   `json:"default"`
+	Installed   bool   `json:"installed"`
+	Enabled     bool   `json:"enabled"`
+	RepoURL     string `json:"repoUrl,omitempty"`
+	SubPath     string `json:"subPath,omitempty"`
+	Description string `json:"description,omitempty"`
+	Category    string `json:"category,omitempty"`
 }
 
 // SkillsList calls GET /api/skills and returns all installed skills.
@@ -647,7 +648,7 @@ func (c *Client) SkillsInstall(repoURL, subPath, skillName string) error {
 	if c.apiKey != "" {
 		req.Header.Set("X-Hylo-API-Key", c.apiKey)
 	}
-	installClient := &http.Client{Timeout: 5 * time.Minute}
+	installClient := &http.Client{Transport: c.http.Transport, Timeout: 5 * time.Minute}
 	resp, err := installClient.Do(req)
 	if err != nil {
 		return wrapConnErr(err)
@@ -656,6 +657,20 @@ func (c *Client) SkillsInstall(repoURL, subPath, skillName string) error {
 	if resp.StatusCode != http.StatusOK {
 		raw, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("skills install: %s", statusMsg(resp.StatusCode, raw))
+	}
+	return nil
+}
+
+// SkillsEnable calls POST /api/skills/{name}/enable to link an installed skill into the vault.
+func (c *Client) SkillsEnable(name string) error {
+	resp, err := c.postJSON(c.baseURL+"/api/skills/"+url.PathEscape(name)+"/enable", nil)
+	if err != nil {
+		return wrapConnErr(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		raw, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("skills enable: %s", statusMsg(resp.StatusCode, raw))
 	}
 	return nil
 }
@@ -979,7 +994,6 @@ func (l Link) Format() string {
 	}
 	return b.String()
 }
-
 
 // ── Link parsing ──────────────────────────────────────────────────────────────
 

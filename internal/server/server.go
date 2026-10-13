@@ -16,6 +16,7 @@ import (
 
 	"github.com/hardhacker/hylo/internal/agent"
 	"github.com/hardhacker/hylo/internal/config"
+	"github.com/hardhacker/hylo/internal/live"
 	"github.com/hardhacker/hylo/internal/mate"
 	"github.com/hardhacker/hylo/internal/plugin"
 	"github.com/hardhacker/hylo/internal/plugins/assets"
@@ -43,10 +44,13 @@ type Server struct {
 // New creates a Server from the given config, logger, and Vault.
 // It initialises any enabled plugins and wires the vault event hook.
 func New(cfg *config.Config, cfgFileLoaded string, logger *slog.Logger, vault *storage.Vault) *Server {
+	feed := live.NewFeed()
 	skillsMgr := skills.Open(vault.Root(), agent.ShellEnv)
 	skillsMgr.LinkEnabled(logger)
+	skillsMgr.SetOnChange(feed.Notify(live.TopicSkills))
 
 	mgr := plugin.NewManager(logger)
+	mgr.Register(live.NewPlugin(feed))
 
 	// The search plugin is always active: it drives all full-text index updates
 	// in response to vault events and backtracks unindexed notes on startup.
@@ -94,6 +98,7 @@ func New(cfg *config.Config, cfgFileLoaded string, logger *slog.Logger, vault *s
 		logger.Warn("mate store unavailable", "err", err)
 	} else {
 		mateStore = ms
+		ms.SetOnChange(feed.Notify(live.TopicBots))
 		if err := ms.MarkStalledRunMessagesAsFailed(); err != nil {
 			logger.Warn("mate: mark stalled messages failed", "err", err)
 		}
@@ -124,7 +129,7 @@ func New(cfg *config.Config, cfgFileLoaded string, logger *slog.Logger, vault *s
 	})
 
 	return &Server{
-		handler:   newRouter(logger, cfg, vault, cfgFileLoaded, gitPlugin, searchPlugin, compilePlugin, mateStore, mateRunner, skillsMgr, cfg.Server.APIKey),
+		handler:   newRouter(logger, cfg, vault, cfgFileLoaded, gitPlugin, searchPlugin, compilePlugin, mateStore, mateRunner, skillsMgr, feed, cfg.Server.APIKey),
 		logger:    logger,
 		cfg:       cfg,
 		vault:     vault,

@@ -196,14 +196,6 @@ func TestSupportsMCPMatchesPrepareMCP(t *testing.T) {
 	}
 }
 
-func TestMCPPromptHintMentionsMapping(t *testing.T) {
-	for _, want := range []string{"extract_section", "knowledge_list_indexes", "--help", "Fall back"} {
-		if !strings.Contains(MCPPromptHint, want) {
-			t.Errorf("hint missing %q", want)
-		}
-	}
-}
-
 func TestPrepareMCPScopesURLToRun(t *testing.T) {
 	ep := testEP
 	ep.RunID = "r 1"

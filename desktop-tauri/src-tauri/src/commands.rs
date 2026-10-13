@@ -74,7 +74,11 @@ struct ControlResult {
 
 impl ControlResult {
     fn failed(reason: &'static str, error: String) -> Self {
-        Self { ok: false, reason: Some(reason), error: Some(error) }
+        Self {
+            ok: false,
+            reason: Some(reason),
+            error: Some(error),
+        }
     }
 }
 
@@ -129,8 +133,13 @@ async fn stop_hylo_server(app: AppHandle, opts: Option<ControlOpts>) -> ControlR
         return ControlResult::failed("forbidden", "Only this computer's Hylo can stop it.".into());
     }
     let result = match local::stop(&app).await {
-        Ok(true) => ControlResult { ok: true, ..Default::default() },
-        Ok(false) => ControlResult::failed("no_pid", "No server started by this app is running.".into()),
+        Ok(true) => ControlResult {
+            ok: true,
+            ..Default::default()
+        },
+        Ok(false) => {
+            ControlResult::failed("no_pid", "No server started by this app is running.".into())
+        }
         Err(e) => ControlResult::failed("stop_failed", e),
     };
     if !opts.unwrap_or_default().stay {
@@ -142,10 +151,16 @@ async fn stop_hylo_server(app: AppHandle, opts: Option<ControlOpts>) -> ControlR
 #[tauri::command]
 async fn restart_hylo_server(app: AppHandle, opts: Option<ControlOpts>) -> ControlResult {
     if !may_control(&app) {
-        return ControlResult::failed("forbidden", "Only this computer's Hylo can restart it.".into());
+        return ControlResult::failed(
+            "forbidden",
+            "Only this computer's Hylo can restart it.".into(),
+        );
     }
     let result = match local::restart(&app).await {
-        Ok(true) => ControlResult { ok: true, ..Default::default() },
+        Ok(true) => ControlResult {
+            ok: true,
+            ..Default::default()
+        },
         // Started from the CLI: it picks up the new config when restarted there.
         Ok(false) => ControlResult::failed("no_pid", "Hylo wasn't started by this app.".into()),
         Err(e) => ControlResult::failed(e.code(), e.message()),
@@ -206,7 +221,11 @@ fn set_view_bg_color(app: AppHandle, state: State<ShellState>, color: String, th
         let _ = window.set_theme(parsed);
     }
     // Every page load calls this; only a real change touches the file.
-    let theme = if parsed.is_some() { theme } else { String::new() };
+    let theme = if parsed.is_some() {
+        theme
+    } else {
+        String::new()
+    };
     if state.read_config(|cfg| cfg.theme != theme).unwrap_or(false) {
         let _ = state.edit_config(|cfg| {
             cfg.theme = theme;

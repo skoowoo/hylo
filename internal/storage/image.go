@@ -13,6 +13,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/hardhacker/hylo/internal/plugin"
 )
 
 const MaxImageBytes = 10 << 20
@@ -149,8 +151,15 @@ func (g *Vault) DeleteImage(dir, name string) error {
 	}
 
 	g.mu.Lock()
-	defer g.mu.Unlock()
+	err := g.deleteImageLocked(abs, dir, name)
+	g.mu.Unlock()
+	if err == nil {
+		g.emit(string(plugin.EventVaultImage), dir+"/"+name, false, time.Now())
+	}
+	return err
+}
 
+func (g *Vault) deleteImageLocked(abs, dir, name string) error {
 	if err := os.Remove(abs); err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return fmt.Errorf("storage: remove image file: %w", err)
 	}
@@ -469,5 +478,6 @@ func (g *Vault) saveImage(data []byte, stem, ext string) (Image, error) {
 		_ = os.Remove(absPath)
 		return Image{}, fmt.Errorf("storage: register image: %w", err)
 	}
+	g.emit(string(plugin.EventVaultImage), img.Dir+"/"+img.Name, false, time.Now())
 	return img, nil
 }

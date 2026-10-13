@@ -11,6 +11,7 @@ use tauri::{AppHandle, Emitter, Manager};
 
 use crate::commands::ShellState;
 use crate::config::LOCAL_ID;
+use crate::locale::lang_signals;
 use crate::remote::ServerError;
 use crate::servers::local_key;
 
@@ -32,7 +33,9 @@ impl Local {
 }
 
 fn client(timeout: Option<Duration>) -> Result<Client, String> {
-    let mut b = Client::builder().no_proxy().connect_timeout(Duration::from_secs(3));
+    let mut b = Client::builder()
+        .no_proxy()
+        .connect_timeout(Duration::from_secs(3));
     if let Some(t) = timeout {
         b = b.timeout(t);
     }
@@ -52,13 +55,17 @@ async fn fetch_json<T: DeserializeOwned>(req: RequestBuilder) -> Result<T, Strin
 
 /// The local server, started if needed, and a key it accepts.
 async fn ready(app: &AppHandle) -> Result<Local, String> {
-    crate::local::ensure(app, true).await.map_err(|e| e.message())?;
+    crate::local::ensure(app, true)
+        .await
+        .map_err(|e| e.message())?;
     let base = app
         .state::<ShellState>()
         .read_config(|cfg| cfg.find(LOCAL_ID).map(|s| s.url.clone()))?
         .ok_or("no local server")?;
     let key = local_key(app, &base).await.map_err(|e| match e {
-        ServerError::BadKey => "Hylo's local service is running but refused this app's key.".to_string(),
+        ServerError::BadKey => {
+            "Hylo's local service is running but refused this app's key.".to_string()
+        }
         e => format!("Hylo's local service stopped answering: {}", e.message()),
     })?;
     Ok(Local { base, key })
@@ -102,6 +109,9 @@ pub struct Hello {
     text: String,
     #[serde(skip_serializing_if = "String::is_empty")]
     error: String,
+    /// The language the server picked, for the intro chat to keep.
+    #[serde(skip_serializing_if = "String::is_empty")]
+    lang: String,
 }
 
 /// Folds one SSE frame of a run into `hello`; true once the run has ended.
@@ -165,14 +175,21 @@ pub async fn onboarding_hello(
     let http = client(Some(Duration::from_secs(10)))?;
     let previous = HELLO_RUN.lock().ok().and_then(|mut r| r.take());
     if let Some(run) = previous {
-        let _ = local.req(&http, Method::POST, &format!("/api/runs/{run}/cancel")).send().await;
+        let _ = local
+            .req(&http, Method::POST, &format!("/api/runs/{run}/cancel"))
+            .send()
+            .await;
     }
     let ctx = context.unwrap_or_default();
-    let started: Value = fetch_json(
-        local
-            .req(&http, Method::POST, "/api/setup/hello")
-            .json(&json!({ "agentId": agent_id, "lang": ctx.lang, "now": ctx.now })),
-    )
+    let signals = lang_signals(&app).await;
+    let started: Value = fetch_json(local.req(&http, Method::POST, "/api/setup/hello").json(
+        &json!({
+            "agentId": agent_id,
+            "lang": ctx.lang,
+            "langSignals": signals,
+            "now": ctx.now,
+        }),
+    ))
     .await?;
     let run = started["runId"].as_str().ok_or("no run id")?.to_string();
     if let Ok(mut slot) = HELLO_RUN.lock() {
@@ -180,7 +197,10 @@ pub async fn onboarding_hello(
     }
 
     let stream = client(None)?;
-    let mut hello = Hello::default();
+    let mut hello = Hello {
+        lang: started["lang"].as_str().unwrap_or_default().to_string(),
+        ..Hello::default()
+    };
     let read = async {
         let mut resp = local
             .req(&stream, Method::GET, &format!("/api/runs/{run}/events"))
@@ -239,7 +259,10 @@ pub async fn onboarding_create_bot(
             .json(&json!({ "agentId": agent_id, "greeting": greeting.unwrap_or_default() })),
     )
     .await?;
-    Ok(created["mateId"].as_str().filter(|id| !id.is_empty()).map(str::to_string))
+    Ok(created["mateId"]
+        .as_str()
+        .filter(|id| !id.is_empty())
+        .map(str::to_string))
 }
 
 #[cfg(test)]

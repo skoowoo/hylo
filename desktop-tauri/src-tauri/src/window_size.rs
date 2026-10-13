@@ -21,7 +21,10 @@ pub fn fit_main_size(visible_w: f64, visible_h: f64) -> (f64, f64) {
         w = h * MAIN_ASPECT;
     }
     let (min_w, min_h) = MAIN_MIN_SIZE;
-    (w.max(min_w).min(visible_w).round(), h.max(min_h).min(visible_h).round())
+    (
+        w.max(min_w).min(visible_w).round(),
+        h.max(min_h).min(visible_h).round(),
+    )
 }
 
 /// The main window's size at launch, from the primary screen's work area;

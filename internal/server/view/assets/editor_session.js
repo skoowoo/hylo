@@ -67,7 +67,6 @@
         // typing). Patch the row from the response.
         var saved = null; try { saved = await r.json(); } catch(_) {}
         if (saved) __hyloPatchNoteRowAfterSave(path, saved);
-        if (window.__hyloVaultChanged) window.__hyloVaultChanged({ op: 'write' });
       } else {
         var errText = ''; try { errText = await r.text(); } catch(_) {}
         window.showError(errText || 'Server error — your changes may not be saved.', 'Save error');
@@ -121,7 +120,6 @@
     var resp = await fetch('/api/vault/upload-image', {method: 'POST', body: fd});
     if (!resp.ok) throw new Error(await resp.text());
     var uploaded = await resp.json();
-    if (window.__hyloVaultChanged) window.__hyloVaultChanged({ op: 'images' });
     return uploaded.src;
   }
 
@@ -159,7 +157,6 @@
       tab.path = data.path;
       tab.title = __hyloStripMdExt(data.path.split('/').pop()) || data.path;
       delete tab._pendingContent;
-      if (window.__hyloVaultChanged) window.__hyloVaultChanged({ op: 'create' });
       if (!__hyloEditorIsActiveTabId(tab.id)) return; // switched away while this was in flight — nothing to autosave right now
       var s = __hyloEditor;
       s.currentPath = data.path;

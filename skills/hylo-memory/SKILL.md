@@ -161,6 +161,8 @@ last_updated: <YYYY-MM-DD>
 
 **F — Same fact, different wording:** Merge into one item — keep the clearer wording, sum `seen`, use the more recent `last`.
 
+**G — Pinned items:** An item whose metadata ends in `pinned` is something the user stated outright. Rules D and E never apply to it, and keep `pinned` when you update it.
+
 ### Writing the file
 
 ```bash

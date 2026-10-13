@@ -15,14 +15,6 @@ func (a *AgentAPI) mcpURL(agentID string) string {
 	return url
 }
 
-// mcpPromptHint is the extra system prompt for runs that get MCP tools.
-func (a *AgentAPI) mcpPromptHint(agentID string) string {
-	if a.mcpURL(agentID) == "" {
-		return ""
-	}
-	return agent.MCPPromptHint
-}
-
 // injectMCP appends Hylo's MCP endpoint to argv/env for agentID. A failure only
 // costs the run its MCP tools, so it is logged and the run proceeds.
 func (a *AgentAPI) injectMCP(agentID, runID, cwd string, argv, env []string) ([]string, []string) {

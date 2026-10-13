@@ -319,9 +319,9 @@ test('a failed mate list toasts once', async function () {
   }
 });
 
-test('deleting the current bot in settings moves the chat to the next one', async function () {
+test('a bot removed anywhere moves the chat to the next one', async function () {
   var listeners = {};
-  global.addEventListener = function (type, fn) { listeners[type] = fn; };
+  global.__hyloLive = { on: function (topic, fn) { listeners[topic] = fn; } };
   var mates = [
     { id: 'm1', name: 'Hylo', enabled: true, agentId: 'pi' },
     { id: 'm2', name: 'Ada', enabled: true, agentId: 'pi' },
@@ -345,20 +345,20 @@ test('deleting the current bot in settings moves the chat to the next one', asyn
     assert.equal(kernel.mateId(), 'm1');
 
     mates.shift();
-    await listeners['hylo:agent-bots-changed']();
+    await listeners.bots([{ topic: 'bots', op: 'change' }]);
     assert.deepEqual(shown, ['m2']);
     assert.equal(kernel.mateId(), 'm2');
 
     mates.shift();
-    await listeners['hylo:agent-bots-changed']();
+    await listeners.bots([{ topic: 'bots', op: 'change' }]);
     assert.deepEqual(shown, []);
     assert.equal(kernel.mateId(), '');
 
     mates.push({ id: 'm3', name: 'Hylo', enabled: true, agentId: 'pi' });
-    await listeners['hylo:agent-bots-changed']();
+    await listeners.bots([{ topic: 'bots', op: 'change' }]);
     assert.equal(kernel.mateId(), 'm3');
   } finally {
-    delete global.addEventListener;
+    delete global.__hyloLive;
     disarm();
   }
 });

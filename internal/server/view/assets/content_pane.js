@@ -806,7 +806,6 @@
         if (resp.status === 409) { window.showError((await resp.text()).trim() || 'Pinned notes limit reached.', 'Cannot pin'); return; }
         if (!resp.ok) return;
         tab.pinned = true;
-        if (window.__hyloVaultChanged) window.__hyloVaultChanged({ op: 'pin', path: tab.path, pinned: true });
       },
 
       async unpinActiveNote() {
@@ -814,7 +813,6 @@
         var resp = await fetch('/api/vault/pin', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({path:tab.path,pinned:false})});
         if (!resp.ok) return;
         tab.pinned = false;
-        if (window.__hyloVaultChanged) window.__hyloVaultChanged({ op: 'pin', path: tab.path, pinned: false });
       },
 
       async deleteActiveNote() {
@@ -848,7 +846,6 @@
             void this._openUntitledTab(nextTab, __hyloEditorRestoreTabState(nextTab.id));
           }
         }
-        if (window.__hyloVaultChanged) window.__hyloVaultChanged({ op: 'delete', path: tab.path, pinned: !!tab.pinned });
       },
 
       // Moving a note is driven entirely from the home list (drag a card onto
@@ -999,7 +996,6 @@
           var oldPath = tab.path;
           this.noteRenamed(oldPath, data.path);
           this.cancelRenameActiveNote(); // renamed successfully — same box-closing path as a cancel, just after committing
-          if (window.__hyloVaultChanged) window.__hyloVaultChanged({ op: 'rename', path: oldPath, newPath: data.path });
           if (data.renameJobId) void __hyloPollRenameJob(data.renameJobId);
         } catch (e) {
           window.showError((e && e.message) || 'Network error.', 'Cannot rename');
@@ -1037,7 +1033,6 @@
       if (resp.ok) {
         var st = await resp.json();
         if (st.status === 'done') {
-          if (window.__hyloVaultChanged) window.__hyloVaultChanged({ op: 'rename-sweep' });
           return;
         }
         if (st.status === 'failed') {
@@ -1122,7 +1117,6 @@
               __hyloEditorCompileLabel(btn, 'Compile');
               __hyloEditorCloseMoreMenu();
             }, 1500);
-            if (window.__hyloVaultChanged) window.__hyloVaultChanged({ op: 'compile', path: rawPath });
             return;
           }
           if (st.status === 'failed' || st.status === 'canceled') {

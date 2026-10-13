@@ -3,6 +3,7 @@ mod cli;
 mod commands;
 mod config;
 mod local;
+mod locale;
 mod nav;
 mod notify;
 mod onboarding;
@@ -220,7 +221,10 @@ fn window_state() -> tauri::plugin::TauriPlugin<tauri::Wry> {
     use tauri_plugin_window_state::StateFlags;
     tauri_plugin_window_state::Builder::new()
         .with_state_flags(
-            StateFlags::SIZE | StateFlags::POSITION | StateFlags::MAXIMIZED | StateFlags::FULLSCREEN,
+            StateFlags::SIZE
+                | StateFlags::POSITION
+                | StateFlags::MAXIMIZED
+                | StateFlags::FULLSCREEN,
         )
         .map_label(|label| {
             if onboarding::STARTED_COMPACT.load(Ordering::Relaxed) {

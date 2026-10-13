@@ -128,6 +128,11 @@ func registerNoteTools(s *sdk.Server, c *client.Client) {
 			return readOut{Path: p, Content: content}, err
 		})
 
+	addTool(s, "compile", "Compile a note into the knowledge base. Runs in the background; the result goes to the user's inbox. A note already compiled comes back as already_compiled.", false,
+		func(_ context.Context, in readReq) (*client.CompileResult, error) {
+			return c.Compile(in.Path)
+		})
+
 	addTool(s, "search", "Full-text search over notes by filename, content or tag.", true,
 		func(_ context.Context, in searchReq) (notes.SearchResult, error) {
 			return notes.Search(c, notes.SearchQuery{Query: in.Query, Field: in.Field, Limit: in.Limit})

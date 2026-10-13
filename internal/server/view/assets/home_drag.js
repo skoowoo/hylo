@@ -150,31 +150,31 @@ function __hyloFlyCardToTarget(card, targetEl) {
 }
 
 async function __hyloDragMoveNote(sourcePath, targetDir, card, targetEl) {
-  if (window.__hyloContentPane) await window.__hyloContentPane.flushPendingSaveFor(sourcePath);
-  var resp;
+  // The move's change can arrive before its response; the list must not reload
+  // under the fly-out animation.
+  var release = __hyloHoldRefetch();
+  var moved = false;
   try {
-    resp = await fetch('/api/vault/move', {
+    if (window.__hyloContentPane) await window.__hyloContentPane.flushPendingSaveFor(sourcePath);
+    var resp = await fetch('/api/vault/move', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ path: sourcePath, newDir: targetDir }),
     });
+    if (!resp.ok) {
+      var msg = (await resp.text()).trim() || 'Move failed.';
+      throw new Error(resp.status === 409 ? 'A note already exists at that location.' : msg);
+    }
+    var data = await resp.json();
+    moved = true;
+    __hyloFlyCardToTarget(card, targetEl);
+    if (window.__hyloContentPane) window.__hyloContentPane.noteMoved(sourcePath, data.path);
   } catch (e) {
+    if (moved) { console.error(e); return; }
     if (targetEl) targetEl.classList.remove('drag-over');
     if (card) { card.classList.remove('is-move-pending'); __hyloShakeCard(card, true); }
     if (window.showError) window.showError((e && e.message) || 'Network error.', 'Cannot move');
-    return;
+  } finally {
+    if (moved) setTimeout(release, 420);
+    else release();
   }
-  if (!resp.ok) {
-    if (targetEl) targetEl.classList.remove('drag-over');
-    if (card) { card.classList.remove('is-move-pending'); __hyloShakeCard(card, true); }
-    var msg = (await resp.text()).trim() || 'Move failed.';
-    if (window.showError) window.showError(resp.status === 409 ? 'A note already exists at that location.' : msg, 'Cannot move');
-    return;
-  }
-  var data = await resp.json();
-  if (window.__hyloContentPane) window.__hyloContentPane.noteMoved(sourcePath, data.path);
-  __hyloFlyCardToTarget(card, targetEl);
-  // The refetch must not swap the list out from under the fly-out animation.
-  setTimeout(function () {
-    if (window.__hyloVaultChanged) window.__hyloVaultChanged({ op: 'move' });
-  }, 420);
 }

@@ -9,7 +9,7 @@
   }
 
   // Mirrors the registry in editor/src/cm-live/fence-card/registry.js; only these load the chunk.
-  var FENCE_CARD_SEL = 'pre > code.language-mindmap';
+  var FENCE_CARD_SEL = 'pre > code.language-mindmap, pre > code.language-choices';
   var fenceLoad = null;
   function fenceModule() {
     fenceLoad = fenceLoad || import('/static/fence-card.js');

@@ -17,6 +17,7 @@ import (
 	"github.com/hardhacker/hylo/internal/editorbus"
 	"github.com/hardhacker/hylo/internal/mate"
 	"github.com/hardhacker/hylo/internal/plugin"
+	"github.com/hardhacker/hylo/internal/prompt"
 	"github.com/hardhacker/hylo/internal/storage"
 )
 
@@ -64,7 +65,7 @@ type chatBody struct {
 	AgentID            string            `json:"agentId"`
 	MateID             string            `json:"mateId"` // when set, server resolves agent/model/cwd/systemPrompt from mate
 	Message            string            `json:"message"`
-	SystemPrompt       string            `json:"systemPrompt"`
+	SystemPrompt       string            `json:"systemPrompt"` // the bot layer of the system prompt; see prompt.Run.Bot
 	Model              string            `json:"model"`
 	Reasoning          string            `json:"reasoning"`
 	Cwd                string            `json:"cwd"`
@@ -79,8 +80,10 @@ type chatBody struct {
 	TriggerRun         bool              `json:"triggerRun"`         // when true, skip persisting the user prompt message
 	TriggerReply       bool              `json:"triggerReply"`       // when true, trigger run with reply callback — uses persistent agent session like chat
 	TriggerEvent       string            `json:"triggerEvent"`       // mate event type label stored on assistant message
-	Intro              bool              `json:"intro"`              // first chat after onboarding; see introPrompt
+	Intro              bool              `json:"intro"`              // first chat after onboarding; see prompt.Intro
+	IntroLang          string            `json:"introLang"`          // language the onboarding hello picked
 	eventReply         plugin.ReplyFunc  // optional; invoked when trigger run completes
+	oneShot            bool              // self-contained internal ask; see prompt.OneShot
 }
 
 // AgentsGET handles GET /api/agents.
@@ -116,6 +119,7 @@ func (a *AgentAPI) ChatPOST(w http.ResponseWriter, r *http.Request) {
 	}
 	run := a.hub.CreateRun(meta)
 	run.AgentID = body.AgentID
+	run.Interactive = !body.TriggerRun
 	a.logger.Info("agent chat",
 		slog.String("runId", run.ID),
 		slog.String("agentId", body.AgentID),
@@ -143,6 +147,7 @@ func (a *AgentAPI) RunsPOST(w http.ResponseWriter, r *http.Request) {
 	}
 	run := a.hub.CreateRun(meta)
 	run.AgentID = body.AgentID
+	run.Interactive = !body.TriggerRun
 	a.logger.Info("agent run queued",
 		slog.String("runId", run.ID),
 		slog.String("agentId", body.AgentID))
@@ -388,14 +393,23 @@ func (a *AgentAPI) executeChat(ctx context.Context, run *agent.Run, body chatBod
 			}
 		}
 	}
-	body.SystemPrompt = mergeSystemPrompts(a.cfg.Agent.EffectiveSystemPrompt(), body.SystemPrompt)
-	body.SystemPrompt = mergeSystemPrompts(body.SystemPrompt, a.mcpPromptHint(body.AgentID))
+	pr := prompt.Run{
+		Bot:       body.SystemPrompt,
+		MCP:       a.mcpURL(body.AgentID) != "",
+		Overrides: map[string]string{prompt.SectionGlobal: a.cfg.Agent.SystemPrompt},
+	}
+	switch {
+	case body.oneShot:
+		pr.Kind = prompt.OneShot
+	case body.TriggerRun:
+		pr.Kind = prompt.Trigger
+	}
 	if body.Intro {
 		// The user is watching an empty editor; drafting fast matters more than depth.
 		if body.Reasoning == "" {
 			body.Reasoning = "low"
 		}
-		body.SystemPrompt = mergeSystemPrompts(body.SystemPrompt, introPrompt(a.openingWords(body.ConversationID), vaultOverview(a.vault)))
+		pr.Intro = &prompt.Intro{Greeting: a.openingWords(body.ConversationID), Overview: vaultOverview(a.vault), Lang: body.IntroLang}
 	}
 
 	// Persist user message and create assistant placeholder when a conversation
@@ -452,7 +466,11 @@ func (a *AgentAPI) executeChat(ctx context.Context, run *agent.Run, body chatBod
 	} else {
 		sessionID, firstSession, resumeTurn = a.resolveAgentSession(body.ConversationID, def)
 	}
-	composed := composePrompt(body, a.vault.Root(), resumeTurn)
+	workdir := ""
+	if body.Cwd == "" {
+		workdir = a.vault.Root()
+	}
+	composed := prompt.Message(prompt.System(pr), body.Message, workdir, resumeTurn)
 	if e := agent.CheckPromptArgvBudget(def, composed); e != nil {
 		a.logger.Warn("agent aborted",
 			slog.String("runId", run.ID),
@@ -745,38 +763,6 @@ func (a *AgentAPI) openingWords(conversationID string) string {
 		said = append(said, m.Content)
 	}
 	return strings.Join(said, "\n")
-}
-
-func mergeSystemPrompts(global, mate string) string {
-	g := strings.TrimSpace(global)
-	m := strings.TrimSpace(mate)
-	if g == "" {
-		return m
-	}
-	if m == "" {
-		return g
-	}
-	return g + "\n\n---\n\n" + m
-}
-
-func composePrompt(body chatBody, vaultRoot string, resumeSession bool) string {
-	if resumeSession {
-		return body.Message
-	}
-	var sb strings.Builder
-	if t := strings.TrimSpace(body.SystemPrompt); t != "" {
-		sb.WriteString("# Instructions\n\n")
-		sb.WriteString(t)
-		sb.WriteString("\n\n---\n")
-	}
-	if body.Cwd == "" {
-		sb.WriteString("\nYour working directory (vault): ")
-		sb.WriteString(vaultRoot)
-		sb.WriteString("\n\n")
-	}
-	sb.WriteString("# User request\n\n")
-	sb.WriteString(body.Message)
-	return sb.String()
 }
 
 func pickModel(def *agent.AgentDef, model string) string {

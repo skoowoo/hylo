@@ -202,7 +202,7 @@ document.addEventListener('alpine:init', function () {
       // just made, the notes a chosen folder already had, or a blank capture.
       landing(botId) {
         // intro=1 has a new bot open the chat by writing the user a guide.
-        if (this.hello.state === 'ok') return '/home?type=chat' + (botId ? '&bot=' + encodeURIComponent(botId) + '&intro=1' : '');
+        if (this.hello.state === 'ok') return '/home?type=chat' + (botId ? '&bot=' + encodeURIComponent(botId) + '&intro=1' + (this.hello.lang ? '&lang=' + encodeURIComponent(this.hello.lang) : '') : '');
         var o = this.current();
         return o && o.kind === 'new' && !o.current ? '/home?type=shorts' : '/home?type=recent';
       },
@@ -363,6 +363,7 @@ document.addEventListener('alpine:init', function () {
         if (run !== this._helloRun) return;
         if (res.ok) {
           this.hello.text = clip(res.text.trim());
+          this.hello.lang = res.lang || '';
           this.hello.state = 'ok';
         } else {
           this.hello.error = res.error || '';

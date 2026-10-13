@@ -399,10 +399,17 @@ Each skill is a directory containing a `SKILL.md` file:
 
 #### Managing skills with the CLI
 
-**List installed skills**
+**List installed skills and ones in Hylo's catalog**
 
 ```sh
 hylo skills list
+hylo skills list --category news
+```
+
+**Install a skill from Hylo's catalog**
+
+```sh
+hylo skills install hackernews
 ```
 
 **Install a skill from a GitHub repository**

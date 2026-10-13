@@ -129,7 +129,6 @@ function homeShortsMixin() {
         this.shortComposeText = '';
         this.shortComposeImages.forEach((i) => { if (i.previewUrl) URL.revokeObjectURL(i.previewUrl); });
         this.shortComposeImages = [];
-        if (window.__hyloVaultChanged) window.__hyloVaultChanged({ op: 'short', hasImages: images.length > 0 });
       } catch (err) {
         window.showError('Failed to save: ' + (err && err.message ? err.message : String(err)), 'Save failed');
       } finally {

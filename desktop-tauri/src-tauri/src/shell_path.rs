@@ -73,7 +73,10 @@ pub fn onboarding_add_to_path() -> Result<(), String> {
     if !cfg!(unix) {
         return Ok(());
     }
-    add_in(&server::home_dir(), &std::env::var("SHELL").unwrap_or_default())
+    add_in(
+        &server::home_dir(),
+        &std::env::var("SHELL").unwrap_or_default(),
+    )
 }
 
 #[cfg(test)]

@@ -192,7 +192,11 @@ impl ConfigFile {
     }
 
     pub fn set_key(&mut self, id: &str, key: String) -> Result<(), String> {
-        let entry = self.servers.iter_mut().find(|s| s.id == id).ok_or("unknown server")?;
+        let entry = self
+            .servers
+            .iter_mut()
+            .find(|s| s.id == id)
+            .ok_or("unknown server")?;
         entry.key = Some(key);
         Ok(())
     }
@@ -202,7 +206,11 @@ impl ConfigFile {
         if name.is_empty() {
             return Err("name cannot be empty".into());
         }
-        let entry = self.servers.iter_mut().find(|s| s.id == id).ok_or("unknown server")?;
+        let entry = self
+            .servers
+            .iter_mut()
+            .find(|s| s.id == id)
+            .ok_or("unknown server")?;
         entry.name = name.to_string();
         Ok(())
     }
@@ -310,9 +318,13 @@ mod tests {
         let mut cfg = parse("{}");
         let a = cfg.add_remote("", "https://a.example.com/", None).unwrap();
         assert_eq!(a.name, "a.example.com");
-        assert!(cfg.add_remote("dup", "https://a.example.com", None).is_err());
+        assert!(cfg
+            .add_remote("dup", "https://a.example.com", None)
+            .is_err());
         assert!(cfg.add_remote("bad", "ftp://x", None).is_err());
-        let b = cfg.add_remote("Work", "http://10.0.0.2:54321", None).unwrap();
+        let b = cfg
+            .add_remote("Work", "http://10.0.0.2:54321", None)
+            .unwrap();
         assert_ne!(a.id, b.id);
 
         cfg.rename(&b.id, " Office ").unwrap();
@@ -329,7 +341,9 @@ mod tests {
     #[test]
     fn keys_roundtrip() {
         let mut cfg = parse("{}");
-        let a = cfg.add_remote("A", "https://a.example.com", Some("k1".into())).unwrap();
+        let a = cfg
+            .add_remote("A", "https://a.example.com", Some("k1".into()))
+            .unwrap();
         assert_eq!(cfg.find(&a.id).unwrap().key.as_deref(), Some("k1"));
         cfg.set_key(&a.id, "k2".into()).unwrap();
         assert_eq!(cfg.find(&a.id).unwrap().key.as_deref(), Some("k2"));
@@ -338,9 +352,14 @@ mod tests {
 
         let again = parse(&serde_json::to_string(&cfg).unwrap());
         assert_eq!(again.find(&a.id).unwrap().key.as_deref(), Some("k2"));
-        assert_eq!(again.find(LOCAL_ID).unwrap().key.as_deref(), Some("local-key"));
+        assert_eq!(
+            again.find(LOCAL_ID).unwrap().key.as_deref(),
+            Some("local-key")
+        );
         // Keyless entries do not serialize a "key" field at all.
-        assert!(!serde_json::to_string(&parse("{}")).unwrap().contains("\"key\""));
+        assert!(!serde_json::to_string(&parse("{}"))
+            .unwrap()
+            .contains("\"key\""));
     }
 
     #[cfg(unix)]
@@ -353,10 +372,15 @@ mod tests {
         fs::set_permissions(config_path(&dir), fs::Permissions::from_mode(0o644)).unwrap();
 
         let mut cfg = ConfigFile::default();
-        cfg.add_remote("A", "https://a.example.com", Some("secret".into())).unwrap();
+        cfg.add_remote("A", "https://a.example.com", Some("secret".into()))
+            .unwrap();
         cfg.save(&dir).unwrap();
 
-        let mode = fs::metadata(config_path(&dir)).unwrap().permissions().mode() & 0o777;
+        let mode = fs::metadata(config_path(&dir))
+            .unwrap()
+            .permissions()
+            .mode()
+            & 0o777;
         assert_eq!(mode, 0o600);
         assert_eq!(ConfigFile::load(&dir).servers.len(), 2);
         let _ = fs::remove_dir_all(&dir);

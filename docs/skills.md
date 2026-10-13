@@ -15,6 +15,7 @@ This guide covers what each built-in skill does and how to talk to it. For how s
   - [hylo-memory — extract personal memory](#hylo-memory--extract-personal-memory)
   - [hylo-quote-extract — pull out key quotes](#hylo-quote-extract--pull-out-key-quotes)
   - [hylo-recap — associative and periodic review](#hylo-recap--associative-and-periodic-review)
+  - [hylo-setup — guided setup in chat](#hylo-setup--guided-setup-in-chat)
   - [hylo-writing — beat-by-beat article writing](#hylo-writing--beat-by-beat-article-writing)
 
 ## hylo-notes — everyday note operations
@@ -122,6 +123,19 @@ Both modes produce a conversational summary only; nothing is saved to a file.
 Recap this draft against my knowledge base — anything related or conflicting?
 Does this note conflict with anything I've written before?
 Give me a review of everything I wrote this week.
+```
+
+## hylo-setup — guided setup in chat
+
+Runs on your first chat after onboarding. Hylo walks you through setup one step at a time: it writes you a getting-started guide live in the editor, checks which language you'd like it to use and remembers it, asks a little about you if your vault is still empty, offers a News bot that brings a morning digest from news sources you pick, compiles a few of your notes into knowledge, then sums up what's in place. Progress is kept in `/_setup/progress.md`, so you can stop anytime and pick up later.
+
+**Use it for:** finishing setup you skipped, or redoing a step. Name Hylo setup when you ask, so everyday requests to set something up don't start it.
+
+**Example prompts**
+
+```
+Continue Hylo setup
+Run Hylo setup again
 ```
 
 ## hylo-writing — beat-by-beat article writing

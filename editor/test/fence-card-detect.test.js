@@ -33,3 +33,7 @@ test('unregistered, unclosed and bullet-line fences are not cards', () => {
   assert.deepEqual(fences('```mindmap\n# R'), [null]);
   assert.deepEqual(fences('- ```mindmap\n  # R\n  ```'), [null]);
 });
+
+test('chat-only cards are not cards in the editor', () => {
+  assert.deepEqual(fences('```choices\n- a\n- b\n```'), [null]);
+});

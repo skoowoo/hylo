@@ -87,7 +87,20 @@ CREATE INDEX IF NOT EXISTS chat_message_note_access_path_idx ON chat_message_not
 // Store is the single data access point for both mate config and chat history.
 // All data lives in <vaultRoot>/.hylo/mate.db.
 type Store struct {
-	db *sql.DB
+	db       *sql.DB
+	onChange func()
+}
+
+// SetOnChange registers fn to run after any change to bots or their triggers.
+// Set it before the store is in use.
+func (s *Store) SetOnChange(fn func()) { s.onChange = fn }
+
+// changed passes err through, telling the hook first when the change went in.
+func (s *Store) changed(err error) error {
+	if err == nil && s.onChange != nil {
+		s.onChange()
+	}
+	return err
 }
 
 // Open opens (or creates) the combined database at <vaultRoot>/.hylo/mate.db.

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/hardhacker/hylo/internal/plugin"
+	"github.com/hardhacker/hylo/internal/prompt"
 )
 
 // RunResult carries the outcome of a completed trigger agent run.
@@ -193,32 +194,70 @@ func (r *Runner) fireTrigger(t MateTrigger, me MateEvent) {
 			return
 		}
 		defer func() { <-r.sem }()
-
-		m, err := r.store.GetMate(tr.MateID)
-		if err != nil || m == nil {
-			return
-		}
-
-		var convID string
-		if ev.Reply != nil {
-			convID, err = r.store.GetOrCreateActiveChatConvID(m.ID)
-		} else {
-			convID, err = r.store.GetOrCreateDefaultTriggerConv(m.ID)
-		}
-		if err != nil {
-			r.logger.Warn("mate_runner: get trigger conv", "err", err)
-			return
-		}
-
-		prompt := renderPrompt(tr.Prompt, ev)
-		fields := []any{"mate", m.Name, "trigger", tr.ID, "event", ev.Type, "conv", convID}
-		if ev.Path != "" {
-			fields = append(fields, "path", ev.Path)
-		}
-		r.logger.Info("mate_runner: trigger fired", fields...)
-
-		fn(context.Background(), m, convID, prompt, ev, r.buildOnDone(m, ev))
+		r.runTrigger(fn, tr, ev)
 	}(t, me)
+}
+
+// runTrigger runs tr with r.sem already held by the caller.
+func (r *Runner) runTrigger(fn RunFunc, tr MateTrigger, ev MateEvent) {
+	m, err := r.store.GetMate(tr.MateID)
+	if err != nil || m == nil {
+		return
+	}
+
+	var convID string
+	if ev.Reply != nil {
+		convID, err = r.store.GetOrCreateActiveChatConvID(m.ID)
+	} else {
+		convID, err = r.store.GetOrCreateDefaultTriggerConv(m.ID)
+	}
+	if err != nil {
+		r.logger.Warn("mate_runner: get trigger conv", "err", err)
+		return
+	}
+
+	prompt := renderPrompt(tr.Prompt, ev)
+	fields := []any{"mate", m.Name, "trigger", tr.ID, "event", ev.Type, "conv", convID}
+	if ev.Path != "" {
+		fields = append(fields, "path", ev.Path)
+	}
+	r.logger.Info("mate_runner: trigger fired", fields...)
+
+	fn(context.Background(), m, convID, prompt, ev, r.buildOnDone(m, ev))
+}
+
+var (
+	ErrTriggerDisabled = errors.New("the trigger or its bot is disabled")
+	ErrRunnerBusy      = errors.New("too many trigger runs in flight, try again shortly")
+)
+
+// FireNow fires t once, off its schedule, the way a scheduled fire would.
+// Unlike an automatic fire it reports a skipped run instead of dropping it.
+func (r *Runner) FireNow(t MateTrigger) error {
+	if !t.Enabled {
+		return ErrTriggerDisabled
+	}
+	m, err := r.store.GetMate(t.MateID)
+	if err != nil {
+		return err
+	}
+	if m == nil || !m.Enabled {
+		return ErrTriggerDisabled
+	}
+	fn, _ := r.runFn.Load().(RunFunc)
+	if fn == nil {
+		return errors.New("mate runner: run unavailable")
+	}
+	select {
+	case r.sem <- struct{}{}:
+	default:
+		return ErrRunnerBusy
+	}
+	go func() {
+		defer func() { <-r.sem }()
+		r.runTrigger(fn, t, MateEvent{Type: MateEventScheduled, FiredAt: time.Now()})
+	}()
+	return nil
 }
 
 // buildOnDone returns the completion hook shared by every path that fires an
@@ -324,17 +363,15 @@ func renderPrompt(tmpl string, me MateEvent) string {
 		}
 		return fired.Format(time.RFC3339)
 	}
-	name := path.Base(me.Path)
-	name = strings.TrimSuffix(name, ".md")
-	r := tmpl
-	r = strings.ReplaceAll(r, "{Path}", me.Path)
-	r = strings.ReplaceAll(r, "{Name}", name)
-	r = strings.ReplaceAll(r, "{Content}", me.Content)
-	r = strings.ReplaceAll(r, "{WechatUserID}", me.WechatUserID)
-	r = strings.ReplaceAll(r, "{DiscordChannelID}", me.DiscordChannelID)
-	r = strings.ReplaceAll(r, "{DiscordUserID}", me.DiscordUserID)
-	r = strings.ReplaceAll(r, "{Now}", fired.Format(time.RFC3339))
-	r = strings.ReplaceAll(r, "{Date}", fired.Format("2006-01-02"))
-	r = strings.ReplaceAll(r, "{Time}", fired.Format("15:04"))
-	return r
+	return prompt.Fill(tmpl, map[string]string{
+		"Path":             me.Path,
+		"Name":             strings.TrimSuffix(path.Base(me.Path), ".md"),
+		"Content":          me.Content,
+		"WechatUserID":     me.WechatUserID,
+		"DiscordChannelID": me.DiscordChannelID,
+		"DiscordUserID":    me.DiscordUserID,
+		"Now":              fired.Format(time.RFC3339),
+		"Date":             fired.Format("2006-01-02"),
+		"Time":             fired.Format("15:04"),
+	})
 }

@@ -17,6 +17,7 @@ type Run struct {
 	ProjectID      string
 	ConversationID string
 	AgentID        string
+	Interactive    bool // started by the user in chat, not by a trigger
 	Status         string
 	CreatedAt      int64
 	UpdatedAt      int64

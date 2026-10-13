@@ -1,8 +1,13 @@
 # External skills available for installation via the UI.
-# Format: GitHubUser/RepoName:path/in/repo:skill-dir-name
+# Format: GitHubUser/RepoName:path/in/repo:skill-dir-name[:category[:summary]]
+# The summary describes a skill before it's installed; after, SKILL.md does.
 skoowoo/hylo:skills/hylo-writing:hylo-writing
 skoowoo/hylo:skills/hylo-quote-extract:hylo-quote-extract
 hardhackerlabs/podwise-cli:skills:podwise
 Tencent/WeChatReading:skills:weread-skills
 blader/humanizer::humanizer
 mattpocock/skills:skills/in-progress/writing-beats:writing-beats
+
+yyh211/claude-meta-skill:daily-ai-news:daily-ai-news:news:Daily AI news from AI news sites and web search, with links to the originals.
+okou-ai/okou-skills:hackernews:hackernews:news:Top Hacker News stories and discussions.
+sfkislev/the-news::the-news:news:Front-page headlines from newspapers in 20 countries.

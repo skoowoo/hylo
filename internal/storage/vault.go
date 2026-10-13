@@ -1361,11 +1361,17 @@ func (g *Vault) GetNotesByName(name string) ([]Note, error) {
 // SetNotePinned sets or clears the pinned flag for the note at p.
 func (g *Vault) SetNotePinned(p Path, pinned bool) error {
 	g.mu.Lock()
-	defer g.mu.Unlock()
-	if _, err := dbGet(g.db, p); err != nil {
-		return err
+	err := func() error {
+		if _, err := dbGet(g.db, p); err != nil {
+			return err
+		}
+		return dbSetPinned(g.db, p, pinned)
+	}()
+	g.mu.Unlock()
+	if err == nil {
+		g.emit(string(plugin.EventVaultPin), p.String(), false, time.Now())
 	}
-	return dbSetPinned(g.db, p, pinned)
+	return err
 }
 
 // ListPinnedNotes returns all pinned notes ordered by updated_at descending.

@@ -16,6 +16,7 @@
     var mateGone = false;
     var eventDefs = [];
     var catalogEpoch = 0;
+    var matesSig = '';
     var matesReady = Promise.resolve();
     var bootstrapped = false;
 
@@ -197,7 +198,9 @@
         if (!resp.ok) { notify("Couldn't load bots"); return; }
         mates = ((await resp.json()).mates || []).filter(function (m) { return m.enabled; });
         matesLoaded = true;
-        catalogEpoch++;
+        // Rows rebuild only when what they draw changed, not on every trigger edit.
+        var sig = JSON.stringify(mates.map(function (m) { return [m.id, m.name, m.color]; }));
+        if (sig !== matesSig) { matesSig = sig; catalogEpoch++; }
         if (host.onMates) host.onMates(mates);
         requestRender('none');
       } catch (e) { notify("Couldn't load bots"); }
@@ -440,6 +443,7 @@
             userMessageId: userMsgId,
             assistantMessageId: assistant.id,
             intro: !!(extra && extra.intro),
+            introLang: (extra && extra.lang) || '',
           }),
         });
         if (!resp.ok) {
@@ -533,6 +537,7 @@
       setStick: function (v) { stick = !!v; },
       setDraft: function (v) { draft = v || ''; },
       send: function () { return send(); },
+      sendChoice: function (text) { return send(null, text); },
       cancel: function () { return cancel(); },
       retry: function (id) { return retry(id); },
       newChat: function () { return newChat(); },
@@ -677,8 +682,9 @@
       }
     }
 
-    async function send(extra) {
-      var text = (draft || '').trim();
+    // A choice is sent as is, leaving whatever the user was typing in the composer.
+    async function send(extra, choice) {
+      var text = (choice != null ? choice : draft || '').trim();
       if (!text || busy() || !mateId) return;
       var mate = mateById(mateId);
       if (!mate) return;
@@ -697,8 +703,10 @@
           } catch (e) { notify("Couldn't start the chat"); }
           if (!conversationId) return;
         }
-        draft = '';
-        if (view && view.clearComposer) view.clearComposer();
+        if (choice == null) {
+          draft = '';
+          if (view && view.clearComposer) view.clearComposer();
+        }
         var userMsgId = R.genId();
         messages.push({
           id: userMsgId, role: 'user', content: text, createdAt: Date.now(), rev: 1,
@@ -768,22 +776,23 @@
     // Onboarding lands with ?intro=1: the new bot's first turn is asked for
     // the user, once, and it answers by writing them a guide in the editor.
     var INTRO_PAUSE_MS = 1000;
-    async function maybeIntro() {
+    async function maybeIntro(lang) {
       if (messages.some(function (m) { return m.role === 'user'; })) return;
       // Let the hello carried over from onboarding land before asking.
       var bot = mateId;
       await new Promise(function (r) { setTimeout(r, INTRO_PAUSE_MS); });
       // The user may have started typing or switched bots meanwhile.
       if (mateId !== bot || (draft || '').trim() || busy()) return;
-      var zh = /^zh/i.test(navigator.language || '');
+      // In the desktop app navigator.language follows the app bundle, not the user; the hello's pick is better.
+      var zh = /^zh/i.test(lang || navigator.language || '');
       draft = zh ? '你好 Hylo！你能帮我做些什么？我该从哪里开始？' : 'Hi Hylo! What can you do for me, and where should I start?';
-      await send({ intro: true });
+      await send({ intro: true, lang: lang });
     }
 
     return {
       start: function () {
         matesReady = Promise.all([loadMates(), loadEvents()]);
-        if (typeof window.addEventListener === 'function') window.addEventListener('hylo:agent-bots-changed', reloadMates);
+        if (root.__hyloLive) root.__hyloLive.on('bots', reloadMates);
       },
       bootstrap: async function () {
         if (bootstrapped) return;
@@ -794,13 +803,16 @@
         // once: a reload goes back to the bot last chatted with.
         var wanted = null;
         var intro = false;
+        var introLang = '';
         try {
           var url = new URL(window.location.href);
           wanted = url.searchParams.get('bot');
           intro = url.searchParams.get('intro') === '1';
+          introLang = url.searchParams.get('lang') || '';
           if (wanted || intro) {
             url.searchParams.delete('bot');
             url.searchParams.delete('intro');
+            url.searchParams.delete('lang');
             history.replaceState(history.state, '', url.pathname + url.search + url.hash);
           }
         } catch (e) { /* ignore */ }
@@ -813,7 +825,7 @@
         try { sessionStorage.setItem('hylo_agent_bot_id', id); } catch (e) { /* ignore */ }
         if (host.onMate) host.onMate(id);
         await refresh();
-        if (intro) await maybeIntro();
+        if (intro) await maybeIntro(introLang);
       },
       attach: attach,
       detach: detach,

@@ -48,6 +48,15 @@ const (
 	// to deduplication and is never paired with an fs_* event.
 	EventVaultShortAppend EventType = "vault_short_append"
 
+	// EventVaultPin is emitted when a note is pinned or unpinned; Path is the note.
+	// Pinning only touches metadata, so no fs_* event pairs with it.
+	EventVaultPin EventType = "vault_pin"
+
+	// EventVaultImage is emitted when an image is saved to or deleted from the
+	// vault; Path is the image. The watcher tracks markdown only, so this is the
+	// only signal for images.
+	EventVaultImage EventType = "vault_image"
+
 	// EventWechatMessage is emitted when the WeChat bridge receives a direct text message.
 	// Not subject to vault deduplication.
 	EventWechatMessage EventType = "wechat_message"
@@ -79,6 +88,10 @@ type Event struct {
 	Time    time.Time
 	IsDir   bool   // true when Path is a directory (only meaningful for delete events)
 	Content string // note content, short note body, or WeChat message text
+
+	// Moved marks an fs_create for a note that arrived with its directory
+	// (folder rename, move or sync pull) rather than being written.
+	Moved bool
 
 	// OldPath is the vault-absolute path the note had before the mutation.
 	// Only set for EventVaultRename, where Path is the new path.

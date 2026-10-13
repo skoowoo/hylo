@@ -6,8 +6,8 @@ use tauri::{AppHandle, Manager, State};
 
 use crate::commands::ShellState;
 use crate::config::{normalize_url, ServerEntry, ServerKind, LOCAL_ID};
-use crate::notify::{InboxHandle, Target};
 use crate::local::{self, StartError};
+use crate::notify::{InboxHandle, Target};
 use crate::remote::{self, Health, ServerError, Session};
 use crate::session::{self, show_start, show_start_at};
 
@@ -20,19 +20,28 @@ pub struct CmdError {
 
 impl From<ServerError> for CmdError {
     fn from(e: ServerError) -> Self {
-        Self { code: e.code(), message: e.message() }
+        Self {
+            code: e.code(),
+            message: e.message(),
+        }
     }
 }
 
 impl From<StartError> for CmdError {
     fn from(e: StartError) -> Self {
-        Self { code: e.code(), message: e.message() }
+        Self {
+            code: e.code(),
+            message: e.message(),
+        }
     }
 }
 
 impl From<String> for CmdError {
     fn from(message: String) -> Self {
-        Self { code: "error", message }
+        Self {
+            code: "error",
+            message,
+        }
     }
 }
 
@@ -106,7 +115,11 @@ fn view(entry: &ServerEntry, active_id: &str) -> ServerView {
 
 fn snapshot(state: &ShellState) -> Result<ServerList, String> {
     state.read_config(|cfg| ServerList {
-        servers: cfg.servers.iter().map(|s| view(s, &cfg.active_id)).collect(),
+        servers: cfg
+            .servers
+            .iter()
+            .map(|s| view(s, &cfg.active_id))
+            .collect(),
         active_id: cfg.active_id.clone(),
     })
 }
@@ -175,7 +188,10 @@ pub fn remove_server(app: AppHandle, id: String) -> CmdResult<ServerList> {
 /// since the server writes its key on first start and it can be reset.
 pub async fn local_key(app: &AppHandle, base: &str) -> Result<Option<String>, ServerError> {
     let state = app.state::<ShellState>();
-    let stored = state.read_config(|cfg| cfg.find(LOCAL_ID).and_then(|s| s.key.clone())).ok().flatten();
+    let stored = state
+        .read_config(|cfg| cfg.find(LOCAL_ID).and_then(|s| s.key.clone()))
+        .ok()
+        .flatten();
     if let Some(key) = &stored {
         match remote::check(base, Some(key)).await {
             Err(ServerError::BadKey) => {}
@@ -183,10 +199,11 @@ pub async fn local_key(app: &AppHandle, base: &str) -> Result<Option<String>, Se
         }
     }
     let handle = app.clone();
-    let fresh = tauri::async_runtime::spawn_blocking(move || handle.state::<ShellState>().local.read_key())
-        .await
-        .ok()
-        .flatten();
+    let fresh =
+        tauri::async_runtime::spawn_blocking(move || handle.state::<ShellState>().local.read_key())
+            .await
+            .ok()
+            .flatten();
     remote::check(base, fresh.as_deref()).await?;
     if let Some(key) = &fresh {
         if fresh != stored {
@@ -276,13 +293,19 @@ pub async fn enter_server(app: AppHandle, id: String) -> CmdResult<()> {
 pub async fn probe_servers(app: AppHandle) -> CmdResult<Vec<Probe>> {
     let state = app.state::<ShellState>();
     let jobs: Vec<(String, String, Option<String>)> = state.read_config(|cfg| {
-        cfg.servers.iter().map(|s| (s.id.clone(), s.url.clone(), s.key.clone())).collect()
+        cfg.servers
+            .iter()
+            .map(|s| (s.id.clone(), s.url.clone(), s.key.clone()))
+            .collect()
     })?;
     let handles: Vec<_> = jobs
         .into_iter()
         .map(|(id, url, key)| {
             tauri::async_runtime::spawn(async move {
-                Probe { health: remote::health(&url, key.as_deref()).await, id }
+                Probe {
+                    health: remote::health(&url, key.as_deref()).await,
+                    id,
+                }
             })
         })
         .collect();
@@ -335,7 +358,11 @@ pub fn sync_inboxes(app: &AppHandle) {
                 let key = s.key.clone()?;
                 Some((
                     s.id.clone(),
-                    Target { base_url: s.url.clone(), key: Some(key), label: multi.then(|| s.name.clone()) },
+                    Target {
+                        base_url: s.url.clone(),
+                        key: Some(key),
+                        label: multi.then(|| s.name.clone()),
+                    },
                 ))
             })
             .collect()
@@ -345,14 +372,21 @@ pub fn sync_inboxes(app: &AppHandle) {
         return;
     };
     let keep: HashSet<&String> = wanted.iter().map(|(id, _)| id).collect();
-    let stale: Vec<String> = live.keys().filter(|id| !keep.contains(id)).cloned().collect();
+    let stale: Vec<String> = live
+        .keys()
+        .filter(|id| !keep.contains(id))
+        .cloned()
+        .collect();
     for id in stale {
         if let Some(h) = live.remove(&id) {
             h.shutdown();
         }
     }
     for (id, target) in wanted {
-        if live.get(&id).is_some_and(|h: &InboxHandle| h.matches(&target)) {
+        if live
+            .get(&id)
+            .is_some_and(|h: &InboxHandle| h.matches(&target))
+        {
             continue;
         }
         if let Some(old) = live.remove(&id) {

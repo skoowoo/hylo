@@ -1,9 +1,11 @@
 // Fenced-block renderers keyed by info string. A renderer's module is fetched on first use:
 //   mount(el, source, { mode: 'card' | 'pip' | 'full', onError }) → { update(source), fit?(), destroy() }
+// An inline card sizes to its content and gets no zoom or fullscreen. `editor: false`
+// keeps a card out of notes: it only renders where marked HTML is hydrated (chat).
 const entries = new Map();
 
-export function registerFenceCard({ lang, alias = [], load, minHeight = 280 }) {
-  const entry = { lang, load, minHeight };
+export function registerFenceCard({ lang, alias = [], load, minHeight = 280, inline = false, editor = true }) {
+  const entry = { lang, load, minHeight, inline, editor };
   for (const name of [lang, ...alias]) entries.set(name.toLowerCase(), entry);
 }
 
@@ -12,6 +14,7 @@ export function cardEntry(info) {
 }
 
 registerFenceCard({ lang: 'mindmap', load: () => import('./mindmap.js'), minHeight: 360 });
+registerFenceCard({ lang: 'choices', load: () => import('./choices.js'), minHeight: 36, inline: true, editor: false });
 
 // A closed fence → { info, body, from, to } (whole lines), else null.
 // Fences nested in lists or quotes are supported when the opening line carries only
@@ -45,8 +48,9 @@ export function fenceBody(doc, node) {
   return lines.join('\n');
 }
 
-// A closed fence whose info names a card, else null.
+// A closed fence whose info names a card the editor shows, else null.
 export function cardFence(doc, node) {
   const f = fenceSource(doc, node);
-  return f && cardEntry(f.info) ? f : null;
+  const entry = f && cardEntry(f.info);
+  return entry && entry.editor ? f : null;
 }

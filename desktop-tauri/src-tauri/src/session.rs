@@ -79,7 +79,10 @@ pub fn allow_url(app: &AppHandle, url: &Url) -> bool {
         .read_config(|cfg| cfg.servers.iter().any(|s| same_origin(url, &s.url)))
         .unwrap_or(false);
     if registered {
-        diag_log(&state.data_dir, &format!("navigation to {url} blocked: not connected"));
+        diag_log(
+            &state.data_dir,
+            &format!("navigation to {url} blocked: not connected"),
+        );
         return false;
     }
     let _ = app.opener().open_url(url.as_str(), None::<&str>);
@@ -120,7 +123,9 @@ async fn connected_down(app: &AppHandle) -> bool {
         .read_config(|cfg| cfg.find_by_url(&base).and_then(|s| s.key.clone()))
         .ok()
         .flatten();
-    remote::check(&base, key.as_deref()).await.is_err_and(|e| e.is_down())
+    remote::check(&base, key.as_deref())
+        .await
+        .is_err_and(|e| e.is_down())
 }
 
 /// The page on screen, when it belongs to the connected server.
@@ -146,6 +151,9 @@ fn leave(app: &AppHandle, url: &Url, why: &str) {
     if on_shell {
         return;
     }
-    diag_log(&state.data_dir, &format!("{why}, returning to start ({url})"));
+    diag_log(
+        &state.data_dir,
+        &format!("{why}, returning to start ({url})"),
+    );
     show_start(app);
 }

@@ -7,15 +7,26 @@ import (
 	"time"
 )
 
+// SetOnCreate hooks every new message once it's stored.
+func (s *Store) SetOnCreate(fn func(Message)) {
+	s.mu.Lock()
+	s.onCreate = fn
+	s.mu.Unlock()
+}
+
 // push fans a new message out to SSE subscribers, dropping it for slow ones.
 func (s *Store) push(m Message) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	for ch := range s.subs {
 		select {
 		case ch <- m:
 		default:
 		}
+	}
+	fn := s.onCreate
+	s.mu.Unlock()
+	if fn != nil {
+		fn(m)
 	}
 }
 

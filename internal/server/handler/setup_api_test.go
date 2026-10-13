@@ -57,26 +57,5 @@ func TestHyloBotTriggersAreValid(t *testing.T) {
 	if err := mate.ValidateTriggers(triggers); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(hyloBotPrompt, wechatTag) || !strings.Contains(hyloBotPrompt, discordTag) {
-		t.Fatal("bot prompt must explain the chat tags")
-	}
 }
 
-func TestHelloPromptMatchesTheVault(t *testing.T) {
-	empty := helloPrompt(VaultOverview{Name: "Hylo Vault"}, "zh-CN", "Monday 21:40", 0)
-	if !strings.Contains(empty, "brand new and empty") || !strings.Contains(empty, helloEmptyAngles[0]) || !strings.Contains(empty, "zh-CN") {
-		t.Fatal(empty)
-	}
-	full := helloPrompt(VaultOverview{
-		Name:    "Notes",
-		Notes:   12,
-		Folders: []OverviewFolder{{Name: "Work", Count: 9}},
-		Recent:  []OverviewNote{{Title: "Q3 plan"}},
-	}, "", "", 1)
-	if !strings.Contains(full, `holds 12 notes, mostly in "Work"`) || !strings.Contains(full, `"Q3 plan"`) || !strings.Contains(full, helloNotesAngles[1]) {
-		t.Fatal(full)
-	}
-	if p := helloPrompt(VaultOverview{Name: "Notes", Notes: 3}, "", "", 0); strings.Contains(p, "Most recently edited") {
-		t.Fatal(p)
-	}
-}

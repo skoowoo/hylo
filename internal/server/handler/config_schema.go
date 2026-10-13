@@ -1,6 +1,9 @@
 package handler
 
-import "github.com/hardhacker/hylo/internal/config"
+import (
+	"github.com/hardhacker/hylo/internal/config"
+	"github.com/hardhacker/hylo/internal/prompt"
+)
 
 // SchemaField describes one editable configuration key for GET /api/config/schema.
 type SchemaField struct {
@@ -54,7 +57,7 @@ func buildConfigSchema() []SchemaField {
 
 		{Key: "agent.system_prompt", Type: "string", Section: "agent", Label: "Agent system prompt",
 			Description: "Global system prompt prepended to every agent run. Leave empty to always use the latest built-in default. Joined with the mate's own system prompt (if any) via a markdown divider.",
-			Multiline: true, Default: config.DefaultAgentSystemPrompt},
+			Multiline: true, Default: prompt.GlobalDefault},
 
 		{Key: "agent.mcp_enabled", Type: "bool", Section: "agent", Label: "Inject Hylo MCP",
 			Description: "Give every agent CLI run access to Hylo's MCP tools. Requires the TCP listener (server.port > 0). Not supported for Hermes.",

@@ -35,7 +35,7 @@ func init() {
 	// Register subcommands.
 	rootCmd.AddCommand(newInitCmd())
 	rootCmd.AddCommand(newStartCmd())
-rootCmd.AddCommand(newStatusCmd())
+	rootCmd.AddCommand(newStatusCmd())
 	rootCmd.AddCommand(newAppendCmd())
 	rootCmd.AddCommand(newPrependCmd())
 	rootCmd.AddCommand(newListCmd())
@@ -52,6 +52,9 @@ rootCmd.AddCommand(newStatusCmd())
 	rootCmd.AddCommand(newTagCmd())
 	rootCmd.AddCommand(newShortCmd())
 	rootCmd.AddCommand(newSkillsCmd())
+	rootCmd.AddCommand(newBotCmd())
+	rootCmd.AddCommand(newTriggerCmd())
+	rootCmd.AddCommand(newCompileCmd())
 	rootCmd.AddCommand(newAuthCmd())
 }
 

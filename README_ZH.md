@@ -398,10 +398,17 @@ Hylo 内置了一套 skill，agent 执行任务时会自动调用。你也可以
 
 #### 用 CLI 管理 skill
 
-**查看已安装的 skill**
+**查看已安装的 skill 和 Hylo catalog 里可安装的 skill**
 
 ```sh
 hylo skills list
+hylo skills list --category news
+```
+
+**从 Hylo catalog 安装 skill**
+
+```sh
+hylo skills install hackernews
 ```
 
 **从 GitHub 仓库安装 skill**

@@ -626,7 +626,7 @@ var homePageHTML = `<!DOCTYPE html>
     Alpine.store('servers', hyloServersStore());
   });
 
-` + keysJS + pathAcScript + chatReduceJS + chatTextJS + chatKernelJS + chatViewJS + listTightenJS + tabFitJS + graphLayoutJS + editorSessionJS + editorAgentJS + contentPaneScript + searchOverlayScript + confirmDialogJS + infoDialogJS + frontmatterDialogJS + serversStoreJS + settingsCtrlJS + sectionCacheJS + homeImagesJS + homeGraphJS + homeInboxJS + homeShortsJS + tagCloudJS + homeDragJS + homeJS + `
+` + liveJS + noteChangesJS + keysJS + pathAcScript + chatReduceJS + chatTextJS + chatKernelJS + chatViewJS + listTightenJS + tabFitJS + graphLayoutJS + editorSessionJS + editorAgentJS + contentPaneScript + searchOverlayScript + confirmDialogJS + infoDialogJS + frontmatterDialogJS + serversStoreJS + settingsCtrlJS + sectionCacheJS + homeImagesJS + homeGraphJS + homeInboxJS + homeShortsJS + tagCloudJS + homeDragJS + homeJS + `
   </script>
 ` + noteSharedJS + `
 </body>

@@ -18,13 +18,13 @@ function doHomeRefresh() {
 // mutateDom, so the move is invisible to Alpine and its bindings survive.
 // Ids are stripped while parked: getElementById would otherwise hit the
 // hidden copy. Chat is left out; its kernel already detaches and reattaches.
-// A vault change names what happened (__hyloVaultChanged); parked sections
-// of the affected kinds are dropped. Manual refresh drops everything.
+// A note change from the live feed drops parked sections of the affected
+// kinds (__hyloNotesChanged). Manual refresh drops everything.
 var __hyloSectionCache = new Map(); // insertion order is the LRU order
 var __hyloSectionCacheMax = 20;
-// Agents, clips and edits on disk never reach __hyloVaultChanged, so a
-// section loaded longer ago than this is refetched instead of restored.
-var __hyloSectionCacheTTL = 10 * 60 * 1000;
+// A backstop in case the live feed misses something: a section loaded longer
+// ago than this is refetched instead of restored.
+var __hyloSectionCacheTTL = 30 * 60 * 1000;
 var __hyloSectionShownURL = '';
 var __hyloSectionShownAt = Date.now();
 var __hyloSectionShownStale = false;
@@ -128,17 +128,6 @@ function __hyloIsType(type) {
   return function (key) { return __hyloSectionType(key) === type; };
 }
 
-function __hyloIsNoteList(key) {
-  var type = __hyloSectionType(key);
-  return type === 'folder' || type === 'memory' || type === 'pinned' || type === 'recent' || type === 'tags' || type === 'knowledge';
-}
-
-// A save can't say whether tags or links changed, and it reorders Recent, so cached derived views go.
-function __hyloIsDerived(key) {
-  var type = __hyloSectionType(key);
-  return type === 'tags' || type === 'knowledge' || type === 'recent';
-}
-
 function __hyloDropParked(pred) {
   var keys = [];
   __hyloSectionCache.forEach(function (_, key) { if (pred(key)) keys.push(key); });
@@ -170,46 +159,40 @@ function __hyloRefetchShown() {
   __hyloSectionFetch(__hyloSectionShownURL);
 }
 
-// change.op: write, create, pin, delete, rename, rename-sweep, move, compile, short, images.
-function __hyloVaultChanged(change) {
-  if (!change || !change.op) return;
-  var refetch = false;
-  var sidebar = false;
-  function drop(pred) { if (__hyloDropWhere(pred)) refetch = true; }
-  switch (change.op) {
-    case 'write':
-      // Autosave fires constantly; leave the shown section alone.
-      __hyloDropParked(__hyloIsDerived);
-      break;
-    case 'create':
-      drop(__hyloIsNoteList);
-      sidebar = true;
-      break;
-    case 'pin':
-    case 'rename-sweep':
-      drop(__hyloIsNoteList);
-      break;
-    case 'delete':
-    case 'rename':
-    case 'move':
-    case 'compile':
-      drop(__hyloIsNoteList);
-      sidebar = true;
-      break;
-    case 'short':
-      drop(__hyloIsType('shorts'));
-      drop(__hyloIsType('recent'));
-      if (change.hasImages) drop(__hyloIsType('images'));
-      break;
-    case 'images':
-      drop(__hyloIsType('images'));
-      break;
-    default:
-      return;
-  }
-  if (sidebar) __hyloRefreshSidebar();
-  if (refetch) __hyloRefetchShown();
+// An animation running on the shown list holds its reload until it's done;
+// the reload runs once the last hold is released.
+var __hyloRefetchHolds = 0;
+var __hyloRefetchHeld = false;
+function __hyloHoldRefetch() {
+  __hyloRefetchHolds++;
+  var released = false;
+  return function () {
+    if (released) return;
+    released = true;
+    if (--__hyloRefetchHolds > 0 || !__hyloRefetchHeld) return;
+    __hyloRefetchHeld = false;
+    __hyloRefetchShown();
+  };
 }
+
+// Note changes come from the live feed (live.js), from any source.
+function __hyloNotesChanged(changes) {
+  var editing = window.__hyloEditor ? __hyloEditor.currentPath : '';
+  var a = __hyloNoteChanges.affect(changes, { editing: editing });
+  var refetch = false;
+  if (a.all) {
+    __hyloDropParked(function () { return true; });
+    refetch = true;
+  } else {
+    Object.keys(a.park).forEach(function (t) { __hyloDropParked(__hyloIsType(t)); });
+    Object.keys(a.refetch).forEach(function (t) { if (__hyloDropWhere(__hyloIsType(t))) refetch = true; });
+  }
+  if (a.sidebar) __hyloRefreshSidebar();
+  if (!refetch) return;
+  if (__hyloRefetchHolds > 0) __hyloRefetchHeld = true;
+  else __hyloRefetchShown();
+}
+__hyloLive.on('notes', __hyloNotesChanged);
 
 function __hyloSectionCacheRemember(key, entry) {
   __hyloSectionCacheDelete(key);

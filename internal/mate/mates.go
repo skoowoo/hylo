@@ -2,6 +2,7 @@ package mate
 
 import (
 	"database/sql"
+	"errors"
 	"strings"
 	"time"
 
@@ -59,7 +60,7 @@ func (s *Store) CreateMate(m *Mate) error {
 		m.ID, m.Name, m.Description, m.AgentID, m.Model, m.Color, m.Cwd,
 		m.SystemPrompt, boolToInt(m.Enabled), maxOrder+1, now, now,
 	)
-	return err
+	return s.changed(err)
 }
 
 // ReorderMates assigns each mate the sort_order matching its position in ids.
@@ -74,24 +75,46 @@ func (s *Store) ReorderMates(ids []string) error {
 			return err
 		}
 	}
-	return tx.Commit()
+	return s.changed(tx.Commit())
 }
 
+// ErrMateConflict means the bot changed after the caller read it.
+var ErrMateConflict = errors.New("the bot changed since it was read; read it again")
+
 func (s *Store) UpdateMate(m *Mate) error {
-	now := time.Now().UnixMilli()
+	return s.updateMate(m, nil)
+}
+
+// UpdateMateIf updates m only while its stored updated_at is still prev.
+func (s *Store) UpdateMateIf(m *Mate, prev time.Time) error {
+	return s.updateMate(m, &prev)
+}
+
+func (s *Store) updateMate(m *Mate, prev *time.Time) error {
+	// Strictly increasing, so two writes in one millisecond still tell apart.
+	now := max(time.Now().UnixMilli(), m.UpdatedAt.UnixMilli()+1)
+	q := `UPDATE mates SET name=?, description=?, agent_id=?, model=?, color=?, cwd=?, system_prompt=?, enabled=?, updated_at=?
+         WHERE id=?`
+	args := []any{m.Name, m.Description, m.AgentID, m.Model, m.Color, m.Cwd,
+		m.SystemPrompt, boolToInt(m.Enabled), now, m.ID}
+	if prev != nil {
+		q += ` AND updated_at=?`
+		args = append(args, prev.UnixMilli())
+	}
+	res, err := s.db.Exec(q, args...)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); prev != nil && n == 0 {
+		return ErrMateConflict
+	}
 	m.UpdatedAt = time.UnixMilli(now)
-	_, err := s.db.Exec(
-		`UPDATE mates SET name=?, description=?, agent_id=?, model=?, color=?, cwd=?, system_prompt=?, enabled=?, updated_at=?
-         WHERE id=?`,
-		m.Name, m.Description, m.AgentID, m.Model, m.Color, m.Cwd,
-		m.SystemPrompt, boolToInt(m.Enabled), now, m.ID,
-	)
-	return err
+	return s.changed(nil)
 }
 
 func (s *Store) DeleteMate(id string) error {
 	_, err := s.db.Exec(`DELETE FROM mates WHERE id = ?`, id)
-	return err
+	return s.changed(err)
 }
 
 // ── Triggers ──────────────────────────────────────────────────────────────────
@@ -175,7 +198,9 @@ func (s *Store) ReplaceTriggersForMate(mateID string, triggers []MateTrigger) er
 		if old, ok := prev[t.ID]; ok && strings.TrimSpace(t.Schedule) == strings.TrimSpace(old.Schedule) {
 			t.LastFiredAt = old.LastFiredAt
 		} else {
-			t.LastFiredAt = time.Time{}
+			// A new schedule waits for its next slot; otherwise one set after
+			// today's slot would fire within the minute.
+			t.LastFiredAt = time.UnixMilli(now)
 		}
 		lastFiredMs := int64(0)
 		if !t.LastFiredAt.IsZero() {
@@ -188,7 +213,7 @@ func (s *Store) ReplaceTriggersForMate(mateID string, triggers []MateTrigger) er
 			return err
 		}
 	}
-	return tx.Commit()
+	return s.changed(tx.Commit())
 }
 
 // ── scan helpers ──────────────────────────────────────────────────────────────

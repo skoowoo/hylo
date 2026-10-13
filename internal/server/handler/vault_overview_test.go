@@ -7,16 +7,6 @@ import (
 	"github.com/hardhacker/hylo/internal/storage"
 )
 
-func TestIntroPromptQuotesTheGreeting(t *testing.T) {
-	p := introPrompt("Your Q3 plan keeps asking who it's for.", "- 4 notes")
-	if !strings.Contains(p, `"Your Q3 plan keeps asking who it's for."`) || !strings.Contains(p, "editor_type") {
-		t.Fatalf("prompt misses the greeting or the editor: %s", p)
-	}
-	if strings.Contains(introPrompt("", ""), "already opened") {
-		t.Fatal("no greeting, nothing to quote")
-	}
-}
-
 func TestVaultOverviewListsFoldersAndRecentNotes(t *testing.T) {
 	v, err := storage.New(t.TempDir())
 	if err != nil {

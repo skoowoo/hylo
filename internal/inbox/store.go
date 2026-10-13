@@ -37,6 +37,7 @@ type Store struct {
 	db        *sql.DB
 	mu        sync.Mutex
 	subs      map[chan Message]struct{}
+	onCreate  func(Message)
 	lastPrune atomic.Int64
 }
 

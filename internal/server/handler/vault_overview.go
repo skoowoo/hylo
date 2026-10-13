@@ -1,11 +1,13 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 	"path"
 	"path/filepath"
 	"sort"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/hardhacker/hylo/internal/storage"
 )
@@ -76,4 +78,46 @@ func NewVaultOverview(v *storage.Vault) http.HandlerFunc {
 		}
 		respondJSON(w, http.StatusOK, o)
 	}
+}
+
+const introExcerpt = 120
+
+// vaultOverview is what the intro guide is built from. It goes into the prompt
+// so the agent starts typing without exploring the vault first.
+func vaultOverview(v *storage.Vault) string {
+	if v == nil {
+		return ""
+	}
+	o, err := buildVaultOverview(v)
+	if err != nil {
+		return ""
+	}
+	if o.Notes == 0 {
+		return "Their vault is empty: they are starting fresh."
+	}
+	var sb strings.Builder
+	fmt.Fprintf(&sb, "- %d notes", o.Notes)
+	var names []string
+	for _, f := range o.Folders {
+		names = append(names, fmt.Sprintf("%s (%d)", f.Name, f.Count))
+	}
+	if len(names) > 0 {
+		sb.WriteString(", in folders " + strings.Join(names, ", "))
+	}
+	sb.WriteString(".\n- Most recently edited:")
+	for _, n := range o.Recent {
+		fmt.Fprintf(&sb, "\n  - %s", n.Path)
+		if n.Preview != "" {
+			fmt.Fprintf(&sb, ": %q", n.Preview)
+		}
+	}
+	return sb.String()
+}
+
+func excerpt(s string) string {
+	s = strings.Join(strings.Fields(s), " ")
+	if utf8.RuneCountInString(s) <= introExcerpt {
+		return s
+	}
+	return string([]rune(s)[:introExcerpt]) + "…"
 }

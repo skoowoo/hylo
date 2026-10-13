@@ -2,9 +2,12 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/hardhacker/hylo/internal/mate"
 )
@@ -151,7 +154,24 @@ func (h *MateAPI) MatePUT(w http.ResponseWriter, r *http.Request) {
 	existing.SystemPrompt = body.SystemPrompt
 	existing.Enabled = body.Enabled
 
-	if err := h.store.UpdateMate(existing); err != nil {
+	// If-Match carries the updatedAt (unix ms) the caller read, so a
+	// read-modify-write can't overwrite a change made in between.
+	if ifMatch := r.Header.Get("If-Match"); ifMatch != "" {
+		ms, err := strconv.ParseInt(ifMatch, 10, 64)
+		if err != nil {
+			http.Error(w, "invalid If-Match", http.StatusBadRequest)
+			return
+		}
+		err = h.store.UpdateMateIf(existing, time.UnixMilli(ms))
+		if errors.Is(err, mate.ErrMateConflict) {
+			http.Error(w, err.Error(), http.StatusConflict)
+			return
+		}
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	} else if err := h.store.UpdateMate(existing); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

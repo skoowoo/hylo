@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 
+	"github.com/hardhacker/hylo/internal/notes"
 	"github.com/spf13/cobra"
 )
 
@@ -14,21 +15,23 @@ func newSkillsCmd() *cobra.Command {
 	}
 	cmd.AddCommand(newSkillsListCmd())
 	cmd.AddCommand(newSkillsAddCmd())
+	cmd.AddCommand(newSkillsInstallCmd())
 	cmd.AddCommand(newSkillsRemoveCmd())
 	return cmd
 }
 
 func newSkillsListCmd() *cobra.Command {
-	return &cobra.Command{
+	var category string
+	cmd := &cobra.Command{
 		Use:          "list",
-		Short:        "List installed skills",
+		Short:        "List installed skills and ones in Hylo's catalog",
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c, err := openClient()
 			if err != nil {
 				return err
 			}
-			skills, err := c.SkillsList()
+			skills, err := notes.SkillsList(c, category)
 			if err != nil {
 				return err
 			}
@@ -55,6 +58,31 @@ func newSkillsListCmd() *cobra.Command {
 				rows[i] = []string{s.Name, status, kind, s.RepoURL}
 			}
 			PrintTable(cols, rows)
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&category, "category", "", "only skills in this catalog category, e.g. news")
+	return cmd
+}
+
+func newSkillsInstallCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:          "install <name>",
+		Short:        "Install a skill from Hylo's catalog, or turn on an installed one",
+		Long:         `Installs a skill listed by "hylo skills list" and turns it on. To install from any GitHub repository, use "hylo skills add".`,
+		Example:      `  hylo skills install hackernews`,
+		Args:         cobra.ExactArgs(1),
+		SilenceUsage: true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			c, err := openClient()
+			if err != nil {
+				return err
+			}
+			msg, err := notes.SkillsInstall(c, args[0])
+			if err != nil {
+				return err
+			}
+			fmt.Printf("Skill %q %s.\n", args[0], msg)
 			return nil
 		},
 	}

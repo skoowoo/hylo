@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/fsnotify/fsnotify"
+	"github.com/hardhacker/hylo/internal/plugin"
 	"github.com/hardhacker/hylo/internal/util"
 )
 
@@ -120,6 +121,7 @@ func (w *Watcher) handle(event fsnotify.Event) {
 				w.logger.Warn("vault watcher: recursive watch after mkdir",
 					"path", event.Name, "err", walkErr)
 			}
+			w.indexNewFiles(event.Name)
 			return
 		}
 		if !util.IsMarkdownPath(event.Name) {
@@ -278,6 +280,47 @@ func (w *Watcher) watchRecursive(dir string, reason string) error {
 			return filepath.SkipDir
 		}
 		w.addWatch(path, reason)
+		return nil
+	})
+}
+
+const movedNoteAge = 10 * time.Second
+
+// indexNewFiles picks up notes written into a new directory before its watch
+// was in place (mkdir -p a/b && write a/b/n.md): on kqueue their events never arrive.
+// A note older than the directory event came with a moved folder, not a write.
+func (w *Watcher) indexNewFiles(dir string) {
+	cutoff := time.Now().Add(-movedNoteAge)
+	_ = filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		if isHiddenName(d.Name()) {
+			if d.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if d.IsDir() || !util.IsMarkdownPath(path) {
+			return nil
+		}
+		info, err := d.Info()
+		if err != nil {
+			return nil
+		}
+		rel, err := filepath.Rel(w.g.root, path)
+		if err != nil {
+			return nil
+		}
+		slashRel := "/" + toSlash(rel)
+		if w.syncUpsert(slashRel, info) {
+			w.g.emitEvent(plugin.Event{
+				Type:  plugin.EventFSCreate,
+				Path:  slashRel,
+				Time:  info.ModTime(),
+				Moved: info.ModTime().Before(cutoff),
+			})
+		}
 		return nil
 	})
 }

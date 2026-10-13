@@ -11,6 +11,7 @@ import (
 	"github.com/hardhacker/hylo/internal/config"
 	"github.com/hardhacker/hylo/internal/editorbus"
 	"github.com/hardhacker/hylo/internal/inbox"
+	"github.com/hardhacker/hylo/internal/live"
 	"github.com/hardhacker/hylo/internal/mate"
 	hylomcp "github.com/hardhacker/hylo/internal/mcp"
 	"github.com/hardhacker/hylo/internal/plugins/compile"
@@ -35,6 +36,7 @@ func newRouter(
 	mateStore *mate.Store,
 	mateRunner *mate.Runner,
 	skillsMgr *skills.Manager,
+	feed *live.Feed,
 	apiKey string) http.Handler {
 	mux := http.NewServeMux()
 
@@ -60,12 +62,17 @@ func newRouter(
 			logger.Warn("inbox store unavailable", "err", err)
 		} else {
 			inboxStore = is
+			// Pages hear of new messages on the live feed; the desktop app's
+			// notifier still streams /api/inbox/notifications.
+			is.SetOnCreate(func(m inbox.Message) {
+				feed.Publish(live.Change{Topic: live.TopicInbox, Op: "create", Data: m})
+			})
 		}
 	}
 
 	// Wire mate runner → agent API so trigger runs use the same execution path.
-	// Trigger run completions become inbox messages; inboxStore.Create fans out
-	// to /api/inbox/notifications on its own, so no separate push is needed here.
+	// Trigger run completions become inbox messages; inboxStore.Create fans them
+	// out on its own, so no separate push is needed here.
 	if mateRunner != nil {
 		ah.SetMateRunner(mateRunner)
 		mateRunner.SetRunFunc(ah.FireTriggerRun)
@@ -103,6 +110,7 @@ func newRouter(
 		mux.HandleFunc("GET /api/inbox/notifications", inboxStore.StreamSSE)
 	}
 
+	mux.Handle("GET /api/live", feed)
 	mux.HandleFunc("GET /api/agents", ah.AgentsGET)
 	mux.HandleFunc("POST /api/chat", ah.ChatPOST)
 	mux.HandleFunc("POST /api/runs", ah.RunsPOST)
@@ -132,6 +140,7 @@ func newRouter(
 		mux.HandleFunc("GET /api/mates/{id}", mh.MateGET)
 		mux.HandleFunc("PUT /api/mates/{id}", mh.MatePUT)
 		mux.HandleFunc("DELETE /api/mates/{id}", mh.MateDELETE)
+		mux.HandleFunc("POST /api/mates/{id}/triggers/{tid}/run", ah.TriggerRunPOST)
 	}
 
 	skh := handler.NewSkillsHTTP(skillsMgr)
@@ -160,7 +169,7 @@ func newRouter(
 	mux.HandleFunc("GET /api/editor/agent", editorBus.StreamSSE)
 	mux.HandleFunc("POST /api/editor/agent/ack", editorBus.AckPOST)
 	mux.HandleFunc("POST /api/editor/agent/focus", editorBus.FocusPOST)
-	mux.Handle("/mcp", hylomcp.NewHandler(client.NewInProcess(mux), hylomcp.WithEditorBus(editorBus)))
+	mux.Handle("/mcp", hylomcp.NewHandler(client.NewInProcess(mux), hylomcp.WithEditorBus(editorBus), hylomcp.WithManageGate(ah.ManageAllowed)))
 
 	// Website routes
 	mux.HandleFunc("GET /notes/search", vh.SearchFragment)

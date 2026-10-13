@@ -37,6 +37,7 @@ var DefaultSkills = []string{
 	"hylo-memory",
 	"hylo-notes",
 	"hylo-recap",
+	"hylo-setup",
 }
 
 // state persists only the non-default skills the user has explicitly enabled.
@@ -53,12 +54,15 @@ type SkillInfo struct {
 	RepoURL     string `json:"repoUrl,omitempty"`
 	SubPath     string `json:"subPath,omitempty"`
 	Description string `json:"description,omitempty"`
+	Category    string `json:"category,omitempty"`
 }
 
 // catalogEntry holds the metadata parsed from a catalog line.
 type catalogEntry struct {
-	RepoURL string
-	SubPath string
+	RepoURL  string
+	SubPath  string
+	Category string
+	Summary  string
 }
 
 // Manager tracks which skills are enabled and manages their vault symlinks.
@@ -70,6 +74,19 @@ type Manager struct {
 	st         state
 	shellEnvFn func() []string // returns login-shell env for git operations
 	descs      map[string]cachedDesc
+	onChange   func()
+}
+
+// SetOnChange registers fn to run after a skill is installed, turned on or off,
+// or removed. Set it before the manager is in use.
+func (m *Manager) SetOnChange(fn func()) { m.onChange = fn }
+
+// changed passes err through, telling the hook first when the change went in.
+func (m *Manager) changed(err error) error {
+	if err == nil && m.onChange != nil {
+		m.onChange()
+	}
+	return err
 }
 
 // cachedDesc spares List from re-parsing an unchanged SKILL.md on every call.
@@ -158,8 +175,9 @@ func parseCatalog(content string) map[string]catalogEntry {
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
 		}
-		parts := strings.SplitN(line, ":", 3)
-		if len(parts) != 3 {
+		// The summary is last so it may contain colons.
+		parts := strings.SplitN(line, ":", 5)
+		if len(parts) < 3 {
 			continue
 		}
 		githubPath := strings.TrimSpace(parts[0])
@@ -171,10 +189,17 @@ func parseCatalog(content string) map[string]catalogEntry {
 		if subPath == "." {
 			subPath = ""
 		}
-		result[skillName] = catalogEntry{
+		entry := catalogEntry{
 			RepoURL: "https://github.com/" + githubPath,
 			SubPath: subPath,
 		}
+		if len(parts) > 3 {
+			entry.Category = strings.TrimSpace(parts[3])
+		}
+		if len(parts) > 4 {
+			entry.Summary = strings.TrimSpace(parts[4])
+		}
+		result[skillName] = entry
 	}
 	return result
 }
@@ -212,6 +237,7 @@ func (m *Manager) List() ([]SkillInfo, error) {
 				RepoURL:     entry.RepoURL,
 				SubPath:     entry.SubPath,
 				Description: m.skillDescription(filepath.Join(m.sourceDir, name)),
+				Category:    entry.Category,
 			})
 		}
 	}
@@ -222,12 +248,14 @@ func (m *Manager) List() ([]SkillInfo, error) {
 			continue
 		}
 		out = append(out, SkillInfo{
-			Name:      name,
-			Default:   false,
-			Installed: false,
-			Enabled:   false,
-			RepoURL:   entry.RepoURL,
-			SubPath:   entry.SubPath,
+			Name:        name,
+			Default:     false,
+			Installed:   false,
+			Enabled:     false,
+			RepoURL:     entry.RepoURL,
+			SubPath:     entry.SubPath,
+			Description: entry.Summary,
+			Category:    entry.Category,
 		})
 	}
 
@@ -262,7 +290,7 @@ func (m *Manager) Enable(name string) error {
 	if !m.isExtraEnabled(name) {
 		m.st.EnabledExtra = append(m.st.EnabledExtra, name)
 	}
-	return m.saveState()
+	return m.changed(m.saveState())
 }
 
 // Disable disables a skill by removing symlinks and persisting state.
@@ -285,7 +313,7 @@ func (m *Manager) Disable(name string) error {
 		}
 	}
 	m.st.EnabledExtra = extra
-	return m.saveState()
+	return m.changed(m.saveState())
 }
 
 // Remove disables the skill (removes all symlinks) and deletes its source
@@ -319,7 +347,7 @@ func (m *Manager) Remove(name string) error {
 	}
 
 	// Delete the source directory.
-	return os.RemoveAll(filepath.Join(m.sourceDir, name))
+	return m.changed(os.RemoveAll(filepath.Join(m.sourceDir, name)))
 }
 
 // Install clones a GitHub repository and copies the named skill directory into

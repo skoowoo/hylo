@@ -133,6 +133,12 @@ var homeSidebarPartsHTML string
 //go:embed assets/section_cache.js
 var sectionCacheJS string
 
+//go:embed assets/live.js
+var liveJS string
+
+//go:embed assets/note_changes.js
+var noteChangesJS string
+
 //go:embed assets/home_images.js
 var homeImagesJS string
 

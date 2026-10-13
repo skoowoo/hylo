@@ -29,7 +29,10 @@ pub struct InboxHandle {
 impl InboxHandle {
     pub fn start(app: AppHandle, target: Target) -> Self {
         let (stop, rx) = watch::channel(false);
-        let handle = Self { stop, target: target.clone() };
+        let handle = Self {
+            stop,
+            target: target.clone(),
+        };
         tauri::async_runtime::spawn(async move {
             run_loop(app, target, rx).await;
         });
@@ -66,7 +69,11 @@ async fn run_loop(app: AppHandle, target: Target, mut stop: watch::Receiver<bool
         match connect(&client, &app, &endpoint, &target, &mut stop).await {
             Loop::Stopped => break,
             Loop::Retry(was_open) => {
-                wait = if was_open { RETRY_FIRST } else { (wait * 2).min(RETRY_MAX) };
+                wait = if was_open {
+                    RETRY_FIRST
+                } else {
+                    (wait * 2).min(RETRY_MAX)
+                };
                 tokio::select! {
                     _ = stop.changed() => {
                         if *stop.borrow() { break; }
@@ -148,7 +155,10 @@ fn show_message(app: &AppHandle, raw: &str, label: Option<&str>) {
     let Ok(msg) = serde_json::from_str::<InboxMsg>(raw) else {
         return;
     };
-    let Ok(settings) = app.state::<ShellState>().read_config(|cfg| cfg.inbox_notify.clone()) else {
+    let Ok(settings) = app
+        .state::<ShellState>()
+        .read_config(|cfg| cfg.inbox_notify.clone())
+    else {
         return;
     };
     if settings.text_enabled {

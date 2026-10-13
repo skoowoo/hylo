@@ -1,5 +1,5 @@
 import { cardEntry } from './registry.js';
-import { mountShell, ensureStyle } from './shell.js';
+import { mountShell, mountInline, ensureStyle } from './shell.js';
 
 // Synchronous handle; the renderer chunk lands later and fills the placeholder.
 export function mountCard(info, source, { onEdit, mode } = {}) {
@@ -14,7 +14,9 @@ export function mountCard(info, source, { onEdit, mode } = {}) {
 
   entry.load().then((renderer) => {
     if (destroyed) return;
-    shell = mountShell({ lang: entry.lang, source: latest, renderer, minHeight: entry.minHeight, onEdit, mode });
+    shell = entry.inline
+      ? mountInline({ lang: entry.lang, source: latest, renderer })
+      : mountShell({ lang: entry.lang, source: latest, renderer, minHeight: entry.minHeight, onEdit, mode });
     el.style.minHeight = '';
     el.replaceChildren(shell.el);
   }).catch(() => {
