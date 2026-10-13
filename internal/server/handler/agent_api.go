@@ -81,6 +81,7 @@ type chatBody struct {
 	TriggerReply       bool              `json:"triggerReply"`       // when true, trigger run with reply callback — uses persistent agent session like chat
 	TriggerEvent       string            `json:"triggerEvent"`       // mate event type label stored on assistant message
 	TriggerID          string            `json:"triggerId"`          // trigger that fired the run, stored on assistant message
+	RetryOf            string            `json:"retryOf"`            // failed/stopped assistant message this run replaces
 	Intro              bool              `json:"intro"`              // first chat after onboarding; see prompt.Intro
 	IntroLang          string            `json:"introLang"`          // language the onboarding hello picked
 	eventReply         plugin.ReplyFunc  // optional; invoked when trigger run completes
@@ -241,6 +242,7 @@ type triggerRetryBody struct {
 	Prompt             string `json:"prompt"`
 	TriggerEvent       string `json:"triggerEvent"`
 	TriggerID          string `json:"triggerId"`
+	RetryOf            string `json:"retryOf"`
 	UserMessageID      string `json:"userMessageId"`
 	AssistantMessageID string `json:"assistantMessageId"`
 }
@@ -279,6 +281,8 @@ func (a *AgentAPI) RunsRetryTriggerPOST(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
+	// Only once the retry is under way, so a refused one keeps the failed attempt.
+	a.dropRetried(body.ConversationID, body.RetryOf, body.Prompt)
 	respondJSON(w, http.StatusAccepted, map[string]any{"runId": runID})
 }
 
@@ -308,6 +312,15 @@ func (a *AgentAPI) RunByRefGET(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	respondJSON(w, http.StatusOK, run.StatusJSON())
+}
+
+func (a *AgentAPI) dropRetried(convID, retryOf, prompt string) {
+	if a.store == nil || convID == "" || retryOf == "" {
+		return
+	}
+	if err := a.store.DeleteRetried(convID, retryOf, prompt); err != nil {
+		a.logger.Warn("chat: drop retried message", slog.String("err", err.Error()))
+	}
 }
 
 // FireTriggerRun is called by the mate runner to launch a background agent run.
@@ -415,6 +428,8 @@ func (a *AgentAPI) executeChat(ctx context.Context, run *agent.Run, body chatBod
 		}
 		pr.Intro = &prompt.Intro{Greeting: a.openingWords(body.ConversationID), Overview: vaultOverview(a.vault), Lang: body.IntroLang}
 	}
+
+	a.dropRetried(body.ConversationID, body.RetryOf, body.Message)
 
 	// Persist user message and create assistant placeholder when a conversation
 	// is active. assistantMsgID is carried through to the completion handler.

@@ -467,6 +467,7 @@
             conversationId: conversationId,
             userMessageId: userMsgId,
             assistantMessageId: assistant.id,
+            retryOf: (extra && extra.retryOf) || '',
             intro: !!(extra && extra.intro),
             introLang: (extra && extra.lang) || '',
           }),
@@ -505,7 +506,7 @@
     // no SSE stream for this path (it's a background run, like /api/runs),
     // so it leans on the same runId poller + conversation resync runTurn
     // already uses to recover from a dropped SSE connection.
-    async function retryTriggerRun(text, userMsgId, triggerEvent, triggerId, mate) {
+    async function retryTriggerRun(text, userMsgId, triggerEvent, triggerId, mate, retryOf) {
       if (!mate) return;
       var assistant = {
         id: R.genId(),
@@ -530,6 +531,7 @@
             prompt: text,
             triggerEvent: triggerEvent,
             triggerId: triggerId,
+            retryOf: retryOf,
             userMessageId: userMsgId,
             assistantMessageId: assistant.id,
           }),
@@ -762,14 +764,19 @@
       if (idx < 0) return;
       var msg = messages[idx];
       if (!msg || msg.role !== 'assistant' || (msg.status !== 'failed' && msg.status !== 'canceled')) return;
-      var text = '';
-      for (var j = idx - 1; j >= 0; j--) {
-        if (messages[j].role === 'user') { text = messages[j].content; break; }
+      var prompt = idx > 0 ? messages[idx - 1] : await fetchPrompt(msg.id);
+      // Only the prompt right before the reply goes with it; an older one stays put.
+      var drop = !!prompt && prompt.role === 'user';
+      for (var j = idx - 2; !drop && j >= 0; j--) {
+        if (messages[j].role === 'user') { prompt = messages[j]; break; }
       }
-      if (!text) return;
+      if (!prompt || prompt.role !== 'user' || !prompt.content || messages.indexOf(msg) === -1 || busy()) return;
+      var text = prompt.content;
       var triggerEvent = msg.triggerEvent || '';
       var mate = mateById(mateId);
-      messages.splice(idx, 1);
+      // The server drops the same rows once the retry starts.
+      messages.splice(messages.indexOf(msg), 1);
+      if (drop && messages.indexOf(prompt) !== -1) messages.splice(messages.indexOf(prompt), 1);
       var userMsgId = R.genId();
       messages.push({ id: userMsgId, role: 'user', content: text, createdAt: Date.now(), rev: 1 });
       // wechat_message/discord_message runs reply externally and resume a
@@ -779,9 +786,22 @@
       // conv) is retried through the trigger pipeline, so its completion
       // still reaches the inbox the way the original fire did.
       if (triggerEvent && triggerEvent !== 'wechat_message' && triggerEvent !== 'discord_message') {
-        await retryTriggerRun(text, userMsgId, triggerEvent, msg.triggerId || '', mate);
+        await retryTriggerRun(text, userMsgId, triggerEvent, msg.triggerId || '', mate, msg.id);
       } else {
-        await runTurn(text, userMsgId, mate);
+        await runTurn(text, userMsgId, mate, { retryOf: msg.id });
+      }
+    }
+
+    // The prompt of the oldest loaded reply sits on the page not loaded yet.
+    async function fetchPrompt(msgId) {
+      if (!conversationId) return null;
+      try {
+        var data = await fetchJSON('/api/conversations/' + conversationId + '?limit=1&before=' + encodeURIComponent(msgId));
+        var m = data && data.messages && data.messages[0];
+        return m ? R.formatStoredMessages([m])[0] : null;
+      } catch (e) {
+        notify("Couldn't load the prompt to retry");
+        return null;
       }
     }
 

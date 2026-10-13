@@ -244,6 +244,46 @@ func (s *Store) MarkStalledRunMessagesAsFailed() error {
 	return err
 }
 
+// DeleteRetried drops a failed or stopped reply that is being run again, plus
+// the prompt right before it when that is the prompt being resent, so a retry
+// replaces the attempt instead of piling up next to it.
+func (s *Store) DeleteRetried(convID, assistantID, prompt string) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback() //nolint:errcheck
+	var role, status string
+	err = tx.QueryRow(`SELECT role, status FROM chat_messages WHERE id = ? AND conversation_id = ?`, assistantID, convID).Scan(&role, &status)
+	if err == sql.ErrNoRows {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if role != "assistant" || (status != "failed" && status != "canceled") {
+		return nil
+	}
+	var prevID, prevRole, prevContent string
+	err = tx.QueryRow(
+		`SELECT id, role, content FROM chat_messages WHERE conversation_id = ?
+		   AND (created_at, rowid) < (SELECT created_at, rowid FROM chat_messages WHERE id = ?)
+		 ORDER BY created_at DESC, rowid DESC LIMIT 1`, convID, assistantID,
+	).Scan(&prevID, &prevRole, &prevContent)
+	if err != nil && err != sql.ErrNoRows {
+		return err
+	}
+	if prevRole == "user" && prevContent == prompt {
+		if _, err := tx.Exec(`DELETE FROM chat_messages WHERE id = ?`, prevID); err != nil {
+			return err
+		}
+	}
+	if _, err := tx.Exec(`DELETE FROM chat_messages WHERE id = ?`, assistantID); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
 func (s *Store) UpdateMessageDone(id, content, status string) error {
 	now := time.Now().UnixMilli()
 	_, err := s.db.Exec(

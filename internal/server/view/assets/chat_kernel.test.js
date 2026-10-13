@@ -219,12 +219,68 @@ test('retry on a failed trigger-originated message goes through retry-trigger, n
     assert.deepEqual(retryCalls[0].conversationId, 'c1');
     assert.deepEqual(retryCalls[0].prompt, 'do the thing');
     assert.deepEqual(retryCalls[0].triggerEvent, 'vault_file_changed');
+    assert.equal(retryCalls[0].retryOf, 'a1');
 
     var after = api.state();
     assert.equal(after.phase, 'idle');
+    assert.equal(after.messages.length, 2, 'the retry replaces the failed exchange');
+    assert.equal(after.messages.some(function (m) { return m.id === 'u1' || m.id === 'a1'; }), false);
     var retried = after.messages[after.messages.length - 1];
     assert.equal(retried.triggerEvent, 'vault_file_changed');
     assert.equal(retried.status, 'running');
+  } finally {
+    disarm();
+  }
+});
+
+test('retry fetches the prompt when it sits on a page not loaded yet', async function () {
+  var matesReady;
+  var matesP = new Promise(function (resolve) { matesReady = resolve; });
+  var api;
+  global.__hyloChatMount = function (el, facade) {
+    api = facade;
+    return { render: function () {}, destroy: function () {}, draftValue: function () { return facade.draft(); }, clearComposer: function () {}, focusComposer: function () {} };
+  };
+
+  var retryCalls = [];
+  var promptFetches = [];
+  global.fetch = async function (url, opts) {
+    var u = String(url);
+    if (u === '/api/mates') return jsonResponse(200, { mates: [{ id: 'm1', name: 'Ada', enabled: true, agentId: 'claude' }] });
+    if (u === '/api/mate-events') return jsonResponse(200, { events: [] });
+    if (u.indexOf('/api/conversations?') === 0) return jsonResponse(200, { conversations: [{ id: 'c1' }] });
+    if (u.indexOf('/api/conversations/c1?limit=1&before=a1') === 0) {
+      promptFetches.push(u);
+      return jsonResponse(200, { messages: [{ id: 'u1', role: 'user', content: 'older prompt' }] });
+    }
+    if (u.split('?')[0] === '/api/conversations/c1') {
+      return jsonResponse(200, {
+        hasMore: true,
+        messages: [{ id: 'a1', role: 'assistant', status: 'failed', triggerEvent: 'scheduled', triggerId: 't1', content: '', mateId: 'm1' }],
+      });
+    }
+    if (u === '/api/runs/retry-trigger') {
+      retryCalls.push(JSON.parse(opts.body));
+      return jsonResponse(202, { runId: 'r9' });
+    }
+    throw new Error('unmocked ' + u);
+  };
+
+  var chat = global.__hyloChatCreate({ onMates: function () { matesReady(); } });
+  try {
+    chat.start();
+    await matesP;
+    chat.attach({});
+    chat.tryOpen('m1');
+    await tick();
+
+    await api.retry('a1');
+
+    assert.equal(promptFetches.length, 1);
+    assert.equal(retryCalls.length, 1);
+    assert.equal(retryCalls[0].prompt, 'older prompt');
+    assert.equal(retryCalls[0].retryOf, 'a1');
+    assert.equal(retryCalls[0].triggerId, 't1');
   } finally {
     disarm();
   }

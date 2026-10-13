@@ -3,6 +3,7 @@ package mate
 import (
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func TestConversationAgentSession(t *testing.T) {
@@ -177,5 +178,43 @@ func TestMessageTriggerID(t *testing.T) {
 	}
 	if len(msgs) != 1 || msgs[0].TriggerID != "trig-1" {
 		t.Fatalf("got %+v", msgs)
+	}
+}
+
+func TestDeleteRetried(t *testing.T) {
+	store, err := Open(filepath.Join(t.TempDir(), "vault"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	conv, err := store.CreateConversation("mate-1", "Chat")
+	if err != nil {
+		t.Fatal(err)
+	}
+	add := func(role, content, status string) Message {
+		m, err := store.InsertMessage(Message{ConversationID: conv.ID, Role: role, Content: content, Status: status})
+		if err != nil {
+			t.Fatal(err)
+		}
+		time.Sleep(2 * time.Millisecond)
+		return m
+	}
+	add("user", "first", "")
+	ok := add("assistant", "done", "succeeded")
+	add("user", "again", "")
+	failed := add("assistant", "", "failed")
+
+	if err := store.DeleteRetried(conv.ID, ok.ID, "first"); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.DeleteRetried(conv.ID, failed.ID, "again"); err != nil {
+		t.Fatal(err)
+	}
+	msgs, err := store.ListMessages(conv.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(msgs) != 2 || msgs[1].ID != ok.ID {
+		t.Fatalf("want only the first exchange left, got %+v", msgs)
 	}
 }
