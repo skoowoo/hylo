@@ -65,7 +65,7 @@ const settingsModalCSS = `
       flex-shrink: 0; width: 196px;
       border-right: var(--bd-w) solid var(--line-hair);
       background: var(--surface-soft);
-      padding: 1rem 0.5rem; display: flex; flex-direction: column;
+      padding: 0 0.5rem 1rem; display: flex; flex-direction: column;
       gap: 2px; user-select: none;
       /* .side-nav-item.is-active (base.css) just consumes the generic
          --control-active-bg — but since this container's own background is
@@ -74,6 +74,14 @@ const settingsModalCSS = `
          still reads as a clear lift. Same fix as .home-side (home.css). */
       --control-active-bg: var(--control-active-bg-on-soft);
     }
+
+    /* Same height and type as the content pane's title row, so both sit on one line. */
+    .settings-sidebar-title {
+      flex-shrink: 0; height: var(--toolbar-h); padding: 0 8px;
+      display: flex; align-items: center;
+      font-size: var(--text-base); font-weight: 600; color: var(--fg);
+    }
+    html.macos .settings-sidebar-title { -webkit-app-region: drag; }
 
     /* ── Content area ─────────────────────────────────────────── */
     .settings-content { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden; border-radius: 0; }
@@ -84,15 +92,15 @@ const settingsModalCSS = `
     .settings-content-title { font-size: var(--text-base); font-weight: 600; color: var(--fg); }
 
     /* Shared "back button (+ optional title)" row at the top of a detail
-       view — Server's config-section detail and Agent Bots' template
-       picker/form all push into one via the same back-button pattern
+       view — Server's config-section detail and the Bots form both
+       push into one via the same back-button pattern
        (agentBotBackBtnHTML). Only the margin below it varies per caller
        (.cfg-detail-header / .agent-bot-form-header). */
     .settings-detail-header { display: flex; align-items: center; gap: 0.75rem; }
 
     /* ── Pane ─────────────────────────────────────────────────── */
     /* Shared by every tab that's just "a scrollable column of fields"
-       (Appearance/Shortcuts/Notifications/Skills/Agent CLI) — Server and
+       (Appearance/Shortcuts/Notifications/Skills/Agents) — Server and
        Agent Bots have their own multi-part layouts (.cfg-content,
        .agent-bots-pane) and don't use this. */
     .settings-scroll-pane { flex: 1; overflow-y: auto; padding: 1.75rem 1.5rem 3rem; }
@@ -170,6 +178,10 @@ const settingsCtrlJS = `
           var id = localStorage.getItem('hylo-accent');
           this.accentPref = this.accentPresets.some(p => p.id === id) ? id : 'indigo';
         });
+        window.addEventListener('hylo:open-settings', (e) => {
+          if (e.detail && e.detail.tab) this.tab = e.detail.tab;
+          Alpine.store('settingsModal').open = true;
+        });
         window.addEventListener('hylo:switch-server', (e) => {
           const id = (e.detail && e.detail.id) || '';
           if (id) this.requestSwitch(id);
@@ -177,11 +189,15 @@ const settingsCtrlJS = `
         window.__hyloHotkeys.register('open-settings', ',', function() {
           Alpine.store('settingsModal').open = true;
         });
-        this.$watch('tab', (val) => { if (Alpine.store('settingsModal').open) this.loadTab(val); });
+        this.$watch('tab', (val, old) => {
+          if (old === 'agent-bots') this.stopBotSetup();
+          if (Alpine.store('settingsModal').open) this.loadTab(val);
+        });
         this.$watch('$store.settingsModal.open', (open) => {
           if (!open) {
             if (window.__hyloEscPop) window.__hyloEscPop('settings');
             this.cancelWechatLogin();
+            this.stopBotSetup();
             return;
           }
           if (window.__hyloEscPush) window.__hyloEscPush('settings', () => this.requestClose());
@@ -190,6 +206,7 @@ const settingsCtrlJS = `
       },
 
       async requestClose() {
+        if (this.tab === 'agent-bots' && this.agentBotFormMode && !(await this.closeAgentBotForm())) return;
         if (this.hasDirty) {
           const ok = await window.showConfirm({ title: 'Discard changes?', message: 'You have unsaved server settings.', confirmLabel: 'Discard', danger: true });
           if (!ok) return;
@@ -251,16 +268,16 @@ type settingsTab struct {
 var settingsTabs = []settingsTab{
 	{id: "appearance", label: "Appearance", desktopOnly: false, icon: `<circle cx="12" cy="12" r="10"/><path d="M12 18a6 6 0 0 0 0-12z" fill="currentColor" stroke="none"/>`},
 	{id: "server", label: "Server", desktopOnly: false, icon: `<rect width="20" height="8" x="2" y="2" rx="2"/><rect width="20" height="8" x="2" y="14" rx="2"/><path stroke-linecap="round" d="M6 6h.01"/><path stroke-linecap="round" d="M6 18h.01"/>`},
-	{id: "agent-bots", label: "Agent Bots", desktopOnly: false, icon: `<path d="M12 6V2H8"/><path d="M15 11v2"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="M20 16a2 2 0 0 1-2 2H8.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 4 20.286V8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2z"/><path d="M9 11v2"/>`},
-	{id: "skills", label: "Skills", desktopOnly: false, icon: `<path stroke-linecap="round" stroke-linejoin="round" d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z"/><path stroke-linecap="round" stroke-linejoin="round" d="M20 2v4"/><path stroke-linecap="round" stroke-linejoin="round" d="M22 4h-4"/><circle cx="4" cy="20" r="2"/>`},
-	{id: "agents", label: "Agent CLI", desktopOnly: false, icon: `<path stroke-linecap="round" stroke-linejoin="round" d="M12 20v2"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 2v2"/><path stroke-linecap="round" stroke-linejoin="round" d="M17 20v2"/><path stroke-linecap="round" stroke-linejoin="round" d="M17 2v2"/><path stroke-linecap="round" stroke-linejoin="round" d="M2 12h2"/><path stroke-linecap="round" stroke-linejoin="round" d="M2 17h2"/><path stroke-linecap="round" stroke-linejoin="round" d="M2 7h2"/><path stroke-linecap="round" stroke-linejoin="round" d="M20 12h2"/><path stroke-linecap="round" stroke-linejoin="round" d="M20 17h2"/><path stroke-linecap="round" stroke-linejoin="round" d="M20 7h2"/><path stroke-linecap="round" stroke-linejoin="round" d="M7 20v2"/><path stroke-linecap="round" stroke-linejoin="round" d="M7 2v2"/><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="8" y="8" width="8" height="8" rx="1"/>`},
-	{id: "notifications", label: "Notifications", desktopOnly: true, icon: `<path stroke-linecap="round" stroke-linejoin="round" d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path stroke-linecap="round" stroke-linejoin="round" d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>`},
 	{id: "shortcuts", label: "Shortcuts", desktopOnly: false, icon: `<path stroke-linecap="round" d="M10 8h.01"/><path stroke-linecap="round" d="M12 12h.01"/><path stroke-linecap="round" d="M14 8h.01"/><path stroke-linecap="round" d="M16 12h.01"/><path stroke-linecap="round" d="M18 8h.01"/><path stroke-linecap="round" d="M6 8h.01"/><path stroke-linecap="round" stroke-linejoin="round" d="M7 16h10"/><path stroke-linecap="round" d="M8 12h.01"/><rect width="20" height="16" x="2" y="4" rx="2"/>`},
+	{id: "notifications", label: "Notifications", desktopOnly: true, icon: `<path stroke-linecap="round" stroke-linejoin="round" d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path stroke-linecap="round" stroke-linejoin="round" d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>`},
+	{id: "agent-bots", label: "Bots", desktopOnly: false, icon: `<path d="M12 6V2H8"/><path d="M15 11v2"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="M20 16a2 2 0 0 1-2 2H8.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 4 20.286V8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2z"/><path d="M9 11v2"/>`},
+	{id: "skills", label: "Skills", desktopOnly: false, icon: `<path stroke-linecap="round" stroke-linejoin="round" d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z"/><path stroke-linecap="round" stroke-linejoin="round" d="M20 2v4"/><path stroke-linecap="round" stroke-linejoin="round" d="M22 4h-4"/><circle cx="4" cy="20" r="2"/>`},
+	{id: "agents", label: "Agents", desktopOnly: false, icon: `<path stroke-linecap="round" stroke-linejoin="round" d="M12 20v2"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 2v2"/><path stroke-linecap="round" stroke-linejoin="round" d="M17 20v2"/><path stroke-linecap="round" stroke-linejoin="round" d="M17 2v2"/><path stroke-linecap="round" stroke-linejoin="round" d="M2 12h2"/><path stroke-linecap="round" stroke-linejoin="round" d="M2 17h2"/><path stroke-linecap="round" stroke-linejoin="round" d="M2 7h2"/><path stroke-linecap="round" stroke-linejoin="round" d="M20 12h2"/><path stroke-linecap="round" stroke-linejoin="round" d="M20 17h2"/><path stroke-linecap="round" stroke-linejoin="round" d="M20 7h2"/><path stroke-linecap="round" stroke-linejoin="round" d="M7 20v2"/><path stroke-linecap="round" stroke-linejoin="round" d="M7 2v2"/><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="8" y="8" width="8" height="8" rx="1"/>`},
 }
 
 func settingsNavHTML() string {
 	var b strings.Builder
-	b.WriteString(`<nav class="settings-sidebar hairline">`)
+	b.WriteString(`<nav class="settings-sidebar hairline"><div class="settings-sidebar-title">Settings</div>`)
 	for _, t := range settingsTabs {
 		show := ""
 		if t.desktopOnly {

@@ -1,4 +1,5 @@
-{{define "tags"}}{{if .Selected}}<div class="home-list-head">
+{{define "tags"}}<div class="sec">
+{{if .Selected}}<div class="home-list-head">
   <span class="tag-current"><span class="tag-current-name">{{.Selected}}</span></span>
   <span class="home-list-count" id="home-list-count" title="Notes">{{.Count}}</span>
   <div class="home-list-head-spacer"></div>
@@ -51,13 +52,13 @@
     </button>
   </div>
 </div>
-<div class="home-list-body" id="home-list-body" :class="{'is-grid': currentListView() === 'grid'}">{{template "rows" .}}</div>
+<div class="sec-body home-list-body" id="home-list-body" :class="{'is-grid': currentListView() === 'grid'}">{{template "rows" .}}</div>
+{{if and (not .Items) .Empty.Title}}{{template "empty-state" .Empty}}{{end}}
 {{else}}<div class="home-list-head">
   <span class="home-list-count" id="home-list-count" title="Tags">{{len .Tags}}</span>
 </div>
-<div class="home-list-body" id="home-list-body">{{if .Tags}}
+<div class="sec-body home-list-body" id="home-list-body">{{if .Tags}}
   <div class="tag-cloud" id="tag-cloud" data-tags="{{tagsJSON .Tags}}"></div>
-  {{else}}
-  <div class="home-list-empty">No tags yet</div>
 {{end}}</div>
-{{end}}{{end}}
+{{if not .Tags}}{{template "empty-state" .WallEmpty}}{{end}}
+{{end}}</div>{{end}}

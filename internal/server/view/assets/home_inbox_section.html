@@ -1,4 +1,4 @@
-<div class="home-inbox-section">
+<div class="sec">
   <div class="home-list-head">
     <span class="home-list-count" title="Unread" x-show="unreadCount > 0" x-text="unreadCount"></span>
     <div class="home-list-head-spacer"></div>
@@ -8,10 +8,7 @@
     </div>
     <button type="button" class="icon-btn home-inbox-mark-all-btn" title="Mark all read" x-show="unreadCount > 0" @click="markAllInboxRead()">{{svgCheck}}</button>
   </div>
-  <div class="home-inbox-list" id="home-inbox-list" @scroll="onInboxListScroll($event)">
-    <template x-if="!inboxLoading && visibleInboxMessages().length === 0">
-      <div class="home-list-empty" x-text="inboxFilter === 'unread' ? 'All caught up — no unread messages.' : 'No messages yet.'"></div>
-    </template>
+  <div class="sec-body home-inbox-list" id="home-inbox-list" @scroll="onInboxListScroll($event)">
     <template x-for="m in visibleInboxMessages()" :key="m.id">
       <div class="list-card list-card--clickable home-list-card home-inbox-card" :class="{ 'is-unread': !m.isRead }" x-press="selectInboxMessage(m)">
         <div class="dot dot--fg home-inbox-unread-dot"></div>
@@ -26,4 +23,11 @@
     </template>
     <div class="home-list-empty" x-show="inboxLoadingMore" style="padding:1rem 0">Loading more…</div>
   </div>
+  <template x-if="!inboxLoading && visibleInboxMessages().length === 0">
+    <div class="empty-state empty-state--page">
+      <div class="empty-state-icon">{{sideIconInbox}}</div>
+      <div class="empty-state-title" x-text="inboxFilter === 'unread' ? 'All caught up' : 'No messages yet'"></div>
+      <div class="empty-state-desc" x-show="inboxFilter !== 'unread'">Messages from your bots show up here.</div>
+    </div>
+  </template>
 </div>

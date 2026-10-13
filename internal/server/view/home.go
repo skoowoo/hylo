@@ -30,16 +30,22 @@ type homePageData struct {
 // a different "view kind" (the rendered shorts stream, not a note list) and
 // is rendered separately by renderHomeShortsSection; see renderHomeSectionHTML.
 type homeSectionData struct {
-	Title    string
-	Count    int
-	Items    []noteItem
-	NextURL  string // hx-get URL for the load-more sentinel; empty = no more pages
-	EmptyMsg string
+	Title   string
+	Count   int
+	Items   []noteItem
+	NextURL string // hx-get URL for the load-more sentinel; empty = no more pages
+	Empty   emptyState
 	// ShowGraphOption/View: Knowledge only. Graph is just a third way to
 	// look at the same knowledge notes (alongside list/grid), picked via the
 	// seg control — see selectKnowledgeIndex/setListView in home.js.
 	ShowGraphOption bool
 	View            string // "list" (default) | "grid" | "graph"
+}
+
+// emptyState is what a section shows when it has nothing yet.
+type emptyState struct {
+	Icon, Title, Desc string
+	NewNote           bool
 }
 
 func (vh *ViewHandler) Home(w http.ResponseWriter, r *http.Request) {
@@ -104,7 +110,10 @@ func (vh *ViewHandler) homeSectionData(r *http.Request, itemsOnly bool) (homeSec
 			label = strings.TrimPrefix(dirPath, "/")
 		}
 		data.Title = label
-		data.EmptyMsg = "No notes in this folder"
+		data.Empty = emptyState{Icon: "folders", Title: "This folder is empty", Desc: "Drag notes onto it in the sidebar to move them here."}
+		if dirPath == "/" {
+			data.Empty = emptyState{Icon: "folders", Title: "No notes yet", Desc: "Just write. Hylo learns what matters to you from your notes.", NewNote: true}
+		}
 		data.NextURL = homeSectionMoreURL("folder", dirPath, nextNs)
 		if !itemsOnly {
 			data.Count = vh.dirNoteCount(dirPath)
@@ -114,7 +123,7 @@ func (vh *ViewHandler) homeSectionData(r *http.Request, itemsOnly bool) (homeSec
 		var nextNs int64
 		data.Items, nextNs = vh.listDirNoteItems(dirPath, beforeNs, homeListPageSize)
 		data.Title = "Memory"
-		data.EmptyMsg = "No memory notes yet"
+		data.Empty = emptyState{Icon: "memory", Title: "No memories yet", Desc: "Hylo learns who you are from your notes and keeps it here."}
 		data.NextURL = homeSectionMoreURL("memory", "", nextNs)
 		if !itemsOnly {
 			data.Count = vh.dirNoteCount(dirPath)
@@ -127,7 +136,7 @@ func (vh *ViewHandler) homeSectionData(r *http.Request, itemsOnly bool) (homeSec
 		data.ShowGraphOption = true
 		data.View = view
 		data.Title = "Knowledge"
-		data.EmptyMsg = "No knowledge notes yet"
+		data.Empty = emptyState{Icon: "knowledge", Title: "No knowledge yet", Desc: "Hylo compiles your notes into linked knowledge. Compile a note, or clip a page into Web Clips."}
 
 		indexParam := strings.TrimSpace(r.URL.Query().Get("index"))
 		if indexParam == "" {
@@ -148,6 +157,7 @@ func (vh *ViewHandler) homeSectionData(r *http.Request, itemsOnly bool) (homeSec
 			if !ok {
 				return data, fmt.Errorf(`index must be absolute (start with "/")`)
 			}
+			data.Empty = emptyState{Icon: "knowledge", Title: "Nothing in this category yet"}
 			knowledgePaths, err := vh.vault.GetIndexDeps(idxPath)
 			if err != nil {
 				return data, err
@@ -170,7 +180,7 @@ func (vh *ViewHandler) homeSectionData(r *http.Request, itemsOnly bool) (homeSec
 		}
 		data.Items = vh.noteItemsFromNotes(notes)
 		data.Title = "Recent"
-		data.EmptyMsg = "No notes updated in the last 7 days"
+		data.Empty = emptyState{Icon: "recent", Title: "Nothing this week", Desc: "Notes you edit over the last 7 days show up here."}
 		data.Count = len(data.Items)
 	default: // "pinned"
 		pinned, err := vh.vault.ListPinnedNotes()
@@ -179,7 +189,7 @@ func (vh *ViewHandler) homeSectionData(r *http.Request, itemsOnly bool) (homeSec
 		}
 		data.Items = vh.noteItemsFromNotes(pinned)
 		data.Title = "Pinned"
-		data.EmptyMsg = "No pinned notes"
+		data.Empty = emptyState{Icon: "star", Title: "No pinned notes", Desc: "Pin the notes you come back to often to keep them here."}
 		data.Count = len(data.Items)
 	}
 	return data, nil
@@ -265,7 +275,7 @@ func (vh *ViewHandler) renderHomeSectionHTML(r *http.Request) (template.HTML, er
 	case "chat":
 		// Static shell. home.js attaches the chat kernel once #chat-root
 		// lands in the DOM (__hyloSectionArrived); the markup itself never varies.
-		return template.HTML(homeChatSectionHTML), nil //nolint:gosec // static markup, not user HTML
+		return template.HTML(homeChatSection), nil //nolint:gosec // static markup, not user HTML
 	}
 	data, err := vh.homeSectionData(r, false)
 	if err != nil {
@@ -385,12 +395,13 @@ type tagItem struct {
 // (homeSectionRowsHTML) references .NextURL unconditionally, so the field
 // has to exist here too.
 type homeTagsData struct {
-	Tags     []tagItem
-	Selected string
-	Items    []noteItem
-	Count    int
-	NextURL  string
-	EmptyMsg string
+	Tags      []tagItem
+	Selected  string
+	Items     []noteItem
+	Count     int
+	NextURL   string
+	Empty     emptyState
+	WallEmpty emptyState
 }
 
 // renderHomeTagsSection renders the Tags wall (no ?tag=) or, once a tag is
@@ -400,7 +411,10 @@ type homeTagsData struct {
 // home.js). Both states share one fetch of the full tag distribution, since
 // the picker dropdown reuses the wall's own tag/count data.
 func (vh *ViewHandler) renderHomeTagsSection(r *http.Request) (template.HTML, error) {
-	data := homeTagsData{EmptyMsg: "No notes with this tag"}
+	data := homeTagsData{
+		Empty:     emptyState{Icon: "tags", Title: "No notes with this tag"},
+		WallEmpty: emptyState{Icon: "tags", Title: "No tags yet", Desc: "Add #tags to your notes to group them here."},
+	}
 
 	if vh.searcher != nil {
 		counts, err := vh.searcher.TagDistribution(tagWallMaxTags)
@@ -560,11 +574,13 @@ var homeSectionTemplate = func() *template.Template {
 	return t
 }()
 
-var homeShortsSectionTemplate = template.Must(template.New("home-shorts-section").Parse(homeShortsSectionHTML))
+var homeShortsSectionTemplate = template.Must(template.New("home-shorts-section").Funcs(homeTemplateFuncs).Parse(homeShortsSectionHTML))
 
-var homeImagesSectionTemplate = template.Must(template.New("home-images-section").Parse(homeImagesSectionHTML))
+var homeImagesSectionTemplate = template.Must(template.New("home-images-section").Funcs(homeTemplateFuncs).Parse(homeImagesSectionHTML))
 
-var homeInboxSection = strings.Replace(homeInboxSectionHTML, "{{svgCheck}}", svgCheck, 1)
+var homeChatSection = strings.Replace(homeChatSectionHTML, "{{sideIconBot}}", string(sideIcon("bot")), 1)
+
+var homeInboxSection = strings.NewReplacer("{{svgCheck}}", svgCheck, "{{sideIconInbox}}", string(sideIcon("inbox"))).Replace(homeInboxSectionHTML)
 
 func (vh *ViewHandler) noteItemsFromNotes(notes []storage.Note) []noteItem {
 	items := make([]noteItem, 0, len(notes))
@@ -585,6 +601,7 @@ var homePageHTML = `<!DOCTYPE html>
   <script src="/static/vendor/d3-cloud.min.js"></script>
   <script src="/static/vendor/marked.min.js"></script>
   <script src="/static/vendor/dompurify.min.js"></script>
+  <script src="/static/agents/logos.js"></script>
   <script>
   if (typeof marked !== 'undefined') { marked.setOptions({ gfm: true, breaks: true }); }
   </script>
@@ -663,14 +680,14 @@ func (vh *ViewHandler) HomeRefresh(w http.ResponseWriter, r *http.Request) {
 // Morphed by htmx, which copies attributes via setAttribute — WKWebView rejects
 // '@'/':'-prefixed names, so Alpine's shorthands must be spelled out here.
 var homeRefreshTemplate = withHomeSidebarParts(template.New("home-refresh").Funcs(homeTemplateFuncs), `<hx-partial hx-target="#home-side-folders-body" hx-swap="outerMorph">
-<div id="home-side-folders-body" class="home-side-children" x-bind:class="{'is-open': foldersOpen}">
+<div id="home-side-folders-body" class="home-side-children" x-bind:class="{'is-open': foldersOpen && !sideEmpty.folders}">
   <div class="home-side-children-inner">
 {{template "home-side-folders-inner" .}}
   </div>
 </div>
 </hx-partial>
 <hx-partial hx-target="#home-side-knowledge-body" hx-swap="outerMorph">
-<div id="home-side-knowledge-body" class="home-side-children" x-bind:class="{'is-open': knowledgeOpen}">
+<div id="home-side-knowledge-body" class="home-side-children" x-bind:class="{'is-open': knowledgeOpen && !sideEmpty.knowledge}">
   <div class="home-side-children-inner">
 {{template "home-side-knowledge-inner" .}}
   </div>

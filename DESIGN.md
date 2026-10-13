@@ -374,6 +374,12 @@ Full-viewport or edge-docked chrome (drawer panel and its tab bar, scrims, `<htm
 
 **`settings-modal`** — Same floating-card family as dialogs: `--bg`, `--border-strong`, rounded `{rounded.xl}`, `--shadow-lg`.
 
+### Sections
+
+**`sec`** — Every view in the home list pane (note lists, Tags, Inbox, Images, Shorts, Graph, Chat) is one `.sec`: a `.home-list-head` (`--toolbar-h`, count pill + right-aligned controls), one `.sec-body` that scrolls (`20px 24px 40px` padding; `.sec-body--flush` for the graph canvas), an optional floating footer (the chat composer), and its `.empty-state--page` as a direct child. A section overrides only what is truly its own: Images' tighter padding, Shorts' centered 600px column, Chat's reading column. Section DOM caching saves and restores scroll on `.sec-body` (except Chat, which sticks to the newest message), so a new section gets it for free.
+
+**`empty-state`** — A section with nothing yet: a neutral `--surface-soft` tile (hairline border, `--muted` sidebar icon), a `--fg` title, at most one `--muted` sentence, and at most one action, which alone carries the accent. No rings, glow or entry animation. On a page (`.empty-state--page`) the tile always sits at 40% of the window height, whatever head, composer or button surrounds it. Server-rendered sections use the `empty-state` template (home_section_rows.html).
+
 ### Lists & Cards
 
 **`list-card`** — Notes list rows, inbox cards. Note rows (Pinned, Folders, and the other lists that share that card) and a read/cleared inbox card sit on `--surface-soft` with no outline; the read card also dims its title/timestamp to `--muted` and drops its unread dot. An unread inbox card stays flat on `--bg` with a `--border-strong` outline.

@@ -11,36 +11,11 @@ use tauri::{AppHandle, Emitter, Manager};
 
 use crate::commands::ShellState;
 use crate::config::LOCAL_ID;
-use crate::greeting;
 use crate::remote::ServerError;
 use crate::servers::local_key;
 
 const HELLO_WAIT: Duration = Duration::from_secs(90);
 const HELLO_EVENT: &str = "onboarding-hello";
-const BOT_NAME: &str = "Hylo";
-const BOT_DESCRIPTION: &str = "Your personal AI agent: chat here, on WeChat or on Discord.";
-/// Opens every message a chat trigger hands the bot, so it can tell where a
-/// message came from; a message without one was typed in Hylo's own chat.
-const WECHAT_TAG: &str = "[Message via WeChat]";
-const DISCORD_TAG: &str = "[Message via Discord]";
-
-/// Sits under the global agent prompt, which already covers the knowledge
-/// base, memory and wiki links; this one gives the main bot its job.
-fn bot_prompt() -> String {
-    format!(
-        "You are Hylo, the user's personal AI agent, powered by their notes. They just write; you learn from their notes who they are and what they care about, and work for them with that in mind. Organizing, connecting and recalling notes is your job, not theirs.
-
-- Use what you know of them in everything you do, not only note tasks: when you find, recommend or summarize anything, fit it to their interests and current work.
-- Before answering anything about their own work, plans or past thinking, search the vault and the knowledge base, and cite the notes you used.
-- Know them: draw on their personal memory, and when they share something lasting about themselves, offer to update it.
-- When they ask you to remember or save something, write it into the vault: a quick thought goes into today's short note; anything longer becomes its own note in a fitting top-level folder. Never create nested folders, and never ask them where something should go.
-- When they ask to organize notes or turn them into knowledge, compile them into the knowledge base and link them up.
-- Be brief and direct.
-- A message that starts with {WECHAT_TAG} or {DISCORD_TAG} was sent from that app, usually on a phone: answer it in plain text, a few sentences, no markdown, and leave the tag out of your reply. Any other message is the user chatting with you in Hylo.
-- Reply in the language the user writes in."
-    )
-}
-
 struct Local {
     base: String,
     key: Option<String>,
@@ -164,6 +139,14 @@ fn apply_frame(frame: &str, hello: &mut Hello, on_delta: &mut impl FnMut(&str)) 
     false
 }
 
+#[derive(Debug, Default, Deserialize)]
+pub struct HelloContext {
+    #[serde(default)]
+    lang: String,
+    #[serde(default)]
+    now: String,
+}
+
 /// The hello run still going, if any: a new hello (another agent picked)
 /// cancels it rather than leave two agent CLIs running.
 static HELLO_RUN: Mutex<Option<String>> = Mutex::new(None);
@@ -176,7 +159,7 @@ pub async fn onboarding_hello(
     app: AppHandle,
     agent_id: String,
     token: u64,
-    context: Option<greeting::Context>,
+    context: Option<HelloContext>,
 ) -> Result<Hello, String> {
     let local = ready(&app).await?;
     let http = client(Some(Duration::from_secs(10)))?;
@@ -184,12 +167,11 @@ pub async fn onboarding_hello(
     if let Some(run) = previous {
         let _ = local.req(&http, Method::POST, &format!("/api/runs/{run}/cancel")).send().await;
     }
-    let glimpse: greeting::Glimpse = fetch_json(local.req(&http, Method::GET, "/api/vault/overview")).await?;
-    let message = greeting::prompt(&glimpse, &context.unwrap_or_default(), greeting::seed());
+    let ctx = context.unwrap_or_default();
     let started: Value = fetch_json(
         local
-            .req(&http, Method::POST, "/api/runs")
-            .json(&json!({ "agentId": agent_id, "message": message, "triggerRun": true })),
+            .req(&http, Method::POST, "/api/setup/hello")
+            .json(&json!({ "agentId": agent_id, "lang": ctx.lang, "now": ctx.now })),
     )
     .await?;
     let run = started["runId"].as_str().ok_or("no run id")?.to_string();
@@ -239,26 +221,10 @@ pub async fn onboarding_hello(
     Ok(hello)
 }
 
-/// The main bot answers wherever the user talks to Hylo. The triggers stay
-/// idle until WeChat or Discord is connected, then it replies there too.
-fn main_bot(agent_id: &str) -> Value {
-    let reply_to = |event: &str, tag: &str| {
-        json!({ "eventTypes": [event], "prompt": format!("{tag}\n{{Content}}"), "enabled": true })
-    };
-    json!({
-        "name": BOT_NAME,
-        "description": BOT_DESCRIPTION,
-        "agentId": agent_id,
-        "model": "default",
-        "systemPrompt": bot_prompt(),
-        "enabled": true,
-        "triggers": [reply_to("wechat_message", WECHAT_TAG), reply_to("discord_message", DISCORD_TAG)],
-    })
-}
-
 /// Gives the chat a bot to talk to; without one the sidebar is empty. Its
 /// chat opens with `greeting`, the hello the user just read.
 /// Returns the new bot's id, or None when the vault already had bots.
+/// The server owns what the bot is, so the web's own setup makes the same one.
 #[tauri::command]
 pub async fn onboarding_create_bot(
     app: AppHandle,
@@ -267,23 +233,13 @@ pub async fn onboarding_create_bot(
 ) -> Result<Option<String>, String> {
     let local = ready(&app).await?;
     let http = client(Some(Duration::from_secs(10)))?;
-    let existing: Value = fetch_json(local.req(&http, Method::GET, "/api/mates")).await?;
-    if existing["mates"].as_array().is_some_and(|m| !m.is_empty()) {
-        return Ok(None);
-    }
-    let created: Value = fetch_json(local.req(&http, Method::POST, "/api/mates").json(&main_bot(&agent_id))).await?;
-    let Some(id) = created["mate"]["id"].as_str().map(str::to_string) else {
-        return Ok(None);
-    };
-    if let Some(greeting) = greeting.filter(|g| !g.trim().is_empty()) {
-        // The bot works without it, so a failure here doesn't fail setup.
-        let _ = local
-            .req(&http, Method::POST, "/api/conversations")
-            .json(&json!({ "mateId": id, "title": "", "greeting": greeting }))
-            .send()
-            .await;
-    }
-    Ok(Some(id))
+    let created: Value = fetch_json(
+        local
+            .req(&http, Method::POST, "/api/setup/bot")
+            .json(&json!({ "agentId": agent_id, "greeting": greeting.unwrap_or_default() })),
+    )
+    .await?;
+    Ok(created["mateId"].as_str().filter(|id| !id.is_empty()).map(str::to_string))
 }
 
 #[cfg(test)]
@@ -322,19 +278,6 @@ mod tests {
         ]);
         assert!(ended && !hello.ok);
         assert_eq!(hello.error, "not logged in");
-    }
-
-    #[test]
-    fn chat_triggers_name_their_app_and_the_prompt_explains_it() {
-        let bot = main_bot("pi");
-        let triggers = bot["triggers"].as_array().unwrap();
-        let prompt_of = |event: &str| {
-            triggers.iter().find(|t| t["eventTypes"][0] == event).unwrap()["prompt"].as_str().unwrap().to_string()
-        };
-        assert_eq!(prompt_of("wechat_message"), "[Message via WeChat]\n{Content}");
-        assert_eq!(prompt_of("discord_message"), "[Message via Discord]\n{Content}");
-        let system = bot["systemPrompt"].as_str().unwrap();
-        assert!(system.contains(WECHAT_TAG) && system.contains(DISCORD_TAG));
     }
 
     #[test]

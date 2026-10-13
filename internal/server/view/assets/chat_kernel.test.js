@@ -313,8 +313,52 @@ test('a failed mate list toasts once', async function () {
   try {
     chat.start();
     await tick();
-    assert.deepEqual(toasts, ["Couldn't load agent bots", "Couldn't load triggers"]);
+    assert.deepEqual(toasts, ["Couldn't load bots", "Couldn't load triggers"]);
   } finally {
+    disarm();
+  }
+});
+
+test('deleting the current bot in settings moves the chat to the next one', async function () {
+  var listeners = {};
+  global.addEventListener = function (type, fn) { listeners[type] = fn; };
+  var mates = [
+    { id: 'm1', name: 'Hylo', enabled: true, agentId: 'pi' },
+    { id: 'm2', name: 'Ada', enabled: true, agentId: 'pi' },
+  ];
+  global.fetch = async function (url) {
+    var u = String(url);
+    if (u === '/api/mates') return jsonResponse(200, { mates: mates.slice() });
+    if (u === '/api/mate-events') return jsonResponse(200, { events: [] });
+    if (u.indexOf('/api/conversations?') === 0) return jsonResponse(200, { conversations: [] });
+    return jsonResponse(404, {});
+  };
+  var picked = [];
+  var shown = [];
+  var kernel = window.__hyloChatCreate({
+    onMates: function (list) { shown = list.map(function (m) { return m.id; }); },
+    onMate: function (id) { picked.push(id); },
+  });
+  try {
+    kernel.start();
+    await kernel.bootstrap();
+    assert.equal(kernel.mateId(), 'm1');
+
+    mates.shift();
+    await listeners['hylo:agent-bots-changed']();
+    assert.deepEqual(shown, ['m2']);
+    assert.equal(kernel.mateId(), 'm2');
+
+    mates.shift();
+    await listeners['hylo:agent-bots-changed']();
+    assert.deepEqual(shown, []);
+    assert.equal(kernel.mateId(), '');
+
+    mates.push({ id: 'm3', name: 'Hylo', enabled: true, agentId: 'pi' });
+    await listeners['hylo:agent-bots-changed']();
+    assert.equal(kernel.mateId(), 'm3');
+  } finally {
+    delete global.addEventListener;
     disarm();
   }
 });

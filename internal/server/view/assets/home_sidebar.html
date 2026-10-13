@@ -10,10 +10,11 @@
       <span class="home-side-child-name">{{folderLabel .Dir}}</span>
     </button>
     {{end}}
-    {{if not .Folders}}<div class="home-side-empty">No folders</div>{{end}}
+    {{if not .Folders}}<i class="home-side-none" hidden></i>{{end}}
 {{end}}
 
 {{define "home-side-knowledge-inner"}}
+    {{if or .KnowledgeCount .IndexNotes}}
     <button type="button" class="side-nav-item home-side-child" x-bind:class="{'is-active': curType() === 'knowledge' && !curParam('index')}"
             x-press="selectKnowledgeIndex('')">
       <span class="home-side-child-name">All</span>
@@ -26,4 +27,5 @@
       <span class="home-side-count">{{.DepCount}}</span>
     </button>
     {{end}}
+    {{else}}<i class="home-side-none" hidden></i>{{end}}
 {{end}}

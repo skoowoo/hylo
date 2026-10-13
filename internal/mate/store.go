@@ -113,10 +113,12 @@ func Open(vaultRoot string) (*Store, error) {
 		db.Close()
 		return nil, fmt.Errorf("mate: schema: %w", err)
 	}
-	if _, err := db.Exec(`ALTER TABLE mate_triggers ADD COLUMN path_prefixes TEXT NOT NULL DEFAULT ''`); err != nil {
-		if !strings.Contains(err.Error(), "duplicate column name") {
-			db.Close()
-			return nil, fmt.Errorf("mate: add path_prefixes column: %w", err)
+	for _, col := range []string{"path_prefixes", "name"} {
+		if _, err := db.Exec(`ALTER TABLE mate_triggers ADD COLUMN ` + col + ` TEXT NOT NULL DEFAULT ''`); err != nil {
+			if !strings.Contains(err.Error(), "duplicate column name") {
+				db.Close()
+				return nil, fmt.Errorf("mate: add %s column: %w", col, err)
+			}
 		}
 	}
 	return &Store{db: db}, nil

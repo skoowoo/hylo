@@ -14,7 +14,7 @@
 
 ![tags](./docs/assets/tags.png)
 
-4. Agent bots 每天自动抓取感兴趣的新闻等通知，统一发送到 inbox
+4. Bots 每天自动抓取感兴趣的新闻等通知，统一发送到 inbox
 
 ![inbox message](./docs/assets/inbox-message.png)
 
@@ -42,7 +42,7 @@
 - [安装](#安装)
 - [Obsidian 兼容](#obsidian-兼容)
 - [编辑器](#编辑器)
-- [Agent Bots](#agent-bots)
+- [Bots](#bots)
 - [微信](#微信)
 - [Discord](#discord)
 - [LLM-Wiki 编译器](#llm-wiki-编译器)
@@ -230,13 +230,13 @@ Hylo 内置 WYSIWYG Markdown 编辑器，打开笔记默认进入富文本模式
 
 输入 `[[` 插入 wikilink，别名写法与 Obsidian 一致：`[[页面名|别名]]`。图片用 `![[文件名.png]]` 嵌入。
 
-## Agent Bots
+## Bots
 
-Agent Bot 就是你在 **Settings → Agent Bots** 里养的私人 AI。每个 agent bot 有自己的名字、系统 prompt，以及背后驱动它的 agent CLI。
+Bot 就是你在 **Settings → Bots** 里养的私人 AI。每个 bot 有自己的名字、系统 prompt，以及背后驱动它的 agent CLI。
 
 #### 🔔 事件触发器
 
-Agent Bot 最有意思的地方是事件驱动：配好触发器，你什么都不用管，它自己跑。内置的事件有这些：
+Bot 最有意思的地方是事件驱动：配好触发器，你什么都不用管，它自己跑。内置的事件有这些：
 
 | 事件                 | 什么时候触发                 |
 | -------------------- | ---------------------------- |
@@ -249,15 +249,20 @@ Agent Bot 最有意思的地方是事件驱动：配好触发器，你什么都�
 | `discord_message`    | 收到 Discord 私信            |
 | `compile_requested`  | 手动触发了 LLM Wiki 编译     |
 
-#### 🧩 模板
+#### 🧩 Hylo bot
 
-点击 **New Agent Bot** 后可以直接选择模板，触发器和 prompt 都已配好，确认 agent、模型和 prompt 后保存即可。也可以选 **Blank** 从零开始。
+桌面端在 onboarding 时会自动创建一个 **Hylo** bot。如果当时跳过了，或者是部署在服务器上的 Hylo，打开 **Settings → Bots**：还没有 bot 时会带你走一遍同样的设置流程。这个 bot 自带这些触发器：
 
-| 模板           | 作用                                                         |
-| -------------- | ------------------------------------------------------------ |
-| `Compiler`     | 把笔记编译成知识单元，支持手动触发，`/Web Clips/` 新笔记自动编译 |
-| `Daily Memory` | 每天 09:00 自动更新个人记忆                                  |
-| `Recap`        | 新速记自动与知识库交叉比对，每周回顾一周写下的内容           |
+| 触发器                              | 作用                                     |
+| ----------------------------------- | ---------------------------------------- |
+| `wechat_message`、`discord_message` | 连上微信、Discord 后在那边回复你         |
+| `compile_requested`                 | 手动发起编译时，把笔记编译成知识单元     |
+| `note_created`（`/Web Clips/`）     | 剪藏的网页自动编译                       |
+| `scheduled` 每天 09:00              | 更新个人记忆                             |
+| `short_note_created`                | 新速记自动与知识库交叉比对               |
+| `scheduled` 每周一 09:05            | 回顾一周写下的内容                       |
+
+可以在 **Settings → Bots** 里修改或删除，也可以点 **New Bot** 自己建。
 
 #### 底层 Agent
 
@@ -286,9 +291,9 @@ Agent Bot 最有意思的地方是事件驱动：配好触发器，你什么都�
 
 搞定，微信桥接服务开始监听新消息。
 
-#### 第二步：创建一个 `wechat_message` 触发的 Agent Bot
+#### 第二步：创建一个 `wechat_message` 触发的 Bot
 
-1. **Settings → Agent Bots** → **New Agent Bot**
+1. **Settings → Bots** → **New Bot**
 2. 起个名字，选 agent 和模型
 3. **Triggers** 下点 **+ Add trigger**
 4. **Event** 选 `wechat_message`
@@ -300,7 +305,7 @@ Agent Bot 最有意思的地方是事件驱动：配好触发器，你什么都�
 
 6. 保存
 
-之后每条微信私信都会触发这个 agent bot，自动帮你回复。
+之后每条微信私信都会触发这个 bot，自动帮你回复。
 
 ## Discord
 
@@ -319,16 +324,16 @@ Bot 要能给你发主动消息（如定时推送），需要和你在同一个�
 
 访问不通时，在 **Proxy URL** 填本地代理地址（如 `http://127.0.0.1:7890`）。
 
-#### 第二步：创建一个 `discord_message` 触发的 Agent Bot
+#### 第二步：创建一个 `discord_message` 触发的 Bot
 
-1. **Settings → Agent Bots** → **New Agent Bot**
+1. **Settings → Bots** → **New Bot**
 2. 起名，选 agent 和模型
 3. **Triggers** 下点 **+ Add trigger**
 4. **Event** 选 `discord_message`
 5. Prompt 模板可用变量：`{Content}`、`{DiscordChannelID}`、`{DiscordUserID}`
 6. 保存
 
-搞定，Bot 收到私信就会触发 agent bot 并回复。
+搞定，Discord Bot 收到私信就会触发对应的 bot 并回复。
 
 ## LLM-Wiki 编译器
 
@@ -338,18 +343,16 @@ Bot 要能给你发主动消息（如定时推送），需要和你在同一个�
 
 **Settings → Server → Config → Compile** 开启，默认就是开的。
 
-#### 第二步：用 `Compiler` 模板创建 Agent Bot
+#### 第二步：用 Bot 编译
 
-1. **Settings → Agent Bots** → **New Agent Bot**
-2. 选择 **Compiler** 模板
-3. 选好 agent 和模型，保存
-
-模板自带两个触发器：
+onboarding 创建的 **Hylo** bot 已经带了两个编译触发器：
 
 | 触发器              | 什么时候触发                                         |
 | ------------------- | ---------------------------------------------------- |
 | `compile_requested` | 你在 app 里手动发起编译（如笔记操作菜单）            |
 | `note_created`      | `/Web Clips/` 下有新笔记，剪藏的网页自动编译         |
+
+想让别的 bot 来编译，在 **Settings → Bots** 里给它加上这两个触发器即可。
 
 每次运行会先用 `hylo-compile-note` skill 编译笔记，再用 `hylo-index-knowledge` 更新知识索引，最后用 `humanizer` 润色新生成的知识单元。
 
@@ -361,18 +364,13 @@ Hylo 能从你的笔记里提取个人记忆，生成六个结构化文件（身
 
 默认只扫**速记**（`/_shorts`）和**知识库**（`/_knowledge`）。如果你想多扫几个目录，在 prompt 里说一句就行。
 
-#### ⏰ 方式一：用 `Daily Memory` 模板创建（推荐）
+#### ⏰ 方式一：每日定时（推荐）
 
-1. **Settings → Agent Bots** → **New Agent Bot**
-2. 选择 **Daily Memory** 模板
-3. 选好 agent 和模型
-4. 打开 `scheduled` 触发器，把 prompt 里的 `[name]`、`[project]` 换成你的自我介绍，需要的话调整时间（默认每天 09:00）。想多扫几个目录就加一句：
+onboarding 创建的 **Hylo** bot 已经有一个每天 09:00 的 `scheduled` 触发器来更新记忆。想改时间或多扫几个目录，在 **Settings → Bots** 里编辑这个触发器，在 prompt 后面加一句：
 
-   ```
-   请更新我的个人记忆。我是 XXX，目前在做 YYY 项目。另外请扫描 /journal/ 目录。
-   ```
-
-5. 保存
+```
+请根据我最近的笔记更新个人记忆。另外请扫描 /journal/ 目录。
+```
 
 之后每天定时自动更新，你什么都不用管。
 
@@ -440,11 +438,11 @@ Hylo 的每一层 AI 输出都可以自定义：
 
 **设置 → Server → Config → Agent** — 填写 `agent.system_prompt` 替换内置的全局 system prompt，该 prompt 会拼接在每次 agent 运行的最前面。留空时 Hylo 使用内置默认值，该默认值会告知 agent vault 的目录结构、wiki-link 语法以及个人记忆文件的位置。
 
-#### 2. 每个 Agent Bot 的 System Prompt 与 Trigger Prompt
+#### 2. 每个 Bot 的 System Prompt 与 Trigger Prompt
 
-在**设置 → Agent Bots** 中，每个 Agent Bot 有两个自定义点：
+在**设置 → Bots** 中，每个 Bot 有两个自定义点：
 
-- **System Prompt**：Agent Bot 专属指令，附加在全局 system prompt 之后（用 `---` 分隔）。
+- **System Prompt**：Bot 专属指令，附加在全局 system prompt 之后（用 `---` 分隔）。
 - **Trigger Prompt 模板**：Trigger 触发时发送给 agent 的用户消息，支持变量：vault 事件用 `{Path}`、`{Name}`、`{Content}`；定时触发用 `{Now}`、`{Date}`、`{Time}`；微信消息用 `{Content}`、`{WechatUserID}`；Discord 消息用 `{Content}`、`{DiscordChannelID}`、`{DiscordUserID}`。
 
 #### 3. 重写 LLM-Wiki 编译 Skill

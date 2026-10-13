@@ -26,6 +26,15 @@
 </div>
 {{end}}{{if .NextURL}}
 <div class="home-load-sentinel" hx-get="{{.NextURL}}" hx-trigger="intersect once" hx-swap="outerHTML"></div>
-{{end}}{{if not .Items}}
-<div class="home-list-empty">{{.EmptyMsg}}</div>
 {{end}}{{end}}
+
+{{define "empty-state"}}<div class="empty-state empty-state--page">
+  <div class="empty-state-icon">{{sideIcon .Icon}}</div>
+  <div class="empty-state-title">{{.Title}}</div>
+  {{if .Desc}}<div class="empty-state-desc">{{.Desc}}</div>{{end}}
+  {{if .NewNote}}<div class="empty-state-actions">
+    <button type="button" class="btn-solid" onclick="window.__hyloContentPane && void window.__hyloContentPane.openNewInContentPane()">
+      <svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>New note
+    </button>
+  </div>{{end}}
+</div>{{end}}

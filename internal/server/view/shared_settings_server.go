@@ -41,7 +41,7 @@ const settingsServerCSS = `
        other sections happen to come before it in scroll order. */
     .cfg-section-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; max-width: 640px; }
     /* Box/hover/cursor/surface from the shared .list-card.list-card--clickable
-       .list-card--soft (base.css) — same recipe as .agent-bot-template-card below. */
+       .list-card--soft (base.css). */
     .cfg-section-card {
       display: flex; flex-direction: column; gap: 0.3rem; text-align: left;
     }
@@ -336,8 +336,8 @@ const settingsServerJS = `
           'plugins.search': 'Indexing and search quality.',
           'plugins.git_sync': 'Automatic git push/pull for the vault.',
           'plugins.compile': 'AI knowledge compilation and related options.',
-          'plugins.wechat': 'WeChat iLink bridge — poll DMs and emit wechat_message agent bot events.',
-          'plugins.discord': 'Discord Bot bridge — receive DMs and emit discord_message agent bot events. The bot must share a server with you before it can send proactive DMs; restart the server after changing the token.',
+          'plugins.wechat': 'WeChat iLink bridge — poll DMs and emit wechat_message bot events.',
+          'plugins.discord': 'Discord Bot bridge — receive DMs and emit discord_message bot events. The bot must share a server with you before it can send proactive DMs; restart the server after changing the token.',
         };
         return m[s] || '';
       },

@@ -33,6 +33,7 @@ type AgentAPI struct {
 	pathRuns   sync.Map       // vault path -> runID; set by FireTriggerRun for path-bearing events
 	runner     *mate.Runner   // optional; set via SetMateRunner once the mate runner exists, so TriggerRetryPOST can re-fire through its onDone pipeline
 	editorBus  *editorbus.Bus // optional; cancelled alongside a run so the editor stops typing
+	setupMu    sync.Mutex     // one first-bot setup at a time, so two can't both find no bots
 }
 
 // NewAgentAPI constructs the agent HTTP surface.

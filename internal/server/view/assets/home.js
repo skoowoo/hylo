@@ -182,6 +182,9 @@ function homeCtrl() {
     // Chat transcript lives on this._chat (chat_kernel.js). These fields are
     // what the sidebar and the run-completion toast still bind to.
     agentBots: [],
+    agentBotsLoaded: false,
+    // A group with nothing in it has no chevron and opens its section instead.
+    sideEmpty: { folders: false, knowledge: false },
     selectedAgentBotId: '',
     isMac: /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent),
     toastText: '',
@@ -194,12 +197,13 @@ function homeCtrl() {
       this.initGraph();
       this.initInbox();
       window._homeData = this;
+      this.syncSideEmpty();
       window.__hyloHotkeys.register('refresh', 'r', doHomeRefresh);
       // Bot list lives in the sidebar, so it loads even when Chats is closed.
       // The kernel keeps a run alive if the pane is swapped away.
       var self = this;
       this._chat = window.__hyloChatCreate({
-        onMates: function (mates) { self.agentBots = mates; },
+        onMates: function (mates) { self.agentBots = mates; self.agentBotsLoaded = true; },
         onMate: function (id) {
           self.selectedAgentBotId = id;
         },
@@ -209,6 +213,15 @@ function homeCtrl() {
       // The first render isn't an htmx swap, but arrives like one.
       __hyloSectionArrived(__hyloInitialSectionURL(), null);
     },
+    botsEmpty() { return this.agentBotsLoaded && this.agentBots.length === 0; },
+
+    // The groups' bodies are server-rendered and morphed by /home/refresh,
+    // which marks an empty one with .home-side-none.
+    syncSideEmpty() {
+      this.sideEmpty.folders = !!document.querySelector('#home-side-folders-body .home-side-none');
+      this.sideEmpty.knowledge = !!document.querySelector('#home-side-knowledge-body .home-side-none');
+    },
+
     // One list/grid bucket per section type, so every folder (and every tag) shares one.
     listViewKey() { return this.curType(); },
     curParams() { return __hyloSectionParams(this.curKey); },

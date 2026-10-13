@@ -4,7 +4,7 @@
 // section is currently shown in the list pane — only the browser knows that,
 // so it can't be folded into the response itself.
 function doHomeRefresh() {
-  htmx.ajax('GET', '/home/refresh', { target: document.body, swap: 'none' });
+  __hyloRefreshSidebar();
   if (window._homeData) {
     if (typeof window._homeData.reloadActiveSection === 'function') window._homeData.reloadActiveSection();
     if (typeof window._homeData.refreshUnreadCount === 'function') window._homeData.refreshUnreadCount();
@@ -158,7 +158,9 @@ function __hyloSectionFetch(url) {
 }
 
 function __hyloRefreshSidebar() {
-  htmx.ajax('GET', '/home/refresh', { target: document.body, swap: 'none' });
+  Promise.resolve(htmx.ajax('GET', '/home/refresh', { target: document.body, swap: 'none' })).then(function () {
+    if (window._homeData) window._homeData.syncSideEmpty();
+  }, function () {});
 }
 
 function __hyloRefetchShown() {
@@ -226,7 +228,8 @@ function __hyloSectionMutate(fn) {
 
 // display:none on the parked holder clears scrollTop. Read it while the
 // section is still on screen, and write it back once the nodes are visible.
-var __hyloSectionScrollSel = '.home-list-body, .img-scroll, .shorts-stream-wrap, .home-inbox-list';
+// Chat keeps its own scroll: it sticks to the newest message.
+var __hyloSectionScrollSel = '.sec-body:not(.chat-scroll)';
 
 function __hyloSectionCaptureScroll(root) {
   var nodes = root.querySelectorAll(__hyloSectionScrollSel);

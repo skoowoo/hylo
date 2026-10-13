@@ -112,6 +112,8 @@ func newRouter(
 	mux.HandleFunc("GET /api/runs/{id}", ah.RunGET)
 	mux.HandleFunc("POST /api/runs/{id}/cancel", ah.RunCancelPOST)
 	mux.HandleFunc("POST /api/runs/retry-trigger", ah.RunsRetryTriggerPOST)
+	mux.HandleFunc("POST /api/setup/hello", ah.SetupHelloPOST)
+	mux.HandleFunc("POST /api/setup/bot", ah.SetupBotPOST)
 
 	if mateStore != nil {
 		ch := handler.NewConversationAPI(mateStore)

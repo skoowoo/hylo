@@ -1,3 +1,4 @@
+<div class="sec">
 <div class="home-list-head">
   <span class="home-list-count" title="Images">{{.Count}}</span>
   <div class="home-list-head-spacer"></div>
@@ -15,9 +16,8 @@
     <button type="button" class="btn-outline btn--xs" @click="exitSelectMode()">Cancel</button>
   </div>
 </div>
-<div class="img-scroll">
+<div class="sec-body img-scroll">
   <div class="img-grid" id="img-grid">
-    {{- if .Images}}
     {{- range .Images}}
     <div class="list-card list-card--clickable img-card" onclick="openImageLightbox(this)"
          data-img-src="{{.ThumbURL}}" data-img-name="{{.Name}}" data-img-dir="{{.Dir}}"
@@ -46,18 +46,11 @@
          hx-swap="beforebegin"
          hx-target="this"></div>
     {{- end}}
-    {{- else}}
-    <div class="img-empty empty-state">
-      <div class="empty-state-icon">
-        <svg fill="none" stroke="currentColor" stroke-width="1.25" viewBox="0 0 48 48">
-          <rect x="5" y="8" width="38" height="32" rx="3"/>
-          <circle cx="16" cy="18" r="3.5"/>
-          <path stroke-linecap="round" stroke-linejoin="round" d="M5 33l10-10 8 8 7-9 13 13"/>
-        </svg>
-      </div>
-      <div class="empty-state-title">No images yet</div>
-      <div class="empty-state-desc">Images you add to your notes will show up here.</div>
-    </div>
-    {{- end}}
   </div>
+</div>
+<div class="empty-state empty-state--page" id="img-empty"{{if .Images}} hidden{{end}}>
+  <div class="empty-state-icon">{{sideIcon "images"}}</div>
+  <div class="empty-state-title">No images yet</div>
+  <div class="empty-state-desc">Images you add to your notes will show up here.</div>
+</div>
 </div>

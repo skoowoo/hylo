@@ -241,22 +241,37 @@
        itself. ── */
     .empty-state {
       display: flex; flex-direction: column; align-items: center; justify-content: center;
-      gap: 0.6rem;
+      gap: 0.4rem; text-align: center;
     }
+    .empty-state[hidden] { display: none; }
+    /* Neutral on purpose: the accent stays with the one action below. */
     .empty-state-icon {
-      width: 48px; height: 48px;
-      color: var(--muted); opacity: 0.35;
-      margin-bottom: 0.25rem;
+      width: 48px; height: 48px; margin-bottom: 0.75rem;
+      display: grid; place-items: center;
+      border-radius: var(--r-lg);
+      background: var(--surface-soft);
+      border: 1px solid var(--line-hair);
+      color: var(--muted);
     }
-    .empty-state-icon svg { width: 100%; height: 100%; }
+    .empty-state-icon svg { width: 22px; height: 22px; opacity: 1; }
     .empty-state-title {
       font-size: var(--text-title-sm); font-weight: var(--fw-semibold);
-      color: var(--muted); letter-spacing: -0.01em;
+      color: var(--fg); letter-spacing: -0.01em;
     }
     .empty-state-desc {
       font-size: var(--text-sm); color: var(--muted);
-      text-align: center; max-width: 260px; line-height: var(--lh-relaxed);
+      max-width: 300px; line-height: var(--lh-relaxed);
     }
+    .empty-state-actions { display: flex; gap: 0.5rem; margin-top: 0.9rem; }
+    /* A section's empty state, a direct child of its .sec (home.css): the
+       tile sits at the same height in every section, whatever head, composer
+       or button is around it. */
+    .empty-state--page {
+      position: absolute; left: 0; right: 0; padding: 0 1rem;
+      top: calc(40vh - 24px);
+      justify-content: flex-start; pointer-events: none;
+    }
+    .empty-state--page .empty-state-actions { pointer-events: auto; }
 
     /* ── Shared sidebar nav row — the app's main sidebar
        (.home-side-item/.home-side-child, home.css) and the Settings

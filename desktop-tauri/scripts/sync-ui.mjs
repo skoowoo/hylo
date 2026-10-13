@@ -1,5 +1,5 @@
-// Copies the app's vendored Alpine and fonts into the shell page, which the
-// Hylo server does not serve. Design tokens come from a Go test instead
+// Copies the app's vendored Alpine, fonts and agent logos into the shell
+// page, which the Hylo server does not serve. Design tokens come from a Go test instead
 // (TestDesktopShellTokens), since they live in Go source.
 import fs from "node:fs";
 import path from "node:path";
@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const vendor = path.resolve(here, "../../internal/server/static/vendor");
+const agents = path.resolve(here, "../../internal/server/static/agents");
 const ui = path.resolve(here, "../ui");
 const families = ["Inter", "JetBrains Mono"];
 
@@ -30,3 +31,6 @@ const out = kept
   )
   .join("");
 fs.writeFileSync(path.join(ui, "fonts.css"), out);
+
+fs.rmSync(path.join(ui, "agents"), { recursive: true, force: true });
+fs.cpSync(agents, path.join(ui, "agents"), { recursive: true });

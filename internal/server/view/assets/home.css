@@ -297,7 +297,6 @@
     }
     .home-side-child .home-side-count { background: transparent; padding: 0; color: var(--muted-soft); }
     .home-side-child.is-active .home-side-count { color: inherit; }
-    .home-side-empty { padding: 4px 8px; font-size: var(--text-xs); color: var(--muted-soft); }
     /* Drag-to-move drop target (home.js toggles .drag-over on dragenter/leave).
        Static, not a breathing/looping glow — an ambient animation here would
        be exactly the kind of "motion for its own sake" the app's restrained
@@ -346,8 +345,7 @@
        low-key count pill where a section has a number worth showing, plus
        the section's own controls right-aligned via .home-list-head-spacer.
        Knowledge's graph view sits below this row too (its seg control lives
-       here), so .graph-main just becomes the other flex child instead of
-       filling the whole pane.
+       here), so the graph is just the section's .sec-body below it.
 
        Height is --toolbar-h, the same constant the editor tool bar uses, so
        controls on both sides of the pane divider sit on one line; align-items
@@ -378,11 +376,21 @@
       color: var(--cnt-tx); background: var(--cnt-bg);
       font-variant-numeric: tabular-nums;
     }
-    .home-list-body {
+    /* ── Section shell ─────────────────────────────────────────
+       Every section in the list pane is one .sec: a .home-list-head, one
+       .sec-body that scrolls, an optional footer, and its .empty-state as a
+       direct child, so all of them anchor to the same box. A section only
+       overrides what is really its own (padding, column width). */
+    .sec {
+      position: relative; flex: 1; min-width: 0; min-height: 0;
+      display: flex; flex-direction: column; overflow: hidden;
+    }
+    .sec-body {
       flex: 1; min-height: 0; overflow-y: auto;
       padding: 20px 24px 40px;
       display: flex; flex-direction: column;
     }
+    .sec-body--flush { padding: 0; overflow: hidden; }
     /* Grid layout toggle (Pinned/Folder/Knowledge/Memory only — the sections
        that render through homeSectionData's shared "full" template). Cards
        keep the same .home-list-card/.home-note-row markup; only the
@@ -476,8 +484,7 @@
     .home-list-body.is-grid .has-cover .home-note-badge--done { background: #fff; color: #26262a; }
     .home-list-body.is-grid .has-cover .home-note-badge--todo-track { stroke: rgba(255, 255, 255, 0.4); }
     .home-list-body.is-grid .has-cover .home-note-badge--todo-fill { stroke: #fff; }
-    .home-list-body.is-grid .home-load-sentinel,
-    .home-list-body.is-grid .home-list-empty { grid-column: 1 / -1; }
+    .home-list-body.is-grid .home-load-sentinel { grid-column: 1 / -1; }
 
     /* ── Wide note row ─────────────────────────────────────────── */
     /* ── Shared list-card row — the note list's rows and Inbox's message
@@ -849,7 +856,6 @@
       opacity: 1;
     }
     /* ── Inbox embedded in the home list pane ─────────────────── */
-    .home-inbox-section { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
     /* Inbox's header now uses the shared .home-list-head below (same class
        as Pinned/Folder/Images/Agents/Shorts/Graph) instead of its own
        near-identical rule. */
@@ -865,7 +871,6 @@
        checkmark. */
     .home-inbox-mark-all-btn svg { width: 13px; height: 13px; }
 
-    .home-inbox-list { flex: 1; min-height: 0; overflow-y: auto; padding: 20px 24px 40px; display: flex; flex-direction: column; }
 
     /* Skips layout of off-screen cards; without it re-showing the parked inbox
        lays out every loaded card (~45ms at 50 cards in WebKit). 75px is a

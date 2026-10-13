@@ -1,4 +1,4 @@
-<div class="shorts-view">
+<div class="sec">
   <div class="home-list-head">
     <div class="home-list-head-spacer"></div>
     {{if gt (len .Months) 1}}
@@ -20,7 +20,7 @@
     {{end}}
   </div>
 
-  <div class="shorts-stream-wrap">
+  <div class="sec-body shorts-stream-wrap">
     <div class="shorts-stream-inner">
       <div class="shorts-compose-card">
         <textarea id="shorts-compose-input" class="shorts-compose-input" rows="2"
@@ -81,17 +81,6 @@
           </div>
           {{end}}
         </div>
-        {{else}}
-        <div class="shorts-empty-state">
-          <div class="shorts-empty-icon">
-            <svg fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M13 21h8"/><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/></svg>
-          </div>
-          <p class="shorts-empty-label">No shorts yet</p>
-          <button type="button" class="shorts-empty-btn"
-                  onclick="var el=document.getElementById('shorts-compose-input'); if (el) el.focus();">
-            <svg fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5v14"/></svg>Write a short
-          </button>
-        </div>
         {{end}}
       </div>
 
@@ -107,4 +96,11 @@
       </div>
     </div>
   </div>
+  {{if not .Groups}}
+  <div class="empty-state empty-state--page shorts-empty">
+    <div class="empty-state-icon">{{sideIcon "shorts"}}</div>
+    <div class="empty-state-title">No shorts yet</div>
+    <div class="empty-state-desc">Jot down a passing thought; Hylo checks it against what you already know.</div>
+  </div>
+  {{end}}
 </div>

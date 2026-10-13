@@ -1,4 +1,4 @@
-{{define "graph-section"}}<div class="graph-main">
+{{define "graph-section"}}<div class="sec-body sec-body--flush">
   <div style="position:relative;flex:1;display:flex;flex-direction:column;overflow:hidden">
     <div id="graph-canvas" style="flex:1;width:100%"></div>
 
@@ -49,20 +49,11 @@
     <div class="graph-loading" x-show="loading" x-cloak>
       <span>Loading graph…</span>
     </div>
-
-    <div class="graph-zero empty-state" x-show="!loading && empty" x-cloak>
-      <div class="empty-state-icon">
-        <svg fill="none" stroke="currentColor" stroke-width="1.25" viewBox="0 0 48 48">
-          <circle cx="24" cy="12" r="4.5"/>
-          <circle cx="10" cy="36" r="4.5"/>
-          <circle cx="38" cy="36" r="4.5"/>
-          <line x1="24" y1="16.5" x2="10.8" y2="31.7" stroke-linecap="round"/>
-          <line x1="24" y1="16.5" x2="37.2" y2="31.7" stroke-linecap="round"/>
-          <line x1="14.5" y1="36" x2="33.5" y2="36" stroke-linecap="round"/>
-        </svg>
-      </div>
-      <div class="empty-state-title">No knowledge notes yet</div>
-      <div class="empty-state-desc">Knowledge notes and their connections will appear here once the compile agent has run on your raw notes.</div>
-    </div>
   </div>
-</div>{{end}}
+</div>
+<div class="empty-state empty-state--page" x-show="!loading && empty" x-cloak>
+  <div class="empty-state-icon">{{sideIcon "knowledge"}}</div>
+  <div class="empty-state-title">No knowledge yet</div>
+  <div class="empty-state-desc">Hylo compiles your notes into linked knowledge. Compile a note, or clip a page into Web Clips.</div>
+</div>
+{{end}}

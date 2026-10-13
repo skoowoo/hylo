@@ -15,17 +15,17 @@ document.addEventListener('alpine:init', function () {
 
   // Reveal order on the AI step; Pi leads because it's the one we recommend.
   var AGENTS = [
-    { id: 'pi', label: 'Pi', logo: mask('pi.svg') },
-    { id: 'claude', label: 'Claude Code', logo: '<img src="agents/claude.svg" alt="">' },
-    { id: 'codex', label: 'Codex', logo: full('codex.png') },
-    { id: 'opencode', label: 'OpenCode', logo: full('opencode.svg') },
-    { id: 'cursor-agent', label: 'Cursor', logo: '<img class="is-full ob-on-dark" src="agents/cursor-dark.svg" alt=""><img class="is-full ob-on-light" src="agents/cursor-light.svg" alt="">' },
-    { id: 'copilot', label: 'Copilot', logo: mask('copilot.svg') },
-    { id: 'hermes', label: 'Hermes', logo: full('hermes.png') },
-  ];
-  // Monochrome marks take the text color, so they read on either theme.
-  function mask(file) { return '<span class="ob-glyph" style="--src: url(agents/' + file + ')"></span>'; }
-  function full(file) { return '<img class="is-full" src="agents/' + file + '" alt="">'; }
+    { id: 'pi', label: 'Pi' },
+    { id: 'claude', label: 'Claude Code' },
+    { id: 'codex', label: 'Codex' },
+    { id: 'opencode', label: 'OpenCode' },
+    { id: 'cursor-agent', label: 'Cursor' },
+    { id: 'copilot', label: 'Copilot' },
+    { id: 'hermes', label: 'Hermes' },
+  ].map(function (a) {
+    a.logo = window.__hyloAgentLogo(a.id, 'agents/', { glyph: 'ob-glyph', dark: 'ob-on-dark', light: 'ob-on-light' });
+    return a;
+  });
   // The probe answers all at once; agents still appear one by one, as if found.
   var MIN_SCAN_MS = 1400;
   var SCAN_TICK_MS = 420;

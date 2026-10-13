@@ -98,8 +98,8 @@ func (s *Store) DeleteMate(id string) error {
 
 func (s *Store) ListTriggers(mateID string) ([]MateTrigger, error) {
 	rows, err := s.db.Query(
-		`SELECT id, mate_id, event_types, prompt, enabled, created_at, schedule, last_fired_at, path_prefixes
-         FROM mate_triggers WHERE mate_id = ? ORDER BY created_at ASC`, mateID,
+		`SELECT id, mate_id, event_types, prompt, enabled, created_at, schedule, last_fired_at, path_prefixes, name
+         FROM mate_triggers WHERE mate_id = ? ORDER BY created_at ASC, rowid ASC`, mateID,
 	)
 	if err != nil {
 		return nil, err
@@ -111,11 +111,11 @@ func (s *Store) ListTriggers(mateID string) ([]MateTrigger, error) {
 // ListAllEnabledTriggers returns all enabled triggers for all enabled mates.
 func (s *Store) ListAllEnabledTriggers() ([]MateTrigger, error) {
 	rows, err := s.db.Query(
-		`SELECT t.id, t.mate_id, t.event_types, t.prompt, t.enabled, t.created_at, t.schedule, t.last_fired_at, t.path_prefixes
+		`SELECT t.id, t.mate_id, t.event_types, t.prompt, t.enabled, t.created_at, t.schedule, t.last_fired_at, t.path_prefixes, t.name
          FROM mate_triggers t
          JOIN mates m ON m.id = t.mate_id
          WHERE t.enabled = 1 AND m.enabled = 1
-         ORDER BY t.created_at ASC`,
+         ORDER BY t.created_at ASC, t.rowid ASC`,
 	)
 	if err != nil {
 		return nil, err
@@ -127,11 +127,11 @@ func (s *Store) ListAllEnabledTriggers() ([]MateTrigger, error) {
 // ListScheduledTriggers returns enabled triggers with a non-empty schedule.
 func (s *Store) ListScheduledTriggers() ([]MateTrigger, error) {
 	rows, err := s.db.Query(
-		`SELECT t.id, t.mate_id, t.event_types, t.prompt, t.enabled, t.created_at, t.schedule, t.last_fired_at, t.path_prefixes
+		`SELECT t.id, t.mate_id, t.event_types, t.prompt, t.enabled, t.created_at, t.schedule, t.last_fired_at, t.path_prefixes, t.name
          FROM mate_triggers t
          JOIN mates m ON m.id = t.mate_id
          WHERE t.enabled = 1 AND m.enabled = 1 AND t.schedule != ''
-         ORDER BY t.created_at ASC`,
+         ORDER BY t.created_at ASC, t.rowid ASC`,
 	)
 	if err != nil {
 		return nil, err
@@ -182,8 +182,8 @@ func (s *Store) ReplaceTriggersForMate(mateID string, triggers []MateTrigger) er
 			lastFiredMs = t.LastFiredAt.UnixMilli()
 		}
 		if _, err := tx.Exec(
-			`INSERT INTO mate_triggers(id, mate_id, event_types, prompt, enabled, created_at, schedule, last_fired_at, path_prefixes) VALUES (?,?,?,?,?,?,?,?,?)`,
-			t.ID, t.MateID, strings.Join(t.EventTypes, ","), t.Prompt, boolToInt(t.Enabled), t.CreatedAt.UnixMilli(), strings.TrimSpace(t.Schedule), lastFiredMs, strings.Join(t.PathPrefixes, ","),
+			`INSERT INTO mate_triggers(id, mate_id, event_types, prompt, enabled, created_at, schedule, last_fired_at, path_prefixes, name) VALUES (?,?,?,?,?,?,?,?,?,?)`,
+			t.ID, t.MateID, strings.Join(t.EventTypes, ","), t.Prompt, boolToInt(t.Enabled), t.CreatedAt.UnixMilli(), strings.TrimSpace(t.Schedule), lastFiredMs, strings.Join(t.PathPrefixes, ","), strings.TrimSpace(t.Name),
 		); err != nil {
 			return err
 		}
@@ -248,7 +248,7 @@ func scanTriggers(rows *sql.Rows) ([]MateTrigger, error) {
 		var createdMs, lastFiredMs int64
 		var enabled int
 		var evTypes, schedule, pathPrefixes string
-		if err := rows.Scan(&t.ID, &t.MateID, &evTypes, &t.Prompt, &enabled, &createdMs, &schedule, &lastFiredMs, &pathPrefixes); err != nil {
+		if err := rows.Scan(&t.ID, &t.MateID, &evTypes, &t.Prompt, &enabled, &createdMs, &schedule, &lastFiredMs, &pathPrefixes, &t.Name); err != nil {
 			return nil, err
 		}
 		t.Enabled = enabled != 0

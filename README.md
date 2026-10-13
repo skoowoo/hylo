@@ -16,7 +16,7 @@ You just write. Hylo learns who you are from your notes, then works for you arou
 
 ![tags](./docs/assets/tags.png)
 
-4. Agent bots fetch news and other updates each day and send them to your inbox.
+4. Bots fetch news and other updates each day and send them to your inbox.
 
 ![inbox message](./docs/assets/inbox-message.png)
 
@@ -44,7 +44,7 @@ You just write. Hylo learns who you are from your notes, then works for you arou
 - [Installation](#installation)
 - [Obsidian Compatibility](#obsidian-compatibility)
 - [Editor](#editor)
-- [Agent Bots](#agent-bots)
+- [Bots](#bots)
 - [WeChat](#wechat)
 - [Discord](#discord)
 - [LLM-Wiki Compiler](#llm-wiki-compiler)
@@ -232,13 +232,13 @@ The editor supports CommonMark and GFM: headings, bold, italic, strikethrough, i
 
 Type `[[` to insert a wikilink. Aliases follow Obsidian syntax: `[[Page Name|Alias]]`. Embed images with `![[filename.png]]`.
 
-## Agent Bots
+## Bots
 
-Agent Bots are custom AI agents you define in **Settings → Agent Bots**. Each agent bot has a name, a system prompt, and a backing agent CLI (any agent CLI detected on your PATH).
+Bots are custom AI agents you define in **Settings → Bots**. Each bot has a name, a system prompt, and a backing agent CLI (any agent CLI detected on your PATH).
 
 #### 🔔 Event Triggers
 
-Add one or more triggers to an agent bot and it runs automatically whenever a matching event fires. Hylo ships with these built-in events:
+Add one or more triggers to a bot and it runs automatically whenever a matching event fires. Hylo ships with these built-in events:
 
 | Event                | When it fires                                        |
 | -------------------- | ---------------------------------------------------- |
@@ -251,19 +251,24 @@ Add one or more triggers to an agent bot and it runs automatically whenever a ma
 | `discord_message`    | A Discord DM is received                             |
 | `compile_requested`  | An LLM wiki compilation is manually triggered        |
 
-#### 🧩 Templates
+#### 🧩 The Hylo bot
 
-Click **New Agent Bot** and pick a template to get a ready-made agent bot with its triggers and prompts filled in. Review the agent, model, and prompt, then save. Or choose **Blank** to start from scratch.
+The desktop app creates a **Hylo** bot during onboarding. If you skipped that, or run Hylo on a server, open **Settings → Bots**: with no bots yet, it walks you through the same setup. The bot comes with these triggers:
 
-| Template       | What it does                                                                                              |
-| -------------- | --------------------------------------------------------------------------------------------------------- |
-| `Compiler`     | Compiles notes into knowledge units, on demand and automatically for new notes under `/Web Clips/`        |
-| `Daily Memory` | Updates your personal memory every day at 09:00                                                           |
-| `Recap`        | Cross-checks each new short note against your knowledge base, and reviews the past week's writing weekly  |
+| Trigger                          | What it does                                                                  |
+| -------------------------------- | ----------------------------------------------------------------------------- |
+| `wechat_message`, `discord_message` | Replies to you on WeChat and Discord once they're connected                |
+| `compile_requested`              | Compiles a note into knowledge units when you ask for it                      |
+| `note_created` on `/Web Clips/`  | Compiles new web clips automatically                                          |
+| `scheduled` daily 09:00          | Updates your personal memory                                                  |
+| `short_note_created`             | Cross-checks each new short note against your knowledge base                  |
+| `scheduled` weekly Mon 09:05     | Reviews the past week's writing                                               |
+
+Edit or remove any of them under **Settings → Bots**, or click **New Bot** to build your own.
 
 #### Backing Agents
 
-> **Hylo automatically discovers available agent CLIs from your local `PATH` with no extra configuration needed.** If you already use Claude Code, Codex, or Copilot in your terminal, Hylo finds them at startup and makes them available as backing agents for your agent bots.
+> **Hylo automatically discovers available agent CLIs from your local `PATH` with no extra configuration needed.** If you already use Claude Code, Codex, or Copilot in your terminal, Hylo finds them at startup and makes them available as backing agents for your bots.
 
 Hylo integrates **7 agent CLIs** out of the box:
 
@@ -277,7 +282,7 @@ Hylo integrates **7 agent CLIs** out of the box:
 
 ## WeChat
 
-Hylo can receive WeChat direct messages and route them to an agent bot automatically. Setup has two steps.
+Hylo can receive WeChat direct messages and route them to a bot automatically. Setup has two steps.
 
 #### Step 1: Connect WeChat in Server Config
 
@@ -288,9 +293,9 @@ Hylo can receive WeChat direct messages and route them to an agent bot automatic
 
 The WeChat iLink bridge begins polling for new DMs.
 
-#### Step 2: Create an Agent Bot with a `wechat_message` trigger
+#### Step 2: Create a Bot with a `wechat_message` trigger
 
-1. Open **Settings → Agent Bots** and click **New Agent Bot**
+1. Open **Settings → Bots** and click **New Bot**
 2. Fill in a name, pick an agent and model
 3. Under **Triggers**, click **+ Add trigger**
 4. Set the **Event** to `wechat_message`
@@ -301,9 +306,9 @@ The WeChat iLink bridge begins polling for new DMs.
    {Content}
    ```
 
-6. Save the agent bot
+6. Save the bot
 
-From this point on, every WeChat DM fires the trigger and the agent bot replies automatically.
+From this point on, every WeChat DM fires the trigger and the bot replies automatically.
 
 ## Discord
 
@@ -322,16 +327,16 @@ To send proactive DMs (e.g. from a scheduled trigger), the Bot must share at lea
 
 If `discord.com` is not directly reachable, set **Proxy URL** to your local proxy (e.g. `http://127.0.0.1:7890`).
 
-#### Step 2: Create an Agent Bot with a `discord_message` trigger
+#### Step 2: Create a Bot with a `discord_message` trigger
 
-1. Open **Settings → Agent Bots** and click **New Agent Bot**
+1. Open **Settings → Bots** and click **New Bot**
 2. Fill in a name, pick an agent and model
 3. Under **Triggers**, click **+ Add trigger**
 4. Set the **Event** to `discord_message`
 5. Write a prompt template. Available variables: `{Content}`, `{DiscordChannelID}`, `{DiscordUserID}`
-6. Save the agent bot
+6. Save the bot
 
-Done. Every incoming DM now triggers the agent bot and gets a reply.
+Done. Every incoming DM now triggers the bot and gets a reply.
 
 ## LLM-Wiki Compiler
 
@@ -341,18 +346,16 @@ Compile notes into structured knowledge units under `/_knowledge` and build an i
 
 Go to **Settings → Server → Config → Compile** and enable the compiler.
 
-#### Step 2 — Create an Agent Bot from the `Compiler` template
+#### Step 2 — Compile with a bot
 
-1. Open **Settings → Agent Bots** and click **New Agent Bot**
-2. Pick the **Compiler** template
-3. Choose an agent and model, then save
-
-The template comes with two triggers:
+The **Hylo** bot created during onboarding already has two compile triggers:
 
 | Trigger             | When it fires                                                                         |
 | ------------------- | ------------------------------------------------------------------------------------- |
 | `compile_requested` | You manually compile a note in the app (e.g. from the note action menu)               |
 | `note_created`      | A new note is created under `/Web Clips/`, so clipped pages are compiled automatically |
+
+To set this up on another bot, add the same two triggers to it in **Settings → Bots**.
 
 Each run compiles the note with the `hylo-compile-note` skill, updates the knowledge index with `hylo-index-knowledge`, then polishes the new units with `humanizer`.
 
@@ -364,20 +367,13 @@ Hylo can automatically extract personal memories from your notes into six struct
 
 **Default scan scope**: short notes (`/_shorts`) and knowledge units (`/_knowledge`). You can also specify additional directories directly in the prompt.
 
-#### ⏰ Option 1 — Create from the `Daily Memory` template (recommended)
+#### ⏰ Option 1 — Daily trigger (recommended)
 
-1. Open **Settings → Agent Bots** and click **New Agent Bot**
-2. Pick the **Daily Memory** template
-3. Choose an agent and model
-4. Open the `scheduled` trigger and replace `[name]` and `[project]` in the prompt with a short self-introduction. Adjust the time if you like (default: daily 09:00). To scan extra directories, append them to the prompt:
+The **Hylo** bot created during onboarding already updates your memory every day at 09:00 with a `scheduled` trigger. To change the time, or scan extra directories, edit that trigger in **Settings → Bots** and append them to its prompt:
 
-   ```
-   Please update my personal memory. I'm [name], currently working on [project]. Also scan /journal/.
-   ```
-
-5. Save the agent bot
-
-Memory then updates automatically once a day.
+```
+Please update my personal memory from my recent notes. Also scan /journal/.
+```
 
 #### 💬 Option 2 — Trigger manually in chat
 
@@ -445,7 +441,7 @@ Every layer of AI output in Hylo is customizable:
 
 #### 2. Per-Agent-Bot System Prompt & Trigger Prompt
 
-In **Settings → Agent Bots**, each agent bot exposes two customization points:
+In **Settings → Bots**, each bot exposes two customization points:
 
 - **System Prompt** — agent-bot-specific instructions. Appended to the global system prompt (joined with `---`).
 - **Trigger Prompt template**: the user message sent to the agent when a trigger fires. Supports variables: `{Path}`, `{Name}`, `{Content}` for vault events; `{Now}`, `{Date}`, `{Time}` for scheduled triggers; `{Content}`, `{WechatUserID}` for WeChat triggers; `{Content}`, `{DiscordChannelID}`, `{DiscordUserID}` for Discord triggers.

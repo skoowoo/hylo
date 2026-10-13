@@ -1,4 +1,5 @@
-{{define "full"}}<div class="home-list-head">
+{{define "full"}}<div class="sec">
+<div class="home-list-head">
   <span class="home-list-count" id="home-list-count" title="{{.Title}}">{{.Count}}</span>
   <div class="home-list-head-spacer"></div>
   <div class="seg">
@@ -27,5 +28,6 @@
   </div>
 </div>
 {{if eq .View "graph"}}{{template "graph-section" .}}{{else}}
-<div class="home-list-body" id="home-list-body" :class="{'is-grid': currentListView() === 'grid'}">{{template "rows" .}}</div>
-{{end}}{{end}}
+<div class="sec-body home-list-body" id="home-list-body" :class="{'is-grid': currentListView() === 'grid'}">{{template "rows" .}}</div>
+{{if and (not .Items) .Empty.Title}}{{template "empty-state" .Empty}}{{end}}
+{{end}}</div>{{end}}

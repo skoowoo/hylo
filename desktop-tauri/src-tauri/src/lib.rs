@@ -2,7 +2,6 @@ mod agent_setup;
 mod cli;
 mod commands;
 mod config;
-mod greeting;
 mod local;
 mod nav;
 mod notify;

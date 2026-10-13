@@ -944,9 +944,32 @@
 
   function buildEmpty(snap, isMac) {
     var box = el('div', 'chat-empty');
+    if (!snap.mate && snap.matesLoaded && !snap.mates.length) {
+      box.className = 'chat-empty empty-state empty-state--page';
+      var icon = el('div', 'empty-state-icon');
+      var iconTpl = document.getElementById('chat-setup-icon');
+      if (iconTpl) icon.appendChild(iconTpl.content.cloneNode(true));
+      box.appendChild(icon);
+      var title = el('div', 'empty-state-title');
+      title.textContent = 'Meet Hylo';
+      box.appendChild(title);
+      var about = el('div', 'empty-state-desc');
+      about.textContent = 'Your personal AI agent, powered by your notes. Connect an AI agent on this server to set it up.';
+      box.appendChild(about);
+      var actions = el('div', 'empty-state-actions');
+      var setup = el('button', 'btn-solid');
+      setup.type = 'button';
+      setup.textContent = 'Set up Hylo';
+      setup.addEventListener('click', function () {
+        window.dispatchEvent(new CustomEvent('hylo:open-settings', { detail: { tab: 'agent-bots' } }));
+      });
+      actions.appendChild(setup);
+      box.appendChild(actions);
+      return box;
+    }
     if (!snap.mate) {
       var t = el('div', 'chat-empty-text');
-      t.textContent = 'Select an agent bot from the sidebar to start';
+      t.textContent = 'Select a bot from the sidebar to start';
       box.appendChild(t);
       return box;
     }
@@ -1068,13 +1091,13 @@
         }
       }
       if (newBtn) newBtn.disabled = busy || !snap.mateId || snap.messages.length === 0 || snap.convType !== 'chat';
-      show(panel, snap.convType === 'chat');
+      show(panel, snap.convType === 'chat' && !(snap.matesLoaded && !snap.mates.length));
       if (spacer) {
         if (snap.convType !== 'chat') spacer.style.height = '2rem';
         else spacer.style.height = '';
       }
       if (hintName) {
-        hintName.textContent = mate ? ('Ask ' + mate.name + '…') : 'Select an agent bot from the sidebar';
+        hintName.textContent = mate ? ('Ask ' + mate.name + '…') : 'Select a bot from the sidebar';
       }
       if (ta) {
         ta.disabled = busy || !snap.mateId;
@@ -1121,17 +1144,19 @@
     function renderThread(snap) {
       if (!snap.messages.length) {
         Array.from(rows.keys()).forEach(retire);
-        var kind = snap.mate ? ('card:' + snap.mate.name) : 'plain';
-        var empty = thread.querySelector('.chat-empty');
+        var kind = snap.mate ? ('card:' + snap.mate.name) : (snap.matesLoaded && !snap.mates.length ? 'setup' : 'plain');
+        var empty = rootEl.querySelector('.chat-empty');
         if (emptyKind !== kind) {
           if (empty) empty.remove();
           empty = buildEmpty(snap, isMac);
-          thread.insertBefore(empty, spacer);
+          // The setup page is a section empty state, so it hangs off the .sec.
+          if (kind === 'setup') rootEl.insertBefore(empty, scrollEl.nextSibling);
+          else thread.insertBefore(empty, spacer);
           emptyKind = kind;
         }
         return;
       }
-      var emptyNow = thread.querySelector('.chat-empty');
+      var emptyNow = rootEl.querySelector('.chat-empty');
       if (emptyNow) emptyNow.remove();
       emptyKind = '';
       var seen = {};

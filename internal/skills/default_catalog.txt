@@ -2,7 +2,6 @@
 # Format: GitHubUser/RepoName:path/in/repo:skill-dir-name
 skoowoo/hylo:skills/hylo-writing:hylo-writing
 skoowoo/hylo:skills/hylo-quote-extract:hylo-quote-extract
-skoowoo/hylo:skills/hylo-recap:hylo-recap
 hardhackerlabs/podwise-cli:skills:podwise
 Tencent/WeChatReading:skills:weread-skills
 blader/humanizer::humanizer

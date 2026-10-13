@@ -47,11 +47,9 @@ function __hyloDeleteImage(dir, name) {
 
 function __hyloImgGridEmptyCheck() {
   var grid = document.getElementById('img-grid');
-  if (!grid || grid.querySelector('.img-card, .img-sentinel, .img-empty')) return;
-  var empty = document.createElement('div');
-  empty.className = 'img-empty';
-  empty.textContent = 'No images found';
-  grid.appendChild(empty);
+  var empty = document.getElementById('img-empty');
+  if (!grid || !empty || grid.querySelector('.img-card, .img-sentinel')) return;
+  empty.hidden = false;
 }
 
 function homeImagesMixin() {

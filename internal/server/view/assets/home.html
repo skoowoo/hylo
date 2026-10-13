@@ -43,13 +43,13 @@
                   :class="{'is-active': curType() === 'chat' && !selectedAgentBotId}"
                   x-press="go('/home/section?type=chat')">
             {{sideIcon "bot"}}
-            <span class="home-side-label">Agent Bots</span>
-            <svg class="home-side-chevron" :class="{'is-open': chatsOpen}" @pointerdown.stop @click.stop="chatsOpen = !chatsOpen"
+            <span class="home-side-label">Bots</span>
+            <svg class="home-side-chevron" :class="{'is-open': chatsOpen}" x-show="!botsEmpty()" @pointerdown.stop @click.stop="chatsOpen = !chatsOpen"
                  fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" d="m9 18 6-6-6-6" />
             </svg>
           </button>
-          <div class="home-side-children" id="home-side-chats-body" :class="{'is-open': chatsOpen}" x-cloak>
+          <div class="home-side-children" id="home-side-chats-body" :class="{'is-open': chatsOpen && !botsEmpty()}" x-cloak>
             <div class="home-side-children-inner">
               <template x-for="m in agentBots" :key="m.id">
                 <button type="button" class="side-nav-item home-side-child" :class="{'is-active': curType() === 'chat' && selectedAgentBotId === m.id}"
@@ -59,7 +59,6 @@
                   <span class="home-side-child-name" x-text="m.name"></span>
                 </button>
               </template>
-              <div class="home-side-empty" x-show="agentBots.length === 0">No agent bots yet</div>
             </div>
           </div>
         </div>
@@ -68,15 +67,16 @@
 
         <div class="home-side-group">
           <button type="button" class="side-nav-item home-side-item home-side-item--parent"
-                  x-press="knowledgeOpen = !knowledgeOpen">
+                  :class="{'is-active': sideEmpty.knowledge && curType() === 'knowledge'}"
+                  x-press="sideEmpty.knowledge ? selectKnowledgeIndex('') : (knowledgeOpen = !knowledgeOpen)">
             {{sideIcon "knowledge"}}
             <span class="home-side-label">Knowledge</span>
-            <svg class="home-side-chevron" :class="{'is-open': knowledgeOpen}"
+            <svg class="home-side-chevron" :class="{'is-open': knowledgeOpen}" x-show="!sideEmpty.knowledge"
                  fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" d="m9 18 6-6-6-6" />
             </svg>
           </button>
-          <div class="home-side-children" id="home-side-knowledge-body" x-bind:class="{'is-open': knowledgeOpen}" x-cloak>
+          <div class="home-side-children" id="home-side-knowledge-body" x-bind:class="{'is-open': knowledgeOpen && !sideEmpty.knowledge}" x-cloak>
             <div class="home-side-children-inner">
 {{template "home-side-knowledge-inner" .}}
             </div>
@@ -123,15 +123,17 @@
         </button>
 
         <div class="home-side-group">
-          <button type="button" class="side-nav-item home-side-item home-side-item--parent" x-press="foldersOpen = !foldersOpen">
+          <button type="button" class="side-nav-item home-side-item home-side-item--parent"
+                  :class="{'is-active': sideEmpty.folders && curType() === 'folder'}"
+                  x-press="sideEmpty.folders ? go('/home/section?type=folder&path=%2F') : (foldersOpen = !foldersOpen)">
             {{sideIcon "folders"}}
             <span class="home-side-label">Folders</span>
-            <svg class="home-side-chevron" :class="{'is-open': foldersOpen}" fill="none" stroke="currentColor"
+            <svg class="home-side-chevron" :class="{'is-open': foldersOpen}" x-show="!sideEmpty.folders" fill="none" stroke="currentColor"
                  stroke-width="1.7" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" d="m9 18 6-6-6-6" />
             </svg>
           </button>
-          <div class="home-side-children" id="home-side-folders-body" x-bind:class="{'is-open': foldersOpen}" x-cloak>
+          <div class="home-side-children" id="home-side-folders-body" x-bind:class="{'is-open': foldersOpen && !sideEmpty.folders}" x-cloak>
             <div class="home-side-children-inner">
 {{template "home-side-folders-inner" .}}
             </div>

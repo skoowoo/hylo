@@ -12,6 +12,8 @@
   root.__hyloChatCreate = function (host) {
     host = host || {};
     var mates = [];
+    var matesLoaded = false;
+    var mateGone = false;
     var eventDefs = [];
     var catalogEpoch = 0;
     var matesReady = Promise.resolve();
@@ -111,6 +113,7 @@
     }
 
     function requestRender(mode) {
+      if (mateGone) settleMate();
       if (rank(mode) > rank(pending)) pending = mode;
       if (!view) {
         if (rank(pending) > rank(heldScroll)) heldScroll = pending;
@@ -138,6 +141,7 @@
         mateId: mateId,
         mate: mateById(mateId),
         mates: mates,
+        matesLoaded: matesLoaded,
         convType: convType,
         messages: messages,
         catalogEpoch: catalogEpoch,
@@ -190,12 +194,13 @@
     async function loadMates() {
       try {
         var resp = await fetch('/api/mates');
-        if (!resp.ok) { notify("Couldn't load agent bots"); return; }
+        if (!resp.ok) { notify("Couldn't load bots"); return; }
         mates = ((await resp.json()).mates || []).filter(function (m) { return m.enabled; });
+        matesLoaded = true;
         catalogEpoch++;
         if (host.onMates) host.onMates(mates);
         requestRender('none');
-      } catch (e) { notify("Couldn't load agent bots"); }
+      } catch (e) { notify("Couldn't load bots"); }
     }
 
     async function loadEvents() {
@@ -580,6 +585,25 @@
       return true;
     }
 
+    // Settings changed the bots: a deleted or missing current bot hands the
+    // pane to the first one left, or to the empty state when none are. A run
+    // in flight finishes first; its last render settles it.
+    async function reloadMates() {
+      await loadMates();
+      if (!bootstrapped) return;
+      mateGone = !mateById(mateId);
+      settleMate();
+    }
+
+    function settleMate() {
+      if (!mateGone || busy()) return;
+      mateGone = false;
+      var next = (mates[0] || {}).id || '';
+      if (next === mateId) return;
+      switchMate(next);
+      if (next) void refresh();
+    }
+
     function tryOpen(id) {
       if (!switchMate(id)) return false;
       void refresh();
@@ -757,7 +781,10 @@
     }
 
     return {
-      start: function () { matesReady = Promise.all([loadMates(), loadEvents()]); },
+      start: function () {
+        matesReady = Promise.all([loadMates(), loadEvents()]);
+        if (typeof window.addEventListener === 'function') window.addEventListener('hylo:agent-bots-changed', reloadMates);
+      },
       bootstrap: async function () {
         if (bootstrapped) return;
         bootstrapped = true;

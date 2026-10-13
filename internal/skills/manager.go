@@ -13,11 +13,13 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	git "github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	gogitclient "github.com/go-git/go-git/v5/plumbing/transport/client"
 	githttp "github.com/go-git/go-git/v5/plumbing/transport/http"
+	"github.com/hardhacker/hylo/internal/util"
 )
 
 //go:embed default_catalog.txt
@@ -34,6 +36,7 @@ var DefaultSkills = []string{
 	"hylo-index-knowledge",
 	"hylo-memory",
 	"hylo-notes",
+	"hylo-recap",
 }
 
 // state persists only the non-default skills the user has explicitly enabled.
@@ -43,12 +46,13 @@ type state struct {
 
 // SkillInfo describes one skill, installed or available in the catalog.
 type SkillInfo struct {
-	Name      string `json:"name"`
-	Default   bool   `json:"default"`
-	Installed bool   `json:"installed"`
-	Enabled   bool   `json:"enabled"`
-	RepoURL   string `json:"repoUrl,omitempty"`
-	SubPath   string `json:"subPath,omitempty"`
+	Name        string `json:"name"`
+	Default     bool   `json:"default"`
+	Installed   bool   `json:"installed"`
+	Enabled     bool   `json:"enabled"`
+	RepoURL     string `json:"repoUrl,omitempty"`
+	SubPath     string `json:"subPath,omitempty"`
+	Description string `json:"description,omitempty"`
 }
 
 // catalogEntry holds the metadata parsed from a catalog line.
@@ -65,6 +69,13 @@ type Manager struct {
 	stateFile  string
 	st         state
 	shellEnvFn func() []string // returns login-shell env for git operations
+	descs      map[string]cachedDesc
+}
+
+// cachedDesc spares List from re-parsing an unchanged SKILL.md on every call.
+type cachedDesc struct {
+	mod  time.Time
+	text string
 }
 
 // Open creates a Manager rooted at vaultRoot. shellEnvFn is called when
@@ -194,12 +205,13 @@ func (m *Manager) List() ([]SkillInfo, error) {
 			installed[name] = true
 			entry := catalog[name]
 			out = append(out, SkillInfo{
-				Name:      name,
-				Default:   isDefault(name),
-				Installed: true,
-				Enabled:   m.isEnabled(name),
-				RepoURL:   entry.RepoURL,
-				SubPath:   entry.SubPath,
+				Name:        name,
+				Default:     isDefault(name),
+				Installed:   true,
+				Enabled:     m.isEnabled(name),
+				RepoURL:     entry.RepoURL,
+				SubPath:     entry.SubPath,
+				Description: m.skillDescription(filepath.Join(m.sourceDir, name)),
 			})
 		}
 	}
@@ -485,6 +497,35 @@ func isSkillDir(p string) bool {
 	}
 	_, err = os.Stat(filepath.Join(p, "SKILL.md"))
 	return err == nil
+}
+
+// skillDescription is called with m.mu held.
+func (m *Manager) skillDescription(dir string) string {
+	p := filepath.Join(dir, "SKILL.md")
+	fi, err := os.Stat(p)
+	if err != nil {
+		return ""
+	}
+	if c, ok := m.descs[p]; ok && c.mod.Equal(fi.ModTime()) {
+		return c.text
+	}
+	src, err := os.ReadFile(p)
+	if err != nil {
+		return ""
+	}
+	var text string
+	fm, _ := util.ParseFrontmatter(src)
+	for _, e := range fm.All {
+		if e.Key == "description" {
+			text = strings.Join(strings.Fields(e.Value), " ")
+			break
+		}
+	}
+	if m.descs == nil {
+		m.descs = make(map[string]cachedDesc)
+	}
+	m.descs[p] = cachedDesc{mod: fi.ModTime(), text: text}
+	return text
 }
 
 // copyDir recursively copies src directory to dst, skipping .git directories.

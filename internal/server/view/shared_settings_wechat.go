@@ -37,7 +37,7 @@ func settingsWechatHTML() string {
                       </div>
                       <p class="cfg-wechat-meta">
                         Scan with WeChat to obtain an iLink bot token. Credentials are saved to
-                        <code>config.toml</code>. Create an agent bot with a <code>wechat_message</code> trigger to handle replies.
+                        <code>config.toml</code>. Create a bot with a <code>wechat_message</code> trigger to handle replies.
                       </p>
                       <template x-if="wechatStatus.connected">
                         <div>

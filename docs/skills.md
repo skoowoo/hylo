@@ -79,7 +79,7 @@ Update the knowledge index to include anything I'm missing
 
 Extracts personal memory from your short notes and knowledge base into six structured files under `/_memory/` — identity, preferences, goals, beliefs, people, and current state. The first run scans the last 90 days; later runs scan incrementally. Memories that stop being reinforced fade out over time.
 
-See the [Personal Memory](../README.md#personal-memory) section in the main README for the full setup (including a daily scheduled Agent Bot trigger).
+See the [Personal Memory](../README.md#personal-memory) section in the main README for the full setup (including a daily scheduled bot trigger).
 
 **Use it for:** giving every future conversation persistent context about who you are, without repeating your background each time.
 

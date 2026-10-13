@@ -1,20 +1,7 @@
 package view
 
-// agentBotCompilerPrompt is the shared trigger prompt for the Compiler
-// template's two triggers (compile_requested and note_created+/Web Clips/).
-// Built as a Go string (not inline in the JS below) because it contains
-// backticks, which can't appear inside the raw-string-delimited JS blob.
-// \\n (not \n) so the *generated JS source* carries a literal backslash-n
-// for the browser to interpret, not a raw newline that would break the
-// single-quoted JS string literal it's spliced into.
-const agentBotCompilerPrompt = "Compile note `{Path}` into structured knowledge under `/_knowledge`. Steps:\\n\\n1. Use the `hylo-compile-note` skill to compile the note\\n2. Once compiled, use the `hylo-index-knowledge` skill to create or update the index\\n3. Finally, use the `humanizer` skill to polish the wording of the newly generated knowledge unit(s) — you must preserve the `frontmatter`, `link`, `wiki link`, and paragraph structure."
-
-// agentBotRecapShortNotePrompt is the Recap template's short_note_created
-// trigger prompt — same backtick-splice reason as agentBotCompilerPrompt above.
-const agentBotRecapShortNotePrompt = "Use the hylo-recap skill to cross-check this short note against my knowledge base — anything related or conflicting?\\n\\nShort note content: `{Content}`"
-
-// Agent Bots tab: the template picker, list, and the create/edit form
-// (Profile/Agent/Triggers). The largest single tab, hence its own file.
+// Agent Bots tab: the list and the create/edit form
+// (bot settings, then Triggers). The largest single tab, hence its own file.
 const settingsAgentBotsCSS = `
     /* Outer flex column: .agent-bots-scroll (flex:1, the only scroller)
        plus the footer as a non-scrolling sibling — same docked-footer
@@ -24,7 +11,6 @@ const settingsAgentBotsCSS = `
     .agent-bots-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 1.75rem 1.5rem 0.5rem; }
     .agent-bots-toolbar { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; }
     .agent-bots-list { display: flex; flex-direction: column; gap: 0.45rem; }
-    .agent-bots-empty { font-size: var(--text-sm); color: var(--muted); padding: 1.5rem 0; }
     /* Box/hover/surface come from the shared .list-card.list-card--hover
        .list-card--soft (base.css); the row itself isn't a click target
        (actions live in its own buttons), so no --clickable. */
@@ -41,16 +27,77 @@ const settingsAgentBotsCSS = `
     /* Structure/color come from the shared .badge / .badge--ok (base.css). */
     .agent-bot-badge { max-width: 200px; }
     .agent-bot-form-wrap { max-width: 780px; }
-    .agent-bot-template-list { display: flex; flex-direction: column; gap: 0.45rem; max-width: 640px; }
-    /* Box/hover/cursor/surface come from the shared .list-card.list-card--clickable
-       .list-card--soft (base.css) — unlike .agent-bot-card, the whole row IS
-       the click target here (pick a template), not just a container for its
-       own action buttons. */
-    .agent-bot-template-card {
-      display: flex; flex-direction: column; gap: 0.2rem; text-align: left;
+    .bot-setup { display: flex; flex-direction: column; gap: 0.9rem; max-width: 640px; padding: 1.1rem 1.25rem; }
+    .bot-setup-title { font-size: var(--text-base); font-weight: 600; color: var(--fg); }
+    .bot-setup-note { font-size: var(--text-sm); color: var(--muted); line-height: 1.55; }
+    .bot-setup-note code { font-size: var(--text-xs); }
+    /* Agent tiles and the hello card follow the desktop onboarding's. */
+    .bot-setup-agents { display: flex; flex-wrap: wrap; gap: 8px; }
+    .bot-setup-agent {
+      display: flex; flex-direction: column; align-items: center; gap: 7px;
+      min-width: 76px; padding: 0.75rem 0.5rem 0.5rem;
+      border: none; border-radius: var(--r-lg); background: var(--btn-bg);
+      box-shadow: inset 0 0 0 1px transparent; color: var(--fg); font-family: inherit; cursor: pointer;
+      transition: background-color var(--motion-fast), box-shadow var(--motion-fast);
     }
-    .agent-bot-template-name { font-size: var(--text-sm); font-weight: 600; color: var(--fg); }
-    .agent-bot-template-desc { font-size: var(--text-xs); color: var(--muted); line-height: 1.5; }
+    .bot-setup-agent:hover:not(.is-selected):not(:disabled) { background: var(--btn-bg-hov); }
+    .bot-setup-agent.is-selected { box-shadow: inset 0 0 0 1.5px var(--accent); background: var(--tint-soft); }
+    .bot-setup-agent:disabled { cursor: default; }
+    .bot-setup-agent-name { font-size: var(--text-2xs); color: var(--muted); white-space: nowrap; }
+    .bot-setup-agent.is-selected .bot-setup-agent-name { color: var(--fg); }
+    .bot-setup-logo {
+      display: grid; place-items: center; width: 36px; height: 36px; flex-shrink: 0;
+      overflow: hidden; border-radius: 10px; background: var(--btn-bg); color: var(--fg);
+      font-size: var(--text-sm); font-weight: var(--fw-semibold);
+    }
+    .bot-setup-logo img { width: 22px; height: 22px; border-radius: 0; }
+    .bot-setup-logo img.is-full { width: 100%; height: 100%; }
+    /* The page-wide corner radius would clip square marks like Pi's. */
+    .bot-setup-glyph {
+      width: 18px; height: 18px; border-radius: 0; background: currentColor;
+      -webkit-mask: var(--src) center / contain no-repeat; mask: var(--src) center / contain no-repeat;
+    }
+    .bot-setup-logo--sm { width: 28px; height: 28px; border-radius: 8px; }
+    .bot-setup-logo--sm img { width: 17px; height: 17px; }
+    .bot-setup-logo--sm .bot-setup-glyph { width: 14px; height: 14px; }
+    .bot-setup-on-light { display: none; }
+    :root[data-theme="light"] .bot-setup-on-light { display: block; }
+    :root[data-theme="light"] .bot-setup-on-dark { display: none; }
+    @media (prefers-color-scheme: light) {
+      :root:not([data-theme="dark"]) .bot-setup-on-light { display: block; }
+      :root:not([data-theme="dark"]) .bot-setup-on-dark { display: none; }
+    }
+    .bot-setup-model { max-width: 320px; }
+    .bot-setup-hello {
+      display: flex; gap: 0.75rem; padding: 0.875rem 1rem;
+      border-radius: var(--r-lg); background: var(--btn-bg);
+      animation: bot-setup-rise 320ms var(--ease-out) both;
+    }
+    .bot-setup-hello-body { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+    .bot-setup-hello-name { display: flex; align-items: center; gap: 8px; font-size: var(--text-sm); font-weight: var(--fw-semibold); color: var(--fg); }
+    .bot-setup-hello-ok { display: inline-flex; align-items: center; gap: 4px; font-size: var(--text-2xs); font-weight: var(--fw-medium); color: var(--s-ok); }
+    .bot-setup-hello-ok::before { content: ""; width: 6px; height: 6px; border-radius: var(--r-full); background: currentColor; }
+    .bot-setup-hello-text { min-height: 1.5em; margin-top: 4px; font-size: var(--text-sm); line-height: 1.55; color: var(--fg); }
+    .bot-setup-typed { white-space: pre-wrap; }
+    .bot-setup-hello-fail { margin-top: 4px; font-size: var(--text-sm); line-height: 1.5; color: var(--s-err); }
+    .bot-setup-thinking {
+      color: transparent;
+      background: linear-gradient(90deg, var(--muted) 30%, var(--fg) 50%, var(--muted) 70%) 0 0 / 200% 100%;
+      -webkit-background-clip: text; background-clip: text;
+      animation: bot-setup-shimmer 1.4s linear infinite;
+    }
+    .bot-setup-caret {
+      display: inline-block; width: 2px; height: 1em; margin-left: 1px; vertical-align: -2px;
+      border-radius: 1px; background: var(--accent); animation: bot-setup-caret 1s steps(1) infinite;
+    }
+    @keyframes bot-setup-rise { from { opacity: 0; transform: translateY(6px); } }
+    @keyframes bot-setup-shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+    @keyframes bot-setup-caret { 50% { opacity: 0; } }
+    @media (prefers-reduced-motion: reduce) {
+      .bot-setup-hello, .bot-setup-thinking, .bot-setup-caret { animation: none; }
+      .bot-setup-thinking { color: var(--muted); }
+    }
+    .bot-setup-actions { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
     /* Layout (display/align/gap) shared with .cfg-detail-header via
        .settings-detail-header; only the margin below it differs per
        caller, so that part stays local. */
@@ -79,11 +126,18 @@ const settingsAgentBotsCSS = `
     .agent-bot-form-row { display: flex; gap: 1rem; }
     .agent-bot-form-row > * { flex: 1; min-width: 0; }
     .agent-bot-form-label { display: block; font-size: var(--text-sm); font-weight: 600; color: var(--fg); margin-bottom: 0.4rem; }
-    /* Box/font come from the shared .field-input (base.css). This one
-       auto-grows with its content (JS sets height from scrollHeight),
-       so it keeps its own overflow/line-height instead of the shared
-       fixed-rows textarea treatment. */
-    .agent-bot-form-textarea { overflow: hidden; line-height: 1.55; }
+    /* Box/font come from the shared .field-input (base.css). Always as
+       tall as its text (agentBotAutoGrow), so there's nothing to drag. */
+    textarea.agent-bot-form-textarea { overflow: hidden; resize: none; line-height: 1.55; }
+    /* A chosen chip reads by its accent ring, not a fill that barely
+       differs from the track. */
+    .agent-bot-form .btn-outline.active:not(:disabled) {
+      box-shadow: inset 0 0 0 1.5px var(--accent); background: var(--tint-soft); color: var(--fg);
+    }
+    .agent-bot-time { width: 8.5rem; }
+    .agent-bot-schedule-at { display: flex; align-items: center; gap: 0.6rem; font-size: var(--text-sm); color: var(--muted); }
+    .agent-bot-trigger-hdr .seg-btn { padding: 0.2rem 0.5rem; font-size: var(--text-xs); }
+    .agent-bot-trigger-card.is-off .agent-bot-trigger-hdr-main { opacity: 0.5; }
     .agent-bot-trigger-add {
       font-size: var(--text-sm); font-weight: 600; color: var(--muted);
       background: none; border: none; cursor: pointer; padding: 0.15rem 0;
@@ -175,23 +229,68 @@ func settingsAgentBotsTabHTML() string {
           <div class="agent-bots-pane" x-show="tab === 'agent-bots'">
            <div class="agent-bots-scroll">
 
-            <template x-if="!agentBotFormMode && !agentBotTemplatePicker">
+            <template x-if="!agentBotFormMode">
               <div>
-                <div class="agent-bots-toolbar">
+                <div class="agent-bots-toolbar" x-show="agentBotsList.length || agentBotsError">
                   <button class="btn-outline" @click="newAgentBot()">
                     <svg fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14"/>
                       <path stroke-linecap="round" stroke-linejoin="round" d="M12 5v14"/>
                     </svg>
-                    New Agent Bot
+                    New Bot
                   </button>
 
 ` + toolbarRefreshBtnHTML("agentBotsLoading", "loadAgentBots()", "Loading…") + `
                 </div>
                 <div class="cfg-err-msg" x-show="agentBotsError && !agentBotsLoading" x-text="'Error: ' + agentBotsError"></div>
                 <div class="agent-bots-list">
-                  <template x-if="!agentBotsLoading && agentBotsList.length === 0">
-                    <div class="agent-bots-empty">No agent bots yet — click New Agent Bot to create one.</div>
+                  <template x-if="!agentBotsLoading && !agentBotsError && agentBotsList.length === 0">
+                    <div class="list-card list-card--soft bot-setup">
+                      <h3 class="bot-setup-title">Set up Hylo</h3>
+                      <p class="bot-setup-note">Hylo is your personal AI agent, powered by an AI agent on this server. Pick the one to use.</p>
+                      <p class="bot-setup-note" x-show="botSetup.phase === 'scanning'">Looking for AI agents…</p>
+                      <p class="cfg-err-msg" x-show="botSetup.phase === 'error'" x-text="botSetup.error"></p>
+                      <p class="bot-setup-note" x-show="botSetup.phase === 'ready' && !botSetup.agents.length">
+                        No AI agent found on this server. Install Pi with <code>curl -fsSL https://pi.dev/install.sh | sh</code>, run <code>pi</code> once to sign in, then look again.
+                      </p>
+                      <div class="bot-setup-agents" x-show="botSetup.agents.length" role="radiogroup" aria-label="AI agent">
+                        <template x-for="a in botSetup.agents" :key="a.id">
+                          <button type="button" class="bot-setup-agent" role="radio" :class="{ 'is-selected': botSetup.agentId === a.id }"
+                                  :aria-checked="botSetup.agentId === a.id" :disabled="botSetup.creating" @click="pickSetupAgent(a.id)">
+                            <span class="bot-setup-logo" x-html="setupAgentLogo(a)"></span>
+                            <span class="bot-setup-agent-name" x-text="a.name"></span>
+                          </button>
+                        </template>
+                      </div>
+                      <div class="bot-setup-model" x-show="botSetup.agentId">
+                        <label class="agent-bot-form-label">Model</label>
+` + cselectHTML(
+		`botSetup.model === '' ? 'Choose a model' : (botSetup.model === 'default' ? 'Default' : botSetup.model)`,
+		`<template x-for="m in setupModels()" :key="m.id"><button type="button" class="cselect-option" :class="botSetup.model===m.id?'sel':''" :disabled="botSetup.creating" @click="pickSetupModel(m.id); csOpen=false"><span class="dot dot--fg cselect-option-dot"></span><span :title="(m.label && m.label !== m.id) ? m.label : ''" x-text="m.id === 'default' ? 'Default' : m.id"></span></button></template>`,
+	) + `
+                      </div>
+                      <template x-if="botSetup.model && botSetup.hello.state !== 'idle'">
+                        <div class="bot-setup-hello">
+                          <span class="bot-setup-logo bot-setup-logo--sm" x-html="setupAgentLogo(botSetup.agents.find(function(a) { return a.id === botSetup.agentId; }))"></span>
+                          <div class="bot-setup-hello-body">
+                            <p class="bot-setup-hello-name"><span>Hylo</span><span class="bot-setup-hello-ok" x-show="setupHelloDone()">Connected</span></p>
+                            <p class="bot-setup-hello-text" x-show="botSetup.hello.state !== 'fail'">
+                              <span class="bot-setup-thinking" x-show="botSetup.hello.state === 'talking' && !botSetup.hello.text">Saying hello…</span><span
+                                    class="bot-setup-typed" x-text="botSetup.hello.typed.trimStart()"></span><span class="bot-setup-caret" x-show="botSetup.hello.text && setupTyping()"></span>
+                            </p>
+                            <p class="bot-setup-hello-fail" x-show="botSetup.hello.state === 'fail'"
+                               x-text="'It didn\'t answer. Make sure it\'s signed in, then try again.' + (botSetup.hello.error ? ' (' + botSetup.hello.error + ')' : '')"></p>
+                          </div>
+                        </div>
+                      </template>
+                      <div class="bot-setup-actions">
+                        <button type="button" class="btn-solid" x-show="setupHelloDone()" :disabled="botSetup.creating"
+                                @click="createSetupBot()" x-text="botSetup.creating ? 'Setting up…' : 'Start chatting with Hylo'"></button>
+                        <button type="button" class="btn-outline" x-show="botSetup.hello.state === 'fail'" @click="startSetupHello()">Try again</button>
+                        <button type="button" class="btn-outline" x-show="botSetup.phase === 'error' || (botSetup.phase === 'ready' && !botSetup.agents.length)"
+                                @click="startBotSetup()">Look again</button>
+                      </div>
+                    </div>
                   </template>
                   <template x-for="(m, mi) in agentBotsList" :key="m.id">
                     <div class="list-card list-card--hover list-card--soft agent-bot-card" :class="m.enabled ? '' : 'disabled-card'">
@@ -225,36 +324,13 @@ func settingsAgentBotsTabHTML() string {
               </div>
             </template>
 
-            <template x-if="agentBotTemplatePicker">
-              <div class="agent-bot-form-wrap">
-                <div class="settings-detail-header agent-bot-form-header">
-` + agentBotBackBtnHTML("agentBotTemplatePicker = false", "Agent Bots") + `
-                </div>
-                <p class="agent-bot-section-desc" style="margin-bottom:1.1rem;">Start from a template, or build one from scratch.</p>
-                <div class="agent-bot-template-list">
-                  <template x-for="tpl in agentBotTemplates" :key="tpl.id">
-                    <button type="button" class="list-card list-card--clickable list-card--soft agent-bot-template-card" @click="chooseAgentBotTemplate(tpl)">
-                      <span class="agent-bot-template-name" x-text="tpl.name"></span>
-                      <span class="agent-bot-template-desc" x-text="tpl.description"></span>
-                    </button>
-                  </template>
-                  <button type="button" class="list-card list-card--clickable list-card--soft agent-bot-template-card"
-                          @click="chooseAgentBotTemplate({id: 'blank', name: '', description: '', triggers: []})">
-                    <span class="agent-bot-template-name">Blank</span>
-                    <span class="agent-bot-template-desc">Start from an empty agent bot and configure everything yourself.</span>
-                  </button>
-                </div>
-              </div>
-            </template>
-
             <template x-if="agentBotFormMode">
               <div class="agent-bot-form-wrap">
                 <div class="settings-detail-header agent-bot-form-header">
-` + agentBotBackBtnHTML("agentBotFormMode = null", "Agent Bots") + `
+` + agentBotBackBtnHTML("closeAgentBotForm()", "Bots") + `
                 </div>
                 <div class="agent-bot-form">
                   <section class="agent-bot-form-section">
-                    <h3 class="agent-bot-form-section-title">Profile</h3>
                     <div class="agent-bot-form-row">
                       <div>
                         <label class="agent-bot-form-label">Name</label>
@@ -270,12 +346,8 @@ func settingsAgentBotsTabHTML() string {
                     </div>
                     <div>
                       <label class="agent-bot-form-label">Description <span style="font-weight:400;text-transform:none;letter-spacing:0;">(optional)</span></label>
-                      <input class="field-input agent-bot-form-input" type="text" x-model="agentBotDraft.description" placeholder="Brief description of what this agent bot does">
+                      <input class="field-input agent-bot-form-input" type="text" x-model="agentBotDraft.description" placeholder="Brief description of what this bot does">
                     </div>
-                  </section>
-
-                  <section class="agent-bot-form-section">
-                    <h3 class="agent-bot-form-section-title">Agent</h3>
                     <div class="agent-bot-form-row">
                       <div>
                         <label class="agent-bot-form-label">Agent</label>
@@ -287,15 +359,16 @@ func settingsAgentBotsTabHTML() string {
                       <div>
                         <label class="agent-bot-form-label">Model</label>
 ` + cselectHTML(
-		`agentBotDraft.model || 'Default'`,
-		`<button type="button" class="cselect-option" :class="agentBotDraft.model===''?'sel':''" @click="agentBotDraft.model=''; csOpen=false"><span class="dot dot--fg cselect-option-dot"></span><span>Default</span></button>`+
-			`<template x-for="m in agentBotModelsForAgent(agentBotDraft.agentId)" :key="m.id"><button type="button" class="cselect-option" :class="agentBotDraft.model===m.id?'sel':''" @click="agentBotDraft.model=m.id; csOpen=false"><span class="dot dot--fg cselect-option-dot"></span><span :title="(m.label && m.label !== m.id) ? m.label : ''" x-text="m.id"></span></button></template>`,
+		`(agentBotDraft.model && agentBotDraft.model !== 'default') ? agentBotDraft.model : 'Default'`,
+		`<button type="button" class="cselect-option" :class="(!agentBotDraft.model||agentBotDraft.model==='default')?'sel':''" @click="agentBotDraft.model=''; csOpen=false"><span class="dot dot--fg cselect-option-dot"></span><span>Default</span></button>`+
+			`<template x-for="m in agentBotModelsForAgent(agentBotDraft.agentId).filter(function(m){return m.id!=='default';})" :key="m.id"><button type="button" class="cselect-option" :class="agentBotDraft.model===m.id?'sel':''" @click="agentBotDraft.model=m.id; csOpen=false"><span class="dot dot--fg cselect-option-dot"></span><span :title="(m.label && m.label !== m.id) ? m.label : ''" x-text="m.id"></span></button></template>`,
 	) + `
                       </div>
                     </div>
                     <div>
                       <label class="agent-bot-form-label">System Prompt</label>
-                      <textarea class="field-input agent-bot-form-textarea" x-model="agentBotDraft.systemPrompt" rows="1"
+                      <textarea class="field-input agent-bot-form-textarea" x-model="agentBotDraft.systemPrompt" rows="3"
+                                x-init="agentBotAutoGrow($el)" @input="agentBotAutoGrow($el)"
                                 placeholder="Instructions prepended to every message…"></textarea>
                     </div>
                   </section>
@@ -303,11 +376,11 @@ func settingsAgentBotsTabHTML() string {
                   <section class="agent-bot-form-section agent-bot-form-section-triggers">
                     <div class="agent-bot-trigger-section-top">
                       <h3 class="agent-bot-form-section-title">Triggers</h3>
-                      <p class="agent-bot-section-desc">Automatically run this agent bot on vault events or on a schedule. Each trigger sends a prompt template to the agent.</p>
+                      <p class="agent-bot-section-desc">Automatically run this bot on vault events or on a schedule. Each trigger sends a prompt template to the agent.</p>
                     </div>
                     <div class="agent-bot-trigger-list">
                       <template x-for="(t, ti) in agentBotTriggers" :key="ti">
-                        <div class="agent-bot-trigger-card" :class="{'is-open': t._open}">
+                        <div class="agent-bot-trigger-card" :class="{'is-open': t._open, 'is-off': !t.enabled}">
                           <div class="agent-bot-trigger-hdr hairline" @click="t._open = !t._open">
                             <div class="agent-bot-trigger-hdr-main">
                               <span class="agent-bot-trigger-chev" :class="{open: t._open}">
@@ -315,14 +388,24 @@ func settingsAgentBotsTabHTML() string {
                                   <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
                                 </svg>
                               </span>
-                              <span class="agent-bot-trigger-label">Trigger <span x-text="ti+1"></span></span>
+                              <span class="agent-bot-trigger-label" x-text="(t.name || '').trim() || 'Trigger ' + (ti + 1)"></span>
                               <span class="agent-bot-trigger-summary" x-show="!t._open" x-text="agentBotTriggerSummary(t)"></span>
                             </div>
                             <div class="agent-bot-trigger-hdr-actions">
+                              <div class="seg" @click.stop :title="t.enabled ? 'This trigger runs' : 'This trigger is paused'">
+                                <button type="button" class="seg-btn" :class="{active: !t.enabled}" @click="t.enabled = false">Off</button>
+                                <button type="button" class="seg-btn" :class="{active: t.enabled}" @click="t.enabled = true">On</button>
+                              </div>
                               <button class="agent-bot-trigger-del" type="button" @click.stop="removeAgentBotTrigger(ti)">Remove</button>
                             </div>
                           </div>
                           <div class="agent-bot-trigger-body" x-show="t._open">
+                            <div class="agent-bot-trigger-block agent-bot-trigger-name">
+                              <div class="agent-bot-block-label">
+                                <span class="agent-bot-block-title">Name <span style="font-weight:400;opacity:0.6;">(optional)</span></span>
+                              </div>
+                              <input class="field-input agent-bot-form-input" type="text" x-model="t.name" placeholder="Compiler, Memory, Recap…">
+                            </div>
                             <div class="agent-bot-trigger-block agent-bot-trigger-events">
                               <div class="agent-bot-block-label">
                                 <span class="agent-bot-block-title">Event</span>
@@ -337,7 +420,7 @@ func settingsAgentBotsTabHTML() string {
                               <div class="agent-bot-trigger-block agent-bot-trigger-schedule">
                                 <div class="agent-bot-block-label">
                                   <span class="agent-bot-block-title">Schedule</span>
-                                  <span class="agent-bot-block-hint">Choose how this trigger repeats, then pick a preset below.</span>
+                                  <span class="agent-bot-block-hint">How often this trigger runs.</span>
                                 </div>
                                 <div class="seg agent-bot-schedule-kind-seg">
                                   <button type="button" class="seg-btn" :class="{active: scheduleKindOf(t)==='every'}" @click="setScheduleKind(t, 'every')">Every</button>
@@ -345,17 +428,25 @@ func settingsAgentBotsTabHTML() string {
                                   <button type="button" class="seg-btn" :class="{active: scheduleKindOf(t)==='weekly'}" @click="setScheduleKind(t, 'weekly')">Weekly</button>
                                 </div>
 
-                                <template x-if="scheduleKindOf(t) !== 'weekly'">
+                                <template x-if="scheduleKindOf(t) === 'every'">
                                   <div class="agent-bot-schedule-kind-body">
                                     <div class="agent-bot-schedule-presets">
-                                      <template x-for="p in agentBotSchedulePresets[scheduleKindOf(t)]" :key="p.value">
+                                      <template x-for="p in agentBotSchedulePresets.every" :key="p.value">
                                         <button type="button" class="btn-outline btn--xs"
                                                 :class="(t.schedule || '') === p.value ? 'active' : ''"
                                                 @click="t.schedule = p.value"
                                                 x-text="p.label"></button>
                                       </template>
                                     </div>
-                                    <span class="agent-bot-block-hint" x-text="(scheduleKindOf(t) === 'every' ? 'Minimum interval: 15 minutes.' : 'Server local time.') + ' For a different value, edit it directly in Raw below.'"></span>
+                                    <span class="agent-bot-block-hint">Minimum interval: 15 minutes. For another interval, edit the text below.</span>
+                                  </div>
+                                </template>
+
+                                <template x-if="scheduleKindOf(t) === 'daily'">
+                                  <div class="agent-bot-schedule-kind-body agent-bot-schedule-at">
+                                    <span>At</span>
+                                    <input class="field-input agent-bot-time" type="time" :value="scheduleTimeOf(t)" @change="setScheduleTime(t, $event.target.value)">
+                                    <span>server local time</span>
                                   </div>
                                 </template>
 
@@ -370,11 +461,15 @@ func settingsAgentBotsTabHTML() string {
                                                 x-text="d.label"></button>
                                       </template>
                                     </div>
-                                    <span class="agent-bot-block-hint">Server local time, defaults to 09:00. For a different time, edit it directly in Raw below.</span>
+                                    <div class="agent-bot-schedule-at">
+                                      <span>At</span>
+                                      <input class="field-input agent-bot-time" type="time" :value="scheduleTimeOf(t)" @change="setScheduleTime(t, $event.target.value)">
+                                      <span>server local time</span>
+                                    </div>
                                   </div>
                                 </template>
 
-                                <label class="agent-bot-schedule-custom-label">Raw</label>
+                                <label class="agent-bot-schedule-custom-label">As text</label>
                                 <input class="field-input agent-bot-form-input" type="text" x-model="t.schedule"
                                        placeholder="every 1h · daily 09:00 · weekly mon,wed 09:00">
                               </div>
@@ -386,7 +481,7 @@ func settingsAgentBotsTabHTML() string {
                                   <span class="agent-bot-block-hint" x-text="agentBotFilterFor(t).hint"></span>
                                 </div>
                                 <textarea class="field-input agent-bot-form-textarea"
-                                          rows="2"
+                                          rows="2" x-effect="t._open; agentBotAutoGrow($el)" @input="agentBotAutoGrow($el)"
                                           :value="(t.pathPrefixes || []).join('\n')"
                                           @change="t.pathPrefixes = $event.target.value.split('\n').map(function(s){return s.trim();}).filter(Boolean)"
                                           :placeholder="agentBotFilterFor(t).placeholder"></textarea>
@@ -408,7 +503,8 @@ func settingsAgentBotsTabHTML() string {
                                   </template>
                                 </div>
                               </div>
-                              <textarea class="field-input agent-bot-form-textarea agent-bot-prompt-textarea" x-model="t.prompt" rows="2"
+                              <textarea class="field-input agent-bot-form-textarea agent-bot-prompt-textarea" x-model="t.prompt" rows="3"
+                                        x-effect="t._open; agentBotAutoGrow($el)" @input="agentBotAutoGrow($el)"
                                         :placeholder="agentBotPromptPlaceholder(t)"></textarea>
                             </div>
                           </div>
@@ -428,7 +524,7 @@ func settingsAgentBotsTabHTML() string {
                       :disabled="!agentBotDraft.name.trim() || agentBotSaving"
                       @click="saveAgentBot()"
                       x-text="agentBotSaving ? 'Saving…' : 'Save'"></button>
-              <button class="btn-outline" type="button" @click="agentBotFormMode = null">Cancel</button>
+              <button class="btn-outline" type="button" @click="closeAgentBotForm()">Cancel</button>
               <span class="agent-bot-form-err" x-text="agentBotSaveError"></span>
             </div>
 
@@ -442,7 +538,7 @@ const settingsAgentBotsJS = `
       agentBotsLoading: false,
       agentBotsError: '',
       agentBotFormMode: null,
-      agentBotTemplatePicker: false,
+      botSetup: { phase: 'idle', agents: [], agentId: '', model: '', hello: { state: 'idle', text: '', typed: '', error: '' }, creating: false, error: '' },
       agentBotEditId: '',
       // Full shape up front: the hidden form footer still evaluates name.trim().
       agentBotDraft: { name: '', description: '', agentId: '', model: '', cwd: '', systemPrompt: '', enabled: true },
@@ -492,12 +588,12 @@ const settingsAgentBotsJS = `
         },
         agent_run_completed: {
           vars: [
-            { token: '{Name}', desc: 'Name of the agent bot whose run just succeeded' },
+            { token: '{Name}', desc: 'Name of the bot whose run just succeeded' },
             { token: '{Content}', desc: 'Last assistant message from the completed run' },
             { token: '{Now}', desc: 'Trigger time (RFC3339)' },
           ],
           placeholder: '{Name} just finished — review its output and take action.',
-          hint: "Fires when another agent bot's run succeeds — filter by source agent bot names below",
+          hint: "Fires when another bot's run succeeds. Filter by source bot names below",
         },
       },
       // Fallback for every other (vault) event type — note_created/
@@ -513,10 +609,6 @@ const settingsAgentBotsJS = `
           { label: 'Every hour', value: 'every 1h' },
           { label: 'Every 6 hours', value: 'every 6h' },
         ],
-        daily: [
-          { label: 'Daily 09:00', value: 'daily 09:00' },
-          { label: 'Daily 21:00', value: 'daily 21:00' },
-        ],
       },
       agentBotWeekdayDefs: [
         { abbr: 'mon', label: 'Mon' },
@@ -527,39 +619,6 @@ const settingsAgentBotsJS = `
         { abbr: 'sat', label: 'Sat' },
         { abbr: 'sun', label: 'Sun' },
       ],
-      // Trigger objects here are partial — chooseAgentBotTemplate() fills in
-      // the id/mateId/pathPrefixes/enabled defaults addAgentBotTrigger() also sets.
-      agentBotTemplates: [
-        {
-          id: 'compiler',
-          name: 'Compiler',
-          description: 'Compile notes into knowledge units — on demand, and automatically for new Web Clips.',
-          systemPrompt: 'Always use the hylo-compile-note and hylo-index-knowledge skills to compile and index notes.',
-          triggers: [
-            { eventTypes: ['compile_requested'], prompt: '` + agentBotCompilerPrompt + `' },
-            { eventTypes: ['note_created'], pathPrefixes: ['/Web Clips/'], prompt: '` + agentBotCompilerPrompt + `' },
-          ],
-        },
-        {
-          id: 'memory',
-          name: 'Daily Memory',
-          description: 'Extract personal memory from recent notes once a day.',
-          triggers: [
-            { eventTypes: ['scheduled'], schedule: 'daily 09:00',
-              prompt: "Please update my personal memory. I'm [name], currently working on [project]." },
-          ],
-        },
-        {
-          id: 'recap',
-          name: 'Recap',
-          description: 'Cross-check new short notes against the knowledge base as you capture them, and review everything written each week.',
-          triggers: [
-            { eventTypes: ['short_note_created'], prompt: '` + agentBotRecapShortNotePrompt + `' },
-            { eventTypes: ['scheduled'], schedule: 'weekly mon 09:00',
-              prompt: 'Use the hylo-recap skill to review everything I wrote this past week.' },
-          ],
-        },
-      ],
       async loadAgentBots() {
         this.agentBotsLoading = true;
         this.agentBotsError = '';
@@ -568,8 +627,170 @@ const settingsAgentBotsJS = `
           if (!r.ok) throw new Error('HTTP ' + r.status);
           const d = await r.json();
           this.agentBotsList = d.mates || [];
+          if (this.agentBotsList.length) this.botSetup.phase = 'idle';
+          else if (this.botSetup.phase === 'idle') this.startBotSetup();
         } catch(e) { this.agentBotsError = e.message; }
         finally { this.agentBotsLoading = false; }
+      },
+
+      // No bots yet: the same detect → hello → create the desktop onboarding
+      // runs. Hello is the proof the agent works, so a failed one creates nothing.
+      async startBotSetup() {
+        this.cancelSetupHello();
+        this.botSetup = { phase: 'scanning', agents: [], agentId: '', model: '', hello: { state: 'idle', text: '', typed: '', error: '' }, creating: false, error: '' };
+        await this.loadAgents(true);
+        if (this.agentsError) {
+          this.botSetup.phase = 'error';
+          this.botSetup.error = "Couldn't look for AI agents: " + this.agentsError;
+          return;
+        }
+        this.botSetup.agents = this.agents.filter(function(a) { return a.available; });
+        this.botSetup.phase = 'ready';
+        if (this.botSetup.agents.length) this.pickSetupAgent(this.botSetup.agents[0].id);
+      },
+
+      // Leaving the tab stops the hello's agent run; coming back starts over.
+      stopBotSetup() {
+        if (this.botSetup.creating) return;
+        this.cancelSetupHello();
+        this.botSetup.phase = 'idle';
+      },
+
+      setupAgentLogo(a) {
+        if (!a) return '';
+        return window.__hyloAgentLogo(a.id, '/static/agents/', { glyph: 'bot-setup-glyph', dark: 'bot-setup-on-dark', light: 'bot-setup-on-light' }) ||
+          (a.name || a.id).charAt(0).toUpperCase();
+      },
+
+      setupTyping() {
+        const h = this.botSetup.hello;
+        return h.state === 'talking' || h.typed.length < h.text.length;
+      },
+
+      setupHelloDone() { return this.botSetup.hello.state === 'ok' && !this.setupTyping(); },
+
+      // Words are typed out at a steady pace, however the agent streams them.
+      startSetupTyping() {
+        const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        clearInterval(this._typeTimer);
+        this._typeTimer = setInterval(() => {
+          const h = this.botSetup.hello;
+          const left = h.text.length - h.typed.length;
+          if (left > 0) h.typed = h.text.slice(0, h.typed.length + (reduce ? left : left > 40 ? 3 : 1));
+          else if (h.state !== 'talking') { clearInterval(this._typeTimer); this._typeTimer = null; }
+        }, 22);
+      },
+
+      cancelSetupHello() {
+        clearInterval(this._typeTimer);
+        this._typeTimer = null;
+        this._setupToken = (this._setupToken || 0) + 1;
+        if (this._setupES) { this._setupES.close(); this._setupES = null; }
+        if (this._setupRun) {
+          fetch('/api/runs/' + this._setupRun + '/cancel', { method: 'POST' }).catch(function() {});
+          this._setupRun = '';
+        }
+      },
+
+      // The agent's own "default" is offered once, first.
+      setupModels() {
+        const models = this.agentBotModelsForAgent(this.botSetup.agentId).filter(function(m) { return m.id !== 'default'; });
+        return [{ id: 'default', label: '' }].concat(models);
+      },
+
+      // Hello waits for a model, so it runs on what the bot will use.
+      pickSetupAgent(id) {
+        if (this.botSetup.creating) return;
+        this.cancelSetupHello();
+        this.botSetup.agentId = id;
+        this.botSetup.model = '';
+        this.botSetup.hello = { state: 'idle', text: '', typed: '', error: '' };
+      },
+
+      pickSetupModel(model) {
+        if (this.botSetup.creating) return;
+        this.botSetup.model = model;
+        this.startSetupHello();
+      },
+
+      async startSetupHello() {
+        if (this.botSetup.creating || !this.botSetup.model) return;
+        this.cancelSetupHello();
+        const token = this._setupToken;
+        const live = () => token === this._setupToken;
+        const id = this.botSetup.agentId;
+        this.botSetup.hello = { state: 'talking', text: '', typed: '', error: '' };
+        const hello = this.botSetup.hello;
+        this.startSetupTyping();
+        try {
+          const r = await fetch('/api/setup/hello', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              agentId: id,
+              model: this.botSetup.model,
+              lang: navigator.language || '',
+              now: new Date().toLocaleString('en-US', { weekday: 'long', hour: 'numeric', minute: '2-digit' }),
+            }),
+          });
+          if (!r.ok) throw new Error((await r.text()).trim() || 'HTTP ' + r.status);
+          const runId = (await r.json()).runId;
+          if (!live()) { fetch('/api/runs/' + runId + '/cancel', { method: 'POST' }).catch(function() {}); return; }
+          this._setupRun = runId;
+          const ok = await new Promise((resolve) => {
+            const es = new EventSource('/api/runs/' + runId + '/events');
+            this._setupES = es;
+            const timer = setTimeout(() => { hello.error = "It didn't answer in time."; finish(false); }, 90000);
+            const finish = (v) => { clearTimeout(timer); es.close(); resolve(v); };
+            es.addEventListener('agent', (e) => {
+              try {
+                const ev = JSON.parse(e.data);
+                if (ev.type === 'text_delta' && ev.delta && live()) hello.text += ev.delta;
+              } catch (_) {}
+            });
+            // A named "error" frame carries data; the browser's own error event doesn't.
+            es.addEventListener('error', (e) => {
+              if (!e.data) return;
+              try { hello.error = JSON.parse(e.data).message || ''; } catch (_) {}
+            });
+            es.addEventListener('end', (e) => {
+              let status = '';
+              try { status = JSON.parse(e.data).status; } catch (_) {}
+              finish(status === 'succeeded' && !!hello.text.trim());
+            });
+          });
+          if (!live()) return;
+          // A timed-out run may still be going.
+          if (!ok) this.cancelSetupHello();
+          this._setupRun = '';
+          this._setupES = null;
+          hello.state = ok ? 'ok' : 'fail';
+        } catch (e) {
+          if (!live()) return;
+          hello.error = e.message;
+          hello.state = 'fail';
+        }
+      },
+
+      async createSetupBot() {
+        const s = this.botSetup;
+        if (s.creating || s.hello.state !== 'ok') return;
+        s.creating = true;
+        try {
+          const r = await fetch('/api/setup/bot', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ agentId: s.agentId, model: s.model, greeting: s.hello.text.trim() }),
+          });
+          if (!r.ok) throw new Error((await r.text()).trim() || 'HTTP ' + r.status);
+          const id = (await r.json()).mateId;
+          if (!id) { s.creating = false; this.loadAgentBots(); return; }
+          // intro=1 has the new bot open the chat by writing the user a guide.
+          window.location.href = '/home?type=chat&bot=' + encodeURIComponent(id) + '&intro=1';
+        } catch (e) {
+          s.creating = false;
+          window.showError('Setup failed: ' + e.message, 'Setup failed');
+        }
       },
 
       async loadAgentBotEvents() {
@@ -582,20 +803,14 @@ const settingsAgentBotsJS = `
       },
 
       newAgentBot() {
-        this.agentBotEditId = '';
-        this.agentBotSaveError = '';
-        this.agentBotTemplatePicker = true;
-      },
-
-      chooseAgentBotTemplate(tpl) {
         const first = this.agents.find(function(a){ return a.available; });
         const firstModel = (first && first.models && first.models.length) ? first.models[0].id : '';
-        this.agentBotDraft = { name: tpl.name, description: tpl.description, agentId: first ? first.id : '', model: firstModel, cwd: '', systemPrompt: tpl.systemPrompt || '', enabled: true };
-        this.agentBotTriggers = (tpl.triggers || []).map(function(t) {
-          return Object.assign({ id: '', mateId: '', schedule: '', pathPrefixes: [], enabled: true, _open: false }, t);
-        });
-        this.agentBotTemplatePicker = false;
+        this.agentBotDraft = { name: '', description: '', agentId: first ? first.id : '', model: firstModel, cwd: '', systemPrompt: '', enabled: true };
+        this.agentBotTriggers = [];
+        this.agentBotEditId = '';
+        this.agentBotSaveError = '';
         this.agentBotFormMode = 'create';
+        this._agentBotSaved = this.agentBotSnapshot();
       },
 
       async openAgentBotEdit(id) {
@@ -615,6 +830,7 @@ const settingsAgentBotsJS = `
           this.agentBotDraft = { name: m.name, description: m.description || '', agentId: m.agentId, model: modelValid ? savedModel : '', cwd: m.cwd || '', systemPrompt: m.systemPrompt || '', enabled: m.enabled };
           this.agentBotTriggers = (m.triggers || []).map(function(t) {
             return Object.assign({}, t, {
+              name: t.name || '',
               eventTypes: t.eventTypes || [],
               schedule: t.schedule || '',
               pathPrefixes: t.pathPrefixes || [],
@@ -624,7 +840,36 @@ const settingsAgentBotsJS = `
           this.agentBotEditId = m.id;
           this.agentBotSaveError = '';
           this.agentBotFormMode = 'edit';
+          this._agentBotSaved = this.agentBotSnapshot();
         } catch(e) { window.showError('Load failed: ' + e.message, 'Load failed'); }
+      },
+
+      // Fits a prompt box to its text. Measured a frame later, since a
+      // trigger just expanded isn't laid out yet.
+      agentBotAutoGrow(el) {
+        requestAnimationFrame(() => {
+          if (!el.offsetParent) return;
+          el.style.height = 'auto';
+          el.style.height = (el.scrollHeight + 2) + 'px';
+        });
+      },
+
+      agentBotSnapshot() {
+        return JSON.stringify([this.agentBotDraft, this.agentBotTriggers.map(function(t) {
+          const copy = Object.assign({}, t);
+          delete copy._open;
+          return copy;
+        })]);
+      },
+      agentBotDirty() { return !!this.agentBotFormMode && this.agentBotSnapshot() !== this._agentBotSaved; },
+
+      async closeAgentBotForm() {
+        if (this.agentBotDirty()) {
+          const ok = await window.showConfirm({ title: 'Discard changes?', message: 'This bot has unsaved changes.', confirmLabel: 'Discard', danger: true });
+          if (!ok) return false;
+        }
+        this.agentBotFormMode = null;
+        return true;
       },
 
       agentBotModelsForAgent(agentId) {
@@ -659,19 +904,25 @@ const settingsAgentBotsJS = `
             this.agentBotsList = this.agentBotsList.map(function(m) { return m.id === saved.id ? saved : m; });
           }
           this.agentBotFormMode = null;
+          this.agentBotsChanged();
         } catch(e) { this.agentBotSaveError = e.message; }
         finally { this.agentBotSaving = false; }
       },
 
       async deleteAgentBot(id) {
-        const ok = await window.showConfirm({ title: 'Delete agent bot', message: 'This agent bot and all its data will be permanently deleted.', confirmLabel: 'Delete', danger: true });
+        const ok = await window.showConfirm({ title: 'Delete bot', message: 'This bot and all its data will be permanently deleted.', confirmLabel: 'Delete', danger: true });
         if (!ok) return;
         try {
           const r = await fetch('/api/mates/' + id, { method: 'DELETE' });
           if (!r.ok) { window.showError('Delete failed (server error)', 'Delete failed'); return; }
           this.agentBotsList = this.agentBotsList.filter(function(m) { return m.id !== id; });
+          this.agentBotsChanged();
+          if (!this.agentBotsList.length) this.startBotSetup();
         } catch(e) { window.showError('Delete failed: ' + e.message, 'Delete failed'); }
       },
+
+      // The chat sidebar keeps its own copy of the bot list.
+      agentBotsChanged() { window.dispatchEvent(new Event('hylo:agent-bots-changed')); },
 
       async moveAgentBot(idx, dir) {
         var newIdx = idx + dir;
@@ -686,11 +937,12 @@ const settingsAgentBotsJS = `
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ ids: this.agentBotsList.map(function(m) { return m.id; }) }),
           });
+          this.agentBotsChanged();
         } catch(_) {}
       },
 
       addAgentBotTrigger() {
-        this.agentBotTriggers.push({ id: '', mateId: '', eventTypes: ['note_created'], schedule: '', prompt: '', pathPrefixes: [], enabled: true, _open: true });
+        this.agentBotTriggers.push({ id: '', mateId: '', name: '', eventTypes: ['note_created'], schedule: '', prompt: '', pathPrefixes: [], enabled: true, _open: true });
       },
 
       removeAgentBotTrigger(idx) { this.agentBotTriggers.splice(idx, 1); },
@@ -720,8 +972,8 @@ const settingsAgentBotsJS = `
       agentBotFilterFor(t) {
         if (this.eventOf(t) === 'agent_run_completed') {
           return {
-            title: 'Source Agent Bots',
-            hint: 'Only fire when the run was completed by one of these agent bots. Leave empty to fire on any agent bot. One agent bot name per line.',
+            title: 'Source Bots',
+            hint: 'Only fire when the run was completed by one of these bots. Leave empty to fire on any bot. One bot name per line.',
             placeholder: 'Summarizer\nCompiler',
           };
         }
@@ -770,6 +1022,19 @@ const settingsAgentBotsJS = `
         return { kind: 'weekly', days: days, time: parts[2] || '09:00' };
       },
       scheduleKindOf(t) { return this.parseAgentBotSchedule(t).kind; },
+      scheduleTimeOf(t) {
+        const parts = (t.schedule || '').trim().split(/\s+/);
+        return (this.scheduleKindOf(t) === 'weekly' ? parts[2] : parts[1]) || '09:00';
+      },
+      setScheduleTime(t, time) {
+        if (!/^\d{2}:\d{2}$/.test(time || '')) return;
+        if (this.scheduleKindOf(t) === 'weekly') {
+          const days = this.weeklyDaysOf(t);
+          t.schedule = 'weekly ' + (days.length ? days.join(',') : 'none') + ' ' + time;
+        } else {
+          t.schedule = 'daily ' + time;
+        }
+      },
       weeklyDaysOf(t) { return this.parseAgentBotSchedule(t).days; },
 
       setScheduleKind(t, kind) {
