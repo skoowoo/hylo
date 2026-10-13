@@ -156,3 +156,26 @@ func TestListMessagesPage(t *testing.T) {
 		}
 	}
 }
+
+func TestMessageTriggerID(t *testing.T) {
+	store, err := Open(filepath.Join(t.TempDir(), "vault"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+
+	conv, err := store.CreateConversation("mate-1", "Auto runs")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.InsertMessage(Message{ConversationID: conv.ID, Role: "assistant", TriggerEvent: "scheduled", TriggerID: "trig-1"}); err != nil {
+		t.Fatal(err)
+	}
+	msgs, _, err := store.ListMessagesPage(conv.ID, "", 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(msgs) != 1 || msgs[0].TriggerID != "trig-1" {
+		t.Fatalf("got %+v", msgs)
+	}
+}

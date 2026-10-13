@@ -221,10 +221,10 @@ func (s *Store) InsertMessage(m Message) (Message, error) {
 	m.CreatedAt = time.UnixMilli(now)
 	m.UpdatedAt = time.UnixMilli(now)
 	_, err := s.db.Exec(
-		`INSERT INTO chat_messages(id, conversation_id, role, content, agent_id, mate_id, model_id, run_id, status, trigger_event, created_at, updated_at)
-		 VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
+		`INSERT INTO chat_messages(id, conversation_id, role, content, agent_id, mate_id, model_id, run_id, status, trigger_event, trigger_id, created_at, updated_at)
+		 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
 		m.ID, m.ConversationID, m.Role, m.Content,
-		m.AgentID, m.MateID, m.ModelID, m.RunID, m.Status, m.TriggerEvent, now, now,
+		m.AgentID, m.MateID, m.ModelID, m.RunID, m.Status, m.TriggerEvent, m.TriggerID, now, now,
 	)
 	if err != nil {
 		return Message{}, fmt.Errorf("mate: insert message: %w", err)
@@ -255,7 +255,7 @@ func (s *Store) UpdateMessageDone(id, content, status string) error {
 
 func (s *Store) ListMessages(conversationID string) ([]Message, error) {
 	rows, err := s.db.Query(
-		`SELECT id, conversation_id, role, content, agent_id, mate_id, model_id, run_id, status, trigger_event, created_at, updated_at
+		`SELECT id, conversation_id, role, content, agent_id, mate_id, model_id, run_id, status, trigger_event, trigger_id, created_at, updated_at
 		 FROM chat_messages WHERE conversation_id = ? ORDER BY created_at ASC`,
 		conversationID,
 	)
@@ -277,7 +277,7 @@ func (s *Store) ListMessages(conversationID string) ([]Message, error) {
 // ones when beforeID is empty), oldest first, plus whether older ones remain.
 // rowid breaks created_at ties so the cursor never skips or repeats a row.
 func (s *Store) ListMessagesPage(conversationID, beforeID string, limit int) ([]Message, bool, error) {
-	q := `SELECT id, conversation_id, role, content, agent_id, mate_id, model_id, run_id, status, trigger_event, created_at, updated_at
+	q := `SELECT id, conversation_id, role, content, agent_id, mate_id, model_id, run_id, status, trigger_event, trigger_id, created_at, updated_at
 		 FROM chat_messages WHERE conversation_id = ?`
 	args := []any{conversationID}
 	if beforeID != "" {
@@ -313,7 +313,7 @@ func (s *Store) ListMessagesPage(conversationID, beforeID string, limit int) ([]
 // are re-returned after UpdateMessageDone advances their updated_at on completion.
 func (s *Store) ListMessagesSince(conversationID string, sinceMs int64) ([]Message, error) {
 	rows, err := s.db.Query(
-		`SELECT id, conversation_id, role, content, agent_id, mate_id, model_id, run_id, status, trigger_event, created_at, updated_at
+		`SELECT id, conversation_id, role, content, agent_id, mate_id, model_id, run_id, status, trigger_event, trigger_id, created_at, updated_at
 		 FROM chat_messages WHERE conversation_id = ? AND updated_at > ? ORDER BY created_at ASC`,
 		conversationID, sinceMs,
 	)
@@ -464,7 +464,7 @@ func scanMessages(rows *sql.Rows) ([]Message, error) {
 		var createdMs, updatedMs int64
 		if err := rows.Scan(
 			&m.ID, &m.ConversationID, &m.Role, &m.Content,
-			&m.AgentID, &m.MateID, &m.ModelID, &m.RunID, &m.Status, &m.TriggerEvent,
+			&m.AgentID, &m.MateID, &m.ModelID, &m.RunID, &m.Status, &m.TriggerEvent, &m.TriggerID,
 			&createdMs, &updatedMs,
 		); err != nil {
 			return nil, err

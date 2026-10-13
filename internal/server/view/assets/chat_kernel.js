@@ -29,6 +29,10 @@
     var convTypeByMate = {};
     var conversationId = '';
     var messages = [];
+    // The trigger tab's cards and the one it narrows the runs to.
+    var triggers = [];
+    var triggersFor = '';
+    var triggerFilter = '';
     // Only the newest PAGE messages load on open; scrolling up pages in older
     // ones. Rendering a whole long trigger log made every bot switch stall.
     var PAGE = 50;
@@ -153,6 +157,10 @@
         stoppingId: activeStoppingId(),
         stick: stick,
         prependSeq: prependSeq,
+        hasOlder: hasOlder,
+        triggers: triggers,
+        triggersLoaded: triggersFor === mateId,
+        triggerFilter: triggerFilter,
         triggerLabel: triggerLabel,
         mateName: mateName,
       };
@@ -214,6 +222,22 @@
         catalogEpoch++;
         requestRender('none');
       } catch (e) { notify("Couldn't load triggers"); }
+    }
+
+    async function loadTriggers() {
+      var id = mateId;
+      if (!id) return;
+      try {
+        var m = await fetchJSON('/api/mates/' + encodeURIComponent(id));
+        if (id !== mateId) return;
+        triggers = (m && m.mate && m.mate.triggers) || [];
+        if (triggerFilter && !triggers.some(function (t) { return t.id === triggerFilter; })) triggerFilter = '';
+      } catch (e) {
+        if (id !== mateId) return;
+        notify("Couldn't load triggers");
+      }
+      triggersFor = id;
+      requestRender('none');
     }
 
     function cancelRunPoller() { stopLoop(runCtrl); }
@@ -329,6 +353,7 @@
     async function refresh() {
       if (busy() || !mateId) return;
       var seq = ++refreshSeq;
+      if (convType === 'trigger') void loadTriggers();
       try {
         var resp = await fetch('/api/conversations?mateId=' + encodeURIComponent(mateId) + '&type=' + encodeURIComponent(convType), { cache: 'no-store' });
         if (seq !== refreshSeq) return;
@@ -480,12 +505,14 @@
     // no SSE stream for this path (it's a background run, like /api/runs),
     // so it leans on the same runId poller + conversation resync runTurn
     // already uses to recover from a dropped SSE connection.
-    async function retryTriggerRun(text, userMsgId, triggerEvent, mate) {
+    async function retryTriggerRun(text, userMsgId, triggerEvent, triggerId, mate) {
       if (!mate) return;
       var assistant = {
         id: R.genId(),
         role: 'assistant', agentId: mate.agentId, agentBotId: mate.id,
         triggerEvent: triggerEvent,
+        triggerId: triggerId,
+        createdAt: Date.now(),
         segments: [], status: 'running',
         startTime: Date.now(), duration: 0, completedAt: 0,
         rev: 1,
@@ -502,6 +529,7 @@
             conversationId: conversationId,
             prompt: text,
             triggerEvent: triggerEvent,
+            triggerId: triggerId,
             userMessageId: userMsgId,
             assistantMessageId: assistant.id,
           }),
@@ -543,6 +571,10 @@
       newChat: function () { return newChat(); },
       loadOlder: function () { return loadOlder(); },
       setConvType: function (t) { return setConvType(t); },
+      setTriggerFilter: function (id) {
+        triggerFilter = triggerFilter === id ? '' : (id || '');
+        requestRender('none');
+      },
     };
 
     function attach(el) {
@@ -582,6 +614,9 @@
         stoppingMsgId = '';
         refreshSeq++;
         convType = convTypeByMate[id] || 'chat';
+        triggers = [];
+        triggersFor = '';
+        triggerFilter = '';
       }
       mateId = id;
       try { sessionStorage.setItem('hylo_agent_bot_id', id); } catch (e) { /* ignore */ }
@@ -595,6 +630,7 @@
     // in flight finishes first; its last render settles it.
     async function reloadMates() {
       await loadMates();
+      if (convType === 'trigger') void loadTriggers();
       if (!bootstrapped) return;
       mateGone = !mateById(mateId);
       settleMate();
@@ -635,6 +671,7 @@
       cancelRunPoller();
       cancelSync();
       convType = t;
+      triggerFilter = '';
       if (mateId) convTypeByMate[mateId] = t;
       conversationId = '';
       messages = [];
@@ -742,7 +779,7 @@
       // conv) is retried through the trigger pipeline, so its completion
       // still reaches the inbox the way the original fire did.
       if (triggerEvent && triggerEvent !== 'wechat_message' && triggerEvent !== 'discord_message') {
-        await retryTriggerRun(text, userMsgId, triggerEvent, mate);
+        await retryTriggerRun(text, userMsgId, triggerEvent, msg.triggerId || '', mate);
       } else {
         await runTurn(text, userMsgId, mate);
       }

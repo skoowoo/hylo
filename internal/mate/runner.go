@@ -216,6 +216,7 @@ func (r *Runner) runTrigger(fn RunFunc, tr MateTrigger, ev MateEvent) {
 		return
 	}
 
+	ev.TriggerID = tr.ID
 	prompt := renderPrompt(tr.Prompt, ev)
 	fields := []any{"mate", m.Name, "trigger", tr.ID, "event", ev.Type, "conv", convID}
 	if ev.Path != "" {
@@ -299,7 +300,7 @@ func (r *Runner) buildOnDone(m *Mate, ev MateEvent) func(RunResult) {
 // MateTrigger/template lookup is needed. userMsgID/assistantMsgID are the
 // client's pre-allocated optimistic message IDs. Returns the hub run ID for
 // the caller to hand back to the client to watch.
-func (r *Runner) RetryRun(mateID, convID, prompt, userMsgID, assistantMsgID string, eventType MateEventType) (string, error) {
+func (r *Runner) RetryRun(mateID, convID, prompt, userMsgID, assistantMsgID string, eventType MateEventType, triggerID string) (string, error) {
 	fn, _ := r.retryFn.Load().(RetryFunc)
 	if fn == nil {
 		return "", errors.New("mate runner: retry unavailable")
@@ -315,7 +316,7 @@ func (r *Runner) RetryRun(mateID, convID, prompt, userMsgID, assistantMsgID stri
 	}
 	defer func() { <-r.sem }()
 
-	ev := MateEvent{Type: eventType, FiredAt: time.Now()}
+	ev := MateEvent{Type: eventType, FiredAt: time.Now(), TriggerID: triggerID}
 	runID := fn(context.Background(), m, convID, prompt, userMsgID, assistantMsgID, ev, r.buildOnDone(m, ev))
 	return runID, nil
 }

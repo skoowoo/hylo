@@ -42,6 +42,7 @@
           id: m.id,
           role: 'assistant', agentId: m.agentId, agentBotId: m.mateId,
           triggerEvent: m.triggerEvent || '',
+          triggerId: m.triggerId || '',
           segments: segments,
           status: m.status || 'succeeded',
           startTime: 0, duration: 0,
@@ -260,6 +261,7 @@
         }
         ex.completedAt = nm.completedAt;
         if (nm.triggerEvent) ex.triggerEvent = nm.triggerEvent;
+        if (nm.triggerId) ex.triggerId = nm.triggerId;
         touch(ex);
       } else {
         messages.push(nm);

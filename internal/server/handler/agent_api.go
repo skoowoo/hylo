@@ -80,6 +80,7 @@ type chatBody struct {
 	TriggerRun         bool              `json:"triggerRun"`         // when true, skip persisting the user prompt message
 	TriggerReply       bool              `json:"triggerReply"`       // when true, trigger run with reply callback — uses persistent agent session like chat
 	TriggerEvent       string            `json:"triggerEvent"`       // mate event type label stored on assistant message
+	TriggerID          string            `json:"triggerId"`          // trigger that fired the run, stored on assistant message
 	Intro              bool              `json:"intro"`              // first chat after onboarding; see prompt.Intro
 	IntroLang          string            `json:"introLang"`          // language the onboarding hello picked
 	eventReply         plugin.ReplyFunc  // optional; invoked when trigger run completes
@@ -239,6 +240,7 @@ type triggerRetryBody struct {
 	ConversationID     string `json:"conversationId"`
 	Prompt             string `json:"prompt"`
 	TriggerEvent       string `json:"triggerEvent"`
+	TriggerID          string `json:"triggerId"`
 	UserMessageID      string `json:"userMessageId"`
 	AssistantMessageID string `json:"assistantMessageId"`
 }
@@ -272,7 +274,7 @@ func (a *AgentAPI) RunsRetryTriggerPOST(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, "mateId, conversationId and prompt are required", http.StatusBadRequest)
 		return
 	}
-	runID, err := a.runner.RetryRun(body.MateID, body.ConversationID, body.Prompt, body.UserMessageID, body.AssistantMessageID, mate.MateEventType(body.TriggerEvent))
+	runID, err := a.runner.RetryRun(body.MateID, body.ConversationID, body.Prompt, body.UserMessageID, body.AssistantMessageID, mate.MateEventType(body.TriggerEvent), body.TriggerID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
 		return
@@ -332,6 +334,7 @@ func (a *AgentAPI) FireTriggerRun(ctx context.Context, m *mate.Mate, convID, pro
 		TriggerRun:     true,
 		TriggerReply:   ev.Reply != nil,
 		TriggerEvent:   string(ev.Type),
+		TriggerID:      ev.TriggerID,
 		eventReply:     ev.Reply,
 	}
 	go func() {
@@ -367,6 +370,7 @@ func (a *AgentAPI) FireTriggerRetry(ctx context.Context, m *mate.Mate, convID, p
 		AssistantMessageID: assistantMsgID,
 		TriggerRun:         true,
 		TriggerEvent:       string(ev.Type),
+		TriggerID:          ev.TriggerID,
 	}
 	go func() {
 		result := a.executeChat(ctx, run, body)
@@ -437,6 +441,7 @@ func (a *AgentAPI) executeChat(ctx context.Context, run *agent.Run, body chatBod
 			RunID:          run.ID,
 			Status:         "running",
 			TriggerEvent:   body.TriggerEvent,
+			TriggerID:      body.TriggerID,
 		}); err != nil {
 			a.logger.Warn("chat: insert assistant placeholder", slog.String("err", err.Error()))
 		} else {

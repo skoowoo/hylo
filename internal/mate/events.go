@@ -97,6 +97,9 @@ type MateEvent struct {
 
 	// SourceMateID is set for agent_run_completed to prevent the source mate from triggering itself.
 	SourceMateID string
+
+	// TriggerID is the trigger this event fired, set just before the run starts.
+	TriggerID string
 }
 
 // Translate converts a low-level plugin.Event to the matching set of MateEvents.

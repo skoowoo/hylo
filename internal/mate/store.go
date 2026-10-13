@@ -134,6 +134,12 @@ func Open(vaultRoot string) (*Store, error) {
 			}
 		}
 	}
+	if _, err := db.Exec(`ALTER TABLE chat_messages ADD COLUMN trigger_id TEXT NOT NULL DEFAULT ''`); err != nil {
+		if !strings.Contains(err.Error(), "duplicate column name") {
+			db.Close()
+			return nil, fmt.Errorf("mate: add trigger_id column: %w", err)
+		}
+	}
 	return &Store{db: db}, nil
 }
 

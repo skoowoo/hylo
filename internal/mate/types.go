@@ -69,6 +69,7 @@ type Message struct {
 	RunID          string    `json:"runId"`
 	Status         string    `json:"status"`                 // "running" | "succeeded" | "failed" | "canceled" | ""
 	TriggerEvent   string    `json:"triggerEvent,omitempty"` // mate event type when fired by trigger (assistant only)
+	TriggerID      string    `json:"triggerId,omitempty"`    // the MateTrigger that fired this run (assistant only)
 	CreatedAt      time.Time `json:"createdAt"`
 	UpdatedAt      time.Time `json:"updatedAt"`
 
