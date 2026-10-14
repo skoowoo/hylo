@@ -1,12 +1,12 @@
 <div class="sec">
   <div class="home-list-head">
-    <span class="home-list-count" title="Unread" x-show="unreadCount > 0" x-text="unreadCount"></span>
+    <span class="home-list-count" title="Unread" x-show="unreadCount > 0" {{xshow (gt .Boot.UnreadCount 0)}} x-text="unreadCount">{{.Boot.UnreadCount}}</span>
     <div class="home-list-head-spacer"></div>
     <div class="seg">
       <button type="button" class="seg-btn" :class="inboxFilter === 'all' ? 'active' : ''" @click="setInboxFilter('all')">All</button>
       <button type="button" class="seg-btn" :class="inboxFilter === 'unread' ? 'active' : ''" @click="setInboxFilter('unread')">Unread</button>
     </div>
-    <button type="button" class="icon-btn home-inbox-mark-all-btn" title="Mark all read" x-show="unreadCount > 0" @click="markAllInboxRead()">{{svgCheck}}</button>
+    <button type="button" class="icon-btn home-inbox-mark-all-btn" title="Mark all read" x-show="unreadCount > 0" {{xshow (gt .Boot.UnreadCount 0)}} @click="markAllInboxRead()">{{svgCheck}}</button>
   </div>
   <div class="sec-body home-inbox-list" id="home-inbox-list" @scroll="onInboxListScroll($event)">
     <template x-for="m in visibleInboxMessages()" :key="m.id">

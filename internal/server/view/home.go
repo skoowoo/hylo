@@ -23,6 +23,22 @@ type homePageData struct {
 	IndexNotes     []noteItem
 	KnowledgeCount int // total notes under the knowledge dir — the sidebar's "All" count
 	SectionHTML    template.HTML
+	Boot           homeBoot
+}
+
+// homeBoot is client state the server already knows. The page is rendered
+// from it and homeCtrl starts from it (#home-boot), so first paint already
+// matches what Alpine will show.
+type homeBoot struct {
+	UnreadCount int `json:"unreadCount"`
+}
+
+func (vh *ViewHandler) homeBoot() homeBoot {
+	var b homeBoot
+	if vh.inbox != nil {
+		b.UnreadCount, _ = vh.inbox.UnreadCount()
+	}
+	return b
 }
 
 // homeSectionData drives the right-hand note list — the content shown for
@@ -73,6 +89,7 @@ func (vh *ViewHandler) Home(w http.ResponseWriter, r *http.Request) {
 		IndexNotes:     indexNotes,
 		KnowledgeCount: vh.knowledgeCount(),
 		SectionHTML:    sectionHTML,
+		Boot:           vh.homeBoot(),
 	}
 
 	var buf bytes.Buffer
@@ -267,11 +284,14 @@ func (vh *ViewHandler) renderHomeSectionHTML(r *http.Request) (template.HTML, er
 	case "tags":
 		return vh.renderHomeTagsSection(r)
 	case "inbox", "":
-		// Same story as graph: the message list is entirely client-rendered
-		// (home.js fetches /api/inbox itself once #home-inbox-list lands in
-		// the DOM — see __hyloSectionArrived), so this markup never
-		// varies with the request.
-		return template.HTML(homeInboxSection), nil //nolint:gosec // static markup, not user HTML
+		// The message list is client-rendered (home.js fetches /api/inbox once
+		// #home-inbox-list lands — see __hyloSectionArrived); only the head
+		// renders the unread count.
+		var buf bytes.Buffer
+		if err := homeInboxSectionTemplate.Execute(&buf, homePageData{Boot: vh.homeBoot()}); err != nil {
+			return "", err
+		}
+		return template.HTML(buf.String()), nil //nolint:gosec // rendered by html/template
 	case "chat":
 		// Static shell. home.js attaches the chat kernel once #chat-root
 		// lands in the DOM (__hyloSectionArrived); the markup itself never varies.
@@ -527,6 +547,13 @@ var homeTemplateFuncs = template.FuncMap{
 		}
 		return dir
 	},
+	// xshow gives an x-show element its server-known visibility before Alpine runs.
+	"xshow": func(show bool) template.HTMLAttr {
+		if show {
+			return ""
+		}
+		return `style="display:none"`
+	},
 	"encdir":   url.QueryEscape,
 	"sideIcon": sideIcon,
 	"coverURL": func(name string) string {
@@ -580,7 +607,8 @@ var homeImagesSectionTemplate = template.Must(template.New("home-images-section"
 
 var homeChatSection = strings.Replace(homeChatSectionHTML, "{{sideIconBot}}", string(sideIcon("bot")), 1)
 
-var homeInboxSection = strings.NewReplacer("{{svgCheck}}", svgCheck, "{{sideIconInbox}}", string(sideIcon("inbox"))).Replace(homeInboxSectionHTML)
+var homeInboxSectionTemplate = template.Must(template.New("home-inbox").Funcs(homeTemplateFuncs).Parse(
+	strings.NewReplacer("{{svgCheck}}", svgCheck, "{{sideIconInbox}}", string(sideIcon("inbox"))).Replace(homeInboxSectionHTML)))
 
 func (vh *ViewHandler) noteItemsFromNotes(notes []storage.Note) []noteItem {
 	items := make([]noteItem, 0, len(notes))
@@ -610,7 +638,8 @@ var homePageHTML = `<!DOCTYPE html>
 ` + infoDialogCSS + baseCSS + cselectCSS + homeCSS + imagesCSS + graphCSS + agentChatCSS + contentPaneCSS + noteSharedCSS + noteEditorCSS + shortsCSS + searchOverlayStyles + confirmDialogCSS + settingsModalCSS + frontmatterDialogCSS + serversCSS + `
   </style>
 </head>
-<body x-data="homeCtrl()" @hylo:reference-note.window="referenceNote($event)" @hylo:send-note-to-agent.window="sendNoteToAgentBot($event)">
+<body x-data="homeCtrl()"@hylo:reference-note.window="referenceNote($event)" @hylo:send-note-to-agent.window="sendNoteToAgentBot($event)">
+  <script type="application/json" id="home-boot">{{.Boot}}</script>
 ` + searchOnlyOverlayHTML + confirmDialogHTML + infoDialogHTML + frontmatterDialogHTML + settingsModalHTML() + homeImagesLightboxHTML + homeChatToastHTML + `
   <div class="home-container">
 ` + homeMainHTML + contentPaneHTML + `

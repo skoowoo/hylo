@@ -3,7 +3,7 @@
 // needs to know a full page was returned to decide whether more exist.
 var INBOX_PAGE_SIZE = 50;
 
-function homeInboxMixin() {
+function homeInboxMixin(boot) {
   return {
     // ── Inbox ────────────────────────────────────────────────────────────
     inboxMessages: [],
@@ -13,7 +13,7 @@ function homeInboxMixin() {
     inboxFilter: 'all',
     inboxSelected: null,
     inboxSheetOpen: false,
-    unreadCount: 0,
+    unreadCount: boot.unreadCount,
     initInbox() {
       // No longer pushed onto the shared ESC stack — the inbox detail is a
       // docked pane (content_pane.html's inbox-detail-panel), not a floating
@@ -29,9 +29,8 @@ function homeInboxMixin() {
           setTimeout(function () { overlayEl.classList.remove('content-pane-is-opening'); }, 320);
         }
       });
-      // The unread badge in the sidebar must stay correct regardless of
-      // which section is currently open, so both the initial count and the
-      // live SSE subscription start unconditionally here.
+      // The page renders with the count; the refetch only covers messages
+      // created before the live feed connected.
       this.refreshUnreadCount();
       this.initInboxStream();
       document.addEventListener('visibilitychange', () => {

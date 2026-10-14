@@ -16,12 +16,20 @@ type ViewHandler struct {
 	vault    *storage.Vault
 	searcher search.Searcher
 	cfg      *config.Config
+	inbox    unreadCounter
+}
+
+type unreadCounter interface {
+	UnreadCount() (int, error)
 }
 
 // NewView creates a ViewHandler for the given Vault.
 func NewView(v *storage.Vault, s search.Searcher, cfg *config.Config) *ViewHandler {
 	return &ViewHandler{vault: v, searcher: s, cfg: cfg}
 }
+
+// SetInbox lets pages render the unread count; the inbox store opens after the view.
+func (vh *ViewHandler) SetInbox(c unreadCounter) { vh.inbox = c }
 
 // writeVaultError maps storage sentinel errors to appropriate HTTP status codes.
 func writeVaultError(w http.ResponseWriter, err error) {

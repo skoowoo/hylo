@@ -102,6 +102,7 @@ func newRouter(
 	}
 
 	if inboxStore != nil {
+		vh.SetInbox(inboxStore)
 		ih := handler.NewInboxAPI(inboxStore)
 		mux.HandleFunc("GET /api/inbox", ih.InboxGET)
 		mux.HandleFunc("GET /api/inbox/unread-count", ih.InboxUnreadCountGET)

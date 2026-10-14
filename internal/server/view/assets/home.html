@@ -35,7 +35,7 @@
                 x-press="go('/home/section?type=inbox')">
           {{sideIcon "inbox"}}
           <span class="home-side-label">Inbox</span>
-          <span class="home-side-count" x-show="unreadCount > 0" x-text="unreadCount"></span>
+          <span class="home-side-count" x-show="unreadCount > 0" {{xshow (gt .Boot.UnreadCount 0)}} x-text="unreadCount">{{.Boot.UnreadCount}}</span>
         </button>
 
         <div class="home-side-group">

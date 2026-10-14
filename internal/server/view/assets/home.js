@@ -169,7 +169,8 @@ document.addEventListener('alpine:init', function () {
 
 // ── Home Alpine controller ────────────────────────────────────────────────
 function homeCtrl() {
-  var ctrl = Object.assign(contentPaneCtrl(), homeImagesMixin(), homeGraphMixin(), homeInboxMixin(), homeShortsMixin(), {
+  var boot = JSON.parse(document.getElementById('home-boot').textContent);
+  var ctrl = Object.assign(contentPaneCtrl(), homeImagesMixin(), homeGraphMixin(), homeInboxMixin(boot), homeShortsMixin(), {
     curKey: __hyloSectionKey(__hyloInitialSectionURL()),
     // Each of Knowledge/Memory/Pinned/Folders keeps its own list-vs-grid
     // choice (all folders share the single 'folder' bucket, and all of
