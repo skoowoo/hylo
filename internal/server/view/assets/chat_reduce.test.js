@@ -205,8 +205,8 @@ test('note_access decorates the tool call that touched it, deduped, globs skippe
 
 test('a re-sent tool_use id updates the call instead of adding a row', function () {
   var segs = [];
-  R.applyAgentSegment(segs, { type: 'tool_use', id: 't1', name: 'acp_read', input: {} });
-  R.applyAgentSegment(segs, { type: 'tool_use', id: 't1', name: 'acp_read', input: { __notes: [{ path: '/v/a.md' }] } });
+  R.applyAgentSegment(segs, { type: 'tool_use', id: 't1', name: 'Read', input: {} });
+  R.applyAgentSegment(segs, { type: 'tool_use', id: 't1', name: 'Read', input: { __notes: [{ path: '/v/a.md' }] } });
   assert.equal(segs.length, 1);
   assert.equal(segs[0].count, 1);
   assert.equal(segs[0].calls[0].arg, 'v/a.md');

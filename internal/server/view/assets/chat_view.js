@@ -343,7 +343,7 @@
 
   function toolVerb(name, running) {
     var short = String(name || '').replace(/^mcp__.*__/, '');
-    var key = short.toLowerCase().replace(/^(acp|codex)_/, '');
+    var key = short.toLowerCase().replace(/^codex_/, '');
     var v = TOOL_VERBS[key];
     if (v) return v[running ? 0 : 1];
     return !key || key === 'other' ? 'Tool' : short;

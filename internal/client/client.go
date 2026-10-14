@@ -754,7 +754,6 @@ type AgentChatRequest struct {
 	Cwd              string            `json:"cwd,omitempty"`
 	ImagePaths       []string          `json:"imagePaths,omitempty"`
 	ExtraAllowedDirs []string          `json:"extraAllowedDirs,omitempty"`
-	MCPServers       []agent.MCPServer `json:"mcpServers,omitempty"`
 	AgentCliEnv      map[string]string `json:"agentCliEnv,omitempty"`
 	ProjectID        string            `json:"projectId,omitempty"`
 	ConversationID   string            `json:"conversationId,omitempty"`

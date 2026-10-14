@@ -24,7 +24,7 @@ func TestMCPURLMatchesInjection(t *testing.T) {
 		want    bool
 	}{
 		{"claude enabled", true, 54321, "claude", true},
-		{"hermes unsupported", true, 54321, "hermes", false},
+		{"unknown agent", true, 54321, "unknown", false},
 		{"disabled in config", false, 54321, "claude", false},
 		{"tcp disabled", true, 0, "claude", false},
 	}

@@ -97,12 +97,12 @@ func TestNoteAccessTracker_BashHeuristic(t *testing.T) {
 func TestNoteAccessTracker_ExplicitNotesOverride(t *testing.T) {
 	tr := NewNoteAccessTracker("/vault", "/vault")
 	got := tr.Feed(map[string]any{
-		"type": "tool_use", "name": "acp_edit",
+		"type": "tool_use", "name": "edit",
 		"input": map[string]any{"__notes": []any{
 			map[string]any{"path": "/vault/plan.md", "action": "write"},
 		}},
 	})
-	assertPaths(t, got, []NoteAccess{{Path: "/plan.md", Action: NoteActionWrite, Tool: "acp_edit"}})
+	assertPaths(t, got, []NoteAccess{{Path: "/plan.md", Action: NoteActionWrite, Tool: "edit"}})
 }
 
 func TestNoteAccessTracker_IgnoresNonToolUseEvents(t *testing.T) {

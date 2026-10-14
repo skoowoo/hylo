@@ -6,16 +6,6 @@ import (
 	"time"
 )
 
-func fetchHermesModels(resolved string, env []string) ([]ModelOption, error) {
-	return DetectACPModels(context.Background(), ACPDetectOpts{
-		Bin:           resolved,
-		Args:          []string{"acp", "--accept-hooks"},
-		Env:           env,
-		Timeout:       15 * time.Second,
-		DefaultOption: DefaultModelOption,
-	})
-}
-
 func fetchPiModels(resolved string, env []string) ([]ModelOption, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()

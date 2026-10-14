@@ -85,7 +85,7 @@ const (
 )
 
 // NoteAccessEntry records one vault note an assistant run read or wrote,
-// normalized across every agent backend (claude/codex/opencode/hermes/
+// normalized across every agent backend (claude/codex/opencode/
 // cursor-agent/copilot/pi) to the same shape regardless of which CLI tool
 // produced it.
 type NoteAccessEntry struct {

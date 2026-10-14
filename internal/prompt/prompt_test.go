@@ -97,17 +97,47 @@ func TestHyloBotExplainsTheChatTags(t *testing.T) {
 	}
 }
 
+func TestHelloSceneFollowsTheUser(t *testing.T) {
+	obsidian := []HelloVault{{Name: "Work", LastOpened: "opened yesterday"}}
+	for _, c := range []struct {
+		h    Hello
+		want string
+	}{
+		{Hello{Notes: 3, OtherVaults: obsidian}, HelloSeen},
+		{Hello{OtherVaults: obsidian, NoteApps: []string{"Bear"}}, HelloObsidian},
+		{Hello{NoteApps: []string{"Bear"}}, HelloOtherApp},
+		{Hello{}, HelloFresh},
+	} {
+		if got := c.h.Scene(); got != c.want {
+			t.Errorf("%+v: scene %q, want %q", c.h, got, c.want)
+		}
+	}
+}
+
 func TestHelloMatchesTheVault(t *testing.T) {
 	empty := HelloMessage(Hello{Vault: "Hylo Vault", Lang: "zh-CN", Now: "Monday 21:40"})
-	if !strings.Contains(empty, "brand new and empty") || !strings.Contains(empty, HelloEmptyAngles[0]) || !strings.Contains(empty, "zh-CN") {
+	if !strings.Contains(empty, "brand new and empty") || !strings.Contains(empty, "first note that fits their time of day") || !strings.Contains(empty, "zh-CN") {
 		t.Fatal(empty)
 	}
-	full := HelloMessage(Hello{Vault: "Notes", Notes: 12, Folders: []string{"Work"}, Recent: []string{"Q3 plan"}, Seed: 1})
-	if !strings.Contains(full, `holds 12 notes, mostly in "Work"`) || !strings.Contains(full, `"Q3 plan"`) || !strings.Contains(full, HelloNotesAngles[1]) || !strings.Contains(full, "locale English") {
-		t.Fatal(full)
+	full := HelloMessage(Hello{Vault: "Notes", Notes: 12, Obsidian: true, Folders: []string{"Work"},
+		Recent:      []HelloNote{{Title: "Q3 plan", Excerpt: "Who is the first user?", Age: "today"}},
+		Older:       []HelloNote{{Title: "Pricing", Age: "5 months ago"}},
+		WritingTime: "late at night"})
+	for _, want := range []string{`holds 12 notes; it is also their Obsidian vault, mostly in "Work"`, `"Q3 plan", today: "Who is the first user?"`, `"Pricing", 5 months ago`, "mostly write late at night", "only a reader of these notes", "note titles are mostly written in"} {
+		if !strings.Contains(full, want) {
+			t.Fatalf("missing %q in:\n%s", want, full)
+		}
 	}
-	if p := HelloMessage(Hello{Vault: "Notes", Notes: 3}); strings.Contains(p, "Most recently edited") {
+	if p := HelloMessage(Hello{Vault: "Notes", Notes: 3}); strings.Contains(p, "Most recently edited") || strings.Contains(p, "older notes") {
 		t.Fatal(p)
+	}
+	vault := HelloMessage(Hello{Vault: "Hylo Vault", OtherVaults: []HelloVault{{Name: "Work", LastOpened: "opened yesterday"}, {Name: "Old"}}})
+	if !strings.Contains(vault, `didn't give Hylo: "Work" (opened yesterday), "Old".`) || !strings.Contains(vault, "Obsidian keeps working on it") || !strings.Contains(vault, "locale English") {
+		t.Fatal(vault)
+	}
+	app := HelloMessage(Hello{Vault: "Hylo Vault", NoteApps: []string{"Bear", "Notion"}})
+	if !strings.Contains(app, "installed on this computer: Bear, Notion.") || !strings.Contains(app, "export to Markdown") {
+		t.Fatal(app)
 	}
 }
 

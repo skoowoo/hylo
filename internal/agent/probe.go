@@ -21,7 +21,6 @@ func ProbeAgent(ctx context.Context, def *AgentDef, configuredEnv map[string]str
 		MaxPromptArgBytes:  def.MaxPromptArgBytes,
 		SupportsImagePaths:    def.SupportsImagePaths,
 		SupportsNativeSession: def.SupportsNativeSession,
-		MCPDiscovery:          def.MCPDiscovery,
 		Models:             append([]ModelOption(nil), def.FallbackModels...),
 		CliExample:         CLIExample(def),
 	}

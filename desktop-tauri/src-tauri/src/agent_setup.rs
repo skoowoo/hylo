@@ -188,6 +188,8 @@ pub async fn onboarding_hello(
             "lang": ctx.lang,
             "langSignals": signals,
             "now": ctx.now,
+            "obsidianVaults": crate::vault_setup::other_obsidian_vaults(),
+            "noteApps": crate::vault_setup::note_apps(),
         }),
     ))
     .await?;

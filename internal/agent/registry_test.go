@@ -7,7 +7,6 @@ func TestSupportsNativeSession(t *testing.T) {
 		"claude":       true,
 		"codex":        true,
 		"opencode":     true,
-		"hermes":       true,
 		"cursor-agent": true,
 		"copilot":      true,
 		"pi":           true,

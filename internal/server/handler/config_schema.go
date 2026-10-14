@@ -60,7 +60,7 @@ func buildConfigSchema() []SchemaField {
 			Multiline: true, Default: prompt.GlobalDefault},
 
 		{Key: "agent.mcp_enabled", Type: "bool", Section: "agent", Label: "Inject Hylo MCP",
-			Description: "Give every agent CLI run access to Hylo's MCP tools. Requires the TCP listener (server.port > 0). Not supported for Hermes.",
+			Description: "Give every agent CLI run access to Hylo's MCP tools. Requires the TCP listener (server.port > 0).",
 			Default:     true},
 
 		{Key: "plugins.search.use_jieba", Type: "bool", Section: "plugins.search", Label: "Use jieba",

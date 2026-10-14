@@ -43,7 +43,6 @@ func trackSessionFromAgentEvent(m map[string]any, tr *sessionTracker) {
 // ChatProcess holds handles after ExecChat spawns a child.
 type ChatProcess struct {
 	Cmd *exec.Cmd
-	ACP *ACPSession
 	Pi  *PiSession
 	// SessionID is the agent-native session id observed or assigned for this run.
 	SessionID string
@@ -61,7 +60,6 @@ func ExecChat(
 	cwd, composed, model string,
 	sessionID string,
 	firstSession bool,
-	mcp []MCPServer,
 	safeImagePaths []string,
 	uploadRoot string,
 	emit func(event string, data any),
@@ -120,17 +118,9 @@ func ExecChat(
 		streamFormat = StreamPlain
 	}
 
-	resumeACP := ""
-	if streamFormat == StreamACPJSONRPC && sessionID != "" && !firstSession {
-		resumeACP = sessionID
-	}
-
 	switch streamFormat {
 	case StreamPiRPC:
 		cp.Pi = AttachPiRPC(stdin, stdout, composed, model, safeImagePaths, uploadRoot, emit, nil)
-
-	case StreamACPJSONRPC:
-		cp.ACP = AttachACP(ctx, cmd, stdin, stdout, composed, cwd, model, resumeACP, mcp, emit)
 
 	default:
 		pr := streamFormat
@@ -175,9 +165,7 @@ func ExecChat(
 
 	err = cmd.Wait()
 
-	if cp.ACP != nil && cp.ACP.SessionID() != "" {
-		cp.SessionID = cp.ACP.SessionID()
-	} else if sid := tracker.get(); sid != "" {
+	if sid := tracker.get(); sid != "" {
 		cp.SessionID = sid
 	}
 

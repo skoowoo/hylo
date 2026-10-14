@@ -117,7 +117,7 @@
         break;
       }
       case 'tool_use': {
-        // ACP re-sends the same call on every location update.
+        // A call re-sent with the same id updates it instead of adding a row.
         if (data.id) {
           var dupCall = null;
           for (var di = segs.length - 1; di >= 0 && !dupCall; di--) {

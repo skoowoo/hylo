@@ -61,7 +61,7 @@
 - **Clip 浏览器扩展**，一键把网页存成 Markdown
 
 #### 🤖 事件驱动的多 Agent 系统
-- **集成了 7 个 agent CLI**，直接复用你本地的 Agent CLI
+- **集成了 6 个 agent CLI**，直接复用你本地的 Agent CLI
 - **事件触发自动化**，笔记一创建、消息一来，agent 自动跑起来
 - **微信 & Discord 直连**，直接在微信或 Discord 私信里和 agent 对话
 
@@ -268,13 +268,12 @@ Bot 最有意思的地方是事件驱动：配好触发器，你什么都不用�
 
 > **Hylo 直接从本地 `PATH` 发现可用的 agent CLI，不用任何额外配置。** 你已经在用 Claude Code 写代码？在终端里跑 Codex 或 Copilot？Hylo 启动时自动找到它们，直接拿来用。你的工具，你的习惯，Hylo 不折腾你。
 
-开箱集成 **7 个 agent CLI**：
+开箱集成 **6 个 agent CLI**：
 
 - Claude Code
 - OpenCode
 - Codex CLI
 - Cursor Agent
-- Hermes
 - GitHub Copilot CLI
 - Pi
 

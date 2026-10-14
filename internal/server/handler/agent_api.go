@@ -71,7 +71,6 @@ type chatBody struct {
 	Cwd                string            `json:"cwd"`
 	ImagePaths         []string          `json:"imagePaths"`
 	ExtraAllowedDirs   []string          `json:"extraAllowedDirs"`
-	MCPServers         []agent.MCPServer `json:"mcpServers"`
 	AgentCliEnv        map[string]string `json:"agentCliEnv"`
 	ProjectID          string            `json:"projectId"`
 	ConversationID     string            `json:"conversationId"`
@@ -659,7 +658,7 @@ func (a *AgentAPI) executeChat(ctx context.Context, run *agent.Run, body chatBod
 		a.hub.Emit(run, ev, data)
 	}
 
-	cp, err := agent.ExecChat(ctx, def, bin, argv, env, cwd, composed, safeModel, sessionID, firstSession, body.MCPServers, safeImages, up, emit, func(started *agent.ChatProcess) {
+	cp, err := agent.ExecChat(ctx, def, bin, argv, env, cwd, composed, safeModel, sessionID, firstSession, safeImages, up, emit, func(started *agent.ChatProcess) {
 		a.active.Store(run.ID, started)
 	})
 	defer a.active.Delete(run.ID)
@@ -690,7 +689,7 @@ func (a *AgentAPI) executeChat(ctx context.Context, run *agent.Run, body chatBod
 		// A killed process surfaces as a non-zero/-1 exit code indistinguishable
 		// from a real crash, so RunCancelPOST's flag is what tells them apart.
 		st = "canceled"
-	} else if code != 0 || (cp.ACP != nil && cp.ACP.HasFatalError()) || (cp.Pi != nil && cp.Pi.HasFatalError()) {
+	} else if code != 0 || (cp.Pi != nil && cp.Pi.HasFatalError()) {
 		st = "failed"
 	}
 	if assistantMsgID != "" && a.store != nil {

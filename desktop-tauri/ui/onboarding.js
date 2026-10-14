@@ -21,7 +21,6 @@ document.addEventListener('alpine:init', function () {
     { id: 'opencode', label: 'OpenCode' },
     { id: 'cursor-agent', label: 'Cursor' },
     { id: 'copilot', label: 'Copilot' },
-    { id: 'hermes', label: 'Hermes' },
   ].map(function (a) {
     a.logo = window.__hyloAgentLogo(a.id, 'agents/', { glyph: 'ob-glyph', dark: 'ob-on-dark', light: 'ob-on-light' });
     return a;
@@ -31,8 +30,8 @@ document.addEventListener('alpine:init', function () {
   var SCAN_TICK_MS = 420;
   var REVEAL_MS = 520;
   var SETTLE_MS = 500;
-  // About three lines of the hello card; CJK glyphs are twice as wide.
-  var HELLO_BUDGET = 150;
+  // About four lines of the hello card; CJK glyphs are twice as wide.
+  var HELLO_BUDGET = 210;
   var SLOW_START_MS = 3000;
   var TYPE_MS = 22;
   var REDUCED_MOTION = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);

@@ -175,7 +175,7 @@ func TestPrepareMCPRefusesToClobberInvalidFile(t *testing.T) {
 }
 
 func TestPrepareMCPUnsupportedAgents(t *testing.T) {
-	for _, id := range []string{"hermes", "unknown"} {
+	for _, id := range []string{"unknown"} {
 		inj, err := PrepareMCP(id, testEP, t.TempDir(), nil)
 		if err != nil || len(inj.Args) != 0 {
 			t.Errorf("%s: args=%v err=%v", id, inj.Args, err)
@@ -184,7 +184,7 @@ func TestPrepareMCPUnsupportedAgents(t *testing.T) {
 }
 
 func TestSupportsMCPMatchesPrepareMCP(t *testing.T) {
-	for _, id := range []string{"claude", "codex", "opencode", "copilot", "cursor-agent", "pi", "hermes", "unknown"} {
+	for _, id := range []string{"claude", "codex", "opencode", "copilot", "cursor-agent", "pi", "unknown"} {
 		inj, err := PrepareMCP(id, testEP, t.TempDir(), nil)
 		if err != nil {
 			t.Fatal(err)

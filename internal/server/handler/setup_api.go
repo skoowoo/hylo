@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -56,15 +57,56 @@ func hyloBot(agentID, model string) (*mate.Mate, []mate.MateTrigger) {
 	}
 }
 
-func helloOf(o VaultOverview, lang, now string, seed int) prompt.Hello {
-	h := prompt.Hello{Vault: o.Name, Notes: o.Notes, Lang: lang, Now: now, Seed: seed}
+// helloApps is what the desktop app sees of the user's other notes.
+type helloApps struct {
+	ObsidianVaults []struct {
+		Name       string `json:"name"`
+		LastOpened int64  `json:"lastOpened"` // Unix ms; 0 when unknown
+	} `json:"obsidianVaults"`
+	NoteApps []string `json:"noteApps"`
+}
+
+func helloOf(o VaultOverview, apps helloApps, lang, now string) prompt.Hello {
+	h := prompt.Hello{Vault: o.Name, Notes: o.Notes, Obsidian: o.Obsidian, WritingTime: o.WritingTime, Lang: lang, Now: now}
 	for _, f := range o.Folders {
 		h.Folders = append(h.Folders, f.Name)
 	}
+	t := time.Now()
 	for _, n := range o.Recent {
-		h.Recent = append(h.Recent, n.Title)
+		h.Recent = append(h.Recent, prompt.HelloNote{Title: n.Title, Excerpt: n.Preview, Age: ago(n.Updated, t)})
 	}
+	for _, n := range o.Older {
+		h.Older = append(h.Older, prompt.HelloNote{Title: n.Title, Excerpt: n.Preview, Age: ago(n.Updated, t)})
+	}
+	for _, v := range apps.ObsidianVaults {
+		if len(h.OtherVaults) == 3 {
+			break
+		}
+		hv := prompt.HelloVault{Name: v.Name}
+		if v.LastOpened > 0 {
+			hv.LastOpened = "opened " + ago(time.UnixMilli(v.LastOpened), t)
+		}
+		h.OtherVaults = append(h.OtherVaults, hv)
+	}
+	h.NoteApps = apps.NoteApps[:min(len(apps.NoteApps), 5)]
 	return h
+}
+
+func ago(at, now time.Time) string {
+	days := int(now.Sub(at).Hours() / 24)
+	switch {
+	case days < 1:
+		return "today"
+	case days < 2:
+		return "yesterday"
+	case days < 14:
+		return fmt.Sprintf("%d days ago", days)
+	case days < 60:
+		return fmt.Sprintf("%d weeks ago", days/7)
+	case days < 730:
+		return fmt.Sprintf("%d months ago", days/30)
+	}
+	return fmt.Sprintf("%d years ago", days/365)
 }
 
 // SetupHelloPOST handles POST /api/setup/hello: starts the agent's first words
@@ -76,12 +118,13 @@ func (a *AgentAPI) SetupHelloPOST(w http.ResponseWriter, r *http.Request) {
 		Lang        string      `json:"lang"`
 		LangSignals langSignals `json:"langSignals"`
 		Now         string      `json:"now"`
+		helloApps
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || strings.TrimSpace(body.AgentID) == "" {
 		http.Error(w, "agentId required", http.StatusBadRequest)
 		return
 	}
-	o, err := buildVaultOverview(a.vault)
+	o, err := buildVaultOverview(a.vault, time.Now().Nanosecond())
 	if err != nil {
 		writeVaultError(w, err)
 		return
@@ -93,7 +136,7 @@ func (a *AgentAPI) SetupHelloPOST(w http.ResponseWriter, r *http.Request) {
 	chat := chatBody{
 		AgentID:    body.AgentID,
 		Model:      body.Model,
-		Message:    prompt.HelloMessage(helloOf(o, lang, body.Now, time.Now().Nanosecond())),
+		Message:    prompt.HelloMessage(helloOf(o, body.helloApps, lang, body.Now)),
 		TriggerRun: true,
 		oneShot:    true,
 	}

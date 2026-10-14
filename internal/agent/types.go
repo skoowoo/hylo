@@ -8,7 +8,6 @@ type StreamFormat string
 const (
 	StreamClaudeJSON    StreamFormat = "claude-stream-json"
 	StreamJSONEvent     StreamFormat = "json-event-stream"
-	StreamACPJSONRPC    StreamFormat = "acp-json-rpc"
 	StreamPiRPC         StreamFormat = "pi-rpc"
 	StreamCopilotJSON   StreamFormat = "copilot-stream-json"
 	StreamPlain         StreamFormat = "plain"
@@ -24,15 +23,6 @@ type ModelOption struct {
 type ReasoningOption struct {
 	ID    string `json:"id"`
 	Label string `json:"label"`
-}
-
-// MCPServer is the ACP stdio MCP descriptor shape.
-type MCPServer struct {
-	Type    string   `json:"type"`
-	Name    string   `json:"name"`
-	Command string   `json:"command"`
-	Args    []string `json:"args"`
-	Env     []string `json:"env"`
 }
 
 // BuildArgsContext is passed to argv builders (see agents.ts buildArgs).
@@ -74,10 +64,9 @@ type AgentDef struct {
 	// SupportsImagePaths: Pi RPC reads images from disk (see stream/pi).
 	SupportsImagePaths bool `json:"supportsImagePaths,omitempty"`
 	// SupportsNativeSession: CLI/protocol can continue a conversation via a
-	// persisted session id (or ACP/Pi RPC session) without replaying full
+	// persisted session id (or Pi RPC session) without replaying full
 	// message history in the host-composed prompt.
 	SupportsNativeSession bool `json:"supportsNativeSession,omitempty"`
-	MCPDiscovery          string            `json:"mcpDiscovery,omitempty"`
 	build              func(*AgentDef, BuildArgsContext) []string
 	listModelsArgs     []string
 	listModelsTimeout  int // ms; 0 = default 5000
@@ -101,6 +90,5 @@ type AgentInfo struct {
 	MaxPromptArgBytes int              `json:"maxPromptArgBytes,omitempty"`
 	SupportsImagePaths    bool   `json:"supportsImagePaths,omitempty"`
 	SupportsNativeSession bool   `json:"supportsNativeSession,omitempty"`
-	MCPDiscovery          string `json:"mcpDiscovery,omitempty"`
 	CliExample            string `json:"cliExample,omitempty"`
 }

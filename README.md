@@ -63,7 +63,7 @@ You just write. Hylo learns who you are from your notes, then works for you arou
 - **Clip browser extension**: save any webpage as Markdown with one click
 
 #### 🤖 Event-Driven Multi-Agent System
-- **7 agent CLIs** supported out of the box
+- **6 agent CLIs** supported out of the box
 - **Event-triggered automation**: agents run tasks automatically when notes change, messages arrive, or schedules fire
 - **WeChat & Discord integration**: chat with agents directly from WeChat or Discord DMs
 
@@ -270,13 +270,12 @@ Edit or remove any of them under **Settings → Bots**, or click **New Bot** to 
 
 > **Hylo automatically discovers available agent CLIs from your local `PATH` with no extra configuration needed.** If you already use Claude Code, Codex, or Copilot in your terminal, Hylo finds them at startup and makes them available as backing agents for your bots.
 
-Hylo integrates **7 agent CLIs** out of the box:
+Hylo integrates **6 agent CLIs** out of the box:
 
 - Claude Code
 - OpenCode
 - Codex CLI
 - Cursor Agent
-- Hermes
 - GitHub Copilot CLI
 - Pi
 

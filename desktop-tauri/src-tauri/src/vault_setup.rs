@@ -179,6 +179,79 @@ pub fn onboarding_vaults() -> VaultChoices {
     }
 }
 
+/// The Obsidian vaults Hylo isn't using, most recently opened first, for the
+/// hello: someone who kept their vault back is likely still deciding.
+pub fn other_obsidian_vaults() -> Vec<serde_json::Value> {
+    let home = server::home_dir();
+    let current = read_doc(&config_file(&home))
+        .ok()
+        .and_then(|d| vault_path(&d))
+        .map(|p| expand(&p, &home));
+    let vaults = obsidian_registry(&home)
+        .and_then(|p| fs::read_to_string(p).ok())
+        .map(|raw| parse_registry(&raw, &home))
+        .unwrap_or_default();
+    others(vaults, current.as_deref())
+}
+
+fn others(vaults: Vec<VaultChoice>, current: Option<&Path>) -> Vec<serde_json::Value> {
+    vaults
+        .into_iter()
+        .filter(|v| current != Some(Path::new(&v.path)))
+        .map(|v| serde_json::json!({ "name": v.name, "lastOpened": v.last_opened.unwrap_or(0) }))
+        .collect()
+}
+
+/// Note apps by macOS app bundle. Apple Notes ships with every Mac, so its
+/// presence says nothing about where someone keeps notes.
+const NOTE_APPS: &[(&str, &str)] = &[
+    ("Notion.app", "Notion"),
+    ("Bear.app", "Bear"),
+    ("Logseq.app", "Logseq"),
+    ("Evernote.app", "Evernote"),
+    ("印象笔记.app", "印象笔记"),
+    ("Yinxiang Biji.app", "印象笔记"),
+    ("Craft.app", "Craft"),
+    ("Joplin.app", "Joplin"),
+    ("Microsoft OneNote.app", "OneNote"),
+    ("Heptabase.app", "Heptabase"),
+    ("Reflect.app", "Reflect"),
+    ("Tana.app", "Tana"),
+    ("Anytype.app", "Anytype"),
+    ("Capacities.app", "Capacities"),
+    ("UpNote.app", "UpNote"),
+    ("NotePlan 3.app", "NotePlan"),
+    ("Drafts.app", "Drafts"),
+    ("Agenda.app", "Agenda"),
+    ("Typora.app", "Typora"),
+    ("语雀.app", "语雀"),
+    ("flomo.app", "flomo"),
+];
+
+/// Note apps installed on this Mac. Listing the Applications folders needs no
+/// permission prompt.
+pub fn note_apps() -> Vec<&'static str> {
+    if !cfg!(target_os = "macos") {
+        return Vec::new();
+    }
+    let home = server::home_dir();
+    installed(&[
+        PathBuf::from("/Applications"),
+        PathBuf::from("/Applications/Setapp"),
+        home.join("Applications"),
+    ])
+}
+
+fn installed(dirs: &[PathBuf]) -> Vec<&'static str> {
+    let mut found = Vec::new();
+    for (bundle, name) in NOTE_APPS {
+        if !found.contains(name) && dirs.iter().any(|d| d.join(bundle).exists()) {
+            found.push(*name);
+        }
+    }
+    found
+}
+
 fn expand(path: &str, home: &Path) -> PathBuf {
     match path.strip_prefix("~/") {
         Some(rest) => home.join(rest),
@@ -277,6 +350,37 @@ mod tests {
         assert_eq!(got[1].display, "/Volumes/Ext/Work");
         assert_eq!(got[0].last_opened, Some(300));
         assert!(parse_registry("not json", home).is_empty());
+    }
+
+    #[test]
+    fn other_vaults_skip_the_one_in_use() {
+        let home = Path::new("/Users/me");
+        let raw = r#"{"vaults":{"a":{"path":"/Users/me/Notes","ts":300},"b":{"path":"/Users/me/Work","ts":200}}}"#;
+        let got = others(
+            parse_registry(raw, home),
+            Some(Path::new("/Users/me/Notes")),
+        );
+        assert_eq!(
+            got,
+            vec![serde_json::json!({ "name": "Work", "lastOpened": 200 })]
+        );
+    }
+
+    #[test]
+    fn note_apps_found_once_across_folders() {
+        let dir = std::env::temp_dir().join(format!("hylo-apps-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        for p in [
+            "a/Bear.app",
+            "a/印象笔记.app",
+            "b/Yinxiang Biji.app",
+            "b/Notes.app",
+        ] {
+            fs::create_dir_all(dir.join(p)).unwrap();
+        }
+        let got = installed(&[dir.join("a"), dir.join("b"), dir.join("missing")]);
+        assert_eq!(got, ["Bear", "印象笔记"]);
+        let _ = fs::remove_dir_all(&dir);
     }
 
     #[test]

@@ -8,13 +8,11 @@ import (
 // multi-turn context by session id without replaying host message history.
 // Mechanisms:
 //   - CLI flags: claude, codex, opencode, cursor-agent, copilot
-//   - ACP session/load|resume|prompt: hermes
 //   - Pi RPC --session-id (open or create): pi
 var supportsNativeSession = map[string]struct{}{
 	"claude":       {},
 	"codex":        {},
 	"opencode":     {},
-	"hermes":       {},
 	"cursor-agent": {},
 	"copilot":      {},
 	"pi":           {},
@@ -91,18 +89,6 @@ func definitions() []*AgentDef {
 			},
 			StreamFormat: StreamJSONEvent, EventParser: "opencode", PromptViaStdin: true,
 			build: buildOpenCode,
-		},
-		{
-			ID: "hermes", Name: "Hermes", Bin: "hermes",
-			VersionArgs: []string{"--version"},
-			FallbackModels: []ModelOption{
-				DefaultModelOption,
-				{ID: "openai-codex:gpt-5.5", Label: "gpt-5.5 (openai-codex:gpt-5.5)"},
-				{ID: "openai-codex:gpt-5.4", Label: "gpt-5.4 (openai-codex:gpt-5.4)"},
-				{ID: "openai-codex:gpt-5.4-mini", Label: "gpt-5.4-mini (openai-codex:gpt-5.4-mini)"},
-			},
-			StreamFormat: StreamACPJSONRPC, MCPDiscovery: "mature-acp",
-			build: buildHermes, fetchModels: fetchHermesModels,
 		},
 		{
 			ID: "cursor-agent", Name: "Cursor Agent", Bin: "cursor-agent",

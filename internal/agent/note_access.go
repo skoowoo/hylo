@@ -26,7 +26,7 @@ type NoteAccess struct {
 
 // NoteAccessTracker turns the tool_use events any backend's stream parser
 // emits (claude_stream.go, json_event_stream.go, copilot_stream.go,
-// pi_session.go, acp_session.go all relay the same {type, name, input} shape)
+// pi_session.go all relay the same {type, name, input} shape)
 // into a deduplicated list of notes touched during one run. This is the only
 // place path-extraction rules live — parsers just need to make sure a tool
 // call actually produces a tool_use event; they don't need to know what a
@@ -125,8 +125,8 @@ var (
 )
 
 // extractNoteCandidates finds (path, action) pairs in one tool_use's input,
-// independent of which backend or tool produced it. Structured backends (ACP
-// tool_call locations, Codex file_change) hand over pre-resolved pairs via the
+// independent of which backend or tool produced it. Structured backends (Codex
+// file_change) hand over pre-resolved pairs via the
 // reserved "__notes" key, bypassing the heuristics below entirely.
 func extractNoteCandidates(name string, input any) []noteCandidate {
 	inputMap, _ := input.(map[string]any)

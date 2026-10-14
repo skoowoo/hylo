@@ -125,10 +125,6 @@ func buildOpenCode(_ *AgentDef, c BuildArgsContext) []string {
 	return args
 }
 
-func buildHermes(_ *AgentDef, _ BuildArgsContext) []string {
-	return []string{"acp", "--accept-hooks"}
-}
-
 func buildCursorAgent(_ *AgentDef, c BuildArgsContext) []string {
 	args := []string{
 		"--print", "--output-format", "stream-json", "--stream-partial-output",
