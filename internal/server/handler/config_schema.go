@@ -85,8 +85,6 @@ func buildConfigSchema() []SchemaField {
 			Default:     "5m"},
 		{Key: "plugins.git_sync.sync_interval", Type: "duration", Section: "plugins.git_sync", Label: "Sync interval",
 			Description: "Pull/push interval; empty or 0 disables periodic remote sync.", Default: "24h"},
-{Key: "plugins.compile.enabled", Type: "bool", Section: "plugins.compile", Label: "Compile enabled",
-			Description: "When true, automated LLM knowledge compilation can run.", Default: false},
 
 		{Key: "plugins.wechat.enabled", Type: "bool", Section: "plugins.wechat", Label: "WeChat bridge enabled",
 			Description: "When true, poll WeChat iLink for direct messages and emit wechat_message mate events.", Default: false},

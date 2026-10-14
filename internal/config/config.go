@@ -21,7 +21,6 @@ type Config struct {
 type PluginsConfig struct {
 	Search  SearchConfig  `mapstructure:"search" json:"search" toml:"search"`
 	GitSync GitSyncConfig `mapstructure:"git_sync" json:"git_sync" toml:"git_sync"`
-	Compile CompileConfig `mapstructure:"compile" json:"compile" toml:"compile"`
 	Wechat  WechatConfig  `mapstructure:"wechat" json:"wechat" toml:"wechat"`
 	Discord DiscordConfig `mapstructure:"discord" json:"discord" toml:"discord"`
 }
@@ -42,12 +41,6 @@ type SearchConfig struct {
 	// Prefixes without a leading "/" are accepted and normalised automatically.
 	// An empty list (default) indexes everything.
 	ExcludePrefixes []string `mapstructure:"exclude_prefixes" json:"exclude_prefixes" toml:"exclude_prefixes"`
-}
-
-// CompileConfig holds settings for the LLM-based note compilation plugin.
-type CompileConfig struct {
-	// Enabled must be true for the plugin to start (opt-in).
-	Enabled bool `mapstructure:"enabled" json:"enabled" toml:"enabled"`
 }
 
 // DiscordConfig configures the Discord Bot bridge plugin.
@@ -343,9 +336,6 @@ func setDefaults(v *viper.Viper) {
 	// search plugin defaults (always active; configure behaviour here)
 	v.SetDefault("plugins.search.use_jieba", true)
 	v.SetDefault("plugins.search.exclude_prefixes", []string{"/_assets", "/_knowledge/_indexes"})
-
-	// compile plugin defaults (enabled by default)
-	v.SetDefault("plugins.compile.enabled", true)
 
 	v.SetDefault("plugins.wechat.enabled", false)
 

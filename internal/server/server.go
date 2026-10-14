@@ -79,16 +79,13 @@ func New(cfg *config.Config, cfgFileLoaded string, logger *slog.Logger, vault *s
 	}
 
 	var compilePlugin *compile.Plugin
-	if cfg.Plugins.Compile.Enabled {
-		dp, err := compile.New(cfg.Vault.KnowledgeDir, vault, logger)
-		if err != nil {
-			logger.Warn("compile plugin could not be created", "err", err)
-		} else {
-			dp.SetDispatch(mgr.Dispatch)
-			mgr.Register(dp)
-			compilePlugin = dp
-			logger.Info("compile plugin registered", "knowledge_dir", cfg.Vault.KnowledgeDir)
-		}
+	if dp, err := compile.New(cfg.Vault.KnowledgeDir, vault, logger); err != nil {
+		logger.Warn("compile plugin could not be created", "err", err)
+	} else {
+		dp.SetDispatch(mgr.Dispatch)
+		mgr.Register(dp)
+		compilePlugin = dp
+		logger.Info("compile plugin registered", "knowledge_dir", cfg.Vault.KnowledgeDir)
 	}
 
 	// Mate runner: fires agent runs on vault events matching trigger configs.

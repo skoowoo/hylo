@@ -39,10 +39,6 @@ branch = "main"
 # Leave empty when using SSH or a public repo.
 auth_token = ""
 
-[plugins.compile]
-# Enabled by default. Set to false to disable.
-enabled = true
-
 # =============================================================================
 # Local agent CLI integration (Open Design–compatible adapters)
 # =============================================================================

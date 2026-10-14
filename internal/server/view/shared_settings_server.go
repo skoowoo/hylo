@@ -322,7 +322,6 @@ const settingsServerJS = `
         const m = {
           'vault': 'Vault', 'agent': 'Agent',
           'plugins.search': 'Search', 'plugins.git_sync': 'Git Sync',
-          'plugins.compile': 'Compile',
           'plugins.wechat': 'WeChat',
           'plugins.discord': 'Discord',
         };
@@ -335,7 +334,6 @@ const settingsServerJS = `
           'agent': 'Agent CLI integration and global prompt settings.',
           'plugins.search': 'Indexing and search quality.',
           'plugins.git_sync': 'Automatic git push/pull for the vault.',
-          'plugins.compile': 'AI knowledge compilation and related options.',
           'plugins.wechat': 'WeChat iLink bridge — poll DMs and emit wechat_message bot events.',
           'plugins.discord': 'Discord Bot bridge — receive DMs and emit discord_message bot events. The bot must share a server with you before it can send proactive DMs; restart the server after changing the token.',
         };
