@@ -1094,10 +1094,10 @@
     }
     var ac = null;
     var ro = null;
+    var contentRo = null;
     var scrollRaf = 0;
     var timeTimer = 0;
     var emptyKind = '';
-    var lastPrependSeq = api.state().prependSeq;
     var runsEl = null;
     var runsSig = '';
     var triggerMode = false;
@@ -1109,8 +1109,53 @@
     }
     copiedListener = onCopied;
 
-    function scrollToBottom() {
-      if (scrollEl) scrollEl.scrollTop = scrollEl.scrollHeight;
+    // The thread is either stuck to the bottom or holding the reader's place
+    // (the top row in view) through every reflow. Only the reader's own
+    // scrolling switches between them: rebuilt rows and settling cards fire
+    // scroll events too, and those must not read as scrolling away.
+    var intentAt = -Infinity;
+    var dragging = false;
+    var lastTop = 0;
+    var SCROLL_KEYS = { ArrowUp: 1, ArrowDown: 1, PageUp: 1, PageDown: 1, Home: 1, End: 1, ' ': 1 };
+
+    function markIntent() { intentAt = performance.now(); }
+    function userScrolling() { return dragging || performance.now() - intentAt < 600; }
+
+    function pin() {
+      scrollEl.scrollTop = scrollEl.scrollHeight;
+    }
+
+    function captureAnchor() {
+      var top = scrollEl.getBoundingClientRect().top;
+      for (var n = thread.firstElementChild; n; n = n.nextElementSibling) {
+        if (!n._msgId) continue;
+        var r = n.getBoundingClientRect();
+        if (r.bottom > top) { api.setAnchor({ id: n._msgId, top: r.top - top }); return; }
+      }
+    }
+
+    function holdAnchor() {
+      var a = api.anchor();
+      var row = a && rows.get(a.id);
+      if (!row || row.parentNode !== thread) return false;
+      var delta = row.getBoundingClientRect().top - scrollEl.getBoundingClientRect().top - a.top;
+      if (Math.abs(delta) >= 1) scrollEl.scrollTop += delta;
+      return true;
+    }
+
+    // After anything that can move content: a render, a card or image settling, a resize.
+    function settle() {
+      if (!scrollEl || triggerMode || detaching || !rows.size) return;
+      // A place that's gone (another chat, a reload that dropped older pages) falls back to the bottom.
+      if (!api.stick() && !holdAnchor()) api.setStick(true);
+      if (api.stick()) pin();
+      lastTop = scrollEl.scrollTop;
+      updateJump();
+    }
+
+    function jumpToBottom() {
+      api.setStick(true);
+      settle();
     }
 
     // A choices card answers to the message right after its own, so it's live only on
@@ -1143,8 +1188,8 @@
     });
 
     function onContentHydrated() {
-      if (triggerMode) { measureRuns(); return; }
-      if (!detaching && api.stick()) scrollToBottom();
+      if (triggerMode) measureRuns();
+      else settle();
     }
     hydrateListener = onContentHydrated;
 
@@ -1158,7 +1203,7 @@
       var sbw = scrollEl.offsetWidth - scrollEl.clientWidth;
       scrollEl.style.setProperty('--chat-scrollbar-w', (Math.ceil(sbw) + 4) + 'px');
       scrollEl.style.setProperty('--chat-composer-h', panel.offsetHeight + 'px');
-      if (api.stick()) scrollToBottom();
+      settle();
     }
 
     function armComposerObserver() {
@@ -1510,7 +1555,7 @@
       }
     }
 
-    function render(mode) {
+    function render() {
       var snap = api.state();
       renderChrome(snap);
       var wasTrigger = triggerMode;
@@ -1523,7 +1568,6 @@
           emptyKind = '';
           if (scrollEl) scrollEl.scrollTop = 0;
         }
-        lastPrependSeq = snap.prependSeq;
         renderRuns(snap);
         updateJump(snap);
         // A narrowed list can come up short; keep paging until it fills or runs out.
@@ -1531,18 +1575,28 @@
         return;
       }
       if (runsEl) { root.__hyloReleaseFenceCards(runsEl); runsEl.remove(); runsEl = null; runsSig = ''; }
-      var prepended = snap.prependSeq !== lastPrependSeq && scrollEl;
-      lastPrependSeq = snap.prependSeq;
-      var fromBottom = prepended ? scrollEl.scrollHeight - scrollEl.scrollTop : 0;
       renderThread(snap);
-      // Keep the reader's place when older messages land above them.
-      if (prepended) scrollEl.scrollTop = scrollEl.scrollHeight - fromBottom;
       syncRetry(snap);
-      if (mode === 'jump' || (mode === 'maybe' && snap.stick)) scrollToBottom();
-      updateJump(snap);
+      settle();
+      updateJump();
     }
 
     function onScroll() {
+      if (scrollEl && !triggerMode && rows.size) {
+        var top = scrollEl.scrollTop;
+        var dist = scrollEl.scrollHeight - top - scrollEl.clientHeight;
+        if (dist <= 64) api.setStick(true);
+        else if (api.stick() && userScrolling() && top < lastTop - 1) api.setStick(false);
+        // Stuck but shoved off the bottom by a reflow the observer hasn't seen yet.
+        else if (api.stick()) pin();
+        // The place is the reader's to move; a reflow mid-layout would record a half-built one.
+        if (!api.stick()) {
+          if (userScrolling()) captureAnchor();
+          else holdAnchor();
+        }
+        lastTop = scrollEl.scrollTop;
+        updateJump();
+      }
       if (scrollRaf) return;
       scrollRaf = requestAnimationFrame(function () {
         scrollRaf = 0;
@@ -1552,14 +1606,27 @@
           if (dist < 400) void api.loadOlder();
           return;
         }
-        api.setStick(dist <= 64);
-        updateJump();
         if (scrollEl.scrollTop < 400) void api.loadOlder();
       });
     }
 
     if (scrollEl) {
       on(scrollEl, 'scroll', onScroll, { passive: true });
+      on(scrollEl, 'wheel', markIntent, { passive: true });
+      on(scrollEl, 'touchstart', markIntent, { passive: true });
+      on(scrollEl, 'touchmove', markIntent, { passive: true });
+      // A press on the scroller itself, not its content, is a scrollbar drag.
+      on(scrollEl, 'pointerdown', function (e) { if (e.target === scrollEl) dragging = true; });
+      on(window, 'pointerup', function () { if (dragging) { dragging = false; markIntent(); } });
+      on(window, 'keydown', function (e) {
+        var t = e.target;
+        if (SCROLL_KEYS[e.key] && !(t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)))) markIntent();
+      });
+      if (typeof ResizeObserver !== 'undefined') {
+        contentRo = new ResizeObserver(settle);
+        contentRo.observe(thread);
+        contentRo.observe(scrollEl);
+      }
       on(scrollEl, 'click', function (e) {
         var a = e.target.closest && e.target.closest('a');
         if (!a) return;
@@ -1635,11 +1702,7 @@
     on(stopBtn, 'click', function () { void api.cancel(); });
     on(newBtn, 'click', function () { void api.newChat(); });
     on(triggersBtn, 'click', openTriggerSettings);
-    on(jumpBtn, 'click', function () {
-      api.setStick(true);
-      scrollToBottom();
-      updateJump();
-    });
+    on(jumpBtn, 'click', jumpToBottom);
     if (seg) {
       on(seg, 'click', function (e) {
         var btn = e.target.closest && e.target.closest('.seg-btn');
@@ -1701,6 +1764,7 @@
         listen.abort();
         if (timeTimer) { clearInterval(timeTimer); timeTimer = 0; }
         if (ro) { ro.disconnect(); ro = null; }
+        if (contentRo) { contentRo.disconnect(); contentRo = null; }
         if (ac) {
           try { ac.close(); } catch (e) { /* ignore */ }
           ac = null;

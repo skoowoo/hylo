@@ -5,10 +5,6 @@
 (function (root) {
   var R = root.__hyloChatReduce;
 
-  function rank(mode) {
-    return mode === 'jump' ? 2 : mode === 'maybe' ? 1 : 0;
-  }
-
   root.__hyloChatCreate = function (host) {
     host = host || {};
     var mates = [];
@@ -38,10 +34,11 @@
     var PAGE = 50;
     var hasOlder = false;
     var loadingOlder = false;
-    var prependSeq = 0;
     var lastMsgMs = 0;
     var draft = '';
     var stick = true;
+    // The reader's place while not stuck to the bottom, kept across remounts.
+    var anchor = null;
     // Set when insertWikilink lands on the draft fallback (no view mounted
     // yet, e.g. a note handed to a bot before its chat panel has loaded) —
     // attach() consumes it to focus the composer once the textarea actually
@@ -61,8 +58,8 @@
 
     var view = null;
     var raf = 0;
-    var pending = 'none';
-    var heldScroll = 'none';
+    var pending = false;
+    var heldJump = false;
 
     function mateById(id) {
       for (var i = 0; i < mates.length; i++) if (mates[i].id === id) return mates[i];
@@ -117,12 +114,13 @@
       return stoppingMsgId;
     }
 
-    function requestRender(mode) {
+    // jump: show the bottom and stick to it, as after a send or opening a chat.
+    function requestRender(jump) {
       if (mateGone) settleMate();
-      if (rank(mode) > rank(pending)) pending = mode;
+      if (jump) pending = true;
       if (!view) {
-        if (rank(pending) > rank(heldScroll)) heldScroll = pending;
-        pending = 'none';
+        if (pending) heldJump = true;
+        pending = false;
         return;
       }
       if (raf) return;
@@ -131,14 +129,14 @@
 
     function flush() {
       raf = 0;
-      var mode = pending;
-      pending = 'none';
+      var jump = pending;
+      pending = false;
       if (!view) {
-        if (rank(mode) > rank(heldScroll)) heldScroll = mode;
+        if (jump) heldJump = true;
         return;
       }
-      if (mode === 'jump') stick = true;
-      view.render(mode);
+      if (jump) stick = true;
+      view.render();
     }
 
     function state() {
@@ -156,7 +154,6 @@
         runId: run ? run.id : null,
         stoppingId: activeStoppingId(),
         stick: stick,
-        prependSeq: prependSeq,
         hasOlder: hasOlder,
         triggers: triggers,
         triggersLoaded: triggersFor === mateId,
@@ -210,7 +207,7 @@
         var sig = JSON.stringify(mates.map(function (m) { return [m.id, m.name, m.color]; }));
         if (sig !== matesSig) { matesSig = sig; catalogEpoch++; }
         if (host.onMates) host.onMates(mates);
-        requestRender('none');
+        requestRender();
       } catch (e) { notify("Couldn't load bots"); }
     }
 
@@ -220,7 +217,7 @@
         if (!resp.ok) { notify("Couldn't load triggers"); return; }
         eventDefs = (await resp.json()).events || [];
         catalogEpoch++;
-        requestRender('none');
+        requestRender();
       } catch (e) { notify("Couldn't load triggers"); }
     }
 
@@ -237,7 +234,7 @@
         notify("Couldn't load triggers");
       }
       triggersFor = id;
-      requestRender('none');
+      requestRender();
     }
 
     function cancelRunPoller() { stopLoop(runCtrl); }
@@ -268,7 +265,7 @@
             msg.status = s;
             msg.completedAt = info.updatedAt || Date.now();
             R.touch(msg);
-            requestRender('maybe');
+            requestRender();
           }
           toastFor(s, msg);
           return false;
@@ -323,13 +320,13 @@
             if (t > lastTs) lastTs = t;
           }
           if (lastTs > lastMsgMs) lastMsgMs = lastTs;
-          if (changed) requestRender('maybe');
+          if (changed) requestRender();
         }
         return 5000;
       });
     }
 
-    async function loadMessages(convId, seq) {
+    async function loadMessages(convId, seq, keepPlace) {
       try {
         var resp = await fetch('/api/conversations/' + convId + '?limit=' + PAGE, { cache: 'no-store' });
         if (!resp.ok) { notify("Couldn't load the conversation"); return; }
@@ -346,11 +343,12 @@
         }
         lastMsgMs = lastMs;
         startSync(convId);
-        requestRender('jump');
+        requestRender(!keepPlace);
       } catch (e) { notify("Couldn't load the conversation"); }
     }
 
-    async function refresh() {
+    // keepPlace: a manual refresh, which leaves the reader where they were.
+    async function refresh(keepPlace) {
       if (busy() || !mateId) return;
       var seq = ++refreshSeq;
       if (convType === 'trigger') void loadTriggers();
@@ -362,12 +360,12 @@
         if (seq !== refreshSeq) return;
         conversationId = convs.length > 0 ? convs[0].id : '';
         if (conversationId) {
-          await loadMessages(conversationId, seq);
+          await loadMessages(conversationId, seq, keepPlace);
         } else {
           messages = [];
           hasOlder = false;
           cancelSync();
-          requestRender('none');
+          requestRender();
         }
       } catch (e) { notify("Couldn't load the conversation"); }
     }
@@ -386,8 +384,7 @@
         hasOlder = !!data.hasMore;
         if (!older.length) return;
         messages = older.concat(messages);
-        prependSeq++;
-        requestRender('none');
+        requestRender();
       } catch (e) { notify("Couldn't load earlier messages"); }
       finally { loadingOlder = false; }
     }
@@ -403,7 +400,7 @@
         }
         if (!dbMsg || !msg || msg.role !== 'assistant') return;
         R.replaceTextFromDB(msg, dbMsg.content);
-        requestRender('maybe');
+        requestRender();
       } catch (e) { notify("Couldn't sync the reply"); }
     }
 
@@ -424,12 +421,12 @@
             var out = R.applySSE(msg, event, data);
             if (out.runId && run) run.id = out.runId;
             if (event === 'start') {
-              requestRender('maybe');
+              requestRender();
               return;
             }
             if (out.ended && document.hidden) toastFor(out.status, msg);
             R.touch(msg);
-            requestRender('maybe');
+            requestRender();
           });
           buf = fed.buf;
           if (fed.gotEnd) gotEnd = true;
@@ -455,7 +452,7 @@
       messages.push(assistant);
       phase = 'streaming';
       run = { id: null, assistantMsgId: assistant.id };
-      requestRender('jump');
+      requestRender(true);
       var sseGotEnd = true;
       try {
         var resp = await fetch('/api/chat', {
@@ -494,7 +491,7 @@
         run = null;
         if (!sseGotEnd && runId) spawnRunPoller(runId, assistant.id);
         ensureSync(conversationId);
-        requestRender('maybe');
+        requestRender();
       }
     }
 
@@ -520,7 +517,7 @@
       };
       messages.push(assistant);
       phase = 'streaming';
-      requestRender('jump');
+      requestRender(true);
       try {
         var resp = await fetch('/api/runs/retry-trigger', {
           method: 'POST',
@@ -554,7 +551,7 @@
       } finally {
         phase = 'idle';
         ensureSync(conversationId);
-        requestRender('maybe');
+        requestRender();
       }
     }
 
@@ -565,6 +562,8 @@
       draft: function () { return draft; },
       stick: function () { return stick; },
       setStick: function (v) { stick = !!v; },
+      anchor: function () { return anchor; },
+      setAnchor: function (a) { anchor = a; },
       setDraft: function (v) { draft = v || ''; },
       send: function () { return send(); },
       sendChoice: function (text) { return send(null, text); },
@@ -575,7 +574,7 @@
       setConvType: function (t) { return setConvType(t); },
       setTriggerFilter: function (id) {
         triggerFilter = triggerFilter === id ? '' : (id || '');
-        requestRender('none');
+        requestRender();
       },
     };
 
@@ -583,11 +582,10 @@
       detach();
       if (!el || !root.__hyloChatMount) return;
       view = root.__hyloChatMount(el, facade);
-      var mode = heldScroll;
-      heldScroll = 'none';
-      if (mode === 'none' && stick && messages.length) mode = 'jump';
-      if (mode === 'jump') stick = true;
-      view.render(mode);
+      var jump = heldJump;
+      heldJump = false;
+      if (jump) stick = true;
+      view.render();
       if (focusAfterAttach) {
         focusAfterAttach = false;
         if (view.focusComposer) view.focusComposer();
@@ -596,8 +594,8 @@
 
     function detach() {
       if (raf) { cancelAnimationFrame(raf); raf = 0; }
-      if (rank(pending) > rank(heldScroll)) heldScroll = pending;
-      pending = 'none';
+      if (pending) heldJump = true;
+      pending = false;
       if (!view) return;
       if (view.draftValue) draft = view.draftValue();
       view.destroy();
@@ -623,7 +621,7 @@
       mateId = id;
       try { sessionStorage.setItem('hylo_agent_bot_id', id); } catch (e) { /* ignore */ }
       if (host.onMate) host.onMate(id);
-      requestRender('none');
+      requestRender();
       return true;
     }
 
@@ -680,14 +678,14 @@
       hasOlder = false;
       stoppingMsgId = '';
       refreshSeq++;
-      requestRender('none');
+      requestRender();
       if (mateId) void refresh();
     }
 
     async function newChat() {
       if (busy() || !mateId || messages.length === 0) return;
       phase = 'sending';
-      requestRender('none');
+      requestRender();
       cancelRunPoller();
       var d = new Date();
       var title = d.getFullYear() + '-' +
@@ -711,12 +709,12 @@
           lastMsgMs = 0;
           cancelSync();
           startSync(conversationId);
-          requestRender('none');
+          requestRender();
         }
       } catch (e) { notify("Couldn't start a new chat"); }
       finally {
         if (phase === 'sending') phase = 'idle';
-        requestRender('maybe');
+        requestRender();
         if (view && view.focusComposer) view.focusComposer();
       }
     }
@@ -728,7 +726,7 @@
       var mate = mateById(mateId);
       if (!mate) return;
       phase = 'sending';
-      requestRender('none');
+      requestRender();
       try {
         if (!conversationId) {
           try {
@@ -753,7 +751,7 @@
         await runTurn(text, userMsgId, mate, extra);
       } finally {
         if (phase === 'sending') phase = 'idle';
-        requestRender('maybe');
+        requestRender();
       }
     }
 
@@ -810,7 +808,7 @@
       if (phase !== 'streaming' || !id) return;
       phase = 'stopping';
       stoppingMsgId = run.assistantMsgId;
-      requestRender('none');
+      requestRender();
       try {
         var resp = await fetch('/api/runs/' + id + '/cancel', { method: 'POST' });
         if (!resp.ok) notify("Couldn't stop the run");
@@ -887,6 +885,11 @@
       attach: attach,
       detach: detach,
       tryOpen: tryOpen,
+      reload: async function () {
+        if (!bootstrapped) return;
+        await reloadMates();
+        await refresh(true);
+      },
       openFreshChat: openFreshChat,
       busy: busy,
       mateId: function () { return mateId; },

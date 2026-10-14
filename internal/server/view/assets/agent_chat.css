@@ -190,6 +190,8 @@
       padding: 1.5rem;
       align-items: center;
       contain: layout style;
+      /* chat_view.js keeps the reader's place itself, the same in every engine. */
+      overflow-anchor: none;
     }
 
     /* .chat-input-outer floats over this pane's bottom edge (position:
@@ -251,9 +253,10 @@
     .chat-scroll-bottom-btn:active { background: var(--surface-2); transform: translateX(-50%) scale(0.9); }
     .chat-scroll-bottom-btn svg { width: 15px; height: 15px; flex-shrink: 0; }
 
+    /* Grows with its rows (never squeezed to the viewport) so a ResizeObserver
+       on it sees every reflow: cards, images, the composer's clearance. */
     .chat-scroll-inner {
-      flex: 1;
-      min-height: 0;
+      flex: 1 0 auto;
       width: 100%;
       max-width: 48rem;
       display: flex;

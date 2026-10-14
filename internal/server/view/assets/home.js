@@ -261,6 +261,11 @@ function homeCtrl() {
     reloadActiveSection() {
       // Explicit refresh: drop every parked section, then refetch what's on screen.
       __hyloSectionCacheInvalidate();
+      // The chat's DOM is the kernel's, so it refetches the conversation instead.
+      if (this._chat && document.getElementById('chat-root')) {
+        this._chat.reload();
+        return;
+      }
       __hyloSectionFetch(this.curKey);
     },
 
