@@ -7,7 +7,7 @@ import { Decoration } from '@codemirror/view';
 import { syntaxTree } from '@codemirror/language';
 import { selectionTouchesRange, selectionTouchesLine, selectionInsideRange, readingMode } from './selection.js';
 import { isRevealSuppressed } from './link-reveal-suppression.js';
-import { WikiLinkWidget, ImageWidget, TaskCheckboxWidget, ListMarkerWidget, CodeHeaderWidget } from './widgets.js';
+import { HangMarkWidget, WikiLinkWidget, ImageWidget, TaskCheckboxWidget, ListMarkerWidget, CodeHeaderWidget } from './widgets.js';
 import { wikiNodeInner, splitWikiLinkInner } from './wiki-syntax.js';
 import { hideRange, styleRange, hangRange, excludeFromTextSample } from './decoration-helpers.js';
 import { isSameNode } from './tree-utils.js';
@@ -71,12 +71,26 @@ function pushHeadingLines(doc, level, textFrom, textTo, nextNo, decos) {
   }
 }
 
+// A hung marker is a widget until the caret steps into it (← from the text,
+// or a click on it); then the source shows in place, still hung, to edit.
+function hangMarker(state, from, to, width, className, decos) {
+  const editing = state.selection.ranges.some((r) => r.empty && r.head >= from && r.head < to);
+  if (editing) {
+    hangRange(from, to, width, className, decos);
+    return;
+  }
+  decos.push(Decoration.replace({ widget: new HangMarkWidget(state.doc.sliceString(from, to), className) }).range(from, to));
+}
+
 function decorateHeading(level) {
   return (node, view, decos) => {
     const doc = view.state.doc;
     const line = doc.lineAt(node.from);
-    pushHeadingLines(doc, level, line.number, line.number, line.number + 1, decos);
     const mark = node.node.getChild('HeaderMark');
+    // A bare "#" is CommonMark's empty heading, but styling it before the
+    // space is typed reads as "# " and turns "#text" into a paragraph.
+    if (mark && mark.to === line.to) return;
+    pushHeadingLines(doc, level, line.number, line.number, line.number + 1, decos);
     if (!mark) return;
     // Fold trailing space after "#"s — not part of HeaderMark.
     const extra =
@@ -85,7 +99,7 @@ function decorateHeading(level) {
       // Caret on the line reveals the "#"s, muted so they read as syntax. At
       // the line start they hang in the margin; nested ("> # x") they stay inline.
       if (mark.from === line.from) {
-        hangRange(mark.from, mark.to + extra, (mark.to + extra - mark.from) * 0.75 + 'em', 'cm-lp-heading-mark', decos);
+        hangMarker(view.state, mark.from, mark.to + extra, (mark.to + extra - mark.from) * 0.75 + 'em', 'cm-lp-heading-mark', decos);
       } else {
         styleRange(mark.from, mark.to, 'cm-lp-heading-mark', decos);
       }
@@ -190,9 +204,10 @@ function decorateQuoteMark(node, view, decos) {
     // One hanging box for the whole "> > " prefix, placed by its first mark,
     // so the revealed markers sit in the quote's own padding.
     const prefix = node.from === markLine.from && QUOTE_PREFIX_RE.exec(markLine.text);
-    if (prefix) {
+    // "> - item": the list marker hides the prefix to lay out its own column.
+    if (prefix && syntaxTree(view.state).resolveInner(markLine.from + prefix[0].length, 1).name !== 'ListMark') {
       const depth = (prefix[0].match(/>/g) || []).length;
-      hangRange(markLine.from, markLine.from + prefix[0].length, depth * QUOTE_STEP_REM + 'rem', 'cm-lp-quote-mark', decos);
+      hangMarker(view.state, markLine.from, markLine.from + prefix[0].length, depth * QUOTE_STEP_REM + 'rem', 'cm-lp-quote-mark', decos);
     }
     return;
   }
@@ -383,6 +398,8 @@ function decorateListMark(node, view, decos, options, cache) {
   const task = listItem.getChild('Task');
   const taskMarker = task && task.getChild('TaskMarker');
   const line = doc.lineAt(node.from);
+  // Bare "-" / "1." is an empty item to CommonMark; same trap as a bare "#".
+  if (node.to === line.to && listItem.to <= line.to) return;
   const columnEm = markerColumnEm(doc, list, cache);
   const indentEm = contentIndentEm(doc, list, cache);
   const end = markerEnd(doc, node, line, taskMarker);

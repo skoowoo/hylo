@@ -1,4 +1,4 @@
-import { WidgetType } from '@codemirror/view';
+import { WidgetType, EditorView } from '@codemirror/view';
 import { allowFrontmatterCaret } from './frontmatter-readonly.js';
 import { openImageViewer } from './image-viewer.js';
 
@@ -175,6 +175,45 @@ export class TaskCheckboxWidget extends WidgetType {
 }
 
 // Bullet "•" or the ordered number, in a fixed-width marker column.
+// Revealed line-start syntax ("## ", "> ") hung in the margin at zero width.
+// A widget, not styled source text: an IME composition or a redraw can't
+// land inside a sized box and shift the marker or misplace the caret.
+export class HangMarkWidget extends WidgetType {
+  constructor(text, className) {
+    super();
+    this.text = text;
+    this.className = className;
+  }
+
+  eq(other) {
+    return other.text === this.text && other.className === this.className;
+  }
+
+  toDOM(view) {
+    const anchor = document.createElement('span');
+    anchor.className = 'cm-lp-hang-anchor';
+    const mark = document.createElement('span');
+    mark.className = this.className + ' cm-lp-hang-mark';
+    mark.textContent = this.text;
+    anchor.appendChild(mark);
+    // CM would map any click on a widget to one of its sides; keep the
+    // source-text feel of landing between the clicked characters.
+    mark.addEventListener('mousedown', (e) => {
+      if (e.button !== 0 || e.shiftKey || !view.state.facet(EditorView.editable)) return;
+      const hit = document.caretRangeFromPoint && document.caretRangeFromPoint(e.clientX, e.clientY);
+      const offset = hit && hit.startContainer === mark.firstChild ? hit.startOffset : 0;
+      e.preventDefault();
+      view.dispatch({ selection: { anchor: view.posAtDOM(anchor) + offset }, userEvent: 'select.pointer' });
+      view.focus();
+    });
+    return anchor;
+  }
+
+  ignoreEvent() {
+    return true;
+  }
+}
+
 export class ListMarkerWidget extends WidgetType {
   constructor(label, columnEm) {
     super();

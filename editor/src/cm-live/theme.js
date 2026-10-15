@@ -91,6 +91,8 @@ export const livePreviewTheme = EditorView.theme({
   // level so it reads as syntax, not part of the heading text.
   '.cm-lp-heading-mark': { color: 'var(--muted-soft, rgba(60,60,67,0.35))', fontWeight: '400' },
   // Box for hangRange: right-aligned so the syntax ends where the text begins.
+  '.cm-lp-hang-anchor': { position: 'relative' },
+  '.cm-lp-hang-mark': { position: 'absolute', right: '0', whiteSpace: 'pre', fontStyle: 'normal' },
   '.cm-lp-hang': { display: 'inline-block', textAlign: 'right', whiteSpace: 'pre', fontStyle: 'normal' },
   '.cm-lp-quote-mark': { color: 'var(--muted-soft, rgba(60,60,67,0.35))', paddingRight: '0.45rem', boxSizing: 'border-box' },
   // Setext underline once its text is hidden.

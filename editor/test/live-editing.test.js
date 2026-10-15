@@ -58,6 +58,26 @@ test('setext heading renders as a heading with its underline collapsed', () => {
   assert.ok(classes.includes('cm-lp-hidden-line'));
 });
 
+test('bare block markers stay raw until the space is typed', () => {
+  for (const doc of ['#', '###', '-', '*', '1.', '> #', '> -']) {
+    const block = decoClasses(viewFor(doc, doc.length)).filter((c) => /heading|list|ListMarker/.test(c));
+    assert.deepEqual(block, [], doc);
+  }
+  assert.ok(decoClasses(viewFor('# ', 2)).includes('cm-lp-heading cm-lp-h1'));
+  assert.ok(decoClasses(viewFor('- ', 2)).includes('ListMarkerWidget'));
+});
+
+test('revealed heading/quote markers hang as a widget until the caret steps in', () => {
+  assert.ok(decoClasses(viewFor('## a', 3)).includes('HangMarkWidget'));
+  assert.ok(decoClasses(viewFor('## ', 3)).includes('HangMarkWidget'));
+  assert.ok(decoClasses(viewFor('> a', 2)).includes('HangMarkWidget'));
+  assert.ok(!decoClasses(viewFor('> - a', 5)).includes('HangMarkWidget'));
+  const inside = decoClasses(viewFor('## a', 2));
+  assert.ok(inside.includes('cm-lp-heading-mark cm-lp-hang'));
+  assert.ok(!inside.includes('HangMarkWidget'));
+  assert.ok(decoClasses(viewFor('## a', 0)).includes('cm-lp-heading-mark cm-lp-hang'));
+});
+
 test('setext underline under the caret stays raw', () => {
   assert.deepEqual(decoClasses(viewFor('Title\n-\n\nx', 7)), []);
 });
