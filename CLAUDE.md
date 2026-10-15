@@ -10,6 +10,13 @@
 - Check whether the same root cause affects other places, and fix them together.
 - When only a patch is feasible, say so explicitly and explain the trade-off.
 
+## Changing UI
+
+- Start from the whole surface, not the named point. Removing or changing one element reshapes its surroundings (hierarchy, spacing, where its information goes), so redesign the affected area in one pass instead of patching it step by step.
+- Reuse shared components, classes and tokens (e.g. `.hairline`, `.avatar--*`, `--space-*`) rather than hand-rolling equivalents.
+- Remove what the old design leaves behind: dead CSS, stale comments.
+- Describe the resulting layout in the reply, not just the diff.
+
 ## Code Comments
 
 Write as few comments as possible.

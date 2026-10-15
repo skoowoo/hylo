@@ -54,6 +54,20 @@ function homeInboxMixin(boot) {
       if (this.inboxFilter === 'all') return this.inboxMessages;
       return this.inboxMessages.filter((m) => !m.isRead);
     },
+    // Messages arrive newest-first, so each day bucket is one contiguous run.
+    inboxGroups() {
+      var now = new Date();
+      var today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+      var groups = [], cur = null;
+      this.visibleInboxMessages().forEach((m) => {
+        var d = new Date(m.createdAt);
+        var days = Math.round((today - new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()) / 864e5);
+        var label = days <= 0 ? 'Today' : days === 1 ? 'Yesterday' : days < 7 ? 'Last 7 days' : 'Earlier';
+        if (!cur || cur.label !== label) groups.push(cur = { label: label, items: [] });
+        cur.items.push(m);
+      });
+      return groups;
+    },
     setInboxFilter(f) {
       this.inboxFilter = f;
       this.fillInboxList();

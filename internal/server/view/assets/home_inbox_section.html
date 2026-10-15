@@ -9,16 +9,25 @@
     <button type="button" class="icon-btn home-inbox-mark-all-btn" title="Mark all read" x-show="unreadCount > 0" {{xshow (gt .Boot.UnreadCount 0)}} @click="markAllInboxRead()">{{svgCheck}}</button>
   </div>
   <div class="sec-body home-inbox-list" id="home-inbox-list" @scroll="onInboxListScroll($event)">
-    <template x-for="m in visibleInboxMessages()" :key="m.id">
-      <div class="list-card list-card--clickable home-list-card home-inbox-card" :class="{ 'is-unread': !m.isRead }" x-press="selectInboxMessage(m)">
-        <div class="dot dot--fg home-inbox-unread-dot"></div>
-        <div class="home-inbox-card-content">
-          <div class="home-inbox-card-top">
-            <span class="home-inbox-card-title" x-text="m.title || m.source"></span>
-            <span class="home-inbox-card-time" x-text="relTime(m.createdAt)"></span>
+    <template x-for="g in inboxGroups()" :key="g.label">
+      <div class="home-inbox-group">
+        <div class="home-inbox-group-label" x-text="g.label"></div>
+        <template x-for="m in g.items" :key="m.id">
+          <div class="list-card list-card--clickable home-list-card home-inbox-card" :class="{ 'is-unread': !m.isRead }" x-press="selectInboxMessage(m)">
+            <div class="home-inbox-avatar">
+              <span class="avatar avatar--md" x-html="agentBotAvatar(m.source)"></span>
+              <div class="dot dot--fg home-inbox-unread-dot"></div>
+            </div>
+            <div class="home-inbox-card-content">
+              <div class="home-inbox-card-top">
+                <span class="home-inbox-card-name" x-text="m.source"></span>
+                <span class="home-inbox-card-time" x-text="relTime(m.createdAt)"></span>
+              </div>
+              <div class="home-inbox-card-title" x-show="m.title && m.title !== m.source" x-text="m.title"></div>
+              <div class="home-inbox-card-snippet" x-text="inboxSnippet(m.body)"></div>
+            </div>
           </div>
-          <div class="home-inbox-card-snippet" x-text="inboxSnippet(m.body)"></div>
-        </div>
+        </template>
       </div>
     </template>
     <div class="home-list-empty" x-show="inboxLoadingMore" style="padding:1rem 0">Loading more…</div>

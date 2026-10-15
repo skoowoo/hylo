@@ -460,19 +460,23 @@
          inboxSheetOpen (home.js's selectInboxMessage/closeInboxSheet). -->
     <div class="content-pane-panel inbox-detail-panel" x-show="inboxSheetOpen">
       <div class="content-pane-tool-bar">
-        <span class="inbox-sheet-title" x-text="inboxSelected ? (inboxSelected.title || inboxSelected.source) : ''"></span>
         <button type="button" class="icon-btn-ghost inbox-sheet-close" @click="closeInboxSheet()" title="Close">
           <svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" d="M18 6 6 18"/><path stroke-linecap="round" d="m6 6 12 12"/></svg>
         </button>
       </div>
-      <div class="inbox-sheet-meta">
-        <span x-text="inboxSelected ? inboxSelected.source : ''"></span>
-        <span>·</span>
-        <span x-text="inboxSelected ? fullTime(inboxSelected.createdAt) : ''"></span>
-      </div>
       <div class="inbox-sheet-scroll">
-        <div class="prose inbox-sheet-body" x-html="inboxSelected ? __hyloRenderMarkdown(inboxSelected.body) : ''"
-             x-effect="inboxSelected; $nextTick(() => __hyloHydrateFenceCards($el))"></div>
+        <div class="inbox-sheet-column">
+          <div class="inbox-sheet-sender">
+            <span class="avatar avatar--lg" x-html="inboxSelected ? agentBotAvatar(inboxSelected.source) : ''"></span>
+            <div class="inbox-sheet-sender-text">
+              <span class="inbox-sheet-sender-name" x-text="inboxSelected ? inboxSelected.source : ''"></span>
+              <span class="inbox-sheet-sender-time" x-text="inboxSelected ? fullTime(inboxSelected.createdAt) : ''"></span>
+            </div>
+          </div>
+          <div class="inbox-sheet-divider hairline" role="separator"></div>
+          <div class="prose inbox-sheet-body" x-html="inboxSelected ? __hyloRenderMarkdown(inboxSelected.body) : ''"
+               x-effect="inboxSelected; $nextTick(() => __hyloHydrateFenceCards($el))"></div>
+        </div>
       </div>
     </div>
   </div>
