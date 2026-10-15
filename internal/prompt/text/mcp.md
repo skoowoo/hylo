@@ -1,5 +1,1 @@
-Hylo MCP tools are connected (MCP server "hylo"). They map 1:1 to the hylo CLI: `hylo <command> [<subcommand>]` is the tool `<command>[_<subcommand>]`, for example `hylo read` = `read`, `hylo extract section` = `extract_section`, `hylo knowledge list-indexes` = `knowledge_list_indexes`, `hylo tag list` = `tag_list`, `hylo short create` = `short_create`. Your client may show the tool with a server prefix (such as `mcp__hylo__extract_section` or `hylo_extract_section`). Positional arguments and flags become named parameters; see each tool's schema.
-
-Whenever a skill or instruction shows a `hylo ...` shell command, call the equivalent MCP tool instead of running the command. Fall back to the shell command only if the tool is missing or unavailable. If the tools are not in your tool list yet, search your deferred tools for "hylo" first. Skip any `hylo --help` environment check.
-
-Differences from the CLI: `create` takes `content` only (no --file); `resolve` always returns full metadata; results are JSON.
+Hylo MCP tools are connected (MCP server "hylo"). Skills name them bare, such as `read` or `extract_section`; your client may show them with a server prefix (such as `mcp__hylo__extract_section` or `hylo_extract_section`). If they are not in your tool list yet, search your deferred tools for "hylo" first.

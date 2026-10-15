@@ -1,47 +1,47 @@
 # Extract — Partial Note Reading
 
-`hylo extract` reads parts of a note without loading the full content. Use it whenever the full note is not needed.
+The `extract_*` tools read parts of a note without loading the full content. Use them whenever the full note is not needed.
 
-## Subcommands
+## Tools
 
-**Outline** — heading structure only:
-```bash
-hylo extract outline <path-or-name>
+**Outline** — heading structure only, as `{level, text}` per heading:
+```
+extract_outline {"path": "<path-or-name>"}
 ```
 
 **Section** — one named section and its content (ends at the next heading of equal or higher level):
-```bash
-hylo extract section <path-or-name> "<heading>"   # case-insensitive
-hylo extract section today.md "## meeting notes"
+```
+extract_section {"path": "<path-or-name>", "heading": "<heading>"}   # case-insensitive
+extract_section {"path": "today.md", "heading": "## meeting notes"}
 ```
 
-**Segment** — line range:
-```bash
-hylo extract segment <path-or-name> --head 20        # first N lines
-hylo extract segment <path-or-name> --tail 10        # last N lines
-hylo extract segment <path-or-name> --start 5 --end 30  # specific range (1-based, inclusive)
+**Segment** — line range; the result also carries `total_lines`:
+```
+extract_segment {"path": "<path-or-name>", "head": 20}             # first N lines
+extract_segment {"path": "<path-or-name>", "tail": 10}             # last N lines
+extract_segment {"path": "<path-or-name>", "start": 5, "end": 30}  # specific range (1-based, inclusive)
 ```
 
 **Tags** — front-matter tags only:
-```bash
-hylo extract tag <path-or-name>
+```
+extract_tag {"path": "<path-or-name>"}
 ```
 
 **Code blocks** — all fenced code blocks:
-```bash
-hylo extract code <path-or-name>
+```
+extract_code {"path": "<path-or-name>"}
 ```
 
 **Lists** — all bullet and numbered lists:
-```bash
-hylo extract list <path-or-name>
+```
+extract_list {"path": "<path-or-name>"}
 ```
 
-**Links** — all links (wikilinks and markdown links); each result shows type and target:
-```bash
-hylo extract link <path-or-name>
+**Links** — all links (wikilinks and markdown links); each result shows kind and target:
+```
+extract_link {"path": "<path-or-name>"}
 ```
 
 ## Path rules
 
-Same as `hylo read`: accepts vault-absolute paths (`/journal/today.md`) or bare filenames (resolves to most recently updated match).
+Same as `read`: accepts vault-absolute paths (`/journal/today.md`) or bare filenames (resolves to most recently updated match).

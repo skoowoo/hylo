@@ -11,6 +11,8 @@ Domain index files live at `<knowledge-dir>/_indexes/<Domain>.md`. The compile s
 
 A unit may appear in **at most 2** indexes: one primary domain, one secondary only when the unit genuinely straddles two.
 
+Calls below are Hylo's MCP tools (server `hylo`); your client may show them prefixed, e.g. `mcp__hylo__read`. If they are not in your tool list, search your deferred tools for "hylo".
+
 **Run all steps to completion without stopping. Only speak at the end (Step 4 summary).**
 
 ---
@@ -47,7 +49,7 @@ If all units are already indexed, report and stop.
 
 For each unindexed unit, read its YAML front matter and first non-heading paragraph. Build an internal list:
 
-`references/extract.md` documents partial-read commands — `hylo extract tag` retrieves front-matter tags directly; `hylo extract segment --head N` retrieves the opening lines. Use them instead of a full `hylo read` when only these fragments are needed.
+`references/extract.md` documents the partial-read tools — `extract_tag` retrieves front-matter tags directly; `extract_segment` with `head: N` retrieves the opening lines. Use them instead of a full `read` when only these fragments are needed.
 
 ```
 title          | entity_type | tags          | summary (≤80 chars)                              | vault-absolute path

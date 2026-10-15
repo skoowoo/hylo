@@ -109,7 +109,7 @@ func registerEditorTools(s *sdk.Server, c *client.Client, bus *editorbus.Bus) {
 	addTool(s, "editor_type",
 		"Type markdown into a note inside the user's open editor, character by character, as if they were typing. "+
 			"Use it instead of append when the user asks to write in the editor or wants to watch the writing happen. "+
-			"Needs the Hylo app open; when it fails, report that to the user instead of writing the note another way.", false,
+			"Needs the Hylo app open; when it fails, report that to the user instead of writing the note another way.", additive,
 		func(ctx context.Context, in editorTypeReq) (editorTypeOut, error) {
 			out := editorTypeOut{Path: in.Path}
 			if err := notes.CheckMarkdownPath(in.Path); err != nil {
@@ -142,7 +142,7 @@ func registerEditorTools(s *sdk.Server, c *client.Client, bus *editorbus.Bus) {
 
 	addTool(s, "editor_read",
 		"Read a note as it is in the user's open editor, unsaved edits included, split into numbered blocks, "+
-			"plus the text the user has selected. Call it before editor_rewrite to see what the user sees.", true,
+			"plus the text the user has selected. Call it before editor_rewrite to see what the user sees.", readOnly,
 		func(ctx context.Context, in editorReadReq) (editorReadOut, error) {
 			out := editorReadOut{Path: in.Path}
 			if err := requireNote(c, in.Path); err != nil {
@@ -166,7 +166,7 @@ func registerEditorTools(s *sdk.Server, c *client.Client, bus *editorbus.Bus) {
 		"Rewrite one region of a note in the user's open editor the way a person would: the region is highlighted, "+
 			"deleted, and the new text is typed in its place. Use it when asked to redo or improve part of what is "+
 			"already written. Point at the region with target (selection, or block ids from editor_read) or with "+
-			"from_text/to_text. Empty content deletes the region.", false,
+			"from_text/to_text. Empty content deletes the region.", destructive,
 		func(ctx context.Context, in editorRewriteReq) (editorRewriteOut, error) {
 			out := editorRewriteOut{Path: in.Path}
 			if err := requireNote(c, in.Path); err != nil {

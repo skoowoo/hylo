@@ -42,12 +42,23 @@ type triggerReq struct {
 	TriggerID string `json:"trigger_id" jsonschema:"trigger id, from bot_get"`
 }
 
-type skillListReq struct {
+type skillCatalogReq struct {
 	Category string `json:"category,omitempty" jsonschema:"only skills in this catalog category, e.g. news"`
 }
 
-type skillReq struct {
+type skillAddReq struct {
+	Repo  string `json:"repo" jsonschema:"GitHub repository, as a URL or owner/repo"`
+	Skill string `json:"skill,omitempty" jsonschema:"the skill's name, used to find it in the repository and to add it under; default the repository name"`
+	Force bool   `json:"force,omitempty" jsonschema:"replace an added skill of the same name"`
+}
+
+type skillNameReq struct {
 	Name string `json:"name" jsonschema:"skill name, from skills_list"`
+}
+
+type skillDirReq struct {
+	Name string `json:"name" jsonschema:"skill name, from skills_list"`
+	Dir  string `json:"dir,omitempty" jsonschema:"vault directory, e.g. /_news; omit for the vault root"`
 }
 
 type botSummary struct {
@@ -90,16 +101,16 @@ type okOut struct {
 	Message string `json:"message,omitempty"`
 }
 
-type skillOut struct {
-	Name        string `json:"name"`
-	Description string `json:"description,omitempty"`
-	Category    string `json:"category,omitempty"`
-	Installed   bool   `json:"installed"`
-	Enabled     bool   `json:"enabled"`
+type skillsOut struct {
+	Skills []client.SkillInfo `json:"skills"`
 }
 
-type skillsOut struct {
-	Skills []skillOut `json:"skills"`
+type catalogOut struct {
+	Skills []client.CatalogEntry `json:"skills"`
+}
+
+type nameOut struct {
+	Name string `json:"name"`
 }
 
 func toBotOut(m *mate.Mate) botOut {
@@ -114,16 +125,8 @@ func toBotOut(m *mate.Mate) botOut {
 }
 
 // registerBotTools exposes agent bots, their triggers and the skills they run.
-// Every change goes through gate, so only the user can make it.
-func registerBotTools(s *sdk.Server, c *client.Client, gate func(run string) error) {
-	allowed := func(ctx context.Context) error {
-		if gate == nil {
-			return nil
-		}
-		return gate(runFrom(ctx))
-	}
-
-	addTool(s, "bot_list", "List agent bots with how many triggers each has.", true,
+func registerBotTools(s *sdk.Server, c *client.Client) {
+	addTool(s, "bot_list", "List agent bots with how many triggers each has.", readOnly,
 		func(_ context.Context, _ noReq) (botsOut, error) {
 			bots, err := c.Bots()
 			out := botsOut{Bots: []botSummary{}}
@@ -133,7 +136,7 @@ func registerBotTools(s *sdk.Server, c *client.Client, gate func(run string) err
 			return out, err
 		})
 
-	addTool(s, "bot_get", "Show a bot with its triggers.", true,
+	addTool(s, "bot_get", "Show a bot with its triggers.", readOnly,
 		func(_ context.Context, in botIDReq) (botOut, error) {
 			m, err := c.Bot(in.BotID)
 			if err != nil {
@@ -142,11 +145,8 @@ func registerBotTools(s *sdk.Server, c *client.Client, gate func(run string) err
 			return toBotOut(m), nil
 		})
 
-	addTool(s, "bot_create", "Create an agent bot. It runs on the same agent and model as the user's existing bots; add triggers with trigger_add. Ask the user first.", false,
-		func(ctx context.Context, in botCreateReq) (botOut, error) {
-			if err := allowed(ctx); err != nil {
-				return botOut{}, err
-			}
+	addTool(s, "bot_create", "Create an agent bot. It runs on the same agent and model as the user's existing bots; add triggers with trigger_add. Ask the user first.", additive,
+		func(_ context.Context, in botCreateReq) (botOut, error) {
 			m, err := notes.BotCreate(c, in.Name, in.Description, in.SystemPrompt)
 			if err != nil {
 				return botOut{}, err
@@ -154,64 +154,74 @@ func registerBotTools(s *sdk.Server, c *client.Client, gate func(run string) err
 			return toBotOut(m), nil
 		})
 
-	addTool(s, "trigger_add", "Add a trigger to a bot: give a schedule to run it on a timer, or events to run it when they happen. Its output goes to the user's inbox. Ask the user first.", false,
-		func(ctx context.Context, in triggerAddReq) (triggerIDOut, error) {
-			if err := allowed(ctx); err != nil {
-				return triggerIDOut{}, err
-			}
+	addTool(s, "trigger_add", "Add a trigger to a bot: give a schedule to run it on a timer, or events to run it when they happen. Its output goes to the user's inbox. Ask the user first.", additive,
+		func(_ context.Context, in triggerAddReq) (triggerIDOut, error) {
 			id, err := notes.TriggerAdd(c, in.BotID, notes.TriggerSpec{
 				Name: in.Name, Prompt: in.Prompt, Schedule: in.Schedule, Events: in.Events, PathPrefixes: in.PathPrefixes,
 			})
 			return triggerIDOut{TriggerID: id}, err
 		})
 
-	addTool(s, "trigger_update", "Change a trigger's label, prompt or schedule, or turn it on or off.", false,
-		func(ctx context.Context, in triggerUpdateReq) (okOut, error) {
-			if err := allowed(ctx); err != nil {
-				return okOut{}, err
-			}
+	addTool(s, "trigger_update", "Change a trigger's label, prompt or schedule, or turn it on or off. Ask the user first.", destructiveIdempotent,
+		func(_ context.Context, in triggerUpdateReq) (okOut, error) {
 			err := notes.TriggerUpdate(c, in.BotID, in.TriggerID, notes.TriggerChange{
 				Name: in.Name, Prompt: in.Prompt, Schedule: in.Schedule, Enabled: in.Enabled,
 			})
 			return okOut{OK: err == nil}, err
 		})
 
-	addTool(s, "trigger_delete", "Remove a trigger from a bot.", false,
-		func(ctx context.Context, in triggerReq) (okOut, error) {
-			if err := allowed(ctx); err != nil {
-				return okOut{}, err
-			}
+	addTool(s, "trigger_delete", "Remove a trigger from a bot; there is no undo. Ask the user first.", destructiveIdempotent,
+		func(_ context.Context, in triggerReq) (okOut, error) {
 			err := notes.TriggerDelete(c, in.BotID, in.TriggerID)
 			return okOut{OK: err == nil}, err
 		})
 
-	addTool(s, "trigger_run", "Run a scheduled trigger once now, in the background; the result goes to the user's inbox.", false,
-		func(ctx context.Context, in triggerReq) (okOut, error) {
-			if err := allowed(ctx); err != nil {
-				return okOut{}, err
-			}
+	addTool(s, "trigger_run", "Run a scheduled trigger once now, in the background; the result goes to the user's inbox.", additive,
+		func(_ context.Context, in triggerReq) (okOut, error) {
 			if err := c.RunTrigger(in.BotID, in.TriggerID); err != nil {
 				return okOut{}, err
 			}
 			return okOut{OK: true, Message: "started; the result arrives in the inbox when it's done"}, nil
 		})
 
-	addTool(s, "skills_list", "List skills: installed ones, and ones in Hylo's catalog that can be installed.", true,
-		func(_ context.Context, in skillListReq) (skillsOut, error) {
-			list, err := notes.SkillsList(c, in.Category)
-			out := skillsOut{Skills: []skillOut{}}
-			for _, sk := range list {
-				out.Skills = append(out.Skills, skillOut{Name: sk.Name, Description: sk.Description, Category: sk.Category, Installed: sk.Installed, Enabled: sk.Enabled})
+	addTool(s, "skills_list", "List the skills added to ~/.hylo/skills and the vault directories each is on in. Built-in skills are always on at the vault root.", readOnly,
+		func(_ context.Context, _ noReq) (skillsOut, error) {
+			list, err := c.SkillsList()
+			if list == nil {
+				list = []client.SkillInfo{}
 			}
-			return out, err
+			return skillsOut{Skills: list}, err
 		})
 
-	addTool(s, "skills_install", "Install a skill from Hylo's catalog and turn it on, or turn on one already installed. Agents started from now on can use it.", false,
-		func(ctx context.Context, in skillReq) (okOut, error) {
-			if err := allowed(ctx); err != nil {
-				return okOut{}, err
-			}
-			msg, err := notes.SkillsInstall(c, in.Name)
-			return okOut{OK: err == nil, Message: msg}, err
+	addTool(s, "skills_catalog", "List the skills Hylo recommends, each with the repo and the skill name that skills_add takes, and whether it is already added.", readOnly,
+		func(_ context.Context, in skillCatalogReq) (catalogOut, error) {
+			list, err := notes.SkillsCatalog(c, in.Category)
+			return catalogOut{Skills: list}, err
+		})
+
+	addTool(s, "skills_add", "Download a skill from a GitHub repository into ~/.hylo/skills, turned off; turn it on with skills_enable. "+
+		"Fails if a skill of that name is already added, unless force is set, which replaces it. Ask the user first.", destructiveIdempotent,
+		func(_ context.Context, in skillAddReq) (nameOut, error) {
+			name, err := c.SkillsAdd(in.Repo, in.Skill, in.Force)
+			return nameOut{Name: name}, err
+		})
+
+	addTool(s, "skills_enable", "Turn an added skill on in a vault directory, the vault root by default, so agents started there "+
+		"from now on can use it. Ask the user first.", additiveIdempotent,
+		func(_ context.Context, in skillDirReq) (okOut, error) {
+			err := c.SkillsEnable(in.Name, in.Dir)
+			return okOut{OK: err == nil}, err
+		})
+
+	addTool(s, "skills_disable", "Turn a skill off in a vault directory, the vault root by default; its files stay in ~/.hylo/skills.", destructiveIdempotent,
+		func(_ context.Context, in skillDirReq) (okOut, error) {
+			err := c.SkillsDisable(in.Name, in.Dir)
+			return okOut{OK: err == nil}, err
+		})
+
+	addTool(s, "skills_remove", "Delete a skill from ~/.hylo/skills and turn it off; there is no undo. Ask the user first.", destructiveIdempotent,
+		func(_ context.Context, in skillNameReq) (okOut, error) {
+			err := c.SkillsRemove(in.Name)
+			return okOut{OK: err == nil}, err
 		})
 }

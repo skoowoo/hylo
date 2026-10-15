@@ -11,8 +11,8 @@ import (
 func newDeleteCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "delete <path>",
-		Short: "Delete a note",
-		Long: `Delete the note at <path>.
+		Short: "Permanently delete a note",
+		Long: `Permanently delete the note at <path>; there is no undo.
 
 <path> is a vault-absolute path starting with "/" (e.g. /journal/today.md).`,
 		Example: `  hylo delete /journal/today.md

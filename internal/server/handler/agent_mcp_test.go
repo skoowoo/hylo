@@ -7,29 +7,26 @@ import (
 	"github.com/hardhacker/hylo/internal/config"
 )
 
-func newMCPTestAPI(enabled bool, port int) *AgentAPI {
+func newMCPTestAPI(port int) *AgentAPI {
 	cfg := &config.Config{
 		Server: config.ServerConfig{Host: "127.0.0.1", Port: port, APIKey: "k"},
-		Agent:  config.AgentConfig{MCPEnabled: enabled},
 	}
 	return &AgentAPI{logger: slog.Default(), cfg: cfg}
 }
 
 func TestMCPURLMatchesInjection(t *testing.T) {
 	cases := []struct {
-		name    string
-		enabled bool
-		port    int
-		agent   string
-		want    bool
+		name  string
+		port  int
+		agent string
+		want  bool
 	}{
-		{"claude enabled", true, 54321, "claude", true},
-		{"unknown agent", true, 54321, "unknown", false},
-		{"disabled in config", false, 54321, "claude", false},
-		{"tcp disabled", true, 0, "claude", false},
+		{"claude", 54321, "claude", true},
+		{"unknown agent", 54321, "unknown", false},
+		{"tcp disabled", 0, "claude", false},
 	}
 	for _, c := range cases {
-		a := newMCPTestAPI(c.enabled, c.port)
+		a := newMCPTestAPI(c.port)
 		has := a.mcpURL(c.agent) != ""
 		if has != c.want {
 			t.Errorf("%s: mcp=%v, want %v", c.name, has, c.want)

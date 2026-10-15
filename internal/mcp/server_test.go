@@ -79,6 +79,40 @@ func TestToolsAlignWithCLI(t *testing.T) {
 	}
 }
 
+// Clients read these hints to decide which calls need the user's confirmation.
+func TestToolsAnnotateTheirEffect(t *testing.T) {
+	res, err := newTestSession(t).ListTools(context.Background(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	byName := map[string]*sdk.ToolAnnotations{}
+	for _, tool := range res.Tools {
+		byName[tool.Name] = tool.Annotations
+	}
+	for name, want := range map[string]string{
+		"read": "read", "append": "add", "short_create": "add", "bot_create": "add",
+		"delete": "destroy", "create": "destroy", "trigger_delete": "destroy",
+	} {
+		a := byName[name]
+		if a == nil {
+			t.Errorf("%s: no annotations", name)
+			continue
+		}
+		var got string
+		switch {
+		case a.ReadOnlyHint:
+			got = "read"
+		case a.DestructiveHint != nil && !*a.DestructiveHint:
+			got = "add"
+		default:
+			got = "destroy"
+		}
+		if got != want {
+			t.Errorf("%s: %s, want %s", name, got, want)
+		}
+	}
+}
+
 func TestCallTools(t *testing.T) {
 	cs := newTestSession(t)
 

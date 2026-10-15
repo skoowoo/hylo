@@ -8,7 +8,7 @@ Reviews everything created or updated in a recent window — knowledge units, re
 
 ## Inputs
 
-1. **Window** — default `7` days ("past week"). Use a custom range if the user specifies one (`--start` / `--end`, or a different `--latest N`).
+1. **Window** — default `7` days ("past week"). Use a custom range if the user specifies one (`start` / `end`, or a different `latest`).
 2. **Scope** — default: knowledge units + short notes + regular notes, vault-wide. Narrow to a specific directory or domain if the user asks (e.g. "just my journal this week", "just AI knowledge units").
 
 ---
@@ -17,13 +17,13 @@ Reviews everything created or updated in a recent window — knowledge units, re
 
 Run in parallel:
 
-```bash
-hylo knowledge list --kind knowledge --latest <window>
-hylo short list --latest <window> --limit 100
-hylo list --latest <window>
+```
+knowledge_list {"kind": "knowledge", "latest": <window>}
+short_list {"latest": <window>, "limit": 100}
+list {"latest": <window>}
 ```
 
-Scope any of these to a specific directory if the user narrowed the request (e.g. `hylo list /journal --latest <window>`).
+Scope any of these to a specific directory if the user narrowed the request (e.g. `list {"path": "/journal", "latest": <window>}`).
 
 If everything comes back empty, report that nothing changed in the window and stop.
 
@@ -31,11 +31,11 @@ If everything comes back empty, report that nothing changed in the window and st
 
 ## Step 2 — Read what changed
 
-**Knowledge units**: for each, `hylo extract tag <unit>` and `hylo extract segment <unit> --head 20` for a quick read of what it's about, without a full load. Note whether `created_at` falls inside the window (new unit) or only `last_compiled_at` does (existing unit that grew this week) — `hylo extract segment` on the frontmatter block or `hylo knowledge read <unit>` if the distinction isn't clear from the preview.
+**Knowledge units**: for each, `extract_tag` and `extract_segment` with `head: 20` for a quick read of what it's about, without a full load. Note whether `created_at` falls inside the window (new unit) or only `last_compiled_at` does (existing unit that grew this week) — `extract_segment` on the frontmatter block or `knowledge_read` if the distinction isn't clear from the preview.
 
-**Short notes**: `hylo short list` returns `content` inline — no extra read needed.
+**Short notes**: `short_list` returns `content` inline — no extra read needed.
 
-**Regular notes**: skim with `hylo extract outline <note>` or `hylo extract segment <note> --head 20`; full `hylo read` only if a note looks central to the week's theme.
+**Regular notes**: skim with `extract_outline` or `extract_segment` with `head: 20`; full `read` only if a note looks central to the week's theme.
 
 ---
 

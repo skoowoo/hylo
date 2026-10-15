@@ -113,7 +113,7 @@ func newKnowledgeDeleteCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "delete <path>",
 		Short: "Permanently delete a knowledge note",
-		Long: `Delete the knowledge note at <path>.
+		Long: `Permanently delete the knowledge note at <path>; there is no undo.
 
 <path> is a vault-absolute path starting with "/" (e.g. /_knowledge/article.md).`,
 		Example:      `  hylo knowledge delete "/_knowledge/article.md"`,

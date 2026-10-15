@@ -22,7 +22,7 @@ Renaming is only allowed for ordinary notes in regular folders — short/knowled
 notes and notes under an underscore-prefixed directory (e.g. "/_shorts") cannot be
 renamed, since other subsystems assume their filenames stay stable.
 
-Fixing up [[wikilinks]] elsewhere in the vault that point to the old name happens
+[[wikilinks]] elsewhere in the vault that point to the old name are rewritten
 asynchronously after this command returns; it prints the rename job id so you can
 check on it with "hylo rename-status <job-id>".`,
 		Example:      `  hylo rename /journal/draft.md final.md`,

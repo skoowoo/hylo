@@ -7,6 +7,8 @@ description: "Extract and update personal memories from Hylo notes into structur
 
 Extracts personal memories from short notes (`/_shorts`) and the knowledge base (`/_knowledge`) into six structured memory files under `/_memory/`. On first run (no memory files exist yet), scans the last 90 days for a rich initial snapshot. On subsequent runs, scans only the last 2 days. Memories not reinforced over time gradually fade and are eventually removed.
 
+Calls below are Hylo's MCP tools (server `hylo`); your client may show them prefixed, e.g. `mcp__hylo__read`. If they are not in your tool list, search your deferred tools for "hylo".
+
 **Run all steps to completion without stopping or asking for confirmation.** Only speak at the final summary step.
 
 ---
@@ -23,8 +25,8 @@ Extracts personal memories from short notes (`/_shorts`) and the knowledge base 
 
 Check whether any memory file already exists:
 
-```bash
-hylo read /_memory/_identity.md
+```
+read {"path": "/_memory/_identity.md"}
 ```
 
 - **First run** (file not found): set `scan_window = 90` days.
@@ -46,12 +48,12 @@ This profile is critical for the knowledge base step: if a `source_notes` path f
 
 Run both queries in parallel:
 
-```bash
-hylo short list --latest <scan_window> --limit 100
-hylo knowledge list --kind knowledge --latest <scan_window> --limit 50
+```
+short_list {"latest": <scan_window>, "limit": 100}
+knowledge_list {"kind": "knowledge", "latest": <scan_window>, "limit": 50}
 ```
 
-Also run `hylo list <path> --latest <scan_window>` for each extra scan path provided.
+Also call `list {"path": "<path>", "latest": <scan_window>}` for each extra scan path provided.
 
 If all queries return zero results, skip to Step 4.
 
@@ -63,7 +65,7 @@ Apply different extraction rules depending on the source.
 
 ### Source A: Short notes (`/_shorts`)
 
-`hylo short list` returns each entry's `content` inline — process directly, no file reads needed.
+`short_list` returns each entry's `content` inline — process directly, no file reads needed.
 
 Short notes are the author's own unfiltered voice. Extract from **all six dimensions**:
 
@@ -78,10 +80,10 @@ Short notes are the author's own unfiltered voice. Extract from **all six dimens
 
 ### Source B: Knowledge base (`/_knowledge`)
 
-`hylo knowledge list` returns file paths. Read each unit:
+`knowledge_list` returns note paths. Read each unit:
 
-```bash
-hylo knowledge read <path>
+```
+knowledge_read {"path": "<path>"}
 ```
 
 **Classify each unit by its `source_notes` paths, using the author profile from Step 1:**
@@ -165,9 +167,9 @@ last_updated: <YYYY-MM-DD>
 
 ### Writing the file
 
-```bash
-hylo create /_memory/_<dimension>.md --content "<content>"           # new
-hylo create /_memory/_<dimension>.md --content "<content>" --force   # overwrite
+```
+create {"path": "/_memory/_<dimension>.md", "content": "<content>"}                  # new
+create {"path": "/_memory/_<dimension>.md", "content": "<content>", "force": true}   # overwrite
 ```
 
 Only write files that actually changed.

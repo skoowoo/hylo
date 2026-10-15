@@ -7,6 +7,8 @@ description: Extract high-value verbatim quotes from a Hylo note and save each a
 
 Extract high-value verbatim passages from a Hylo note and save each one as a short note with a backlink to the source.
 
+Calls below are Hylo's MCP tools (server `hylo`); your client may show them prefixed, e.g. `mcp__hylo__read`. If they are not in your tool list, search your deferred tools for "hylo".
+
 ## What counts as a good quote
 
 Think of it like a **pull quote in a magazine**: not just the punchline, but enough setup that the insight lands on its own. A single sentence that contains the conclusion but relies on prior paragraphs for meaning is not a good quote — include the setup.
@@ -29,8 +31,8 @@ The user will name the note as either a vault-absolute path (`/clips/article.md`
 
 ### 2. Read the note
 
-```bash
-hylo read <path-or-name>
+```
+read {"path": "<path-or-name>"}
 ```
 
 If this fails, surface the error directly — don't proceed.
@@ -39,11 +41,7 @@ If this fails, surface the error directly — don't proceed.
 
 The backlink needs a **stem** (the filename without `.md`) and a **display** label.
 
-Derive the stem:
-```bash
-# e.g. /clips/网络效应.md → 网络效应
-basename "<path>" .md
-```
+Take the stem from the `path` that `read` returned: its last segment without `.md` (e.g. `/clips/网络效应.md` → `网络效应`).
 
 For the display label, use (in priority order):
 1. The `title:` value from YAML frontmatter, if present
@@ -52,35 +50,30 @@ For the display label, use (in priority order):
 
 ### 4. Save each quote as a short note
 
-For every extracted quote run:
+For every extracted quote call:
 
-```bash
-hylo short create --content "QUOTE_TEXT
-
-[[STEM|DISPLAY]]"
+```
+short_create {"content": "QUOTE_TEXT\n\n[[STEM|DISPLAY]]"}
 ```
 
 The wikilink goes on its own paragraph (blank line separator) after the quote text. This creates a backlink so the short note points back to the source.
 
 **Example** — source `/clips/网络效应.md`, title "网络效应":
 
-```bash
-hylo short create --content "网络效应使得先发优势几乎不可逾越，后进者需要付出数倍的资源才能撬动用户迁移。
-
-[[网络效应|网络效应]]"
+```
+short_create {"content": "网络效应使得先发优势几乎不可逾越，后进者需要付出数倍的资源才能撬动用户迁移。\n\n[[网络效应|网络效应]]"}
 ```
 
-Run each `hylo short create` call separately (one per quote), not batched into one.
+Make one `short_create` call per quote, not one batched call.
 
 ### 5. Report
 
 After all saves succeed, output:
 - How many quotes were saved
-- The file path(s) returned by each `hylo short create` call (the CLI prints `saved short note to "..."`)
+- The `path` returned by each `short_create` call
 
 ## Edge cases
 
-- **Note not found**: `hylo read` will error — surface it.
+- **Note not found**: `read` will error — surface it.
 - **Very short note / few quotable passages**: save what exists (even 1–2 is fine) and note it.
 - **Note is itself a list of bullets or quotes**: each bullet is a candidate; still apply the quality filter — don't blindly save every line.
-- **Frontmatter title with quotes or special chars**: escape them properly in the shell argument, or use `$'...'` syntax.

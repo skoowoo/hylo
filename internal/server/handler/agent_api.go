@@ -120,7 +120,6 @@ func (a *AgentAPI) ChatPOST(w http.ResponseWriter, r *http.Request) {
 	}
 	run := a.hub.CreateRun(meta)
 	run.AgentID = body.AgentID
-	run.Interactive = !body.TriggerRun
 	a.logger.Info("agent chat",
 		slog.String("runId", run.ID),
 		slog.String("agentId", body.AgentID),
@@ -148,7 +147,6 @@ func (a *AgentAPI) RunsPOST(w http.ResponseWriter, r *http.Request) {
 	}
 	run := a.hub.CreateRun(meta)
 	run.AgentID = body.AgentID
-	run.Interactive = !body.TriggerRun
 	a.logger.Info("agent run queued",
 		slog.String("runId", run.ID),
 		slog.String("agentId", body.AgentID))

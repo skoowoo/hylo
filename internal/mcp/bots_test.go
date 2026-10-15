@@ -3,9 +3,9 @@ package mcp
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync"
 	"testing"
 
@@ -15,15 +15,15 @@ import (
 )
 
 type fakeBots struct {
-	mu        sync.Mutex
-	bot       mate.Mate
-	created   []mate.Mate
-	installed []string
-	enabled   []string
-	ran       []string
+	mu      sync.Mutex
+	bot     mate.Mate
+	created []mate.Mate
+	added   []string
+	enabled []string
+	ran     []string
 }
 
-func botSession(t *testing.T, f *fakeBots, query string) *sdk.ClientSession {
+func botSession(t *testing.T, f *fakeBots) *sdk.ClientSession {
 	t.Helper()
 	mux := http.NewServeMux()
 	reply := func(w http.ResponseWriter, v any) { json.NewEncoder(w).Encode(v) }
@@ -66,38 +66,33 @@ func botSession(t *testing.T, f *fakeBots, query string) *sdk.ClientSession {
 		f.mu.Unlock()
 		w.WriteHeader(http.StatusAccepted)
 	})
-	mux.HandleFunc("GET /api/skills", func(w http.ResponseWriter, _ *http.Request) {
-		reply(w, map[string]any{"skills": []client.SkillInfo{
-			{Name: "hackernews", Category: "news", RepoURL: "https://github.com/a/b", SubPath: "hackernews"},
-			{Name: "the-news", Category: "news", Installed: true},
-			{Name: "mine", Installed: true},
-			{Name: "humanizer", RepoURL: "https://github.com/c/d"},
+	mux.HandleFunc("GET /api/skills/catalog", func(w http.ResponseWriter, _ *http.Request) {
+		reply(w, map[string]any{"skills": []client.CatalogEntry{
+			{Name: "hackernews", Repo: "a/b", Category: "news"},
+			{Name: "the-news", Repo: "c/the-news", Category: "news", Added: true},
+			{Name: "humanizer", Repo: "c/d"},
 		}})
 	})
-	mux.HandleFunc("POST /api/skills/install", func(w http.ResponseWriter, r *http.Request) {
-		var body struct{ Skill string }
+	mux.HandleFunc("POST /api/skills/add", func(w http.ResponseWriter, r *http.Request) {
+		var body struct{ Repo, Skill string }
 		json.NewDecoder(r.Body).Decode(&body)
 		f.mu.Lock()
-		f.installed = append(f.installed, body.Skill)
+		f.added = append(f.added, body.Repo+":"+body.Skill)
 		f.mu.Unlock()
-		reply(w, map[string]any{"ok": true})
+		reply(w, map[string]any{"ok": true, "name": body.Skill})
 	})
 	mux.HandleFunc("POST /api/skills/{name}/enable", func(w http.ResponseWriter, r *http.Request) {
+		var body struct{ Dir string }
+		json.NewDecoder(r.Body).Decode(&body)
 		f.mu.Lock()
-		f.enabled = append(f.enabled, r.PathValue("name"))
+		f.enabled = append(f.enabled, r.PathValue("name")+body.Dir)
 		f.mu.Unlock()
 		reply(w, map[string]any{"ok": true})
 	})
-	gate := func(run string) error {
-		if run == "trigger-run" {
-			return errors.New("not from a trigger")
-		}
-		return nil
-	}
-	ts := httptest.NewServer(NewHandler(client.NewInProcess(mux), WithManageGate(gate)))
+	ts := httptest.NewServer(NewHandler(client.NewInProcess(mux)))
 	t.Cleanup(ts.Close)
 	cs, err := sdk.NewClient(&sdk.Implementation{Name: "test", Version: "0"}, nil).
-		Connect(context.Background(), &sdk.StreamableClientTransport{Endpoint: ts.URL + query}, nil)
+		Connect(context.Background(), &sdk.StreamableClientTransport{Endpoint: ts.URL}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -107,7 +102,7 @@ func botSession(t *testing.T, f *fakeBots, query string) *sdk.ClientSession {
 
 func TestBotCreateBorrowsTheAgent(t *testing.T) {
 	f := &fakeBots{bot: mate.Mate{ID: "hylo", Name: "Hylo", AgentID: "claude", Model: "opus"}}
-	cs := botSession(t, f, "")
+	cs := botSession(t, f)
 	if m, isErr := call(t, cs, "bot_create", map[string]any{"name": "News"}); isErr || m["id"] != "new" {
 		t.Fatalf("bot_create: %v %v", m, isErr)
 	}
@@ -118,7 +113,7 @@ func TestBotCreateBorrowsTheAgent(t *testing.T) {
 
 func TestTriggerAddDefaultsToScheduled(t *testing.T) {
 	f := &fakeBots{bot: mate.Mate{ID: "news", Name: "News", Triggers: []mate.MateTrigger{{ID: "t1", EventTypes: []string{"scheduled"}, Schedule: "daily 08:00", Prompt: "a"}}}}
-	cs := botSession(t, f, "")
+	cs := botSession(t, f)
 	m, isErr := call(t, cs, "trigger_add", map[string]any{"bot_id": "news", "prompt": "b", "schedule": "daily 08:05"})
 	if isErr || m["trigger_id"] != "t-new" {
 		t.Fatalf("trigger_add: %v %v", m, isErr)
@@ -137,35 +132,23 @@ func TestTriggerAddDefaultsToScheduled(t *testing.T) {
 	}
 }
 
-func TestTriggerRunsCannotManage(t *testing.T) {
-	f := &fakeBots{bot: mate.Mate{ID: "hylo", Name: "Hylo", AgentID: "claude"}}
-	cs := botSession(t, f, "?run=trigger-run")
-	for _, tool := range []string{"bot_create", "trigger_add", "trigger_run", "skills_install"} {
-		if _, isErr := call(t, cs, tool, map[string]any{"name": "x", "bot_id": "hylo", "trigger_id": "t1", "prompt": "p", "schedule": "daily 08:00"}); !isErr {
-			t.Errorf("%s ran from a trigger run", tool)
-		}
-	}
-	if _, isErr := call(t, cs, "bot_list", nil); isErr {
-		t.Error("reading is fine from a trigger run")
-	}
-	if len(f.created)+len(f.installed)+len(f.ran) != 0 {
-		t.Fatalf("changes went through: %+v", f)
-	}
-}
-
-func TestSkillInstallOnlyFromTheCatalog(t *testing.T) {
+// The catalog gives exactly what skills_add takes, and adding leaves turning on to skills_enable.
+func TestSkillsCatalogAddEnable(t *testing.T) {
 	f := &fakeBots{}
-	cs := botSession(t, f, "")
-	m, _ := call(t, cs, "skills_list", map[string]any{"category": "news"})
+	cs := botSession(t, f)
+	m, _ := call(t, cs, "skills_catalog", map[string]any{"category": "news"})
 	if n := len(m["skills"].([]any)); n != 2 {
 		t.Fatalf("news skills: %v", m)
 	}
-	call(t, cs, "skills_install", map[string]any{"name": "hackernews"})
-	call(t, cs, "skills_install", map[string]any{"name": "the-news"})
-	if _, isErr := call(t, cs, "skills_install", map[string]any{"name": "some/repo"}); !isErr {
-		t.Error("installed a skill outside the catalog")
+	if m, isErr := call(t, cs, "skills_add", map[string]any{"repo": "a/b", "skill": "hackernews"}); isErr || m["name"] != "hackernews" {
+		t.Fatalf("skills_add: %v %v", m, isErr)
 	}
-	if len(f.installed) != 1 || f.installed[0] != "hackernews" || len(f.enabled) != 1 || f.enabled[0] != "the-news" {
-		t.Fatalf("installed %v enabled %v", f.installed, f.enabled)
+	if len(f.enabled) != 0 {
+		t.Fatal("adding turned the skill on")
+	}
+	call(t, cs, "skills_enable", map[string]any{"name": "hackernews"})
+	call(t, cs, "skills_enable", map[string]any{"name": "hackernews", "dir": "/_news"})
+	if strings.Join(f.added, ",") != "a/b:hackernews" || strings.Join(f.enabled, ",") != "hackernews,hackernews/_news" {
+		t.Fatalf("added %v enabled %v", f.added, f.enabled)
 	}
 }

@@ -1,0 +1,14 @@
+[
+  {"name": "hylo-writing", "repo": "skoowoo/hylo"},
+  {"name": "hylo-quote-extract", "repo": "skoowoo/hylo"},
+  {"name": "podwise", "repo": "hardhackerlabs/podwise-cli"},
+  {"name": "weread-skills", "repo": "Tencent/WeChatReading"},
+  {"name": "humanizer", "repo": "blader/humanizer"},
+  {"name": "writing-beats", "repo": "mattpocock/skills"},
+  {"name": "daily-ai-news", "repo": "yyh211/claude-meta-skill", "category": "news",
+   "description": "Daily AI news from AI news sites and web search, with links to the originals."},
+  {"name": "hackernews", "repo": "okou-ai/okou-skills", "category": "news",
+   "description": "Top Hacker News stories and discussions."},
+  {"name": "the-news", "repo": "sfkislev/the-news", "category": "news",
+   "description": "Front-page headlines from newspapers in 20 countries."}
+]

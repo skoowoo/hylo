@@ -23,14 +23,9 @@ Ask the user for three things (can be in one message):
 
 If the user didn't say where to save the article, ask now. Remember the path.
 
-Once you have those three, scan the knowledge base:
+Once you have those three, scan the knowledge base with `knowledge_list_indexes` (a Hylo MCP tool; your client may show it prefixed, e.g. `mcp__hylo__knowledge_list_indexes`).
 
-```bash
-hylo knowledge --help
-hylo knowledge list-indexes
-```
-
-Select 1–3 domain indexes most relevant to the topic. Read those index files to find matching units. If no indexes exist, scan `_knowledge/` directly.
+Select 1–3 domain indexes most relevant to the topic. Read those indexes with `knowledge_read` to find matching units. If no indexes exist, scan `_knowledge/` directly.
 
 **Present the palette for confirmation.** Do not proceed to Phase 1 until the user signs off. Format it like this:
 
@@ -110,7 +105,7 @@ Pull material from knowledge units to populate the beat. You can paraphrase, spl
 
 **Drilling into source notes.** Knowledge units carry backlinks to the original notes they were compiled from. When the unit-level material feels thin — missing a concrete example, a specific quote, a vivid detail — follow the backlinks and read the source note directly. The source note is the unprocessed quarry; the knowledge unit is the refined extract. Use whichever layer serves the beat. If you pull something from a source note that isn't captured in its unit, note the gap — it may be worth compiling later.
 
-**Partial reads.** `references/extract.md` documents `hylo extract` commands for reading outlines, sections, or line ranges without loading the full note. Use them when you don't need the whole file.
+**Partial reads.** `references/extract.md` documents the `extract_*` tools for reading outlines, sections, or line ranges without loading the full note. Use them when you don't need the whole file.
 
 ## Handling knowledge gaps
 

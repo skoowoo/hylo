@@ -175,9 +175,6 @@ type AgentConfig struct {
 	// SystemPrompt replaces the built-in global layer of the system prompt
 	// (prompt.GlobalDefault) when set; see internal/prompt.
 	SystemPrompt string `mapstructure:"system_prompt" json:"system_prompt" toml:"system_prompt"`
-
-	// MCPEnabled injects Hylo's MCP endpoint into every agent CLI run.
-	MCPEnabled bool `mapstructure:"mcp_enabled" json:"mcp_enabled" toml:"mcp_enabled"`
 }
 
 // TCPAddr returns the host:port string for the TCP listener.
@@ -322,7 +319,6 @@ func setDefaults(v *viper.Viper) {
 
 	v.SetDefault("agent.upload_dir", "_agent_uploads")
 	v.SetDefault("agent.system_prompt", "")
-	v.SetDefault("agent.mcp_enabled", true)
 
 	// git_sync plugin defaults (disabled by default; user must opt in)
 	v.SetDefault("plugins.git_sync.enabled", false)

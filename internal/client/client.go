@@ -574,43 +574,120 @@ func (c *Client) TagDelete(tag string) (*TagDeleteResponse, error) {
 
 // SkillInfo mirrors skills.SkillInfo for JSON decoding.
 type SkillInfo struct {
-	Name        string `json:"name"`
-	Default     bool   `json:"default"`
-	Installed   bool   `json:"installed"`
-	Enabled     bool   `json:"enabled"`
-	RepoURL     string `json:"repoUrl,omitempty"`
-	SubPath     string `json:"subPath,omitempty"`
-	Description string `json:"description,omitempty"`
-	Category    string `json:"category,omitempty"`
+	Name        string   `json:"name"`
+	Default     bool     `json:"default"`
+	Enabled     bool     `json:"enabled"`
+	Dirs        []string `json:"dirs"`
+	Repo        string   `json:"repo,omitempty"`
+	Description string   `json:"description,omitempty"`
 }
 
-// SkillsList calls GET /api/skills and returns all installed skills.
+// CatalogEntry mirrors skills.CatalogEntry for JSON decoding.
+type CatalogEntry struct {
+	Name        string `json:"name"`
+	Repo        string `json:"repo"`
+	Category    string `json:"category,omitempty"`
+	Description string `json:"description,omitempty"`
+	Added       bool   `json:"added"`
+}
+
+// SkillsList calls GET /api/skills and returns the skills added to ~/.hylo/skills.
 func (c *Client) SkillsList() ([]SkillInfo, error) {
-	req, err := http.NewRequest(http.MethodGet, c.baseURL+"/api/skills", nil)
+	var out struct {
+		Skills []SkillInfo `json:"skills"`
+	}
+	err := c.getSkills("/api/skills", "skills list", &out)
+	return out.Skills, err
+}
+
+// SkillsCatalog calls GET /api/skills/catalog and returns the skills Hylo recommends.
+func (c *Client) SkillsCatalog() ([]CatalogEntry, error) {
+	var out struct {
+		Skills []CatalogEntry `json:"skills"`
+	}
+	err := c.getSkills("/api/skills/catalog", "skills catalog", &out)
+	return out.Skills, err
+}
+
+func (c *Client) getSkills(path, op string, out any) error {
+	req, err := http.NewRequest(http.MethodGet, c.baseURL+path, nil)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	resp, err := c.do(req)
 	if err != nil {
-		return nil, wrapConnErr(err)
+		return wrapConnErr(err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		raw, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("skills list: %s", statusMsg(resp.StatusCode, raw))
+		return fmt.Errorf("%s: %s", op, statusMsg(resp.StatusCode, raw))
 	}
-	var out struct {
-		Skills []SkillInfo `json:"skills"`
+	if err := json.NewDecoder(resp.Body).Decode(out); err != nil {
+		return fmt.Errorf("%s: decode response: %w", op, err)
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
-		return nil, fmt.Errorf("skills list: decode response: %w", err)
-	}
-	return out.Skills, nil
+	return nil
 }
 
-// SkillsRemove calls DELETE /api/skills/{name} to remove a skill and its symlinks.
+// SkillsAdd calls POST /api/skills/add to clone a GitHub repository and copy its
+// skill into ~/.hylo/skills/, turned off. It returns the name the skill was added under.
+// Uses a 5-minute timeout because git clone can be slow on large repositories.
+func (c *Client) SkillsAdd(repo, skill string, force bool) (string, error) {
+	body, err := json.Marshal(map[string]any{"repo": repo, "skill": skill, "force": force})
+	if err != nil {
+		return "", err
+	}
+	req, err := http.NewRequest(http.MethodPost, c.baseURL+"/api/skills/add", bytes.NewReader(body))
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	if c.apiKey != "" {
+		req.Header.Set("X-Hylo-API-Key", c.apiKey)
+	}
+	addClient := &http.Client{Transport: c.http.Transport, Timeout: 5 * time.Minute}
+	resp, err := addClient.Do(req)
+	if err != nil {
+		return "", wrapConnErr(err)
+	}
+	defer resp.Body.Close()
+	raw, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("skills add: %s", statusMsg(resp.StatusCode, raw))
+	}
+	var out struct {
+		Name string `json:"name"`
+	}
+	if err := json.Unmarshal(raw, &out); err != nil {
+		return "", fmt.Errorf("skills add: decode response: %w", err)
+	}
+	return out.Name, nil
+}
+
+// SkillsEnable calls POST /api/skills/{name}/enable to link an added skill into the
+// vault directory dir; empty means the vault root.
+func (c *Client) SkillsEnable(name, dir string) error { return c.skillsPost(name, "enable", dir) }
+
+// SkillsDisable calls POST /api/skills/{name}/disable to unlink a skill from the
+// vault directory dir; empty means the vault root.
+func (c *Client) SkillsDisable(name, dir string) error { return c.skillsPost(name, "disable", dir) }
+
+func (c *Client) skillsPost(name, action, dir string) error {
+	resp, err := c.postJSON(c.baseURL+"/api/skills/"+url.PathEscape(name)+"/"+action, map[string]string{"dir": dir})
+	if err != nil {
+		return wrapConnErr(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		raw, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("skills %s: %s", action, statusMsg(resp.StatusCode, raw))
+	}
+	return nil
+}
+
+// SkillsRemove calls DELETE /api/skills/{name} to delete a skill from ~/.hylo/skills and the vault.
 func (c *Client) SkillsRemove(name string) error {
-	req, err := http.NewRequest(http.MethodDelete, c.baseURL+"/api/skills/"+name, nil)
+	req, err := http.NewRequest(http.MethodDelete, c.baseURL+"/api/skills/"+url.PathEscape(name), nil)
 	if err != nil {
 		return err
 	}
@@ -622,55 +699,6 @@ func (c *Client) SkillsRemove(name string) error {
 	if resp.StatusCode != http.StatusOK {
 		raw, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("skills remove: %s", statusMsg(resp.StatusCode, raw))
-	}
-	return nil
-}
-
-// SkillsInstall calls POST /api/skills/install to clone a GitHub repository
-// and extract the named skill into ~/.hylo/skills/.
-// subPath is the directory inside the repo that contains SKILL.md; pass an
-// empty string to use automatic heuristic search.
-// Uses a 5-minute timeout because git clone can be slow on large repositories.
-func (c *Client) SkillsInstall(repoURL, subPath, skillName string) error {
-	body, err := json.Marshal(map[string]any{
-		"repoUrl": repoURL,
-		"subPath": subPath,
-		"skill":   skillName,
-	})
-	if err != nil {
-		return err
-	}
-	req, err := http.NewRequest(http.MethodPost, c.baseURL+"/api/skills/install", bytes.NewReader(body))
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	if c.apiKey != "" {
-		req.Header.Set("X-Hylo-API-Key", c.apiKey)
-	}
-	installClient := &http.Client{Transport: c.http.Transport, Timeout: 5 * time.Minute}
-	resp, err := installClient.Do(req)
-	if err != nil {
-		return wrapConnErr(err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		raw, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("skills install: %s", statusMsg(resp.StatusCode, raw))
-	}
-	return nil
-}
-
-// SkillsEnable calls POST /api/skills/{name}/enable to link an installed skill into the vault.
-func (c *Client) SkillsEnable(name string) error {
-	resp, err := c.postJSON(c.baseURL+"/api/skills/"+url.PathEscape(name)+"/enable", nil)
-	if err != nil {
-		return wrapConnErr(err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		raw, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("skills enable: %s", statusMsg(resp.StatusCode, raw))
 	}
 	return nil
 }

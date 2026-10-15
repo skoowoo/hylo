@@ -146,7 +146,8 @@ func newRouter(
 
 	skh := handler.NewSkillsHTTP(skillsMgr)
 	mux.HandleFunc("GET /api/skills", skh.List)
-	mux.HandleFunc("POST /api/skills/install", skh.Install)
+	mux.HandleFunc("GET /api/skills/catalog", skh.Catalog)
+	mux.HandleFunc("POST /api/skills/add", skh.Add)
 	mux.HandleFunc("DELETE /api/skills/{name}", skh.Remove)
 	mux.HandleFunc("POST /api/skills/{name}/enable", skh.Enable)
 	mux.HandleFunc("POST /api/skills/{name}/disable", skh.Disable)
@@ -170,7 +171,7 @@ func newRouter(
 	mux.HandleFunc("GET /api/editor/agent", editorBus.StreamSSE)
 	mux.HandleFunc("POST /api/editor/agent/ack", editorBus.AckPOST)
 	mux.HandleFunc("POST /api/editor/agent/focus", editorBus.FocusPOST)
-	mux.Handle("/mcp", hylomcp.NewHandler(client.NewInProcess(mux), hylomcp.WithEditorBus(editorBus), hylomcp.WithManageGate(ah.ManageAllowed)))
+	mux.Handle("/mcp", hylomcp.NewHandler(client.NewInProcess(mux), hylomcp.WithEditorBus(editorBus)))
 
 	// Website routes
 	mux.HandleFunc("GET /notes/search", vh.SearchFragment)

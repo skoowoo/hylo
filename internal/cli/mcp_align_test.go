@@ -19,7 +19,6 @@ import (
 // Commands that manage the local install rather than the vault; deliberately not MCP tools.
 var notMCPTools = map[string]bool{
 	"init": true, "start_server": true, "auth_show": true, "auth_rotate": true,
-	"skills_add": true, "skills_remove": true,
 }
 
 // Flags that exist only on the CLI because of how it prints or reads input. Keyed by tool; "*" applies to all.

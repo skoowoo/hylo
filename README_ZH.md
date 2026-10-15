@@ -397,31 +397,43 @@ Hylo 内置了一套 skill，agent 执行任务时会自动调用。你也可以
 
 #### 用 CLI 管理 skill
 
-**查看已安装的 skill 和 Hylo catalog 里可安装的 skill**
+skill 先从 GitHub **添加（add）**到 `~/.hylo/skills/`，再在 vault 里**启用（enable）**，agent 才能用到。新添加的 skill 默认关闭；内置 skill 始终开启。
+
+**查看 Hylo 推荐的 skill**
 
 ```sh
-hylo skills list
-hylo skills list --category news
+hylo skills catalog --table
+hylo skills catalog --category news
 ```
 
-**从 Hylo catalog 安装 skill**
+每一条都列出了添加它所需的仓库和名字。
+
+**从 GitHub 仓库添加 skill**
 
 ```sh
-hylo skills install hackernews
-```
-
-**从 GitHub 仓库安装 skill**
-
-```sh
+hylo skills add okou-ai/okou-skills --skill hackernews
 hylo skills add https://github.com/hardhackerlabs/podwise-cli --skill podwise
 ```
 
-安装后保存到 `~/.hylo/skills/podwise/`。
+按 `--skill` 在仓库的常见位置里查找 skill，保存到 `~/.hylo/skills/<name>/`；不加 `--skill` 时用仓库名。同名 skill 已存在时，加 `--force` 才会替换。
 
-也支持 `owner/repo` 简写：
+**启用或停用 skill**
 
 ```sh
-hylo skills add hardhackerlabs/podwise-cli --skill podwise
+hylo skills enable podwise
+hylo skills disable podwise
+```
+
+默认在 vault 根目录启用。用 `--dir` 可以改为在 vault 的某个目录里启用，供从该目录启动的 agent 使用；目录不存在时会自动创建：
+
+```sh
+hylo skills enable hackernews --dir /_news
+```
+
+**查看已添加的 skill**
+
+```sh
+hylo skills list --table
 ```
 
 **删除 skill**
@@ -430,9 +442,9 @@ hylo skills add hardhackerlabs/podwise-cli --skill podwise
 hylo skills remove podwise
 ```
 
-删除 skill 目录、清理所有软链接。
+删除 skill 的文件并停用，无法撤销。
 
-Hylo 启动时自动加载 `~/.hylo/skills/` 下的所有 skill。在 **Settings → Skills** 中可以单独启用或禁用某个 skill。
+以上操作也都可以在 **Settings → Skills** 里完成。
 
 每个内置 skill 的具体功能和提示词示例，见 [Skills 使用指南](./docs/skills_zh.md)。
 

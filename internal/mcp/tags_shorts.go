@@ -38,18 +38,18 @@ type shortsOut struct {
 }
 
 func registerTagTools(s *sdk.Server, c *client.Client) {
-	addTool(s, "tag_list", "Show each tag and how many notes use it.", true,
+	addTool(s, "tag_list", "Show each tag and how many notes use it.", readOnly,
 		func(_ context.Context, in tagListReq) (tagsOut, error) {
 			tags, err := notes.TagList(c, in.Limit)
 			return tagsOut{Tags: tags}, err
 		})
 
-	addTool(s, "tag_count", "Count notes that have a tag.", true,
+	addTool(s, "tag_count", "Count notes that have a tag.", readOnly,
 		func(_ context.Context, in tagReq) (*client.TagCountResponse, error) {
 			return c.TagCount(in.Tag)
 		})
 
-	addTool(s, "tag_delete", "Remove all notes with this tag from the search index; note files on disk are untouched.", false,
+	addTool(s, "tag_delete", "Remove all notes with this tag from the search index; note files on disk are untouched.", destructiveIdempotent,
 		func(_ context.Context, in tagReq) (*client.TagDeleteResponse, error) {
 			resp, err := c.TagDelete(in.Tag)
 			if err != nil {
@@ -63,13 +63,13 @@ func registerTagTools(s *sdk.Server, c *client.Client) {
 }
 
 func registerShortTools(s *sdk.Server, c *client.Client) {
-	addTool(s, "short_create", "Save a short note into today's shorts file.", false,
+	addTool(s, "short_create", "Save a short note into today's shorts file.", additive,
 		func(_ context.Context, in shortCreateReq) (pathOut, error) {
 			p, err := notes.ShortCreate(c, in.Content, in.Dir)
 			return pathOut{Path: p}, err
 		})
 
-	addTool(s, "short_list", "List individual short note entries, newest first.", true,
+	addTool(s, "short_list", "List individual short note entries, newest first.", readOnly,
 		func(_ context.Context, in shortListReq) (shortsOut, error) {
 			entries, err := notes.ShortList(c, notes.ShortQuery{
 				Dir:   in.Dir,

@@ -13,11 +13,6 @@ type extractReq struct {
 	Path string `json:"path" jsonschema:"vault-absolute path or bare filename"`
 }
 
-type outlineReq struct {
-	Path   string `json:"path" jsonschema:"vault-absolute path or bare filename"`
-	Indent string `json:"indent,omitempty" jsonschema:"string used per indentation level, default two spaces"`
-}
-
 type sectionReq struct {
 	Path    string `json:"path" jsonschema:"vault-absolute path or bare filename"`
 	Heading string `json:"heading" jsonschema:"heading text, matched case-insensitively; the section ends at the next heading of the same or higher level"`
@@ -81,7 +76,7 @@ type extractTagsOut struct {
 func registerExtractTools(s *sdk.Server, c *client.Client) {
 	src := func(p string) ([]byte, error) { return notes.ReadSource(c, p) }
 
-	addTool(s, "extract_outline", "Extract the heading outline of a note.", true,
+	addTool(s, "extract_outline", "Extract the heading outline of a note.", readOnly,
 		func(_ context.Context, in extractReq) (outlineOut, error) {
 			b, err := src(in.Path)
 			if err != nil {
@@ -95,7 +90,7 @@ func registerExtractTools(s *sdk.Server, c *client.Client) {
 			return out, nil
 		})
 
-	addTool(s, "extract_section", "Extract a named section from a note.", true,
+	addTool(s, "extract_section", "Extract a named section from a note.", readOnly,
 		func(_ context.Context, in sectionReq) (sectionOut, error) {
 			b, err := src(in.Path)
 			if err != nil {
@@ -105,7 +100,7 @@ func registerExtractTools(s *sdk.Server, c *client.Client) {
 			return sectionOut{Content: sec}, err
 		})
 
-	addTool(s, "extract_code", "Extract all fenced code blocks from a markdown note.", true,
+	addTool(s, "extract_code", "Extract all fenced code blocks from a markdown note.", readOnly,
 		func(_ context.Context, in extractReq) (codeOut, error) {
 			b, err := src(in.Path)
 			if err != nil {
@@ -119,7 +114,7 @@ func registerExtractTools(s *sdk.Server, c *client.Client) {
 			return out, nil
 		})
 
-	addTool(s, "extract_link", "Extract all links from a note.", true,
+	addTool(s, "extract_link", "Extract all links from a note.", readOnly,
 		func(_ context.Context, in extractReq) (linksOut, error) {
 			b, err := src(in.Path)
 			if err != nil {
@@ -133,7 +128,7 @@ func registerExtractTools(s *sdk.Server, c *client.Client) {
 			return out, nil
 		})
 
-	addTool(s, "extract_list", "Extract all lists from a markdown note.", true,
+	addTool(s, "extract_list", "Extract all lists from a markdown note.", readOnly,
 		func(_ context.Context, in extractReq) (listsOut, error) {
 			b, err := src(in.Path)
 			if err != nil {
@@ -146,7 +141,7 @@ func registerExtractTools(s *sdk.Server, c *client.Client) {
 			return listsOut{Lists: lists}, nil
 		})
 
-	addTool(s, "extract_segment", "Extract a line range from a note: head N, tail N, or start/end.", true,
+	addTool(s, "extract_segment", "Extract a line range from a note: head N, tail N, or start/end.", readOnly,
 		func(_ context.Context, in segmentReq) (segmentOut, error) {
 			spec := notes.SegmentSpec{Head: in.Head, Tail: in.Tail, Start: in.Start, End: in.End}
 			if err := spec.Validate(); err != nil {
@@ -160,7 +155,7 @@ func registerExtractTools(s *sdk.Server, c *client.Client) {
 			return segmentOut{Total: total, Content: strings.Join(lines, "\n")}, nil
 		})
 
-	addTool(s, "extract_tag", "Extract tags from a note's front matter.", true,
+	addTool(s, "extract_tag", "Extract tags from a note's front matter.", readOnly,
 		func(_ context.Context, in extractReq) (extractTagsOut, error) {
 			b, err := src(in.Path)
 			if err != nil {

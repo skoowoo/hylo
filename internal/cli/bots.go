@@ -160,6 +160,7 @@ func newTriggerCmd() *cobra.Command {
 	deleteCmd := &cobra.Command{
 		Use:          "delete <bot-id> <trigger-id>",
 		Short:        "Remove a trigger from a bot",
+		Long:         `Removes the trigger from the bot; there is no undo.`,
 		Args:         cobra.ExactArgs(2),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {

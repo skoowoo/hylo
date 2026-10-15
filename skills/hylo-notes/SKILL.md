@@ -5,15 +5,9 @@ description: "Guide for working with Hylo, an AI-native personal note-taking sys
 
 # Hylo Notes — Router
 
-## Environment check
+## Tools
 
-If Hylo MCP tools are in your tool list, skip this check. Otherwise:
-
-```bash
-hylo --help
-```
-
-If neither MCP tools nor `hylo` are available, inform the user and stop.
+The tools named here are Hylo's MCP tools (server `hylo`); your client may show them prefixed, e.g. `mcp__hylo__read`. If they are not in your tool list, search your deferred tools for "hylo". If they are still missing, tell the user Hylo's tools are unavailable and stop.
 
 ---
 

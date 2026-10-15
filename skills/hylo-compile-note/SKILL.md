@@ -7,6 +7,8 @@ description: "Compiles a single raw Hylo note into knowledge units using a two-p
 
 Compiles a single raw note into **knowledge units** — wiki-style pages that capture the author's accumulating understanding of the entities and concepts that matter to them.
 
+Calls below are Hylo's MCP tools (server `hylo`); your client may show them prefixed, e.g. `mcp__hylo__read`. If they are not in your tool list, search your deferred tools for "hylo".
+
 **Run all five steps to completion without stopping.** Do not present intermediate results, ask for confirmation, or pause between steps. Pre-compile (Step 3) is internal — never output it to the user. Only speak at the end (Step 5 summary).
 
 ---
@@ -26,13 +28,7 @@ Read the full content of the target note. Note its path and **original publicati
 
 ## Step 2 — Load relevant knowledge index
 
-List available domain indexes:
-
-```bash
-hylo knowledge list-indexes
-```
-
-This returns a JSON array of `{"domain": "...", "path": "..."}` objects. Based on the note's content, select the 1–2 domains most relevant to what the note covers. Read only those index files to obtain the unit table for this compilation.
+List available domain indexes with `knowledge_list_indexes`. It returns `indexes`, a list of `{"domain": "...", "path": "..."}` objects. Based on the note's content, select the 1–2 domains most relevant to what the note covers. Read only those index files to obtain the unit table for this compilation.
 
 If the output is empty (no indexes exist), fall back to cold start: scan `<knowledge-dir>` directly and build a compact table (title | entity_type | tags | first paragraph ≤80 chars).
 
@@ -96,7 +92,7 @@ For each unit in the manifest, check its `operation` and read the corresponding 
 - **`create`** → read `references/create.md` and follow it completely.
 - **`update`** → read `references/update.md` and follow it completely.
 
-`references/extract.md` documents partial-read commands (`hylo extract outline / section / segment / …`). Use them at any step when reading the full note is not necessary.
+`references/extract.md` documents the partial-read tools (`extract_outline` / `extract_section` / `extract_segment` / …). Use them at any step when reading the full note is not necessary.
 
 Complete one unit fully before moving to the next. After all units are done, confirm in prose: which were created, which updated, and what changed in each.
 

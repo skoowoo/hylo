@@ -106,12 +106,12 @@ type resolveOut struct {
 }
 
 func registerNoteTools(s *sdk.Server, c *client.Client) {
-	addTool(s, "status", "Show vault and search index counts.", true,
+	addTool(s, "status", "Show vault and search index counts.", readOnly,
 		func(_ context.Context, _ noReq) (*client.StatusResponse, error) {
 			return c.Status()
 		})
 
-	addTool(s, "list", "List notes, most recently updated first.", true,
+	addTool(s, "list", "List notes, most recently updated first.", readOnly,
 		func(_ context.Context, in listReq) (notesOut, error) {
 			entries, err := notes.List(c, notes.ListQuery{
 				Dir:   in.Path,
@@ -122,64 +122,64 @@ func registerNoteTools(s *sdk.Server, c *client.Client) {
 			return notesOut{Notes: entries}, err
 		})
 
-	addTool(s, "read", "Read a note's full content.", true,
+	addTool(s, "read", "Read a note's full content.", readOnly,
 		func(_ context.Context, in readReq) (readOut, error) {
 			p, content, err := notes.Read(c, in.Path, false)
 			return readOut{Path: p, Content: content}, err
 		})
 
-	addTool(s, "compile", "Compile a note into the knowledge base. Runs in the background; the result goes to the user's inbox. A note already compiled comes back as already_compiled.", false,
+	addTool(s, "compile", "Compile a note into the knowledge base. Runs in the background; the result goes to the user's inbox. A note already compiled comes back as already_compiled.", additiveIdempotent,
 		func(_ context.Context, in readReq) (*client.CompileResult, error) {
 			return c.Compile(in.Path)
 		})
 
-	addTool(s, "search", "Full-text search over notes by filename, content or tag.", true,
+	addTool(s, "search", "Full-text search over notes by filename, content or tag.", readOnly,
 		func(_ context.Context, in searchReq) (notes.SearchResult, error) {
 			return notes.Search(c, notes.SearchQuery{Query: in.Query, Field: in.Field, Limit: in.Limit})
 		})
 
-	addTool(s, "create", "Create a note. Fails if the path or a same-named note exists unless force is set.", false,
+	addTool(s, "create", "Create a note. Fails if the path or a same-named note exists unless force is set; force replaces the existing note, with no undo.", destructiveIdempotent,
 		func(_ context.Context, in createReq) (writeOut, error) {
 			lines, err := notes.Create(c, in.Path, in.Force, func() ([]byte, error) { return []byte(in.Content), nil })
 			return writeOut{Path: in.Path, Lines: lines}, err
 		})
 
-	addTool(s, "append", "Append content to the end of a note, or after a named section.", false,
+	addTool(s, "append", "Append content to the end of a note, or after a named section.", additive,
 		func(_ context.Context, in writeReq) (writeOut, error) {
 			lines, err := notes.Append(c, in.Path, in.Heading, []byte(in.Content))
 			return writeOut{Path: in.Path, Lines: lines}, err
 		})
 
-	addTool(s, "prepend", "Prepend content to the start of a note, or before a named section.", false,
+	addTool(s, "prepend", "Prepend content to the start of a note, or before a named section.", additive,
 		func(_ context.Context, in writeReq) (writeOut, error) {
 			lines, err := notes.Prepend(c, in.Path, in.Heading, []byte(in.Content))
 			return writeOut{Path: in.Path, Lines: lines}, err
 		})
 
-	addTool(s, "delete", "Permanently delete a note.", false,
+	addTool(s, "delete", "Permanently delete a note; there is no undo.", destructiveIdempotent,
 		func(_ context.Context, in pathReq) (pathOut, error) {
 			return pathOut{Path: in.Path}, notes.Delete(c, in.Path)
 		})
 
-	addTool(s, "move", "Move a note to another directory.", false,
+	addTool(s, "move", "Move a note to another directory.", destructiveIdempotent,
 		func(_ context.Context, in moveReq) (moveOut, error) {
 			newPath, err := notes.Move(c, in.Path, in.NewDir)
 			return moveOut{Path: in.Path, NewPath: newPath}, err
 		})
 
-	addTool(s, "rename", "Rename a note and update references vault-wide in the background; poll rename_status with the returned job_id.", false,
+	addTool(s, "rename", "Rename a note and rewrite links to it in other notes, in the background; poll rename_status with the returned job_id.", destructiveIdempotent,
 		func(_ context.Context, in renameReq) (renameOut, error) {
 			newPath, jobID, err := notes.Rename(c, in.Path, in.NewName)
 			return renameOut{Path: in.Path, NewPath: newPath, JobID: jobID}, err
 		})
 
-	addTool(s, "rename_status", "Check progress of a vault-wide rename reference sweep.", true,
+	addTool(s, "rename_status", "Check progress of a vault-wide rename reference sweep.", readOnly,
 		func(_ context.Context, in renameStatusReq) (renameStatusOut, error) {
 			st, err := c.RenameStatus(in.JobID)
 			return renameStatusOut{Status: st.Status, Total: st.Total, Done: st.Done, UpdatedCount: st.UpdatedCount, Error: st.Error}, err
 		})
 
-	addTool(s, "resolve", "Resolve a note filename to every vault path where it exists.", true,
+	addTool(s, "resolve", "Resolve a note filename to every vault path where it exists.", readOnly,
 		func(_ context.Context, in resolveReq) (resolveOut, error) {
 			res, err := notes.Resolve(c, in.Name)
 			return resolveOut{Name: res.Name, Matches: notes.Entries(res.Matches)}, err

@@ -12,7 +12,7 @@ import (
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-const instructions = `Tools mirror the hylo CLI. Paths are vault-absolute and start with "/" (e.g. /journal/today.md). ` +
+const instructions = `Paths are vault-absolute and start with "/" (e.g. /journal/today.md). ` +
 	`Read-style tools also accept a bare filename; if several notes share it, use the full path.`
 
 // Option customizes NewHandler.
@@ -20,17 +20,10 @@ type Option func(*options)
 
 type options struct {
 	editor *editorbus.Bus
-	manage func(run string) error
 }
 
 // WithEditorBus registers the editor tools, which drive the user's live editor over bus.
 func WithEditorBus(b *editorbus.Bus) Option { return func(o *options) { o.editor = b } }
-
-// WithManageGate makes the tools that change bots, triggers and skills ask gate
-// whether the calling run may; a non-nil error refuses the call.
-func WithManageGate(gate func(run string) error) Option {
-	return func(o *options) { o.manage = gate }
-}
 
 // NewHandler returns the MCP endpoint handler. c talks to the vault in-process.
 func NewHandler(c *client.Client, opts ...Option) http.Handler {
@@ -48,7 +41,7 @@ func NewHandler(c *client.Client, opts ...Option) http.Handler {
 	registerExtractTools(srv, c)
 	registerTagTools(srv, c)
 	registerShortTools(srv, c)
-	registerBotTools(srv, c, o.manage)
+	registerBotTools(srv, c)
 	if o.editor != nil {
 		registerEditorTools(srv, c, o.editor)
 	}
@@ -89,13 +82,34 @@ func runFrom(ctx context.Context) string {
 	return run
 }
 
+// effect is what a tool does to the vault, published as MCP annotations so clients
+// can tell which calls need the user's confirmation. Every tool must pick one.
+type effect int
+
+const (
+	readOnly effect = iota
+	additive
+	additiveIdempotent
+	destructive
+	destructiveIdempotent
+)
+
+func (e effect) annotations() *sdk.ToolAnnotations {
+	if e == readOnly {
+		return &sdk.ToolAnnotations{ReadOnlyHint: true}
+	}
+	// The spec defaults destructiveHint to true, so additive tools must say false.
+	d := e == destructive || e == destructiveIdempotent
+	return &sdk.ToolAnnotations{
+		DestructiveHint: &d,
+		IdempotentHint:  e == additiveIdempotent || e == destructiveIdempotent,
+	}
+}
+
 // addTool registers a tool with a typed result; the SDK derives the output schema and
 // returns it as structured content plus its JSON text.
-func addTool[In, Out any](s *sdk.Server, name, desc string, readOnly bool, h func(ctx context.Context, in In) (Out, error)) {
-	t := &sdk.Tool{Name: name, Description: desc}
-	if readOnly {
-		t.Annotations = &sdk.ToolAnnotations{ReadOnlyHint: true}
-	}
+func addTool[In, Out any](s *sdk.Server, name, desc string, eff effect, h func(ctx context.Context, in In) (Out, error)) {
+	t := &sdk.Tool{Name: name, Description: desc, Annotations: eff.annotations()}
 	sdk.AddTool(s, t, func(ctx context.Context, req *sdk.CallToolRequest, in In) (*sdk.CallToolResult, Out, error) {
 		if req != nil && req.Extra != nil && req.Extra.Header != nil {
 			ctx = context.WithValue(ctx, runKey{}, req.Extra.Header.Get(runHeader))

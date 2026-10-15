@@ -23,7 +23,7 @@ func newCreateCmd() *cobra.Command {
 
 <path> is a vault-absolute path starting with "/" (e.g. /journal/today.md).
 Content is read from --file, --content, or stdin (checked in that order).
-Use --force to overwrite an existing note.`,
+Use --force to replace an existing note; there is no undo.`,
 		Example: `  hylo create /journal/today.md --content "# Today"
   hylo create /journal/recipe.md --file recipe.md
   hylo create /note.md < draft.md

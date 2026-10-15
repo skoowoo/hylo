@@ -5,15 +5,9 @@ description: "Walks the user through setting up Hylo itself in chat, one step at
 
 # Hylo Setup — Router
 
-## Environment check
+## Tools
 
-If Hylo MCP tools are in your tool list, skip this check. Otherwise:
-
-```bash
-hylo --help
-```
-
-If neither MCP tools nor `hylo` are available, tell the user setup needs them and stop.
+The tools named here are Hylo's MCP tools (server `hylo`); your client may show them prefixed, e.g. `mcp__hylo__read`. If they are not in your tool list, search your deferred tools for "hylo". If they are still missing, tell the user setup needs them and stop.
 
 ---
 
@@ -38,7 +32,7 @@ completed: <YYYY-MM-DD, once wrap-up is done>
 
 `[x]` done, `[-]` skipped (with the reason), `[ ]` pending. Keep each note after the dash to a few words.
 
-Read it with `hylo read /_setup/progress.md`. If it doesn't exist, this is a first run: write it with every step below pending. Write it back with `hylo create /_setup/progress.md --content "<content>" --force` each time a step ends.
+Read it with `read {"path": "/_setup/progress.md"}`. If it doesn't exist, this is a first run: write it with every step below pending. Write it back with `create {"path": "/_setup/progress.md", "content": "<content>", "force": true}` each time a step ends.
 
 ---
 

@@ -1,7 +1,6 @@
 package skills
 
 import (
-	"bufio"
 	_ "embed"
 	"encoding/json"
 	"fmt"
@@ -10,7 +9,9 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -22,11 +23,11 @@ import (
 	"github.com/hardhacker/hylo/internal/util"
 )
 
-//go:embed default_catalog.txt
-var defaultCatalog string
+//go:embed catalog.json
+var catalogJSON []byte
 
 // proxyOnce ensures the go-git HTTP transport is configured with proxy settings
-// exactly once per process, using the first Install call's shell environment.
+// exactly once per process, using the first Add call's shell environment.
 var proxyOnce sync.Once
 
 // DefaultSkills are always enabled and cannot be disabled by the user.
@@ -40,36 +41,49 @@ var DefaultSkills = []string{
 	"hylo-setup",
 }
 
-// state persists only the non-default skills the user has explicitly enabled.
+// state persists where skills are on, beyond built-ins at the vault root.
 type state struct {
-	EnabledExtra []string `json:"enabled_extra"`
+	// Enabled maps a skill to the vault directories it is on in; "/" is the vault root.
+	Enabled map[string][]string `json:"enabled"`
+	// EnabledExtra is the older form, skills on at the vault root; loadState migrates it.
+	EnabledExtra []string `json:"enabled_extra,omitempty"`
 }
 
-// SkillInfo describes one skill, installed or available in the catalog.
+// SkillInfo describes one skill added to ~/.hylo/skills.
 type SkillInfo struct {
-	Name        string `json:"name"`
-	Default     bool   `json:"default"`
-	Installed   bool   `json:"installed"`
-	Enabled     bool   `json:"enabled"`
-	RepoURL     string `json:"repoUrl,omitempty"`
-	SubPath     string `json:"subPath,omitempty"`
+	Name    string `json:"name"`
+	Default bool   `json:"default"`
+	// Enabled is whether the skill is on at the vault root; Dirs lists every vault
+	// directory it is on in.
+	Enabled bool     `json:"enabled"`
+	Dirs    []string `json:"dirs"`
+	// Repo is set when the skill matches a catalog entry by name.
+	Repo        string `json:"repo,omitempty"`
 	Description string `json:"description,omitempty"`
-	Category    string `json:"category,omitempty"`
 }
 
-// catalogEntry holds the metadata parsed from a catalog line.
-type catalogEntry struct {
-	RepoURL  string
-	SubPath  string
-	Category string
-	Summary  string
+// CatalogEntry is a skill Hylo recommends; Repo and Name are what Add takes.
+type CatalogEntry struct {
+	Name        string `json:"name"`
+	Repo        string `json:"repo"`
+	Category    string `json:"category,omitempty"`
+	Description string `json:"description,omitempty"`
+	Added       bool   `json:"added"`
 }
+
+var catalog = func() []CatalogEntry {
+	var c []CatalogEntry
+	if err := json.Unmarshal(catalogJSON, &c); err != nil {
+		panic("skills: bad catalog.json: " + err.Error())
+	}
+	return c
+}()
 
 // Manager tracks which skills are enabled and manages their vault symlinks.
 type Manager struct {
 	mu         sync.Mutex
 	sourceDir  string
-	targets    []string
+	vaultRoot  string
 	stateFile  string
 	st         state
 	shellEnvFn func() []string // returns login-shell env for git operations
@@ -77,7 +91,7 @@ type Manager struct {
 	onChange   func()
 }
 
-// SetOnChange registers fn to run after a skill is installed, turned on or off,
+// SetOnChange registers fn to run after a skill is added, turned on or off,
 // or removed. Set it before the manager is in use.
 func (m *Manager) SetOnChange(fn func()) { m.onChange = fn }
 
@@ -96,7 +110,7 @@ type cachedDesc struct {
 }
 
 // Open creates a Manager rooted at vaultRoot. shellEnvFn is called when
-// installing skills to obtain the user's login-shell environment (proxy vars,
+// adding skills to obtain the user's login-shell environment (proxy vars,
 // etc.); pass nil to fall back to os.Environ.
 // State is loaded from disk; errors are silently ignored.
 func Open(vaultRoot string, shellEnvFn func() []string) *Manager {
@@ -105,11 +119,8 @@ func Open(vaultRoot string, shellEnvFn func() []string) *Manager {
 		shellEnvFn = os.Environ
 	}
 	m := &Manager{
-		sourceDir: filepath.Join(home, ".hylo", "skills"),
-		targets: []string{
-			filepath.Join(vaultRoot, ".agents", "skills"),
-			filepath.Join(vaultRoot, ".claude", "skills"),
-		},
+		sourceDir:  filepath.Join(home, ".hylo", "skills"),
+		vaultRoot:  vaultRoot,
 		stateFile:  filepath.Join(vaultRoot, ".hylo", "skills_state.json"),
 		shellEnvFn: shellEnvFn,
 	}
@@ -125,7 +136,14 @@ func (m *Manager) loadState() error {
 		}
 		return err
 	}
-	return json.Unmarshal(data, &m.st)
+	if err := json.Unmarshal(data, &m.st); err != nil {
+		return err
+	}
+	for _, name := range m.st.EnabledExtra {
+		m.st.Enabled = addDir(m.st.Enabled, name, "/")
+	}
+	m.st.EnabledExtra = nil
+	return nil
 }
 
 func (m *Manager) saveState() error {
@@ -148,135 +166,112 @@ func isDefault(name string) bool {
 	return false
 }
 
-// isExtraEnabled reads m.st without locking; callers must hold m.mu.
-func (m *Manager) isExtraEnabled(name string) bool {
-	for _, n := range m.st.EnabledExtra {
-		if n == name {
-			return true
-		}
+// dirsOf lists the vault directories name is on in; callers must hold m.mu.
+func (m *Manager) dirsOf(name string) []string {
+	dirs := m.st.Enabled[name]
+	if isDefault(name) && !slices.Contains(dirs, "/") {
+		dirs = append([]string{"/"}, dirs...)
 	}
-	return false
+	return slices.Sorted(slices.Values(dirs))
 }
 
-func (m *Manager) isEnabled(name string) bool {
-	if isDefault(name) {
-		return true
+func addDir(enabled map[string][]string, name, dir string) map[string][]string {
+	if enabled == nil {
+		enabled = map[string][]string{}
 	}
-	return m.isExtraEnabled(name)
+	if !slices.Contains(enabled[name], dir) {
+		enabled[name] = append(enabled[name], dir)
+	}
+	return enabled
 }
 
-// parseCatalog parses an external-skills.txt formatted string and returns a
-// map of skill-dir-name → catalogEntry (RepoURL + SubPath).
-func parseCatalog(content string) map[string]catalogEntry {
-	result := make(map[string]catalogEntry)
-	scanner := bufio.NewScanner(strings.NewReader(content))
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-		// The summary is last so it may contain colons.
-		parts := strings.SplitN(line, ":", 5)
-		if len(parts) < 3 {
-			continue
-		}
-		githubPath := strings.TrimSpace(parts[0])
-		subPath := strings.TrimSpace(parts[1])
-		skillName := strings.TrimSpace(parts[2])
-		if githubPath == "" || skillName == "" {
-			continue
-		}
-		if subPath == "." {
-			subPath = ""
-		}
-		entry := catalogEntry{
-			RepoURL: "https://github.com/" + githubPath,
-			SubPath: subPath,
-		}
-		if len(parts) > 3 {
-			entry.Category = strings.TrimSpace(parts[3])
-		}
-		if len(parts) > 4 {
-			entry.Summary = strings.TrimSpace(parts[4])
-		}
-		result[skillName] = entry
-	}
-	return result
+// linkDirs are where agents started in the vault directory dir look for skills.
+func (m *Manager) linkDirs(dir string) []string {
+	base := filepath.Join(m.vaultRoot, filepath.FromSlash(dir))
+	return []string{filepath.Join(base, ".agents", "skills"), filepath.Join(base, ".claude", "skills")}
 }
 
-// List returns all skills: installed ones and uninstalled catalog entries.
-// Installed skills appear first (default, then external), followed by
-// uninstalled catalog entries that can be installed via the UI.
+// CleanDir normalizes a vault directory such as /_news/; empty means the vault root.
+func CleanDir(dir string) (string, error) {
+	if dir == "" {
+		return "/", nil
+	}
+	if !strings.HasPrefix(dir, "/") {
+		return "", fmt.Errorf("dir %q must be vault-absolute, starting with /", dir)
+	}
+	for _, seg := range strings.Split(dir, "/") {
+		if strings.HasPrefix(seg, ".") {
+			return "", fmt.Errorf("dir %q must not contain hidden or relative segments", dir)
+		}
+	}
+	return path.Clean(dir), nil
+}
+
+// List returns the skills added to ~/.hylo/skills.
 func (m *Manager) List() ([]SkillInfo, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	catalog := parseCatalog(defaultCatalog)
-
 	entries, err := os.ReadDir(m.sourceDir)
-	if err != nil && !os.IsNotExist(err) {
+	if os.IsNotExist(err) {
+		return []SkillInfo{}, nil
+	}
+	if err != nil {
 		return nil, err
 	}
-
-	installed := make(map[string]bool)
-	out := make([]SkillInfo, 0)
-
-	if err == nil {
-		for _, e := range entries {
-			name := e.Name()
-			if !isSkillDir(filepath.Join(m.sourceDir, name)) {
-				continue
-			}
-			installed[name] = true
-			entry := catalog[name]
-			out = append(out, SkillInfo{
-				Name:        name,
-				Default:     isDefault(name),
-				Installed:   true,
-				Enabled:     m.isEnabled(name),
-				RepoURL:     entry.RepoURL,
-				SubPath:     entry.SubPath,
-				Description: m.skillDescription(filepath.Join(m.sourceDir, name)),
-				Category:    entry.Category,
-			})
-		}
+	repos := map[string]string{}
+	for _, e := range catalog {
+		repos[e.Name] = e.Repo
 	}
-
-	// Append uninstalled catalog entries so the UI can offer an Install button.
-	for name, entry := range catalog {
-		if installed[name] {
+	out := []SkillInfo{}
+	for _, e := range entries {
+		name := e.Name()
+		dir := filepath.Join(m.sourceDir, name)
+		if !isSkillDir(dir) {
 			continue
 		}
+		dirs := m.dirsOf(name)
 		out = append(out, SkillInfo{
 			Name:        name,
-			Default:     false,
-			Installed:   false,
-			Enabled:     false,
-			RepoURL:     entry.RepoURL,
-			SubPath:     entry.SubPath,
-			Description: entry.Summary,
-			Category:    entry.Category,
+			Default:     isDefault(name),
+			Enabled:     slices.Contains(dirs, "/"),
+			Dirs:        dirs,
+			Repo:        repos[name],
+			Description: m.skillDescription(dir),
 		})
 	}
-
 	return out, nil
 }
 
-// Enable enables a skill by creating symlinks and persisting state.
-// Default skills are always enabled; this is a no-op for them.
-func (m *Manager) Enable(name string) error {
-	if isDefault(name) {
+// Catalog returns the skills Hylo recommends, marking the ones already added.
+func (m *Manager) Catalog() []CatalogEntry {
+	out := make([]CatalogEntry, len(catalog))
+	for i, e := range catalog {
+		e.Added = isSkillDir(filepath.Join(m.sourceDir, e.Name))
+		out[i] = e
+	}
+	return out
+}
+
+// Enable turns name on in the vault directory dir ("" or "/" for the root) by linking
+// it where agents started there look, creating dir if needed. Built-in skills are
+// always on at the root.
+func (m *Manager) Enable(name, dir string) error {
+	dir, err := CleanDir(dir)
+	if err != nil {
+		return err
+	}
+	if isDefault(name) && dir == "/" {
 		return nil
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	src := filepath.Join(m.sourceDir, name)
-	if _, err := os.Stat(src); err != nil {
-		return err
+	if !isSkillDir(src) {
+		return fmt.Errorf("skill %q is not added; add it first", name)
 	}
-
-	for _, t := range m.targets {
+	for _, t := range m.linkDirs(dir) {
 		if err := os.MkdirAll(t, 0755); err != nil {
 			return err
 		}
@@ -286,38 +281,44 @@ func (m *Manager) Enable(name string) error {
 			return err
 		}
 	}
-
-	if !m.isExtraEnabled(name) {
-		m.st.EnabledExtra = append(m.st.EnabledExtra, name)
-	}
+	m.st.Enabled = addDir(m.st.Enabled, name, dir)
 	return m.changed(m.saveState())
 }
 
-// Disable disables a skill by removing symlinks and persisting state.
-// Returns an error for default skills.
-func (m *Manager) Disable(name string) error {
-	if isDefault(name) {
-		return fmt.Errorf("skill %q is a default skill and cannot be disabled", name)
+// Disable turns name off in the vault directory dir ("" or "/" for the root).
+// Built-in skills cannot be turned off at the root.
+func (m *Manager) Disable(name, dir string) error {
+	dir, err := CleanDir(dir)
+	if err != nil {
+		return err
+	}
+	if isDefault(name) && dir == "/" {
+		return fmt.Errorf("skill %q is a built-in skill and cannot be turned off at the vault root", name)
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	for _, t := range m.targets {
-		_ = os.Remove(filepath.Join(t, name))
+	m.unlink(name, dir)
+	if dirs := slices.DeleteFunc(m.st.Enabled[name], func(d string) bool { return d == dir }); len(dirs) > 0 {
+		m.st.Enabled[name] = dirs
+	} else {
+		delete(m.st.Enabled, name)
 	}
-
-	var extra []string
-	for _, n := range m.st.EnabledExtra {
-		if n != name {
-			extra = append(extra, n)
-		}
-	}
-	m.st.EnabledExtra = extra
 	return m.changed(m.saveState())
 }
 
-// Remove disables the skill (removes all symlinks) and deletes its source
-// directory from ~/.hylo/skills/. Returns an error for built-in skills.
+// unlink removes name's links from dir, leaving anything that isn't a link alone.
+func (m *Manager) unlink(name, dir string) {
+	for _, t := range m.linkDirs(dir) {
+		dst := filepath.Join(t, name)
+		if fi, err := os.Lstat(dst); err == nil && fi.Mode()&os.ModeSymlink != 0 {
+			_ = os.Remove(dst)
+		}
+	}
+}
+
+// Remove turns the skill off everywhere and deletes it from ~/.hylo/skills/.
+// Returns an error for built-in skills.
 func (m *Manager) Remove(name string) error {
 	if isDefault(name) {
 		return fmt.Errorf("skill %q is a built-in skill and cannot be removed", name)
@@ -325,50 +326,46 @@ func (m *Manager) Remove(name string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	// Remove symlinks from every target directory.
-	for _, t := range m.targets {
-		dst := filepath.Join(t, name)
-		// Resolve and remove symlink target dir if it is a real symlink.
-		if fi, err := os.Lstat(dst); err == nil && fi.Mode()&os.ModeSymlink != 0 {
-			_ = os.Remove(dst)
-		}
+	if !isSkillDir(filepath.Join(m.sourceDir, name)) {
+		return fmt.Errorf("skill %q is not added", name)
 	}
-
-	// Drop from persisted enabled state.
-	var extra []string
-	for _, n := range m.st.EnabledExtra {
-		if n != name {
-			extra = append(extra, n)
-		}
+	for _, dir := range m.dirsOf(name) {
+		m.unlink(name, dir)
 	}
-	m.st.EnabledExtra = extra
+	delete(m.st.Enabled, name)
 	if err := m.saveState(); err != nil {
 		return err
 	}
-
-	// Delete the source directory.
 	return m.changed(os.RemoveAll(filepath.Join(m.sourceDir, name)))
 }
 
-// Install clones a GitHub repository and copies the named skill directory into
-// the skills source directory. repoURL accepts the forms:
-//
-//	https://github.com/owner/repo
-//	owner/repo
-//
-// subPath is the path inside the repository where the skill lives (e.g. "skills").
-// When non-empty it is tried first; if it does not contain a SKILL.md the
-// function falls back to the usual heuristic search. Pass an empty string to
-// always use the heuristic search.
-func (m *Manager) Install(repoURL, subPath, skillName string) error {
-	repoURL = normalizeRepoURL(repoURL)
+// Add clones a GitHub repository and copies the skill in it to ~/.hylo/skills/<name>,
+// turned off. repo is a GitHub URL or owner/repo; the skill is found in it by name
+// (see findSkillDir), which defaults to the repository's name. An added skill of the
+// same name is replaced only with force.
+// It returns the name the skill was added under.
+func (m *Manager) Add(repo, name string, force bool) (string, error) {
+	if name == "" {
+		name = strings.TrimSuffix(filepath.Base(strings.TrimRight(repo, "/")), ".git")
+	}
+	if !ValidName(name) {
+		return "", fmt.Errorf("invalid skill name %q", name)
+	}
+	if isDefault(name) {
+		return "", fmt.Errorf("%q is a built-in skill", name)
+	}
+	dest := filepath.Join(m.sourceDir, name)
+	if !force && isSkillDir(dest) {
+		return "", fmt.Errorf("skill %q is already added (use force to replace it)", name)
+	}
+	repoURL := normalizeRepoURL(repo)
 
 	// Register proxy transport once, using the captured shell environment.
 	proxyOnce.Do(func() { setupProxyTransport(m.shellEnvFn()) })
 
 	tmp, err := os.MkdirTemp("", "hylo-skill-*")
 	if err != nil {
-		return fmt.Errorf("create temp dir: %w", err)
+		return "", fmt.Errorf("create temp dir: %w", err)
 	}
 	defer os.RemoveAll(tmp)
 
@@ -379,34 +376,29 @@ func (m *Manager) Install(repoURL, subPath, skillName string) error {
 		SingleBranch:  true,
 	})
 	if err != nil {
-		return fmt.Errorf("clone %s: %w", repoURL, err)
+		return "", fmt.Errorf("clone %s: %w", repoURL, err)
 	}
 
-	var src string
-	if subPath != "" {
-		candidate := filepath.Join(tmp, filepath.FromSlash(subPath))
-		if isSkillDir(candidate) {
-			src = candidate
-		}
-	}
-	if src == "" {
-		src, err = findSkillDir(tmp, skillName)
-		if err != nil {
-			return err
-		}
+	src, err := findSkillDir(tmp, name)
+	if err != nil {
+		return "", err
 	}
 
-	dest := filepath.Join(m.sourceDir, skillName)
 	if err := os.MkdirAll(m.sourceDir, 0755); err != nil {
-		return fmt.Errorf("create skills dir: %w", err)
+		return "", fmt.Errorf("create skills dir: %w", err)
 	}
 	if err := os.RemoveAll(dest); err != nil {
-		return fmt.Errorf("remove existing skill: %w", err)
+		return "", fmt.Errorf("remove existing skill: %w", err)
 	}
 	if err := copyDir(src, dest); err != nil {
-		return fmt.Errorf("copy skill: %w", err)
+		return "", fmt.Errorf("copy skill: %w", err)
 	}
-	return m.Enable(skillName)
+	return name, m.changed(nil)
+}
+
+// ValidName reports whether name is safe as a directory under ~/.hylo/skills.
+func ValidName(name string) bool {
+	return name != "" && !strings.ContainsAny(name, `/\`) && !strings.Contains(name, "..") && !strings.HasPrefix(name, ".")
 }
 
 // setupProxyTransport installs a custom go-git HTTP/HTTPS transport that routes
@@ -595,7 +587,7 @@ func copyFile(src, dst string, mode os.FileMode) error {
 	return err
 }
 
-// LinkEnabled creates symlinks for all currently-enabled skills.
+// LinkEnabled recreates the links of every skill in every vault directory it is on in.
 // Called once at server startup.
 func (m *Manager) LinkEnabled(logger *slog.Logger) {
 	m.mu.Lock()
@@ -609,23 +601,23 @@ func (m *Manager) LinkEnabled(logger *slog.Logger) {
 		return
 	}
 
-	for _, t := range m.targets {
-		if err := os.MkdirAll(t, 0755); err != nil {
-			logger.Warn("skills: create target dir", "path", t, "err", err)
-		}
-	}
-
 	for _, entry := range entries {
 		name := entry.Name()
-		if !m.isEnabled(name) || !isSkillDir(filepath.Join(m.sourceDir, name)) {
+		src := filepath.Join(m.sourceDir, name)
+		if !isSkillDir(src) {
 			continue
 		}
-		src := filepath.Join(m.sourceDir, name)
-		for _, t := range m.targets {
-			dst := filepath.Join(t, name)
-			_ = os.Remove(dst)
-			if err := os.Symlink(src, dst); err != nil {
-				logger.Warn("skills: symlink failed", "src", src, "dst", dst, "err", err)
+		for _, dir := range m.dirsOf(name) {
+			for _, t := range m.linkDirs(dir) {
+				if err := os.MkdirAll(t, 0755); err != nil {
+					logger.Warn("skills: create target dir", "path", t, "err", err)
+					continue
+				}
+				dst := filepath.Join(t, name)
+				_ = os.Remove(dst)
+				if err := os.Symlink(src, dst); err != nil {
+					logger.Warn("skills: symlink failed", "src", src, "dst", dst, "err", err)
+				}
 			}
 		}
 	}

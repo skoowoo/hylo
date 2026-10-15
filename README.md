@@ -398,31 +398,43 @@ Each skill is a directory containing a `SKILL.md` file:
 
 #### Managing skills with the CLI
 
-**List installed skills and ones in Hylo's catalog**
+A skill is first **added** to `~/.hylo/skills/` from GitHub, then **enabled** in the vault, where agents pick it up. Added skills start off; built-in skills are always on.
+
+**See what Hylo recommends**
 
 ```sh
-hylo skills list
-hylo skills list --category news
+hylo skills catalog --table
+hylo skills catalog --category news
 ```
 
-**Install a skill from Hylo's catalog**
+Each entry lists the repository and name to add it with.
+
+**Add a skill from a GitHub repository**
 
 ```sh
-hylo skills install hackernews
-```
-
-**Install a skill from a GitHub repository**
-
-```sh
+hylo skills add okou-ai/okou-skills --skill hackernews
 hylo skills add https://github.com/hardhackerlabs/podwise-cli --skill podwise
 ```
 
-The skill is saved to `~/.hylo/skills/podwise/`.
+The skill is looked up by `--skill` in the usual places in the repository and saved to `~/.hylo/skills/<name>/`; without `--skill` the repository's name is used. Use `--force` to replace a skill already added under that name.
 
-Shorthand `owner/repo` form also works:
+**Turn a skill on or off**
 
 ```sh
-hylo skills add hardhackerlabs/podwise-cli --skill podwise
+hylo skills enable podwise
+hylo skills disable podwise
+```
+
+By default a skill is turned on at the vault root. Use `--dir` to turn it on in a vault directory instead, for agents started there; the directory is created if needed:
+
+```sh
+hylo skills enable hackernews --dir /_news
+```
+
+**List added skills**
+
+```sh
+hylo skills list --table
 ```
 
 **Remove a skill**
@@ -431,9 +443,9 @@ hylo skills add hardhackerlabs/podwise-cli --skill podwise
 hylo skills remove podwise
 ```
 
-Removes the skill directory and any active symlinks.
+Deletes the skill's files and turns it off; there is no undo.
 
-Hylo picks up all skills in `~/.hylo/skills/` automatically on startup. Enable or disable individual skills in **Settings → Skills**.
+You can do all of this in **Settings → Skills** too.
 
 For what each built-in skill does and example prompts, see the [Skills Guide](./docs/skills.md).
 

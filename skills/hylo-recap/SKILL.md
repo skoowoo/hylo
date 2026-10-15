@@ -5,15 +5,9 @@ description: "Reviews content against the Hylo knowledge base (_knowledge/) and 
 
 # Hylo Recap — Router
 
-## Environment check
+## Tools
 
-If Hylo MCP tools are in your tool list, skip this check. Otherwise:
-
-```bash
-hylo --help
-```
-
-If neither MCP tools nor `hylo` are available, inform the user and stop.
+The tools named here are Hylo's MCP tools (server `hylo`); your client may show them prefixed, e.g. `mcp__hylo__read`. If they are not in your tool list, search your deferred tools for "hylo". If they are still missing, tell the user Hylo's tools are unavailable and stop.
 
 ---
 
@@ -26,4 +20,4 @@ If neither MCP tools nor `hylo` are available, inform the user and stop.
 
 Load the matching sub-skill. If the request is ambiguous (e.g. just "recap" with no note and no time window named), ask the user which they mean before proceeding.
 
-Both sub-skills share `references/extract.md` for partial-read commands, and both produce a conversational recap only — never a saved file.
+Both sub-skills share `references/extract.md` for the partial-read tools, and both produce a conversational recap only — never a saved file.

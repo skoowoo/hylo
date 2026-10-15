@@ -57,11 +57,7 @@ Add the current note path to `source_notes`. Update `last_compiled_at` to today.
 
 ## Tag normalization
 
-Before assigning tags, run:
-
-```bash
-hylo tag list
-```
+Before assigning tags, call `tag_list` to get the tags already in use.
 
 First determine the tags that accurately describe the unit. Then, for each tag, check the existing list for a semantically equivalent entry (same concept, different language or spelling — e.g. `独立开发` ↔ `indie-dev`). If one exists, replace your tag with it. Only keep a new tag when no equivalent exists.
 

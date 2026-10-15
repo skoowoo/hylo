@@ -1,6 +1,6 @@
 package view
 
-// Skills tab: installed/available Claude skills list.
+// Skills tab: skills added to ~/.hylo/skills, and the catalog they can be added from.
 const settingsSkillsCSS = `
     .skills-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; margin-bottom: 0.75rem; }
     .skills-tabs .seg-btn { gap: 0.4rem; }
@@ -77,7 +77,7 @@ const settingsSkillsCSS = `
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
     .skill-card.is-off .skill-name, .skill-card--available .skill-name { color: var(--muted); }
-    /* Uninstall is rare and destructive, so it stays out of sight until the card is in use. */
+    /* Remove is rare and destructive, so it stays out of sight until the card is in use. */
     .skill-remove { opacity: 0; transition: opacity var(--motion-fast), color var(--motion-fast), background-color var(--motion-fast); }
     .skill-card:hover .skill-remove, .skill-remove:focus-visible, .skill-remove:disabled { opacity: 1; }
     .skill-remove:hover:not(:disabled) { color: var(--s-err); background: var(--s-err-bg); }
@@ -109,33 +109,33 @@ func settingsSkillsTabHTML() string {
 	const trash = `<svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>`
 	const plus = `<svg fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg>`
 	source := `
-                      <template x-if="s.repoUrl">
-                        <a class="skill-source" :href="s.repoUrl" target="_blank" rel="noopener noreferrer"
-                           :title="s.repoUrl" x-text="s.repoUrl.replace('https://github.com/', '')"></a>
+                      <template x-if="s.repo">
+                        <a class="skill-source" :href="'https://github.com/' + s.repo" target="_blank" rel="noopener noreferrer"
+                           :title="s.repo" x-text="s.repo"></a>
                       </template>
-                      <template x-if="!s.repoUrl">
+                      <template x-if="!s.repo">
                         <span class="skill-source" x-text="s.default ? 'hylo' : 'local'"></span>
                       </template>`
 	desc := `
                     <p class="skill-desc" :class="{'is-empty': !s.description}" :title="s.description || ''"
-                       x-text="s.description || (s.installed ? 'No description.' : 'Install to use with your agents.')"></p>`
+                       x-text="s.description || (s.added ? 'No description.' : 'Add to use with your agents.')"></p>`
 	card := `
-                  <div class="list-card skill-card" :class="!s.installed ? 'skill-card--available' : (s.enabled ? 'is-on' : 'is-off')">
+                  <div class="list-card skill-card" :class="!s.added ? 'skill-card--available' : (s.enabled ? 'is-on' : 'is-off')">
                     <div class="skill-card-head">
                       <span class="skill-icon">` + sparkle + `</span>
                       <span class="skill-name" x-text="s.name" :title="s.name"></span>
-                      <template x-if="s.installed && !s.default">
+                      <template x-if="s.added && !s.default">
                         <button type="button" class="icon-btn-ghost icon-btn-ghost--sm skill-remove"
-                                :disabled="!!skillsUninstalling[s.name]"
-                                :title="skillsUninstalling[s.name] ? 'Removing…' : 'Uninstall'" aria-label="Uninstall"
-                                @click="uninstallSkill(s.name)">` + trash + `</button>
+                                :disabled="!!skillsRemoving[s.name]"
+                                :title="skillsRemoving[s.name] ? 'Removing…' : 'Remove'" aria-label="Remove"
+                                @click="removeSkill(s.name)">` + trash + `</button>
                       </template>
                     </div>` + desc + `
                     <div class="skill-card-foot">` + source + `
                       <template x-if="s.default">
                         <span class="skill-fixed"><span class="dot dot--on"></span>Always on</span>
                       </template>
-                      <template x-if="s.installed && !s.default">
+                      <template x-if="s.added && !s.default">
                         <div class="seg skill-seg">
                           <button type="button" class="seg-btn" :class="{active: !s.enabled}"
                                   :disabled="!!skillsToggling[s.name]" @click="setSkillEnabled(s.name, false)">Off</button>
@@ -143,12 +143,12 @@ func settingsSkillsTabHTML() string {
                                   :disabled="!!skillsToggling[s.name]" @click="setSkillEnabled(s.name, true)">On</button>
                         </div>
                       </template>
-                      <template x-if="!s.installed">
+                      <template x-if="!s.added">
                         <button type="button" class="btn-outline btn--xs"
-                                :disabled="!!skillsInstalling[s.name]"
-                                @click="installSkill(s.name, s.repoUrl, s.subPath)">
-                          <template x-if="!skillsInstalling[s.name]">` + plus + `</template>
-                          <span x-text="skillsInstalling[s.name] ? 'Installing…' : 'Install'"></span>
+                                :disabled="!!skillsAdding[s.name]"
+                                @click="addSkill(s)">
+                          <template x-if="!skillsAdding[s.name]">` + plus + `</template>
+                          <span x-text="skillsAdding[s.name] ? 'Adding…' : 'Add'"></span>
                         </button>
                       </template>
                     </div>
@@ -160,7 +160,7 @@ func settingsSkillsTabHTML() string {
               <div class="seg skills-tabs" role="tablist">
                 <button type="button" class="seg-btn" role="tab" :class="{active: skillsTab === 'installed'}"
                         :aria-selected="skillsTab === 'installed'" @click="skillsTab = 'installed'">
-                  Installed <span class="skills-tab-count" x-show="!skillsLoading" x-text="installedCount"></span>
+                  Installed <span class="skills-tab-count" x-show="!skillsLoading" x-text="skillsList.length"></span>
                 </button>
                 <button type="button" class="seg-btn" role="tab" :class="{active: skillsTab === 'recommended'}"
                         :aria-selected="skillsTab === 'recommended'" @click="skillsTab = 'recommended'">
@@ -169,8 +169,8 @@ func settingsSkillsTabHTML() string {
               </div>
 ` + toolbarRefreshBtnHTML("skillsLoading", "loadSkills()", "Loading…") + `
             </div>
-            <p class="skills-hint" x-show="skillsTab === 'installed'">Skills in <code>~/.hylo/skills/</code>. Ones you copy in start off.</p>
-            <p class="skills-hint" x-show="skillsTab === 'recommended'">Curated skills you can install from GitHub.</p>
+            <p class="skills-hint" x-show="skillsTab === 'installed'">Skills in <code>~/.hylo/skills/</code>. New ones start off.</p>
+            <p class="skills-hint" x-show="skillsTab === 'recommended'">Curated skills you can add from GitHub, then turn on.</p>
             <div class="cfg-err-msg" x-show="skillsError && !skillsLoading" x-text="'Error: ' + skillsError"></div>
             <div class="cfg-loader" x-show="skillsLoading">Loading skills…</div>
             <div x-show="!skillsLoading && skillsTab === 'installed'">
@@ -194,7 +194,7 @@ func settingsSkillsTabHTML() string {
               </template>
               <template x-if="extraSkills.length === 0">
                 <div class="skills-empty">
-                  No other skills installed yet.
+                  No other skills added yet.
                   <button type="button" class="skills-empty-link" @click="skillsTab = 'recommended'">Browse Recommended</button>
                 </div>
               </template>
@@ -204,9 +204,6 @@ func settingsSkillsTabHTML() string {
               </div>
             </div>
             <div x-show="!skillsLoading && skillsTab === 'recommended'">
-              <template x-if="recommendedSkills.length === 0">
-                <div class="skills-empty">All recommended skills are installed.</div>
-              </template>
               <div class="skills-grid">
                 <template x-for="s in recommendedSkills" :key="s.name">` + card + `
                 </template>
@@ -219,65 +216,70 @@ func settingsSkillsTabHTML() string {
 
 const settingsSkillsJS = `
       skillsList: [],
+      skillsCatalog: [],
       skillsLoading: false,
       skillsError: '',
-      skillsInstalling: {},
-      skillsUninstalling: {},
+      skillsAdding: {},
+      skillsRemoving: {},
       skillsToggling: {},
 
       skillsTab: 'installed',
       skillsBuiltinOpen: false,
 
       get builtinSkills() {
-        return this.skillsList.filter(function(s) { return s.default; })
-          .sort(function(a, b) { return a.name.localeCompare(b.name); });
+        return this.addedSkills.filter(function(s) { return s.default; });
       },
       get extraSkills() {
-        return this.skillsList.filter(function(s) { return s.installed && !s.default; })
+        return this.addedSkills.filter(function(s) { return !s.default; });
+      },
+      get addedSkills() {
+        return this.skillsList.map(function(s) { return Object.assign({ added: true }, s); })
           .sort(function(a, b) { return a.name.localeCompare(b.name); });
       },
+      // An added catalog skill keeps its card here, switched by the same On/Off control.
       get recommendedSkills() {
-        return this.skillsList.filter(function(s) { return !s.installed; })
-          .sort(function(a, b) { return a.name.localeCompare(b.name); });
+        const added = {};
+        this.skillsList.forEach(function(s) { added[s.name] = s; });
+        return this.skillsCatalog.map(function(e) {
+          const a = added[e.name];
+          return Object.assign({}, e, { added: !!a, enabled: !!(a && a.enabled), description: e.description || (a && a.description) || '' });
+        }).sort(function(a, b) { return a.name.localeCompare(b.name); });
       },
-      get installedCount() { return this.builtinSkills.length + this.extraSkills.length; },
 
       async loadSkills(quiet) {
         if (!quiet) this.skillsLoading = true;
         this.skillsError = '';
         try {
-          const r = await fetch('/api/skills');
-          if (!r.ok) throw new Error('HTTP ' + r.status);
-          const d = await r.json();
-          this.skillsList = d.skills || [];
+          const rs = await Promise.all([fetch('/api/skills'), fetch('/api/skills/catalog')]);
+          rs.forEach(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); });
+          const ds = await Promise.all(rs.map(function(r) { return r.json(); }));
+          this.skillsList = ds[0].skills || [];
+          this.skillsCatalog = ds[1].skills || [];
         } catch(e) { this.skillsError = e.message; }
         finally { this.skillsLoading = false; }
       },
 
-      async installSkill(name, repoUrl, subPath) {
-        this.skillsInstalling = Object.assign({}, this.skillsInstalling, { [name]: true });
+      async addSkill(s) {
+        this.skillsAdding = Object.assign({}, this.skillsAdding, { [s.name]: true });
         try {
-          const r = await fetch('/api/skills/install', {
+          const r = await fetch('/api/skills/add', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ repoUrl: repoUrl, subPath: subPath || '', skill: name }),
+            body: JSON.stringify({ repo: s.repo, skill: s.name }),
           });
           const d = await r.json();
           if (!r.ok) {
-            window.showError(d.error || 'Install failed', 'Install failed');
+            window.showError(d.error || 'Add failed', 'Add failed');
             return;
           }
-          this.skillsList = this.skillsList.map(function(s) {
-            return s.name === name ? Object.assign({}, s, { installed: true, enabled: true }) : s;
-          });
-          // Description only exists once SKILL.md is on disk.
-          this.loadSkills(true);
+          // The description comes from SKILL.md, which exists only now.
+          await this.loadSkills(true);
         } catch(e) {
-          window.showError(e.message, 'Install failed');
+          window.showError(e.message, 'Add failed');
         } finally {
-          const t = Object.assign({}, this.skillsInstalling);
-          delete t[name];
-          this.skillsInstalling = t;
+          const t = Object.assign({}, this.skillsAdding);
+          delete t[s.name];
+          this.skillsAdding = t;
         }
       },
 
@@ -303,26 +305,24 @@ const settingsSkillsJS = `
           this.skillsToggling = t;
         }
       },
-      async uninstallSkill(name) {
-        const ok = await window.showConfirm({ title: 'Uninstall skill', message: 'Remove "' + name + '" and all its files from ~/.hylo/skills/?', confirmLabel: 'Uninstall', danger: true });
+      async removeSkill(name) {
+        const ok = await window.showConfirm({ title: 'Remove skill', message: 'Delete "' + name + '" and all its files from ~/.hylo/skills/? This can\'t be undone.', confirmLabel: 'Remove', danger: true });
         if (!ok) return;
-        this.skillsUninstalling = Object.assign({}, this.skillsUninstalling, { [name]: true });
+        this.skillsRemoving = Object.assign({}, this.skillsRemoving, { [name]: true });
         try {
           const r = await fetch('/api/skills/' + encodeURIComponent(name), { method: 'DELETE' });
           const d = await r.json();
           if (!r.ok) {
-            window.showError(d.error || 'Uninstall failed', 'Uninstall failed');
+            window.showError(d.error || 'Remove failed', 'Remove failed');
             return;
           }
-          this.skillsList = this.skillsList.map(function(s) {
-            return s.name === name ? Object.assign({}, s, { installed: false, enabled: false }) : s;
-          });
+          this.skillsList = this.skillsList.filter(function(s) { return s.name !== name; });
         } catch(e) {
-          window.showError(e.message, 'Uninstall failed');
+          window.showError(e.message, 'Remove failed');
         } finally {
-          const t = Object.assign({}, this.skillsUninstalling);
+          const t = Object.assign({}, this.skillsRemoving);
           delete t[name];
-          this.skillsUninstalling = t;
+          this.skillsRemoving = t;
         }
       },
 

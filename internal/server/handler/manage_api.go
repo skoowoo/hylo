@@ -7,20 +7,6 @@ import (
 	"github.com/hardhacker/hylo/internal/mate"
 )
 
-var errManageFromChat = errors.New("bots, triggers and skills can only be changed from a chat with the user")
-
-// ManageAllowed keeps trigger runs from changing bots, triggers and skills, or a
-// WeChat message could rewire a bot. An empty runID is the user's own agent.
-func (a *AgentAPI) ManageAllowed(runID string) error {
-	if runID == "" {
-		return nil
-	}
-	if run := a.hub.Get(runID); run != nil && run.Interactive {
-		return nil
-	}
-	return errManageFromChat
-}
-
 // TriggerRunPOST handles POST /api/mates/{id}/triggers/{tid}/run: fires a
 // scheduled trigger now, so a new one can show what it does right away.
 func (a *AgentAPI) TriggerRunPOST(w http.ResponseWriter, r *http.Request) {

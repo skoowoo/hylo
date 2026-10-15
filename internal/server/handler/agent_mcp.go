@@ -8,7 +8,7 @@ import (
 
 // mcpURL returns the endpoint agentID should use, or "" when this run gets no MCP.
 func (a *AgentAPI) mcpURL(agentID string) string {
-	if !a.cfg.Agent.MCPEnabled || !agent.SupportsMCP(agentID) {
+	if !agent.SupportsMCP(agentID) {
 		return ""
 	}
 	url, _ := a.cfg.Server.MCPURL()

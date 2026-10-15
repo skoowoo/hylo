@@ -2,8 +2,9 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
+	"io"
 	"net/http"
-	"strings"
 
 	"github.com/hardhacker/hylo/internal/skills"
 )
@@ -28,14 +29,35 @@ func (h *SkillsHTTP) List(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusOK, map[string]any{"skills": list})
 }
 
+// Catalog handles GET /api/skills/catalog.
+func (h *SkillsHTTP) Catalog(w http.ResponseWriter, r *http.Request) {
+	respondJSON(w, http.StatusOK, map[string]any{"skills": h.mgr.Catalog()})
+}
+
+// skillDir reads the optional {"dir": "/_news"} body of enable and disable; none means the vault root.
+func skillDir(r *http.Request) (string, error) {
+	var body struct {
+		Dir string `json:"dir"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil && !errors.Is(err, io.EOF) {
+		return "", err
+	}
+	return body.Dir, nil
+}
+
 // Enable handles POST /api/skills/{name}/enable.
 func (h *SkillsHTTP) Enable(w http.ResponseWriter, r *http.Request) {
 	name := r.PathValue("name")
-	if !validSkillName(name) {
+	if !skills.ValidName(name) {
 		respondJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid skill name"})
 		return
 	}
-	if err := h.mgr.Enable(name); err != nil {
+	dir, err := skillDir(r)
+	if err != nil {
+		respondJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid request body"})
+		return
+	}
+	if err := h.mgr.Enable(name, dir); err != nil {
 		respondJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
 		return
 	}
@@ -45,11 +67,16 @@ func (h *SkillsHTTP) Enable(w http.ResponseWriter, r *http.Request) {
 // Disable handles POST /api/skills/{name}/disable.
 func (h *SkillsHTTP) Disable(w http.ResponseWriter, r *http.Request) {
 	name := r.PathValue("name")
-	if !validSkillName(name) {
+	if !skills.ValidName(name) {
 		respondJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid skill name"})
 		return
 	}
-	if err := h.mgr.Disable(name); err != nil {
+	dir, err := skillDir(r)
+	if err != nil {
+		respondJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid request body"})
+		return
+	}
+	if err := h.mgr.Disable(name, dir); err != nil {
 		respondJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
 		return
 	}
@@ -59,7 +86,7 @@ func (h *SkillsHTTP) Disable(w http.ResponseWriter, r *http.Request) {
 // Remove handles DELETE /api/skills/{name}.
 func (h *SkillsHTTP) Remove(w http.ResponseWriter, r *http.Request) {
 	name := r.PathValue("name")
-	if !validSkillName(name) {
+	if !skills.ValidName(name) {
 		respondJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid skill name"})
 		return
 	}
@@ -70,40 +97,25 @@ func (h *SkillsHTTP) Remove(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusOK, map[string]any{"ok": true, "name": name})
 }
 
-// Install handles POST /api/skills/install.
-func (h *SkillsHTTP) Install(w http.ResponseWriter, r *http.Request) {
+// Add handles POST /api/skills/add.
+func (h *SkillsHTTP) Add(w http.ResponseWriter, r *http.Request) {
 	var body struct {
-		RepoURL   string `json:"repoUrl"`
-		SubPath   string `json:"subPath"`
-		SkillName string `json:"skill"`
+		Repo  string `json:"repo"`
+		Skill string `json:"skill"`
+		Force bool   `json:"force"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		respondJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid request body"})
 		return
 	}
-	if body.RepoURL == "" {
-		respondJSON(w, http.StatusBadRequest, map[string]any{"error": "repoUrl is required"})
+	if body.Repo == "" {
+		respondJSON(w, http.StatusBadRequest, map[string]any{"error": "repo is required"})
 		return
 	}
-	if body.SkillName == "" {
-		respondJSON(w, http.StatusBadRequest, map[string]any{"error": "skill name is required (--skill)"})
-		return
-	}
-	if !validSkillName(body.SkillName) {
-		respondJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid skill name"})
-		return
-	}
-	if err := h.mgr.Install(body.RepoURL, body.SubPath, body.SkillName); err != nil {
+	name, err := h.mgr.Add(body.Repo, body.Skill, body.Force)
+	if err != nil {
 		respondJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
 		return
 	}
-	respondJSON(w, http.StatusOK, map[string]any{"ok": true, "name": body.SkillName})
-}
-
-func validSkillName(name string) bool {
-	return name != "" &&
-		!strings.Contains(name, "/") &&
-		!strings.Contains(name, "\\") &&
-		!strings.Contains(name, "..") &&
-		!strings.HasPrefix(name, ".")
+	respondJSON(w, http.StatusOK, map[string]any{"ok": true, "name": name})
 }

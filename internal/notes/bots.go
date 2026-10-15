@@ -139,41 +139,17 @@ func triggerIndex(m *mate.Mate, triggerID string) (int, error) {
 	return -1, fmt.Errorf("bot %q has no trigger %q", m.Name, triggerID)
 }
 
-// SkillsList returns installed skills and installable catalog entries,
-// only those in category when it's set.
-func SkillsList(c *client.Client, category string) ([]client.SkillInfo, error) {
-	list, err := c.SkillsList()
+// SkillsCatalog returns the skills Hylo recommends, only those in category when it's set.
+func SkillsCatalog(c *client.Client, category string) ([]client.CatalogEntry, error) {
+	list, err := c.SkillsCatalog()
 	if err != nil {
 		return nil, err
 	}
-	out := []client.SkillInfo{}
+	out := []client.CatalogEntry{}
 	for _, s := range list {
 		if category == "" || s.Category == category {
 			out = append(out, s)
 		}
 	}
 	return out, nil
-}
-
-// SkillsInstall turns on an installed skill, or installs one from Hylo's
-// catalog. Only catalog entries carry a repo, so nothing else gets installed.
-func SkillsInstall(c *client.Client, name string) (string, error) {
-	list, err := c.SkillsList()
-	if err != nil {
-		return "", err
-	}
-	for _, s := range list {
-		if s.Name != name {
-			continue
-		}
-		switch {
-		case s.Enabled:
-			return "already installed and on", nil
-		case s.Installed:
-			return "turned on", c.SkillsEnable(name)
-		default:
-			return "installed", c.SkillsInstall(s.RepoURL, s.SubPath, name)
-		}
-	}
-	return "", fmt.Errorf("%q is neither installed nor in Hylo's catalog", name)
 }

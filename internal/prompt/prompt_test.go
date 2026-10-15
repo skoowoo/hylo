@@ -61,8 +61,8 @@ func TestChoicesShowsAWorkingBlock(t *testing.T) {
 	}
 }
 
-func TestMCPMentionsMapping(t *testing.T) {
-	for _, want := range []string{"extract_section", "knowledge_list_indexes", "--help", "Fall back"} {
+func TestMCPHintFindsTheTools(t *testing.T) {
+	for _, want := range []string{"mcp__hylo__", "deferred"} {
 		if !strings.Contains(mcpText, want) {
 			t.Errorf("hint missing %q", want)
 		}

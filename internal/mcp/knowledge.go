@@ -22,7 +22,7 @@ type indexesOut struct {
 }
 
 func registerKnowledgeTools(s *sdk.Server, c *client.Client) {
-	addTool(s, "knowledge_list", "List knowledge notes and index notes, most recently updated first.", true,
+	addTool(s, "knowledge_list", "List knowledge notes and index notes, most recently updated first.", readOnly,
 		func(_ context.Context, in knowledgeListReq) (notesOut, error) {
 			entries, err := notes.List(c, notes.ListQuery{
 				Dir:       in.Path,
@@ -34,23 +34,23 @@ func registerKnowledgeTools(s *sdk.Server, c *client.Client) {
 			return notesOut{Notes: entries}, err
 		})
 
-	addTool(s, "knowledge_read", "Read a knowledge note's full content.", true,
+	addTool(s, "knowledge_read", "Read a knowledge note's full content.", readOnly,
 		func(_ context.Context, in readReq) (readOut, error) {
 			p, content, err := notes.Read(c, in.Path, true)
 			return readOut{Path: p, Content: content}, err
 		})
 
-	addTool(s, "knowledge_search", "Full-text search over knowledge notes only.", true,
+	addTool(s, "knowledge_search", "Full-text search over knowledge notes only.", readOnly,
 		func(_ context.Context, in searchReq) (notes.SearchResult, error) {
 			return notes.Search(c, notes.SearchQuery{Query: in.Query, Field: in.Field, Limit: in.Limit, KnowledgeOnly: true})
 		})
 
-	addTool(s, "knowledge_delete", "Permanently delete a knowledge note.", false,
+	addTool(s, "knowledge_delete", "Permanently delete a knowledge note; there is no undo.", destructiveIdempotent,
 		func(_ context.Context, in pathReq) (pathOut, error) {
 			return pathOut{Path: in.Path}, notes.DeleteKnowledge(c, in.Path)
 		})
 
-	addTool(s, "knowledge_list_indexes", "List index notes with their domain and vault path.", true,
+	addTool(s, "knowledge_list_indexes", "List index notes with their domain and vault path.", readOnly,
 		func(_ context.Context, _ noReq) (indexesOut, error) {
 			entries, err := notes.ListIndexes(c)
 			return indexesOut{Indexes: entries}, err
