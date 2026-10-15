@@ -1,7 +1,7 @@
 {
   "name": "hylo-desktop-tauri",
   "private": true,
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Desktop shell for the local Hylo web app.",
   "scripts": {
     "dev": "tauri dev",
