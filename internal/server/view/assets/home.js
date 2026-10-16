@@ -144,7 +144,8 @@ function loadListViewModes() {
 // release, like native sidebars and tab strips. Keyboard activation (a click
 // with detail 0) and touch/pen taps still go through click, so a scroll
 // gesture never activates. A child that must not activate its parent stops
-// pointerdown (and click) itself.
+// pointerdown (and click) itself. The press doesn't move focus either: the
+// action already ran, and the mousedown that follows would undo any focus it set.
 document.addEventListener('alpine:init', function () {
   Alpine.directive('press', function (el, { expression }, { evaluateLater, cleanup }) {
     var run = evaluateLater(expression);
@@ -154,14 +155,19 @@ document.addEventListener('alpine:init', function () {
       pressed = e.pointerType === 'mouse' && e.button === 0 && !e.ctrlKey;
       if (pressed) run(function () {}, { scope: { $event: e } });
     }
+    function onMouseDown(e) {
+      if (pressed) e.preventDefault();
+    }
     function onClick(e) {
       if (pressed && e.detail > 0) { pressed = false; return; }
       run(function () {}, { scope: { $event: e } });
     }
     el.addEventListener('pointerdown', onPointerDown);
+    el.addEventListener('mousedown', onMouseDown);
     el.addEventListener('click', onClick);
     cleanup(function () {
       el.removeEventListener('pointerdown', onPointerDown);
+      el.removeEventListener('mousedown', onMouseDown);
       el.removeEventListener('click', onClick);
     });
   });

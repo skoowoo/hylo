@@ -115,7 +115,6 @@ func settingsModalHTML() string {
   <div id="hylo-settings-modal"
        x-data="settingsCtrl()"
        x-show="$store.settingsModal.open"
-       x-effect="__hyloTrapReturn($el, $store.settingsModal.open)"
        x-trap.inert.noreturn="$store.settingsModal.open"
        x-cloak
        class="settings-modal-overlay">
@@ -209,7 +208,7 @@ const settingsCtrlJS = `
             this.stopBotSetup();
             return;
           }
-          if (window.__hyloEscPush) window.__hyloEscPush('settings', () => this.requestClose());
+          if (window.__hyloEscPush) window.__hyloEscPush('settings', () => this.requestClose(), this.$el);
           this.loadTab(this.tab);
         });
       },

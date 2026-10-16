@@ -154,6 +154,11 @@ function __hyloRefreshSidebar() {
 
 function __hyloRefetchShown() {
   if (!__hyloSectionShownURL) return;
+  // The chat's DOM is the kernel's: remounting it would drop its built rows and refocus the composer.
+  if (__hyloSectionType(__hyloSectionShownURL) === 'chat') {
+    if (window._homeData && window._homeData._chat) void window._homeData._chat.reload();
+    return;
+  }
   // Leaving before the refetch lands must not park the outdated copy.
   __hyloSectionShownStale = true;
   __hyloSectionFetch(__hyloSectionShownURL);

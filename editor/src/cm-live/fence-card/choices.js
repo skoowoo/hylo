@@ -142,11 +142,13 @@ export function mount(el, source, ctx = {}) {
     },
   };
   render();
-  // Hosts that make it interactive hear about it once it's in their DOM.
-  requestAnimationFrame(() => {
+  // Hosts that make it interactive hear about it once it's in their DOM, before it paints if it already is.
+  const announce = () => el.dispatchEvent(new CustomEvent('hylo:choices-mount', { bubbles: true }));
+  if (el.isConnected) announce();
+  else requestAnimationFrame(() => {
     if (!el.isConnected) return;
     layout();
-    el.dispatchEvent(new CustomEvent('hylo:choices-mount', { bubbles: true }));
+    announce();
   });
 
   return {

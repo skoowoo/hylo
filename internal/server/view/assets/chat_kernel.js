@@ -25,6 +25,10 @@
     var convTypeByMate = {};
     var conversationId = '';
     var messages = [];
+    // False until the open conversation's messages are known, so its empty state never flashes.
+    var loaded = false;
+    // Each mate and tab's last conversation, shown at once on return while a reload catches up.
+    var parked = Object.create(null);
     // The trigger tab's cards and the one it narrows the runs to.
     var triggers = [];
     var triggersFor = '';
@@ -39,12 +43,6 @@
     var stick = true;
     // The reader's place while not stuck to the bottom, kept across remounts.
     var anchor = null;
-    // Set when insertWikilink lands on the draft fallback (no view mounted
-    // yet, e.g. a note handed to a bot before its chat panel has loaded) —
-    // attach() consumes it to focus the composer once the textarea actually
-    // exists, so the reference doesn't just sit there unfocused for the
-    // user to go click into themselves.
-    var focusAfterAttach = false;
 
     var phase = 'idle';
     var run = null; // { id, assistantMsgId } while streaming or stopping
@@ -147,6 +145,7 @@
         matesLoaded: matesLoaded,
         convType: convType,
         messages: messages,
+        loaded: loaded,
         catalogEpoch: catalogEpoch,
         draft: draft,
         phase: phase,
@@ -334,7 +333,8 @@
         var data = await resp.json();
         if (seq !== refreshSeq || convId !== conversationId) return;
         var msgs = data.messages || [];
-        messages = R.formatStoredMessages(msgs);
+        messages = R.reconcileStored(messages, msgs);
+        loaded = true;
         hasOlder = !!data.hasMore;
         var lastMs = 0;
         for (var i = 0; i < msgs.length; i++) {
@@ -363,11 +363,15 @@
           await loadMessages(conversationId, seq, keepPlace);
         } else {
           messages = [];
+          loaded = true;
           hasOlder = false;
           cancelSync();
           requestRender();
         }
       } catch (e) { notify("Couldn't load the conversation"); }
+      finally {
+        if (seq === refreshSeq && !loaded) { loaded = true; requestRender(); }
+      }
     }
 
     async function loadOlder() {
@@ -586,10 +590,7 @@
       heldJump = false;
       if (jump) stick = true;
       view.render();
-      if (focusAfterAttach) {
-        focusAfterAttach = false;
-        if (view.focusComposer) view.focusComposer();
-      }
+      view.focusComposer();
     }
 
     function detach() {
@@ -606,14 +607,7 @@
       if (busy()) return false;
       bootstrapped = true;
       if (id !== mateId) {
-        cancelRunPoller();
-        cancelSync();
-        conversationId = '';
-        messages = [];
-        hasOlder = false;
-        stoppingMsgId = '';
-        refreshSeq++;
-        convType = convTypeByMate[id] || 'chat';
+        openConversation(id, convTypeByMate[id] || 'chat');
         triggers = [];
         triggersFor = '';
         triggerFilter = '';
@@ -621,6 +615,7 @@
       mateId = id;
       try { sessionStorage.setItem('hylo_agent_bot_id', id); } catch (e) { /* ignore */ }
       if (host.onMate) host.onMate(id);
+      if (view) view.focusComposer();
       requestRender();
       return true;
     }
@@ -666,18 +661,31 @@
       return true;
     }
 
-    function setConvType(t) {
-      if (t === convType || busy()) return;
+    // Parks the open conversation and brings back the one last seen for this mate and tab.
+    function openConversation(id, type) {
       cancelRunPoller();
       cancelSync();
-      convType = t;
+      if (mateId && loaded) {
+        parked[mateId + '/' + convType] = { conversationId: conversationId, messages: messages, hasOlder: hasOlder, lastMsgMs: lastMsgMs };
+      }
+      var back = parked[id + '/' + type];
+      conversationId = back ? back.conversationId : '';
+      messages = back ? back.messages : [];
+      hasOlder = back ? back.hasOlder : false;
+      lastMsgMs = back ? back.lastMsgMs : 0;
+      loaded = !!back;
+      convType = type;
+      stoppingMsgId = '';
+      stick = true;
+      refreshSeq++;
+    }
+
+    function setConvType(t) {
+      if (t === convType || busy()) return;
+      openConversation(mateId, t);
       triggerFilter = '';
       if (mateId) convTypeByMate[mateId] = t;
-      conversationId = '';
-      messages = [];
-      hasOlder = false;
-      stoppingMsgId = '';
-      refreshSeq++;
+      if (view) view.focusComposer();
       requestRender();
       if (mateId) void refresh();
     }
@@ -715,7 +723,6 @@
       finally {
         if (phase === 'sending') phase = 'idle';
         requestRender();
-        if (view && view.focusComposer) view.focusComposer();
       }
     }
 
@@ -740,7 +747,8 @@
           } catch (e) { notify("Couldn't start the chat"); }
           if (!conversationId) return;
         }
-        if (choice == null) {
+        // The composer stays editable while sending, so only clear what was sent.
+        if (choice == null && (draft || '').trim() === text) {
           draft = '';
           if (view && view.clearComposer) view.clearComposer();
         }
@@ -825,7 +833,6 @@
       var cur = draft || '';
       var leadSp = cur.length > 0 && cur[cur.length - 1] !== ' ' ? ' ' : '';
       draft = cur + leadSp + '[[' + stem + ']] ';
-      focusAfterAttach = true;
     }
 
     // Onboarding lands with ?intro=1: the new bot's first turn is asked for

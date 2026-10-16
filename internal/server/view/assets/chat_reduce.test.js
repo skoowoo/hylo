@@ -83,6 +83,25 @@ test('merge keeps rich segments after the message has finished', function () {
   assert.equal(messages[0].status, 'succeeded');
 });
 
+test('reconcile keeps unchanged messages as they were and revs the changed ones', function () {
+  var rows = [
+    { id: 'u', role: 'user', content: 'hi', createdAt: '2026-09-29T00:00:00.000Z' },
+    { id: 'a', role: 'assistant', content: 'old', status: 'succeeded', mateId: 'm', updatedAt: '2026-09-29T00:00:01.000Z' },
+  ];
+  var before = R.formatStoredMessages(rows);
+  var edited = rows.slice();
+  edited[1] = Object.assign({}, rows[1], { content: 'new', updatedAt: '2026-09-29T00:00:02.000Z' });
+  edited.push({ id: 'u2', role: 'user', content: 'more', createdAt: '2026-09-29T00:00:03.000Z' });
+  var after = R.reconcileStored(before, edited);
+  assert.equal(after[0], before[0]);
+  assert.equal(after[0].rev, 1);
+  assert.equal(after[1], before[1]);
+  assert.equal(after[1].rev, 2);
+  assert.equal(after[1].segments[0].content, 'new');
+  assert.equal(after[2].id, 'u2');
+  assert.equal(R.reconcileStored(after, edited.slice(0, 1)).length, 1);
+});
+
 test('merge appends the DB\'s note_access last, even alongside kept-live rich segments', function () {
   var messages = [{
     id: 'a', role: 'assistant', status: 'succeeded', content: 'old',

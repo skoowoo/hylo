@@ -14,6 +14,9 @@ package view
 // ESC stack — window.__hyloEscPush / __hyloEscPop
 //   Overlays push a named closer when they open and pop it when they close.
 //   Escape dismisses only the topmost entry (strict LIFO order).
+//   An overlay that takes focus passes its element too: when it closes with
+//   focus left nowhere or inside it, focus goes back to whatever had it
+//   before, or to the page's home surface (window.__hyloFocusHome).
 //
 // Overlay base — window.hyloOverlay(escId, extra)
 //   Shared Alpine x-data factory for every dialog/overlay (confirm, info,
@@ -108,12 +111,50 @@ const keysJS = `
 
   (function() {
     var _stk = [];
-    window.__hyloEscPush = function(id, fn) {
-      _stk = _stk.filter(function(e) { return e.id !== id; });
-      _stk.push({ id: id, close: fn });
+    // Recent focus, newest last (null = the body), so an opener survives a trap that moved focus in first.
+    var _trail = [];
+    document.addEventListener('focusin', function(e) { _note(e.target); }, true);
+    document.addEventListener('focusout', function(e) { if (!e.relatedTarget) _note(null); }, true);
+    function _note(el) {
+      if (_trail[_trail.length - 1] === el) return;
+      _trail.push(el);
+      if (_trail.length > 8) _trail.shift();
+    }
+    function _opener(surface) {
+      for (var i = _trail.length - 1; i >= 0; i--) {
+        if (!_trail[i] || !surface.contains(_trail[i])) return _trail[i];
+      }
+      return null;
+    }
+    // WebKit keeps focus on hidden or removed elements, so those count as nowhere.
+    function _shown(el) {
+      return !!el && el !== document.body && el.isConnected && !el.disabled && el.getClientRects().length > 0;
+    }
+    function _settle(entry) {
+      var now = document.activeElement;
+      if (_shown(now) && !entry.surface.contains(now)) return;
+      var back = entry.opener;
+      if (_shown(back) && !entry.surface.contains(back)) {
+        var view = typeof __hyloEditor !== 'undefined' && __hyloEditor.view;
+        // Native focus() on CodeMirror scrolls it to the top in WebKit.
+        if (view && view.dom.contains(back)) view.focus();
+        else back.focus({ preventScroll: true });
+      } else if (!_stk.length && window.__hyloFocusHome) {
+        window.__hyloFocusHome();
+      }
+    }
+    window.__hyloEscPush = function(id, fn, surface) {
+      var prev = null;
+      _stk = _stk.filter(function(e) { if (e.id === id) prev = e; return e.id !== id; });
+      var entry = { id: id, close: fn, surface: surface || null, opener: null };
+      if (surface) entry.opener = prev && prev.surface ? prev.opener : _opener(surface);
+      _stk.push(entry);
     };
     window.__hyloEscPop = function(id) {
-      _stk = _stk.filter(function(e) { return e.id !== id; });
+      var gone = null;
+      _stk = _stk.filter(function(e) { if (e.id === id) gone = e; return e.id !== id; });
+      // After the closer's own updates, and x-trap lifting inert from the page.
+      if (gone && gone.surface) setTimeout(function() { _settle(gone); }, 0);
     };
     window.__hyloAnyModalOpen = function() { return _stk.length > 0; };
     document.addEventListener('keydown', function(e) {
@@ -131,7 +172,7 @@ const keysJS = `
         this.open = true;
         var self = this;
         if (window.__hyloEscPush) {
-          window.__hyloEscPush(escId, onEscClose || function() { self.closeOverlay(); });
+          window.__hyloEscPush(escId, onEscClose || function() { self.closeOverlay(); }, this.$el);
         }
       },
       closeOverlay: function() {

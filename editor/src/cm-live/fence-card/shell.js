@@ -165,7 +165,7 @@ function openOverlay({ lang, source, renderer, onClose }) {
 
 // onEdit is supplied by the CM widget only; other hosts have no source to jump to.
 // mode tells the renderer which view state it may share: 'card' | 'pip' | 'full'.
-export function mountShell({ lang, source, renderer, minHeight, onEdit, mode = 'card' }) {
+export function mountShell({ into, lang, source, renderer, minHeight, onEdit, mode = 'card' }) {
   ensureStyle();
   const root = document.createElement('div');
   root.className = `hy-card hy-card-${lang}`;
@@ -198,8 +198,9 @@ export function mountShell({ lang, source, renderer, minHeight, onEdit, mode = '
   );
   if (onEdit) bar.append(iconButton('code-xml', 'Edit source', () => onEdit()));
   root.appendChild(bar);
+  into.replaceChildren(root);
 
-  // Deferred a frame so the host has attached `root` and measured it.
+  // Deferred a frame: the body's height is fixed, so the card paints before the renderer's first layout.
   requestAnimationFrame(() => {
     if (destroyed) return;
     try {
@@ -210,7 +211,6 @@ export function mountShell({ lang, source, renderer, minHeight, onEdit, mode = '
   });
 
   return {
-    el: root,
     update(next) {
       current = next;
       if (inst) inst.update(next);
@@ -224,13 +224,15 @@ export function mountShell({ lang, source, renderer, minHeight, onEdit, mode = '
 }
 
 // Chrome for inline cards: none, the body just grows with the content.
-export function mountInline({ lang, source, renderer }) {
+// Attached before the renderer mounts, so it lays out at its final size right away.
+export function mountInline({ into, lang, source, renderer }) {
   ensureStyle();
   const root = document.createElement('div');
   root.className = `hy-card hy-card-inline hy-card-${lang}`;
   const body = document.createElement('div');
   body.className = 'hy-card-body';
   root.appendChild(body);
+  into.replaceChildren(root);
   let inst = null;
   try {
     inst = renderer.mount(body, source, { mode: 'card' });
@@ -241,7 +243,6 @@ export function mountInline({ lang, source, renderer }) {
     body.replaceChildren(msg);
   }
   return {
-    el: root,
     update(next) {
       if (inst) inst.update(next);
     },

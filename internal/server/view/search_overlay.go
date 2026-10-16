@@ -391,7 +391,7 @@ const searchOverlayScript = `
           if (this.showModes) { this.closeModeMenu(); }
           else if (this.hasQuery) { this._clearQuery(); }
           else { this.close(); }
-        });
+        }, this.$el);
         this.$nextTick(() => this.$refs.input && this.$refs.input.focus());
       },
       openWithMode(detail) {

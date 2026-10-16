@@ -65,7 +65,7 @@ function homeImagesMixin() {
       // and swallows Escape whenever the editor's content pane (or any other
       // stack entry) is open, so window never sees the key.
       this.$watch('lightbox', (val) => {
-        if (val) { if (window.__hyloEscPush) window.__hyloEscPush('lightbox', () => { this.lightbox = null; }); }
+        if (val) { if (window.__hyloEscPush) window.__hyloEscPush('lightbox', () => { this.lightbox = null; }, document.querySelector('.lb-overlay')); }
         else if (window.__hyloEscPop) window.__hyloEscPop('lightbox');
       });
       window._imgUpdateSelected = () => {

@@ -16,6 +16,11 @@
     return msg;
   }
 
+  // What the DB row looked like, so a reload can tell an unchanged message apart.
+  function storedSig(m) {
+    return JSON.stringify([m.content || '', m.status || '', m.updatedAt || '', m.noteAccess || null]);
+  }
+
   function formatStoredMessages(msgs) {
     var out = [];
     for (var i = 0; i < msgs.length; i++) {
@@ -25,6 +30,7 @@
           id: m.id,
           role: 'user', content: m.content,
           createdAt: m.createdAt ? new Date(m.createdAt).getTime() : 0,
+          stored: storedSig(m),
           rev: 1,
         });
       } else {
@@ -48,6 +54,7 @@
           startTime: 0, duration: 0,
           createdAt: m.createdAt ? new Date(m.createdAt).getTime() : 0,
           completedAt: at,
+          stored: storedSig(m),
           rev: 1,
         });
       }
@@ -230,6 +237,30 @@
 
   // Merge DB rows into the live list. Rich segments (thinking, tools) survive
   // only once a message has already left `running` — the DB stores final text.
+  function mergeStored(ex, nm) {
+    var prevStatus = ex.status;
+    ex.content = nm.content;
+    ex.status = nm.status;
+    var hasRichSegs = (ex.segments || []).some(function (s) { return s.type !== 'text'; });
+    if (prevStatus !== 'running' && hasRichSegs) {
+      // note_access is excluded here on purpose (never on the "keep the
+      // live version" side) — it's never built live to begin with (see
+      // the note_access case above), so it always has to come from the
+      // DB's row, and always goes last, after the DB's own text.
+      var richSegs = (ex.segments || []).filter(function (s) { return s.type !== 'text' && s.type !== 'note_access'; });
+      var dbTextSegs = (nm.segments || []).filter(function (s) { return s.type === 'text'; });
+      var dbNoteAccess = (nm.segments || []).filter(function (s) { return s.type === 'note_access'; });
+      ex.segments = richSegs.concat(dbTextSegs).concat(dbNoteAccess);
+    } else {
+      ex.segments = nm.segments;
+    }
+    ex.completedAt = nm.completedAt;
+    ex.stored = nm.stored;
+    if (nm.triggerEvent) ex.triggerEvent = nm.triggerEvent;
+    if (nm.triggerId) ex.triggerId = nm.triggerId;
+    touch(ex);
+  }
+
   function mergeSynced(messages, dbMsgs) {
     var incoming = formatStoredMessages(dbMsgs);
     var changed = false;
@@ -241,34 +272,23 @@
           if (messages[k].id === nm.id) { existingIdx = k; break; }
         }
       }
-      if (existingIdx >= 0) {
-        var ex = messages[existingIdx];
-        var prevStatus = ex.status;
-        ex.content = nm.content;
-        ex.status = nm.status;
-        var hasRichSegs = (ex.segments || []).some(function (s) { return s.type !== 'text'; });
-        if (prevStatus !== 'running' && hasRichSegs) {
-          // note_access is excluded here on purpose (never on the "keep the
-          // live version" side) — it's never built live to begin with (see
-          // the note_access case above), so it always has to come from the
-          // DB's row, and always goes last, after the DB's own text.
-          var richSegs = (ex.segments || []).filter(function (s) { return s.type !== 'text' && s.type !== 'note_access'; });
-          var dbTextSegs = (nm.segments || []).filter(function (s) { return s.type === 'text'; });
-          var dbNoteAccess = (nm.segments || []).filter(function (s) { return s.type === 'note_access'; });
-          ex.segments = richSegs.concat(dbTextSegs).concat(dbNoteAccess);
-        } else {
-          ex.segments = nm.segments;
-        }
-        ex.completedAt = nm.completedAt;
-        if (nm.triggerEvent) ex.triggerEvent = nm.triggerEvent;
-        if (nm.triggerId) ex.triggerId = nm.triggerId;
-        touch(ex);
-      } else {
-        messages.push(nm);
-      }
+      if (existingIdx >= 0) mergeStored(messages[existingIdx], nm);
+      else messages.push(nm);
       changed = true;
     }
     return changed;
+  }
+
+  // A full reload as a new list that keeps each unchanged message as is, so its row survives.
+  function reconcileStored(messages, dbMsgs) {
+    var byId = Object.create(null);
+    for (var i = 0; i < messages.length; i++) if (messages[i].id) byId[messages[i].id] = messages[i];
+    return formatStoredMessages(dbMsgs).map(function (nm) {
+      var ex = nm.id && byId[nm.id];
+      if (!ex) return nm;
+      if (ex.stored !== nm.stored) mergeStored(ex, nm);
+      return ex;
+    });
   }
 
   // Replace text segments with the authoritative DB body; keep everything else.
@@ -357,6 +377,7 @@
     toolArg: toolArg,
     applySSE: applySSE,
     mergeSynced: mergeSynced,
+    reconcileStored: reconcileStored,
     replaceTextFromDB: replaceTextFromDB,
     feedSSE: feedSSE,
     formatTime: formatTime,

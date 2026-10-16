@@ -395,8 +395,8 @@
       /* Chat is a stream of short exchanges, not long-form prose, so it
          reads one tier down from editor/reader-scale type. Matches
          .msg-body .prose below. */
-      font-size: var(--text-base);
-      line-height: 1.6;
+      font-size: var(--text-md);
+      line-height: 1.75;
       word-break: break-word;
     }
     .msg-user-bubble.prose > :last-child { margin-bottom: 0; }
@@ -444,13 +444,14 @@
 
     /* Assistant markdown — reuse .prose from noteSharedCSS (same tokens as
        the note editor's prose) but sized down a tier from the reading-view
-       default: this is chat, not editing content, so compact/tight-set
-       type reads more polished here than editor-scale (--text-body, 16px)
-       text would. Headings/inline code stay proportional (.prose sizes
-       them in em off this). */
+       default: this is chat, not editing content, so one size under
+       editor-scale (--text-md, 15px vs --text-body, 16px) reads better;
+       the loose 1.75 leading stays the same as the editor's paragraphs.
+       Headings/inline code stay proportional (.prose sizes them in em off
+       this). */
     .msg-body .prose,
     .trig-run-body.prose {
-      font-size: var(--text-base);
+      font-size: var(--text-md);
       word-break: break-word;
       min-width: 0;
     }
@@ -470,7 +471,7 @@
     .trig-run-body.prose p,
     .msg-body .prose li,
     .trig-run-body.prose li {
-      line-height: 1.6;
+      line-height: 1.75;
     }
 
     .msg-body .prose p,
@@ -1160,7 +1161,7 @@
 
     .chat-hint-name {
       display: block;
-      font-size: var(--text-base);
+      font-size: var(--text-md);
       line-height: 1.4;
       color: var(--muted-soft);
       white-space: nowrap;
@@ -1178,7 +1179,7 @@
       outline: none;
       background: transparent;
       color: var(--fg);
-      font-size: var(--text-base);
+      font-size: var(--text-md);
       font-family: inherit;
       line-height: 1.4;
       padding: 0.45rem 0;

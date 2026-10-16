@@ -478,7 +478,7 @@
             _paneOverlayEl.classList.add('content-pane-is-opening');
             setTimeout(function() { _paneOverlayEl.classList.remove('content-pane-is-opening'); }, 320);
           }
-          if (window.__hyloEscPush) window.__hyloEscPush('content-pane', _paneEscClose);
+          if (window.__hyloEscPush) window.__hyloEscPush('content-pane', _paneEscClose, document.querySelector('.content-pane'));
           if (self._skipNextOpenLoad) { self._skipNextOpenLoad = false; return; } // see _openPane()
           // Refresh key-behavior config on every open so settings changes take
           // effect immediately without restarting the app. Called before any

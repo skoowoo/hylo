@@ -14,11 +14,10 @@ export function mountCard(info, source, { onEdit, mode } = {}) {
 
   entry.load().then((renderer) => {
     if (destroyed) return;
-    shell = entry.inline
-      ? mountInline({ lang: entry.lang, source: latest, renderer })
-      : mountShell({ lang: entry.lang, source: latest, renderer, minHeight: entry.minHeight, onEdit, mode });
     el.style.minHeight = '';
-    el.replaceChildren(shell.el);
+    shell = entry.inline
+      ? mountInline({ into: el, lang: entry.lang, source: latest, renderer })
+      : mountShell({ into: el, lang: entry.lang, source: latest, renderer, minHeight: entry.minHeight, onEdit, mode });
   }).catch(() => {
     if (destroyed) return;
     const msg = document.createElement('div');

@@ -1084,6 +1084,9 @@
     thread.appendChild(spacer);
 
     var rows = new Map();
+    // Rows of conversations switched away from, kept built so coming back doesn't rebuild them.
+    var shelf = new Map();
+    var SHELF_MAX = 400;
     var lastBusy = null;
     var detaching = false;
     var listen = new AbortController();
@@ -1246,7 +1249,7 @@
         hintName.textContent = mate ? ('Ask ' + mate.name + '…') : 'Select a bot from the sidebar';
       }
       if (ta) {
-        ta.disabled = busy || !snap.mateId;
+        ta.disabled = !snap.mateId;
         if (document.activeElement !== ta && ta.value !== snap.draft) {
           ta.value = snap.draft;
           root.__hyloAutoResize(ta);
@@ -1266,9 +1269,26 @@
 
     function retire(id) {
       var row = rows.get(id);
-      if (row) root.__hyloReleaseFenceCards(row);
-      if (row && row.parentNode) row.parentNode.removeChild(row);
       rows.delete(id);
+      if (!row) return;
+      if (row.parentNode) row.parentNode.removeChild(row);
+      shelf.delete(id);
+      shelf.set(id, row);
+      if (shelf.size > SHELF_MAX) {
+        var oldest = shelf.keys().next().value;
+        root.__hyloReleaseFenceCards(shelf.get(oldest));
+        shelf.delete(oldest);
+      }
+    }
+
+    function unshelve(id) {
+      var row = shelf.get(id);
+      if (!row) return null;
+      shelf.delete(id);
+      rows.set(id, row);
+      // Its retry button and time label missed the renders while it was away.
+      lastBusy = null;
+      return row;
     }
 
     function syncRetry(snap) {
@@ -1288,6 +1308,13 @@
     }
 
     function renderThread(snap) {
+      if (snap.mateId && !snap.loaded) {
+        Array.from(rows.keys()).forEach(retire);
+        var pendingEmpty = rootEl.querySelector('.chat-empty');
+        if (pendingEmpty) pendingEmpty.remove();
+        emptyKind = '';
+        return;
+      }
       if (!snap.messages.length) {
         Array.from(rows.keys()).forEach(retire);
         var kind = snap.mate ? ('card:' + snap.mate.name) : (snap.matesLoaded && !snap.mates.length ? 'setup' : 'plain');
@@ -1307,11 +1334,13 @@
       emptyKind = '';
       var seen = {};
       var prev = null;
+      var returned = false;
       for (var i = 0; i < snap.messages.length; i++) {
         var msg = snap.messages[i];
         var id = msg.id || ('i' + i);
         seen[id] = true;
         var row = rows.get(id);
+        if (!row && msg.id && (row = unshelve(id))) returned = true;
         var stopBit = snap.stoppingId === id ? 1 : 0;
         if (row && row._epoch === snap.catalogEpoch && row._rev === msg.rev && row._stop === stopBit) {
           prev = place(row, prev);
@@ -1321,6 +1350,7 @@
         var same = row && row._epoch === snap.catalogEpoch && row._struct === sig;
         if (!(same && row._body && patchSegments(row._body, msg))) {
           var fresh = msg.role === 'user' ? buildUser(msg) : buildAssistant(msg, snap, api);
+          if (row) root.__hyloReleaseFenceCards(row);
           if (row && row.parentNode) row.parentNode.replaceChild(fresh, row);
           row = fresh;
           rows.set(id, row);
@@ -1335,6 +1365,7 @@
       if (spacer.parentNode !== thread || (prev && prev.nextSibling !== spacer)) thread.appendChild(spacer);
       rows.forEach(function (row, id) { if (!seen[id]) retire(id); });
       syncChoices(snap);
+      if (returned) updateTimes();
     }
 
     function openTriggerSettings() {
@@ -1556,6 +1587,12 @@
     }
 
     function render() {
+      paint();
+      restoreLostFocus();
+      takeFocus();
+    }
+
+    function paint() {
       var snap = api.state();
       renderChrome(snap);
       var wasTrigger = triggerMode;
@@ -1698,6 +1735,62 @@
       });
     }
 
+    // The composer is the chat's resting focus: pointing at a control doesn't take
+    // it, a plain click or typing hands it back, and a focused control that vanishes returns it.
+    var lastFocus = null;
+    // A request waits for the composer to be shown and enabled, unless focus goes elsewhere first.
+    var wantFocus = false;
+    function isEntry(el) {
+      return !!(el && el.closest && el.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])'));
+    }
+    // WebKit leaves focus on an element that was hidden or removed, so that counts as nowhere too.
+    function orphaned(a) {
+      return !a || a === document.body || !a.isConnected || a.disabled || !a.getClientRects().length;
+    }
+    function focusIdle() {
+      var a = document.activeElement;
+      return orphaned(a) || (rootEl.contains(a) && !isEntry(a));
+    }
+    function focusComposer() {
+      wantFocus = true;
+      takeFocus();
+    }
+    function takeFocus() {
+      if (!wantFocus || !ta || ta.disabled || !rootEl.isConnected || !ta.getClientRects().length) return;
+      wantFocus = false;
+      if (document.activeElement !== ta) ta.focus({ preventScroll: true });
+    }
+    on(document, 'focusin', function (e) { if (e.target !== ta) wantFocus = false; });
+    // Whatever closed over the chat (a dialog, the note pane) and has nowhere to put focus hands it here.
+    root.__hyloFocusHome = focusComposer;
+    on(rootEl, 'mousedown', function (e) {
+      if (e.button !== 0 || isEntry(e.target)) return;
+      if (e.target.closest('button, a[href], [role="button"]')) e.preventDefault();
+    });
+    on(rootEl, 'click', function (e) {
+      if (e.detail === 0) return;
+      var sel = window.getSelection && window.getSelection();
+      if (sel && !sel.isCollapsed) return;
+      if (focusIdle()) focusComposer();
+    });
+    // Typing after selecting text in the thread, where focus rests on the body.
+    on(document, 'keydown', function (e) {
+      if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.key.length !== 1 && e.keyCode !== 229) return;
+      if (!orphaned(document.activeElement) || !rootEl.isConnected) return;
+      if (ta && ta.offsetParent) focusComposer();
+    });
+    on(rootEl, 'focusin', function (e) { lastFocus = e.target; });
+    on(rootEl, 'focusout', function (e) {
+      if (!orphaned(e.target)) lastFocus = null;
+    });
+    function restoreLostFocus() {
+      var gone = lastFocus;
+      if (!gone || gone === ta || !orphaned(gone)) return;
+      lastFocus = null;
+      if (focusIdle()) focusComposer();
+    }
+
     on(sendBtn, 'click', function () { void api.send(); });
     on(stopBtn, 'click', function () { void api.cancel(); });
     on(newBtn, 'click', function () { void api.newChat(); });
@@ -1729,12 +1822,7 @@
         if (card) card.classList.remove('is-multiline');
         show(hint, true);
       },
-      focusComposer: function () {
-        if (!ta) return;
-        ta.style.height = '';
-        ta.selectionStart = ta.selectionEnd = ta.value.length;
-        ta.focus();
-      },
+      focusComposer: focusComposer,
       insertWikilink: function (stem) {
         if (!stem) return;
         var cur = ta ? ta.value : api.draft();
@@ -1759,6 +1847,9 @@
       destroy: function () {
         detaching = true;
         root.__hyloReleaseFenceCards(thread);
+        shelf.forEach(function (row) { root.__hyloReleaseFenceCards(row); });
+        shelf.clear();
+        if (root.__hyloFocusHome === focusComposer) root.__hyloFocusHome = null;
         if (copiedListener === onCopied) copiedListener = null;
         if (hydrateListener === onContentHydrated) hydrateListener = null;
         listen.abort();
