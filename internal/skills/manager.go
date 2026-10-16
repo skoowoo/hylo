@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -53,10 +52,8 @@ type state struct {
 type SkillInfo struct {
 	Name    string `json:"name"`
 	Default bool   `json:"default"`
-	// Enabled is whether the skill is on at the vault root; Dirs lists every vault
-	// directory it is on in.
-	Enabled bool     `json:"enabled"`
-	Dirs    []string `json:"dirs"`
+	// Dirs lists every vault directory the skill is on in.
+	Dirs []string `json:"dirs"`
 	// Repo is set when the skill matches a catalog entry by name.
 	Repo        string `json:"repo,omitempty"`
 	Description string `json:"description,omitempty"`
@@ -191,22 +188,6 @@ func (m *Manager) linkDirs(dir string) []string {
 	return []string{filepath.Join(base, ".agents", "skills"), filepath.Join(base, ".claude", "skills")}
 }
 
-// CleanDir normalizes a vault directory such as /_news/; empty means the vault root.
-func CleanDir(dir string) (string, error) {
-	if dir == "" {
-		return "/", nil
-	}
-	if !strings.HasPrefix(dir, "/") {
-		return "", fmt.Errorf("dir %q must be vault-absolute, starting with /", dir)
-	}
-	for _, seg := range strings.Split(dir, "/") {
-		if strings.HasPrefix(seg, ".") {
-			return "", fmt.Errorf("dir %q must not contain hidden or relative segments", dir)
-		}
-	}
-	return path.Clean(dir), nil
-}
-
 // List returns the skills added to ~/.hylo/skills.
 func (m *Manager) List() ([]SkillInfo, error) {
 	m.mu.Lock()
@@ -234,7 +215,6 @@ func (m *Manager) List() ([]SkillInfo, error) {
 		out = append(out, SkillInfo{
 			Name:        name,
 			Default:     isDefault(name),
-			Enabled:     slices.Contains(dirs, "/"),
 			Dirs:        dirs,
 			Repo:        repos[name],
 			Description: m.skillDescription(dir),
@@ -257,7 +237,7 @@ func (m *Manager) Catalog() []CatalogEntry {
 // it where agents started there look, creating dir if needed. Built-in skills are
 // always on at the root.
 func (m *Manager) Enable(name, dir string) error {
-	dir, err := CleanDir(dir)
+	dir, err := util.CleanVaultDir(dir)
 	if err != nil {
 		return err
 	}
@@ -288,12 +268,12 @@ func (m *Manager) Enable(name, dir string) error {
 // Disable turns name off in the vault directory dir ("" or "/" for the root).
 // Built-in skills cannot be turned off at the root.
 func (m *Manager) Disable(name, dir string) error {
-	dir, err := CleanDir(dir)
+	dir, err := util.CleanVaultDir(dir)
 	if err != nil {
 		return err
 	}
 	if isDefault(name) && dir == "/" {
-		return fmt.Errorf("skill %q is a built-in skill and cannot be turned off at the vault root", name)
+		return fmt.Errorf("skill %q is built in and always on for the main bot", name)
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -303,6 +283,30 @@ func (m *Manager) Disable(name, dir string) error {
 		m.st.Enabled[name] = dirs
 	} else {
 		delete(m.st.Enabled, name)
+	}
+	return m.changed(m.saveState())
+}
+
+// DisableDir turns every skill off in the vault directory dir, as when the bot
+// working there is deleted. The vault root keeps its skills.
+func (m *Manager) DisableDir(dir string) error {
+	dir, err := util.CleanVaultDir(dir)
+	if err != nil || dir == "/" {
+		return err
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	for name, dirs := range m.st.Enabled {
+		if !slices.Contains(dirs, dir) {
+			continue
+		}
+		m.unlink(name, dir)
+		if dirs = slices.DeleteFunc(dirs, func(d string) bool { return d == dir }); len(dirs) > 0 {
+			m.st.Enabled[name] = dirs
+		} else {
+			delete(m.st.Enabled, name)
+		}
 	}
 	return m.changed(m.saveState())
 }

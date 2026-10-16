@@ -10,17 +10,19 @@ import (
 	"time"
 
 	"github.com/hardhacker/hylo/internal/mate"
+	"github.com/hardhacker/hylo/internal/skills"
 )
 
 // MateAPI handles /api/mates endpoints.
 type MateAPI struct {
 	logger *slog.Logger
 	store  *mate.Store
+	skills *skills.Manager
 }
 
 // NewMateAPI constructs the handler.
-func NewMateAPI(logger *slog.Logger, store *mate.Store) *MateAPI {
-	return &MateAPI{logger: logger, store: store}
+func NewMateAPI(logger *slog.Logger, store *mate.Store, skillsMgr *skills.Manager) *MateAPI {
+	return &MateAPI{logger: logger, store: store, skills: skillsMgr}
 }
 
 // MatesGET handles GET /api/mates.
@@ -36,6 +38,13 @@ func (h *MateAPI) MatesGET(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusOK, map[string]any{"mates": list})
 }
 
+func mateSaveStatus(err error) int {
+	if errors.Is(err, mate.ErrMateConflict) {
+		return http.StatusConflict
+	}
+	return http.StatusInternalServerError
+}
+
 // MatesPOST handles POST /api/mates.
 func (h *MateAPI) MatesPOST(w http.ResponseWriter, r *http.Request) {
 	var body struct {
@@ -44,7 +53,6 @@ func (h *MateAPI) MatesPOST(w http.ResponseWriter, r *http.Request) {
 		AgentID      string             `json:"agentId"`
 		Model        string             `json:"model"`
 		Color        string             `json:"color"`
-		Cwd          string             `json:"cwd"`
 		SystemPrompt string             `json:"systemPrompt"`
 		Enabled      bool               `json:"enabled"`
 		Triggers     []mate.MateTrigger `json:"triggers"`
@@ -68,13 +76,12 @@ func (h *MateAPI) MatesPOST(w http.ResponseWriter, r *http.Request) {
 		AgentID:      body.AgentID,
 		Model:        body.Model,
 		Color:        body.Color,
-		Cwd:          body.Cwd,
 		SystemPrompt: body.SystemPrompt,
 		Enabled:      body.Enabled,
 	}
 
 	if err := h.store.CreateMate(m); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, err.Error(), mateSaveStatus(err))
 		return
 	}
 
@@ -122,7 +129,6 @@ func (h *MateAPI) MatePUT(w http.ResponseWriter, r *http.Request) {
 		AgentID      string             `json:"agentId"`
 		Model        string             `json:"model"`
 		Color        string             `json:"color"`
-		Cwd          string             `json:"cwd"`
 		SystemPrompt string             `json:"systemPrompt"`
 		Enabled      bool               `json:"enabled"`
 		Triggers     []mate.MateTrigger `json:"triggers"`
@@ -150,7 +156,6 @@ func (h *MateAPI) MatePUT(w http.ResponseWriter, r *http.Request) {
 	existing.AgentID = body.AgentID
 	existing.Model = body.Model
 	existing.Color = body.Color
-	existing.Cwd = body.Cwd
 	existing.SystemPrompt = body.SystemPrompt
 	existing.Enabled = body.Enabled
 
@@ -162,17 +167,12 @@ func (h *MateAPI) MatePUT(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "invalid If-Match", http.StatusBadRequest)
 			return
 		}
-		err = h.store.UpdateMateIf(existing, time.UnixMilli(ms))
-		if errors.Is(err, mate.ErrMateConflict) {
-			http.Error(w, err.Error(), http.StatusConflict)
-			return
-		}
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+		if err := h.store.UpdateMateIf(existing, time.UnixMilli(ms)); err != nil {
+			http.Error(w, err.Error(), mateSaveStatus(err))
 			return
 		}
 	} else if err := h.store.UpdateMate(existing); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, err.Error(), mateSaveStatus(err))
 		return
 	}
 
@@ -209,9 +209,20 @@ func (h *MateAPI) MatesReorderPOST(w http.ResponseWriter, r *http.Request) {
 // MateDELETE handles DELETE /api/mates/{id}.
 func (h *MateAPI) MateDELETE(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
+	m, err := h.store.GetMate(id)
+	if err == nil && m != nil && m.Main {
+		http.Error(w, "the main bot can't be deleted", http.StatusBadRequest)
+		return
+	}
 	if err := h.store.DeleteMate(id); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
+	}
+	// The folder is free for the next bot named the same; it shouldn't inherit these skills.
+	if m != nil && h.skills != nil {
+		if err := h.skills.DisableDir(m.Cwd); err != nil {
+			h.logger.Warn("mate: turn off deleted bot's skills", slog.String("err", err.Error()))
+		}
 	}
 	respondJSON(w, http.StatusOK, map[string]any{"ok": true})
 }

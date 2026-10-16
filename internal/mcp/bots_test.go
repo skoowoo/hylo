@@ -82,10 +82,10 @@ func botSession(t *testing.T, f *fakeBots) *sdk.ClientSession {
 		reply(w, map[string]any{"ok": true, "name": body.Skill})
 	})
 	mux.HandleFunc("POST /api/skills/{name}/enable", func(w http.ResponseWriter, r *http.Request) {
-		var body struct{ Dir string }
+		var body struct{ BotID string }
 		json.NewDecoder(r.Body).Decode(&body)
 		f.mu.Lock()
-		f.enabled = append(f.enabled, r.PathValue("name")+body.Dir)
+		f.enabled = append(f.enabled, r.PathValue("name")+"@"+body.BotID)
 		f.mu.Unlock()
 		reply(w, map[string]any{"ok": true})
 	})
@@ -146,9 +146,8 @@ func TestSkillsCatalogAddEnable(t *testing.T) {
 	if len(f.enabled) != 0 {
 		t.Fatal("adding turned the skill on")
 	}
-	call(t, cs, "skills_enable", map[string]any{"name": "hackernews"})
-	call(t, cs, "skills_enable", map[string]any{"name": "hackernews", "dir": "/_news"})
-	if strings.Join(f.added, ",") != "a/b:hackernews" || strings.Join(f.enabled, ",") != "hackernews,hackernews/_news" {
+	call(t, cs, "skills_enable", map[string]any{"name": "hackernews", "bot_id": "news"})
+	if strings.Join(f.added, ",") != "a/b:hackernews" || strings.Join(f.enabled, ",") != "hackernews@news" {
 		t.Fatalf("added %v enabled %v", f.added, f.enabled)
 	}
 }

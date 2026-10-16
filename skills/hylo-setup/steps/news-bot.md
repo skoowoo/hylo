@@ -10,8 +10,7 @@ Give them a News bot that brings a digest from the news sources they pick every 
 2. On their answer:
    - **None, or not now:** skip the step.
    - **One or more:**
-     1. For each one they picked: `skills_add {"repo": "<repo>", "skill": "<name>"}` with the values from its catalog entry, unless it is already `added`; then `skills_enable {"name": "<name>"}`.
-     2. `bot_create {"name": "News", "description": "<one line naming the sources>", "system_prompt": "<system prompt>"}`, with this system prompt, word for word:
+     1. `bot_create {"name": "News", "description": "<one line naming the sources>", "system_prompt": "<system prompt>"}`, with this system prompt, word for word:
 
         ```
         You bring the user today's news. Your reply is the digest itself, and it goes straight to their inbox:
@@ -20,6 +19,7 @@ Give them a News bot that brings a digest from the news sources they pick every 
         - Never save notes or files; the reply is the only output.
         - Write in the language set in /_memory/_preferences.md.
         ```
+     2. For each one they picked: `skills_add {"repo": "<repo>", "skill": "<name>"}` with the values from its catalog entry, unless it is already `added`; then `skills_enable {"name": "<name>", "bot_id": "<bot id>"}`.
      3. `trigger_add {"bot_id": "<bot id>", "name": "<skill name>", "schedule": "daily 08:00", "prompt": "Use the <skill name> skill to get today's news."}` once per source, in the order they picked. The first is at 08:00, or the time they chose; each next one is five minutes later (`daily 08:05`, `daily 08:10`, …).
      4. `trigger_run {"bot_id": "<bot id>", "trigger_id": "<first trigger id>"}`, so the first digest is on its way now.
      5. Tell them in one or two sentences: the first digest will be in their inbox shortly, then every morning at the time set.

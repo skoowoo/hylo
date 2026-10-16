@@ -21,8 +21,8 @@ func (s *Store) createConversation(mateID, title, convType, userKey string) (Con
 	now := time.Now().UnixMilli()
 	id := uuid.NewString()
 	_, err := s.db.Exec(
-		`INSERT INTO conversations(id, mate_id, title, type, user_key, agent_session_id, agent_session_agent_id, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?)`,
-		id, mateID, title, convType, userKey, "", "", now, now,
+		`INSERT INTO conversations(id, mate_id, title, type, user_key, agent_session_id, agent_session_agent_id, agent_session_cwd, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?)`,
+		id, mateID, title, convType, userKey, "", "", "", now, now,
 	)
 	if err != nil {
 		return Conversation{}, fmt.Errorf("mate: create conversation: %w", err)
@@ -42,8 +42,8 @@ func (s *Store) GetConversation(id string) (Conversation, error) {
 	var c Conversation
 	var createdMs, updatedMs int64
 	err := s.db.QueryRow(
-		`SELECT id, mate_id, title, type, user_key, agent_session_id, agent_session_agent_id, created_at, updated_at FROM conversations WHERE id = ?`, id,
-	).Scan(&c.ID, &c.MateID, &c.Title, &c.Type, &c.UserKey, &c.AgentSessionID, &c.AgentSessionAgentID, &createdMs, &updatedMs)
+		`SELECT id, mate_id, title, type, user_key, agent_session_id, agent_session_agent_id, agent_session_cwd, created_at, updated_at FROM conversations WHERE id = ?`, id,
+	).Scan(&c.ID, &c.MateID, &c.Title, &c.Type, &c.UserKey, &c.AgentSessionID, &c.AgentSessionAgentID, &c.AgentSessionCwd, &createdMs, &updatedMs)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Conversation{}, fmt.Errorf("mate: conversation not found: %s", id)
 	}
@@ -157,7 +157,7 @@ func (s *Store) ListConversations(mateID string) ([]Conversation, error) {
 // ListConversationsByType returns conversations of a given type for a specific mate, ordered by most recent first.
 func (s *Store) ListConversationsByType(mateID, convType string) ([]Conversation, error) {
 	rows, err := s.db.Query(
-		`SELECT id, mate_id, title, type, user_key, agent_session_id, agent_session_agent_id, created_at, updated_at FROM conversations WHERE type = ? AND mate_id = ? ORDER BY updated_at DESC`,
+		`SELECT id, mate_id, title, type, user_key, agent_session_id, agent_session_agent_id, agent_session_cwd, created_at, updated_at FROM conversations WHERE type = ? AND mate_id = ? ORDER BY updated_at DESC`,
 		convType, mateID,
 	)
 	if err != nil {
@@ -185,12 +185,13 @@ func (s *Store) DeleteConversation(id string) error {
 	return err
 }
 
-// SetConversationAgentSession stores the agent-native session id for multi-turn resume.
-func (s *Store) SetConversationAgentSession(conversationID, agentID, sessionID string) error {
+// SetConversationAgentSession stores the agent-native session id for multi-turn resume,
+// with the agent and cwd it lives under.
+func (s *Store) SetConversationAgentSession(conversationID, agentID, cwd, sessionID string) error {
 	now := time.Now().UnixMilli()
 	_, err := s.db.Exec(
-		`UPDATE conversations SET agent_session_id = ?, agent_session_agent_id = ?, updated_at = ? WHERE id = ?`,
-		sessionID, agentID, now, conversationID,
+		`UPDATE conversations SET agent_session_id = ?, agent_session_agent_id = ?, agent_session_cwd = ?, updated_at = ? WHERE id = ?`,
+		sessionID, agentID, cwd, now, conversationID,
 	)
 	if err != nil {
 		return fmt.Errorf("mate: set agent session: %w", err)
@@ -198,11 +199,11 @@ func (s *Store) SetConversationAgentSession(conversationID, agentID, sessionID s
 	return nil
 }
 
-// ClearConversationAgentSession drops the stored agent session (e.g. agent switch).
+// ClearConversationAgentSession drops the stored agent session (e.g. agent or cwd switch).
 func (s *Store) ClearConversationAgentSession(conversationID string) error {
 	now := time.Now().UnixMilli()
 	_, err := s.db.Exec(
-		`UPDATE conversations SET agent_session_id = '', agent_session_agent_id = '', updated_at = ? WHERE id = ?`,
+		`UPDATE conversations SET agent_session_id = '', agent_session_agent_id = '', agent_session_cwd = '', updated_at = ? WHERE id = ?`,
 		now, conversationID,
 	)
 	if err != nil {
@@ -487,7 +488,7 @@ func scanConversations(rows *sql.Rows) ([]Conversation, error) {
 	for rows.Next() {
 		var c Conversation
 		var createdMs, updatedMs int64
-		if err := rows.Scan(&c.ID, &c.MateID, &c.Title, &c.Type, &c.UserKey, &c.AgentSessionID, &c.AgentSessionAgentID, &createdMs, &updatedMs); err != nil {
+		if err := rows.Scan(&c.ID, &c.MateID, &c.Title, &c.Type, &c.UserKey, &c.AgentSessionID, &c.AgentSessionAgentID, &c.AgentSessionCwd, &createdMs, &updatedMs); err != nil {
 			return nil, err
 		}
 		c.CreatedAt = time.UnixMilli(createdMs)

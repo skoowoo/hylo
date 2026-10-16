@@ -572,14 +572,19 @@ func (c *Client) TagDelete(tag string) (*TagDeleteResponse, error) {
 
 // ── Skills ────────────────────────────────────────────────────────────────────
 
-// SkillInfo mirrors skills.SkillInfo for JSON decoding.
+// SkillInfo is one added skill and the bots it is on for.
 type SkillInfo struct {
-	Name        string   `json:"name"`
-	Default     bool     `json:"default"`
-	Enabled     bool     `json:"enabled"`
-	Dirs        []string `json:"dirs"`
-	Repo        string   `json:"repo,omitempty"`
-	Description string   `json:"description,omitempty"`
+	Name        string     `json:"name"`
+	Default     bool       `json:"default"`
+	Repo        string     `json:"repo,omitempty"`
+	Description string     `json:"description,omitempty"`
+	Bots        []SkillBot `json:"bots"`
+}
+
+// SkillBot names a bot a skill is on for.
+type SkillBot struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
 }
 
 // CatalogEntry mirrors skills.CatalogEntry for JSON decoding.
@@ -664,16 +669,14 @@ func (c *Client) SkillsAdd(repo, skill string, force bool) (string, error) {
 	return out.Name, nil
 }
 
-// SkillsEnable calls POST /api/skills/{name}/enable to link an added skill into the
-// vault directory dir; empty means the vault root.
-func (c *Client) SkillsEnable(name, dir string) error { return c.skillsPost(name, "enable", dir) }
+// SkillsEnable calls POST /api/skills/{name}/enable to turn an added skill on for a bot.
+func (c *Client) SkillsEnable(name, botID string) error { return c.skillsPost(name, "enable", botID) }
 
-// SkillsDisable calls POST /api/skills/{name}/disable to unlink a skill from the
-// vault directory dir; empty means the vault root.
-func (c *Client) SkillsDisable(name, dir string) error { return c.skillsPost(name, "disable", dir) }
+// SkillsDisable calls POST /api/skills/{name}/disable to turn a skill off for a bot.
+func (c *Client) SkillsDisable(name, botID string) error { return c.skillsPost(name, "disable", botID) }
 
-func (c *Client) skillsPost(name, action, dir string) error {
-	resp, err := c.postJSON(c.baseURL+"/api/skills/"+url.PathEscape(name)+"/"+action, map[string]string{"dir": dir})
+func (c *Client) skillsPost(name, action, botID string) error {
+	resp, err := c.postJSON(c.baseURL+"/api/skills/"+url.PathEscape(name)+"/"+action, map[string]string{"botId": botID})
 	if err != nil {
 		return wrapConnErr(err)
 	}
@@ -779,7 +782,6 @@ type AgentChatRequest struct {
 	SystemPrompt     string            `json:"systemPrompt,omitempty"`
 	Model            string            `json:"model,omitempty"`
 	Reasoning        string            `json:"reasoning,omitempty"`
-	Cwd              string            `json:"cwd,omitempty"`
 	ImagePaths       []string          `json:"imagePaths,omitempty"`
 	ExtraAllowedDirs []string          `json:"extraAllowedDirs,omitempty"`
 	AgentCliEnv      map[string]string `json:"agentCliEnv,omitempty"`

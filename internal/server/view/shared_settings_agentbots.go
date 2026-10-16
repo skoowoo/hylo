@@ -122,6 +122,14 @@ const settingsAgentBotsCSS = `
       display: flex; align-items: center; gap: 0.6rem; white-space: nowrap;
     }
     .agent-bot-trigger-section-top { display: flex; flex-direction: column; gap: 0.4rem; }
+    .agent-bot-cwd { display: flex; align-items: baseline; gap: 0.5rem; min-width: 0; }
+    .agent-bot-cwd .agent-bot-form-label { margin: 0; flex-shrink: 0; }
+    .agent-bot-cwd-value {
+      min-width: 0; font-family: var(--font-mono); font-size: var(--text-xs); color: var(--muted);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .agent-bot-cwd-value.is-pending { font-family: inherit; }
+    .agent-bot-skill-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; }
     .agent-bot-section-desc { font-size: var(--text-sm); color: var(--muted); line-height: 1.5; margin: 0; }
     .agent-bot-form-row { display: flex; gap: 1rem; }
     .agent-bot-form-row > * { flex: 1; min-width: 0; }
@@ -303,11 +311,12 @@ func settingsAgentBotsTabHTML() string {
                             <button class="btn-outline btn--xs" @click.stop="moveAgentBot(mi, -1)" :disabled="mi === 0" type="button" title="Move up">↑</button>
                             <button class="btn-outline btn--xs" @click.stop="moveAgentBot(mi, 1)" :disabled="mi === agentBotsList.length - 1" type="button" title="Move down">↓</button>
                             <button class="btn-outline btn--xs" @click.stop="openAgentBotEdit(m.id)" type="button">Edit</button>
-                            <button class="btn-solid btn-solid--danger btn--xs" @click.stop="deleteAgentBot(m.id)" type="button">Delete</button>
+                            <button class="btn-solid btn-solid--danger btn--xs" x-show="!m.main" @click.stop="deleteAgentBot(m.id)" type="button">Delete</button>
                           </div>
                         </div>
                         <p class="agent-bot-card-desc" x-show="m.description" x-text="m.description"></p>
                         <div class="agent-bot-card-tags">
+                          <span class="badge agent-bot-badge" x-show="m.main">Main</span>
                           <span class="badge agent-bot-badge" x-text="m.agentId || '—'"></span>
                           <template x-if="m.model">
                             <span class="badge agent-bot-badge" x-text="m.model"></span>
@@ -371,6 +380,37 @@ func settingsAgentBotsTabHTML() string {
                                 x-init="agentBotAutoGrow($el)" @input="agentBotAutoGrow($el)"
                                 placeholder="Instructions prepended to every message…"></textarea>
                     </div>
+                    <div class="agent-bot-cwd">
+                      <span class="agent-bot-form-label">Working directory</span>
+                      <span class="agent-bot-cwd-value" :class="{'is-pending': !agentBotDraft.cwd}" :title="agentBotDraft.cwd"
+                            x-text="agentBotDraft.cwd || 'a folder named after the bot, made on save'"></span>
+                    </div>
+                  </section>
+
+                  <section class="agent-bot-form-section">
+                    <div class="agent-bot-trigger-section-top">
+                      <h3 class="agent-bot-form-section-title">Skills</h3>
+                      <p class="agent-bot-section-desc">Pick the skills this bot can use; hover one to see what it does.
+                        <span x-show="agentBotDraft.main">Built-in skills are always on for the main bot.</span>
+                        Add more under <button type="button" class="skills-empty-link" @click="skillsTab = 'catalog'; tab = 'skills'">Skills</button>.</p>
+                    </div>
+                    <div class="agent-bot-skill-chips" x-show="extraSkills.length">
+                      <template x-for="s in extraSkills" :key="s.name">
+                        <button type="button" class="btn-outline btn--xs" :class="{active: agentBotSkills[s.name]}" :aria-pressed="!!agentBotSkills[s.name]"
+                                :title="s.description || s.name" @click="agentBotSkills[s.name] = !agentBotSkills[s.name]" x-text="s.name"></button>
+                      </template>
+                    </div>
+                    <template x-if="!agentBotDraft.main">
+                      <div>
+                        <span class="agent-bot-var-panel-label">Built-in</span>
+                        <div class="agent-bot-skill-chips">
+                          <template x-for="s in builtinSkills" :key="s.name">
+                            <button type="button" class="btn-outline btn--xs" :class="{active: agentBotSkills[s.name]}" :aria-pressed="!!agentBotSkills[s.name]"
+                                :title="s.description || s.name" @click="agentBotSkills[s.name] = !agentBotSkills[s.name]" x-text="s.name"></button>
+                          </template>
+                        </div>
+                      </div>
+                    </template>
                   </section>
 
                   <section class="agent-bot-form-section agent-bot-form-section-triggers">
@@ -541,8 +581,10 @@ const settingsAgentBotsJS = `
       botSetup: { phase: 'idle', agents: [], agentId: '', model: '', hello: { state: 'idle', text: '', typed: '', error: '' }, creating: false, error: '' },
       agentBotEditId: '',
       // Full shape up front: the hidden form footer still evaluates name.trim().
-      agentBotDraft: { name: '', description: '', agentId: '', model: '', cwd: '', systemPrompt: '', enabled: true },
+      agentBotDraft: { name: '', description: '', agentId: '', model: '', cwd: '', main: false, systemPrompt: '', enabled: true },
       agentBotTriggers: [],
+      // Skill name → on, for the bot's working directory; applied on save.
+      agentBotSkills: {},
       agentBotSaving: false,
       agentBotSaveError: '',
       agentBotEventDefs: [],
@@ -769,15 +811,46 @@ const settingsAgentBotsJS = `
         } catch(_) {}
       },
 
-      newAgentBot() {
+      async newAgentBot() {
         const first = this.agents.find(function(a){ return a.available; });
         const firstModel = (first && first.models && first.models.length) ? first.models[0].id : '';
-        this.agentBotDraft = { name: '', description: '', agentId: first ? first.id : '', model: firstModel, cwd: '', systemPrompt: '', enabled: true };
+        this.agentBotDraft = { name: '', description: '', agentId: first ? first.id : '', model: firstModel, cwd: '', main: false, systemPrompt: '', enabled: true };
         this.agentBotTriggers = [];
+        this.agentBotSkills = {};
         this.agentBotEditId = '';
         this.agentBotSaveError = '';
         this.agentBotFormMode = 'create';
         this._agentBotSaved = this.agentBotSnapshot();
+        await this.loadAgentBotSkills('');
+      },
+
+      // Every added skill, built-ins last since most bots leave them alone.
+      get agentBotSkillList() { return this.extraSkills.concat(this.builtinSkills); },
+
+      // Loads which skills are on for the bot, then marks the form as clean.
+      async loadAgentBotSkills(botId) {
+        await this.loadSkills(true);
+        const on = {};
+        this.agentBotSkillList.forEach(function(s) { on[s.name] = !!botId && s.bots.some(function(b) { return b.id === botId; }); });
+        this.agentBotSkills = on;
+        this._agentBotSaved = this.agentBotSnapshot();
+      },
+
+      // Turns skills on or off for the bot to match the form.
+      async applyAgentBotSkills(bot) {
+        for (const s of this.agentBotSkillList) {
+          if (s.default && bot.main) continue;
+          const on = !!this.agentBotSkills[s.name];
+          if (on === s.bots.some(function(b) { return b.id === bot.id; })) continue;
+          const r = await fetch('/api/skills/' + encodeURIComponent(s.name) + (on ? '/enable' : '/disable'), {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ botId: bot.id }),
+          });
+          if (!r.ok) {
+            const d = await r.json().catch(function() { return {}; });
+            throw new Error(d.error || 'Updating skill ' + s.name + ' failed');
+          }
+        }
+        await this.loadSkills(true);
       },
 
       async openAgentBotEdit(id) {
@@ -794,7 +867,7 @@ const settingsAgentBotsJS = `
           const modelValid = !savedModel || savedModel === 'default' ||
             knownModels.length === 0 ||
             knownModels.some(function(x) { return x.id === savedModel; });
-          this.agentBotDraft = { name: m.name, description: m.description || '', agentId: m.agentId, model: modelValid ? savedModel : '', cwd: m.cwd || '', systemPrompt: m.systemPrompt || '', enabled: m.enabled };
+          this.agentBotDraft = { name: m.name, description: m.description || '', agentId: m.agentId, model: modelValid ? savedModel : '', cwd: m.cwd, main: m.main, systemPrompt: m.systemPrompt || '', enabled: m.enabled };
           this.agentBotTriggers = (m.triggers || []).map(function(t) {
             return Object.assign({}, t, {
               name: t.name || '',
@@ -804,10 +877,12 @@ const settingsAgentBotsJS = `
               _open: false,
             });
           });
+          this.agentBotSkills = {};
           this.agentBotEditId = m.id;
           this.agentBotSaveError = '';
           this.agentBotFormMode = 'edit';
           this._agentBotSaved = this.agentBotSnapshot();
+          await this.loadAgentBotSkills(m.id);
         } catch(e) { window.showError('Load failed: ' + e.message, 'Load failed'); }
       },
 
@@ -822,7 +897,7 @@ const settingsAgentBotsJS = `
       },
 
       agentBotSnapshot() {
-        return JSON.stringify([this.agentBotDraft, this.agentBotTriggers.map(function(t) {
+        return JSON.stringify([this.agentBotDraft, this.agentBotSkills, this.agentBotTriggers.map(function(t) {
           const copy = Object.assign({}, t);
           delete copy._open;
           return copy;
@@ -870,6 +945,11 @@ const settingsAgentBotsJS = `
           } else {
             this.agentBotsList = this.agentBotsList.map(function(m) { return m.id === saved.id ? saved : m; });
           }
+          // From here a retry updates the bot rather than creating it twice.
+          this.agentBotFormMode = 'edit';
+          this.agentBotEditId = saved.id;
+          this.agentBotDraft.cwd = saved.cwd;
+          await this.applyAgentBotSkills(saved);
           this.agentBotFormMode = null;
         } catch(e) { this.agentBotSaveError = e.message; }
         finally { this.agentBotSaving = false; }

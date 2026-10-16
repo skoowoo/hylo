@@ -77,9 +77,9 @@ func System(r Run) string {
 
 // Message is what the agent CLI receives as its prompt. Agents take no
 // separate system prompt, so the first turn carries it inline; a resumed
-// session already has it. workdir is named only when the agent runs in the
-// vault rather than a bot's own cwd.
-func Message(system, request, workdir string, resume bool) string {
+// session already has it. cwd is the filesystem path the agent runs in and
+// dir the same directory as a vault path, which MCP tools take.
+func Message(system, request, cwd, dir string, resume bool) string {
 	if resume {
 		return request
 	}
@@ -89,10 +89,12 @@ func Message(system, request, workdir string, resume bool) string {
 		sb.WriteString(t)
 		sb.WriteString("\n\n---\n")
 	}
-	if workdir != "" {
-		sb.WriteString("\nYour working directory (vault): ")
-		sb.WriteString(workdir)
-		sb.WriteString("\n\n")
+	sb.WriteString("\nYour working directory: ")
+	sb.WriteString(cwd)
+	if dir == "/" {
+		sb.WriteString(" (the vault root)\n\n")
+	} else {
+		sb.WriteString(" (vault path " + dir + ")\n\n")
 	}
 	sb.WriteString("# User request\n\n")
 	sb.WriteString(request)

@@ -19,6 +19,7 @@ import (
 	"github.com/hardhacker/hylo/internal/plugin"
 	"github.com/hardhacker/hylo/internal/prompt"
 	"github.com/hardhacker/hylo/internal/storage"
+	"github.com/hardhacker/hylo/internal/util"
 )
 
 // AgentAPI serves Open Design–compatible /api/agents, /api/chat, and /api/runs.
@@ -68,7 +69,6 @@ type chatBody struct {
 	SystemPrompt       string            `json:"systemPrompt"` // the bot layer of the system prompt; see prompt.Run.Bot
 	Model              string            `json:"model"`
 	Reasoning          string            `json:"reasoning"`
-	Cwd                string            `json:"cwd"`
 	ImagePaths         []string          `json:"imagePaths"`
 	ExtraAllowedDirs   []string          `json:"extraAllowedDirs"`
 	AgentCliEnv        map[string]string `json:"agentCliEnv"`
@@ -339,7 +339,6 @@ func (a *AgentAPI) FireTriggerRun(ctx context.Context, m *mate.Mate, convID, pro
 		Message:        prompt,
 		SystemPrompt:   m.SystemPrompt,
 		Model:          m.Model,
-		Cwd:            m.Cwd,
 		ConversationID: convID,
 		TriggerRun:     true,
 		TriggerReply:   ev.Reply != nil,
@@ -374,7 +373,6 @@ func (a *AgentAPI) FireTriggerRetry(ctx context.Context, m *mate.Mate, convID, p
 		Message:            prompt,
 		SystemPrompt:       m.SystemPrompt,
 		Model:              m.Model,
-		Cwd:                m.Cwd,
 		ConversationID:     convID,
 		UserMessageID:      userMsgID,
 		AssistantMessageID: assistantMsgID,
@@ -392,16 +390,15 @@ func (a *AgentAPI) FireTriggerRetry(ctx context.Context, m *mate.Mate, convID, p
 }
 
 func (a *AgentAPI) executeChat(ctx context.Context, run *agent.Run, body chatBody) mate.RunResult {
-	// When mateId is provided, mate config in DB is authoritative for agent/model.
-	// cwd and systemPrompt can still be overridden by the caller.
+	// When mateId is provided, mate config in DB is authoritative for agent/model/cwd.
+	// systemPrompt can still be overridden by the caller.
+	dir := "/"
 	if body.MateID != "" && a.store != nil {
 		if m, err := a.store.GetMate(body.MateID); err == nil && m != nil {
 			body.AgentID = m.AgentID
 			body.Model = m.Model
 			run.AgentID = m.AgentID
-			if body.Cwd == "" {
-				body.Cwd = m.Cwd
-			}
+			dir = m.Cwd
 			if body.SystemPrompt == "" {
 				body.SystemPrompt = m.SystemPrompt
 			}
@@ -476,18 +473,30 @@ func (a *AgentAPI) executeChat(ctx context.Context, run *agent.Run, body chatBod
 		return mate.RunResult{Success: false}
 	}
 
+	dir, cwd, err := a.workdir(dir)
+	if err != nil {
+		a.logger.Warn("agent aborted",
+			slog.String("runId", run.ID),
+			slog.String("agentId", def.ID),
+			slog.String("reason", "bad_cwd"),
+			slog.String("err", err.Error()))
+		a.hub.Emit(run, "error", map[string]any{"code": "BAD_REQUEST", "message": err.Error()})
+		a.hub.Finish(run, "failed", map[string]any{})
+		a.invokeEventReply(ctx, body, "", "failed")
+		if assistantMsgID != "" && a.store != nil {
+			_ = a.store.UpdateMessageDone(assistantMsgID, "", "failed")
+		}
+		return mate.RunResult{Success: false}
+	}
+
 	var sessionID string
 	var firstSession, resumeTurn bool
 	if body.TriggerRun && !body.TriggerReply {
 		sessionID, firstSession = resolveTriggerSession(def)
 	} else {
-		sessionID, firstSession, resumeTurn = a.resolveAgentSession(body.ConversationID, def)
+		sessionID, firstSession, resumeTurn = a.resolveAgentSession(body.ConversationID, def, cwd)
 	}
-	workdir := ""
-	if body.Cwd == "" {
-		workdir = a.vault.Root()
-	}
-	composed := prompt.Message(prompt.System(pr), body.Message, workdir, resumeTurn)
+	composed := prompt.Message(prompt.System(pr), body.Message, cwd, dir, resumeTurn)
 	if e := agent.CheckPromptArgvBudget(def, composed); e != nil {
 		a.logger.Warn("agent aborted",
 			slog.String("runId", run.ID),
@@ -517,14 +526,6 @@ func (a *AgentAPI) executeChat(ctx context.Context, run *agent.Run, body chatBod
 
 	safeModel := pickModel(def, body.Model)
 	safeReasoning := pickReasoning(def, body.Reasoning)
-
-	cwd := body.Cwd
-	if cwd == "" {
-		cwd = a.vault.Root()
-	}
-	if rp, err := filepath.Abs(cwd); err == nil {
-		cwd = rp
-	}
 
 	envCfg := body.AgentCliEnv
 	if envCfg == nil {
@@ -699,7 +700,7 @@ func (a *AgentAPI) executeChat(ctx context.Context, run *agent.Run, body chatBod
 		}
 	}
 	if (!body.TriggerRun || body.TriggerReply) && st == "succeeded" && cp.SessionID != "" && body.ConversationID != "" && def.SupportsNativeSession && a.store != nil {
-		if err := a.store.SetConversationAgentSession(body.ConversationID, def.ID, cp.SessionID); err != nil {
+		if err := a.store.SetConversationAgentSession(body.ConversationID, def.ID, cwd, cp.SessionID); err != nil {
 			a.logger.Warn("chat: persist agent session", slog.String("err", err.Error()))
 		}
 	}
@@ -725,8 +726,23 @@ func resolveTriggerSession(def *agent.AgentDef) (sessionID string, firstSession 
 	return "", false
 }
 
+// workdir resolves a bot's vault directory to the filesystem path its agent runs in,
+// creating it if it went missing.
+func (a *AgentAPI) workdir(dir string) (string, string, error) {
+	dir, err := util.CleanVaultDir(dir)
+	if err != nil {
+		return "", "", err
+	}
+	cwd, err := filepath.Abs(filepath.Join(a.vault.Root(), filepath.FromSlash(dir)))
+	if err != nil {
+		return "", "", err
+	}
+	return dir, cwd, os.MkdirAll(cwd, 0755)
+}
+
 // resolveAgentSession loads or creates the agent-native session id bound to a mate conversation.
-func (a *AgentAPI) resolveAgentSession(conversationID string, def *agent.AgentDef) (sessionID string, firstSession, resumeTurn bool) {
+// Agents keep sessions per directory, so one started under another cwd can't be resumed.
+func (a *AgentAPI) resolveAgentSession(conversationID string, def *agent.AgentDef, cwd string) (sessionID string, firstSession, resumeTurn bool) {
 	if a.store == nil || conversationID == "" || def == nil || !def.SupportsNativeSession {
 		return "", false, false
 	}
@@ -736,7 +752,7 @@ func (a *AgentAPI) resolveAgentSession(conversationID string, def *agent.AgentDe
 		return "", false, false
 	}
 	if conv.AgentSessionID != "" {
-		if conv.AgentSessionAgentID != "" && conv.AgentSessionAgentID != def.ID {
+		if (conv.AgentSessionAgentID != "" && conv.AgentSessionAgentID != def.ID) || (conv.AgentSessionCwd != "" && conv.AgentSessionCwd != cwd) {
 			if err := a.store.ClearConversationAgentSession(conversationID); err != nil {
 				a.logger.Warn("chat: clear stale agent session", slog.String("err", err.Error()))
 			}
@@ -746,7 +762,7 @@ func (a *AgentAPI) resolveAgentSession(conversationID string, def *agent.AgentDe
 	}
 	if agent.HostAssignsSessionID(def.ID) {
 		sid := agent.NewSessionID()
-		if err := a.store.SetConversationAgentSession(conversationID, def.ID, sid); err != nil {
+		if err := a.store.SetConversationAgentSession(conversationID, def.ID, cwd, sid); err != nil {
 			a.logger.Warn("chat: assign agent session", slog.String("err", err.Error()))
 			return "", false, false
 		}

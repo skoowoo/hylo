@@ -12,7 +12,8 @@ type Mate struct {
 	AgentID      string        `json:"agentId"`
 	Model        string        `json:"model"`
 	Color        string        `json:"color"` // hex color, e.g. "#cc785c"
-	Cwd          string        `json:"cwd"`
+	Cwd          string        `json:"cwd"`   // vault dir, set by CreateMate and fixed after
+	Main         bool          `json:"main"`  // the one bot at the vault root, made by onboarding; can't be deleted
 	SystemPrompt string        `json:"systemPrompt"`
 	Enabled      bool          `json:"enabled"`
 	CreatedAt    time.Time     `json:"createdAt"`
@@ -53,6 +54,7 @@ type Conversation struct {
 	UserKey             string    `json:"userKey,omitempty"` // external user id for trigger_reply (e.g. wechat user id)
 	AgentSessionID      string    `json:"agentSessionId,omitempty"`
 	AgentSessionAgentID string    `json:"agentSessionAgentId,omitempty"`
+	AgentSessionCwd     string    `json:"agentSessionCwd,omitempty"`
 	CreatedAt           time.Time `json:"createdAt"`
 	UpdatedAt           time.Time `json:"updatedAt"`
 }

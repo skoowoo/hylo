@@ -1,9 +1,13 @@
 package view
 
-// Skills tab: skills added to ~/.hylo/skills, and the catalog they can be added from.
+// Skills tab: every skill added to ~/.hylo/skills, and the catalog Hylo curates.
 const settingsSkillsCSS = `
     .skills-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; margin-bottom: 0.75rem; }
     .skills-tabs .seg-btn { gap: 0.4rem; }
+    .skills-toolbar-actions { display: flex; align-items: center; gap: 0.5rem; }
+    .skills-repo-form { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; flex-wrap: wrap; }
+    .skills-repo-form .field-input { flex: 2 1 14rem; min-width: 0; }
+    .skills-repo-form .skills-repo-name { flex: 1 1 9rem; }
     .skills-tab-count {
       min-width: 1.1em; font-size: var(--text-2xs); font-variant-numeric: tabular-nums;
       color: var(--muted); opacity: 0.75;
@@ -61,22 +65,12 @@ const settingsSkillsCSS = `
       transition: background-color var(--motion-fast), color var(--motion-fast);
     }
     .skill-icon svg { width: 13px; height: 13px; }
-    .skill-card .skill-icon { position: relative; }
-    .skill-card.is-on .skill-icon, .skills-builtin-row .skill-icon { background: rgba(var(--accent-rgb), 0.12); color: var(--accent-text); }
-    /* Same green dot as "Always on", ringed in the card color so it sits on the tile edge. */
-    .skill-card .skill-icon::after {
-      content: ""; position: absolute; right: -2px; bottom: -2px; width: 8px; height: 8px;
-      border-radius: var(--r-full); background: var(--s-ok); box-shadow: 0 0 0 2px var(--surface-soft);
-      opacity: 0; transform: scale(0.4); transition: opacity var(--motion-fast), transform var(--motion-fast), box-shadow var(--motion-fast);
-    }
-    /* --card-hov is translucent; mix it opaque so the ring still matches the hovered card. */
-    .skill-card:hover .skill-icon::after { box-shadow: 0 0 0 2px color-mix(in srgb, rgb(var(--accent-rgb)) 10%, var(--surface-soft)); }
-    .skill-card.is-on .skill-icon::after { opacity: 1; transform: none; }
+    .skill-card.is-added .skill-icon, .skills-builtin-row .skill-icon { background: rgba(var(--accent-rgb), 0.12); color: var(--accent-text); }
     .skill-name {
       flex: 1; min-width: 0; font-size: var(--text-sm); font-weight: var(--fw-semibold); color: var(--fg);
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
-    .skill-card.is-off .skill-name, .skill-card--available .skill-name { color: var(--muted); }
+    .skill-card--available .skill-name { color: var(--muted); }
     /* Remove is rare and destructive, so it stays out of sight until the card is in use. */
     .skill-remove { opacity: 0; transition: opacity var(--motion-fast), color var(--motion-fast), background-color var(--motion-fast); }
     .skill-card:hover .skill-remove, .skill-remove:focus-visible, .skill-remove:disabled { opacity: 1; }
@@ -88,6 +82,12 @@ const settingsSkillsCSS = `
       display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
     }
     .skill-desc.is-empty { opacity: 0.6; font-style: italic; }
+    .skill-used {
+      min-width: 0; font-size: var(--text-2xs); color: var(--muted);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 1; text-align: right;
+    }
+    .skill-used.is-unused { opacity: 0.6; }
+    .skills-builtin-row .skill-used { flex-shrink: 0; }
     .skill-card-foot {
       display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;
       margin-top: auto; min-height: var(--btn-h-xs);
@@ -99,9 +99,6 @@ const settingsSkillsCSS = `
       transition: color var(--motion-fast), opacity var(--motion-fast);
     }
     a.skill-source:hover { color: var(--accent-text); opacity: 1; }
-    .skill-fixed { display: inline-flex; align-items: center; gap: 0.35rem; font-size: var(--text-2xs); color: var(--muted); flex-shrink: 0; }
-    .skill-seg { padding: 2px; }
-    .skill-seg .seg-btn { padding: 0.25rem 0.5rem; font-size: var(--text-xs); }
 `
 
 func settingsSkillsTabHTML() string {
@@ -120,7 +117,7 @@ func settingsSkillsTabHTML() string {
                     <p class="skill-desc" :class="{'is-empty': !s.description}" :title="s.description || ''"
                        x-text="s.description || (s.added ? 'No description.' : 'Add to use with your agents.')"></p>`
 	card := `
-                  <div class="list-card skill-card" :class="!s.added ? 'skill-card--available' : (s.enabled ? 'is-on' : 'is-off')">
+                  <div class="list-card skill-card" :class="s.added ? 'is-added' : 'skill-card--available'">
                     <div class="skill-card-head">
                       <span class="skill-icon">` + sparkle + `</span>
                       <span class="skill-name" x-text="s.name" :title="s.name"></span>
@@ -132,16 +129,11 @@ func settingsSkillsTabHTML() string {
                       </template>
                     </div>` + desc + `
                     <div class="skill-card-foot">` + source + `
-                      <template x-if="s.default">
-                        <span class="skill-fixed"><span class="dot dot--on"></span>Always on</span>
+                      <template x-if="s.added && skillsTab === 'added'">
+                        <span class="skill-used" :class="{'is-unused': !s.bots.length}" :title="skillUsedBy(s)" x-text="skillUsedBy(s)"></span>
                       </template>
-                      <template x-if="s.added && !s.default">
-                        <div class="seg skill-seg">
-                          <button type="button" class="seg-btn" :class="{active: !s.enabled}"
-                                  :disabled="!!skillsToggling[s.name]" @click="setSkillEnabled(s.name, false)">Off</button>
-                          <button type="button" class="seg-btn" :class="{active: s.enabled}"
-                                  :disabled="!!skillsToggling[s.name]" @click="setSkillEnabled(s.name, true)">On</button>
-                        </div>
+                      <template x-if="s.added && skillsTab === 'catalog'">
+                        <span class="badge">Added</span>
                       </template>
                       <template x-if="!s.added">
                         <button type="button" class="btn-outline btn--xs"
@@ -158,22 +150,31 @@ func settingsSkillsTabHTML() string {
           <div class="settings-scroll-pane" x-show="tab === 'skills'">
             <div class="skills-toolbar">
               <div class="seg skills-tabs" role="tablist">
-                <button type="button" class="seg-btn" role="tab" :class="{active: skillsTab === 'installed'}"
-                        :aria-selected="skillsTab === 'installed'" @click="skillsTab = 'installed'">
-                  Installed <span class="skills-tab-count" x-show="!skillsLoading" x-text="skillsList.length"></span>
+                <button type="button" class="seg-btn" role="tab" :class="{active: skillsTab === 'added'}"
+                        :aria-selected="skillsTab === 'added'" @click="skillsTab = 'added'">
+                  Added <span class="skills-tab-count" x-show="!skillsLoading" x-text="skillsList.length"></span>
                 </button>
-                <button type="button" class="seg-btn" role="tab" :class="{active: skillsTab === 'recommended'}"
-                        :aria-selected="skillsTab === 'recommended'" @click="skillsTab = 'recommended'">
-                  Recommended <span class="skills-tab-count" x-show="!skillsLoading" x-text="recommendedSkills.length"></span>
+                <button type="button" class="seg-btn" role="tab" :class="{active: skillsTab === 'catalog'}"
+                        :aria-selected="skillsTab === 'catalog'" @click="skillsTab = 'catalog'">
+                  Catalog <span class="skills-tab-count" x-show="!skillsLoading" x-text="catalogSkills.length"></span>
                 </button>
               </div>
+              <div class="skills-toolbar-actions">
+                <button type="button" class="btn-outline" @click="skillsRepoOpen = !skillsRepoOpen; $nextTick(() => skillsRepoOpen && $refs.skillsRepo.focus())">` + plus + `Add from GitHub</button>
 ` + toolbarRefreshBtnHTML("skillsLoading", "loadSkills()", "Loading…") + `
+              </div>
             </div>
-            <p class="skills-hint" x-show="skillsTab === 'installed'">Skills in <code>~/.hylo/skills/</code>. New ones start off.</p>
-            <p class="skills-hint" x-show="skillsTab === 'recommended'">Curated skills you can add from GitHub, then turn on.</p>
+            <form class="skills-repo-form" x-show="skillsRepoOpen" @submit.prevent="addSkillFromRepo()">
+              <input class="field-input" type="text" x-ref="skillsRepo" x-model="skillsRepo.repo" placeholder="owner/repo or GitHub URL" spellcheck="false">
+              <input class="field-input skills-repo-name" type="text" x-model="skillsRepo.skill" placeholder="Skill name (optional)" spellcheck="false">
+              <button type="submit" class="btn-solid" :disabled="!skillsRepo.repo.trim() || skillsRepo.adding" x-text="skillsRepo.adding ? 'Adding…' : 'Add'"></button>
+              <button type="button" class="btn-outline" @click="skillsRepoOpen = false">Cancel</button>
+            </form>
+            <p class="skills-hint" x-show="skillsTab === 'added'">Every skill in <code>~/.hylo/skills/</code>, wherever it came from. Turn them on for a bot under Bots.</p>
+            <p class="skills-hint" x-show="skillsTab === 'catalog'">Skills Hylo curates on GitHub. Add one, then turn it on for a bot.</p>
             <div class="cfg-err-msg" x-show="skillsError && !skillsLoading" x-text="'Error: ' + skillsError"></div>
             <div class="cfg-loader" x-show="skillsLoading">Loading skills…</div>
-            <div x-show="!skillsLoading && skillsTab === 'installed'">
+            <div x-show="!skillsLoading && skillsTab === 'added'">
               <template x-if="builtinSkills.length">
                 <div class="skills-builtin">
                   <button type="button" class="list-card skills-builtin-row" :aria-expanded="skillsBuiltinOpen"
@@ -183,7 +184,7 @@ func settingsSkillsTabHTML() string {
                       <span class="skills-builtin-title"><span x-text="builtinSkills.length"></span> built-in skills</span>
                       <span class="skills-builtin-names" x-text="builtinSkills.map(function(s) { return s.name; }).join(', ')"></span>
                     </span>
-                    <span class="skill-fixed"><span class="dot dot--on"></span>Always on</span>
+                    <span class="skill-used">Always on for the main bot</span>
                     <svg class="skills-builtin-chev" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m9 6 6 6-6 6"/></svg>
                   </button>
                   <div class="skills-grid skills-builtin-grid" x-show="skillsBuiltinOpen">
@@ -195,7 +196,7 @@ func settingsSkillsTabHTML() string {
               <template x-if="extraSkills.length === 0">
                 <div class="skills-empty">
                   No other skills added yet.
-                  <button type="button" class="skills-empty-link" @click="skillsTab = 'recommended'">Browse Recommended</button>
+                  <button type="button" class="skills-empty-link" @click="skillsTab = 'catalog'">Browse the catalog</button>
                 </div>
               </template>
               <div class="skills-grid">
@@ -203,9 +204,9 @@ func settingsSkillsTabHTML() string {
                 </template>
               </div>
             </div>
-            <div x-show="!skillsLoading && skillsTab === 'recommended'">
+            <div x-show="!skillsLoading && skillsTab === 'catalog'">
               <div class="skills-grid">
-                <template x-for="s in recommendedSkills" :key="s.name">` + card + `
+                <template x-for="s in catalogSkills" :key="s.name">` + card + `
                 </template>
               </div>
             </div>
@@ -221,9 +222,10 @@ const settingsSkillsJS = `
       skillsError: '',
       skillsAdding: {},
       skillsRemoving: {},
-      skillsToggling: {},
+      skillsRepoOpen: false,
+      skillsRepo: { repo: '', skill: '', adding: false },
 
-      skillsTab: 'installed',
+      skillsTab: 'added',
       skillsBuiltinOpen: false,
 
       get builtinSkills() {
@@ -236,13 +238,13 @@ const settingsSkillsJS = `
         return this.skillsList.map(function(s) { return Object.assign({ added: true }, s); })
           .sort(function(a, b) { return a.name.localeCompare(b.name); });
       },
-      // An added catalog skill keeps its card here, switched by the same On/Off control.
-      get recommendedSkills() {
+      // An added catalog skill keeps its card here, marked as added.
+      get catalogSkills() {
         const added = {};
         this.skillsList.forEach(function(s) { added[s.name] = s; });
         return this.skillsCatalog.map(function(e) {
           const a = added[e.name];
-          return Object.assign({}, e, { added: !!a, enabled: !!(a && a.enabled), description: e.description || (a && a.description) || '' });
+          return Object.assign({}, e, { added: !!a, bots: a ? a.bots : [], description: e.description || (a && a.description) || '' });
         }).sort(function(a, b) { return a.name.localeCompare(b.name); });
       },
 
@@ -259,54 +261,56 @@ const settingsSkillsJS = `
         finally { this.skillsLoading = false; }
       },
 
-      async addSkill(s) {
-        this.skillsAdding = Object.assign({}, this.skillsAdding, { [s.name]: true });
+      skillUsedBy(s) {
+        return s.bots.length ? s.bots.map(function(b) { return b.name; }).join(', ') : 'No bot';
+      },
+
+      // Adds a skill from a GitHub repository; true when it went in.
+      async postSkillAdd(repo, skill) {
         try {
           const r = await fetch('/api/skills/add', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ repo: s.repo, skill: s.name }),
+            body: JSON.stringify({ repo: repo, skill: skill }),
           });
           const d = await r.json();
           if (!r.ok) {
             window.showError(d.error || 'Add failed', 'Add failed');
-            return;
+            return false;
           }
           // The description comes from SKILL.md, which exists only now.
           await this.loadSkills(true);
+          return true;
         } catch(e) {
           window.showError(e.message, 'Add failed');
-        } finally {
-          const t = Object.assign({}, this.skillsAdding);
-          delete t[s.name];
-          this.skillsAdding = t;
+          return false;
         }
       },
 
-      async setSkillEnabled(name, on) {
-        const cur = this.skillsList.find(function(s) { return s.name === name; });
-        if (!cur || cur.enabled === on) return;
-        this.skillsToggling = Object.assign({}, this.skillsToggling, { [name]: true });
-        try {
-          const r = await fetch('/api/skills/' + encodeURIComponent(name) + (on ? '/enable' : '/disable'), { method: 'POST' });
-          const d = await r.json();
-          if (!r.ok) {
-            window.showError(d.error || 'Update failed', on ? 'Enable failed' : 'Disable failed');
-            return;
-          }
-          this.skillsList = this.skillsList.map(function(s) {
-            return s.name === name ? Object.assign({}, s, { enabled: on }) : s;
-          });
-        } catch(e) {
-          window.showError(e.message, on ? 'Enable failed' : 'Disable failed');
-        } finally {
-          const t = Object.assign({}, this.skillsToggling);
-          delete t[name];
-          this.skillsToggling = t;
-        }
+      async addSkill(s) {
+        this.skillsAdding = Object.assign({}, this.skillsAdding, { [s.name]: true });
+        await this.postSkillAdd(s.repo, s.name);
+        const t = Object.assign({}, this.skillsAdding);
+        delete t[s.name];
+        this.skillsAdding = t;
       },
+
+      async addSkillFromRepo() {
+        const f = this.skillsRepo;
+        if (f.adding || !f.repo.trim()) return;
+        f.adding = true;
+        const ok = await this.postSkillAdd(f.repo.trim(), f.skill.trim());
+        f.adding = false;
+        if (!ok) return;
+        this.skillsRepo = { repo: '', skill: '', adding: false };
+        this.skillsRepoOpen = false;
+        this.skillsTab = 'added';
+      },
+
       async removeSkill(name) {
-        const ok = await window.showConfirm({ title: 'Remove skill', message: 'Delete "' + name + '" and all its files from ~/.hylo/skills/? This can\'t be undone.', confirmLabel: 'Remove', danger: true });
+        const cur = this.skillsList.find(function(s) { return s.name === name; });
+        const used = cur && cur.bots.length ? ' It is turned off for ' + this.skillUsedBy(cur) + '.' : '';
+        const ok = await window.showConfirm({ title: 'Remove skill', message: 'Delete "' + name + '" and all its files from ~/.hylo/skills/? This can\'t be undone.' + used, confirmLabel: 'Remove', danger: true });
         if (!ok) return;
         this.skillsRemoving = Object.assign({}, this.skillsRemoving, { [name]: true });
         try {

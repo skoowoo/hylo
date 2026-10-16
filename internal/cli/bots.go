@@ -72,7 +72,7 @@ func newBotCmd() *cobra.Command {
 	createCmd := &cobra.Command{
 		Use:          "create <name>",
 		Short:        "Create an agent bot",
-		Long:         `Creates a bot on the same agent and model as your first bot. Add triggers to it with "hylo trigger add".`,
+		Long:         `Creates a bot on the same agent and model as your first bot, working in a vault folder of its own named after it. Add triggers to it with "hylo trigger add".`,
 		Example:      `  hylo bot create News --description "Morning news digests"`,
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,

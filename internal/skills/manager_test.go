@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 )
 
@@ -57,7 +58,7 @@ func TestManualSkillCanBeEnabled(t *testing.T) {
 	}
 
 	got := listed(t, m)
-	if len(got) != 2 || got["copied"].Enabled || got["linked"].Enabled {
+	if len(got) != 2 || onAtRoot(got["copied"]) || onAtRoot(got["linked"]) {
 		t.Fatalf("listed = %+v", got)
 	}
 
@@ -69,7 +70,7 @@ func TestManualSkillCanBeEnabled(t *testing.T) {
 			t.Errorf("%s not linked into the vault: %v", name, err)
 		}
 	}
-	if got := listed(t, m); !got["copied"].Enabled || !got["linked"].Enabled {
+	if got := listed(t, m); !onAtRoot(got["copied"]) || !onAtRoot(got["linked"]) {
 		t.Fatalf("after enable = %+v", got)
 	}
 
@@ -84,7 +85,7 @@ func TestManualSkillCanBeEnabled(t *testing.T) {
 func TestEditorSkillIsDefault(t *testing.T) {
 	m, vault := newTestManager(t)
 	writeSkill(t, filepath.Join(m.sourceDir, "hylo-editor"))
-	if s := listed(t, m)["hylo-editor"]; !s.Default || !s.Enabled {
+	if s := listed(t, m)["hylo-editor"]; !s.Default || !onAtRoot(s) {
 		t.Fatalf("hylo-editor = %+v", s)
 	}
 	m.LinkEnabled(discardLogger())
@@ -177,10 +178,10 @@ func TestEnableInVaultDir(t *testing.T) {
 		t.Error("enabling in /_news also linked it at the root")
 	}
 	got := listed(t, m)
-	if n := got["news"]; n.Enabled || len(n.Dirs) != 1 || n.Dirs[0] != "/_news" {
+	if n := got["news"]; onAtRoot(n) || len(n.Dirs) != 1 || n.Dirs[0] != "/_news" {
 		t.Fatalf("news = %+v", n)
 	}
-	if h := got["hylo-notes"]; !h.Enabled || len(h.Dirs) != 2 {
+	if h := got["hylo-notes"]; !onAtRoot(h) || len(h.Dirs) != 2 {
 		t.Fatalf("hylo-notes = %+v", h)
 	}
 
@@ -204,6 +205,15 @@ func TestEnableInVaultDir(t *testing.T) {
 	if err := m.Disable("hylo-notes", "/"); err == nil {
 		t.Error("turned a built-in off at the root")
 	}
+	if err := m.DisableDir("/_news"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Lstat(filepath.Join(vault, "_news", ".claude", "skills", "hylo-notes")); !os.IsNotExist(err) {
+		t.Error("a deleted bot's folder kept its skills")
+	}
+	if h := listed(t, m)["hylo-notes"]; len(h.Dirs) != 1 || h.Dirs[0] != "/" {
+		t.Fatalf("hylo-notes after DisableDir = %+v", h)
+	}
 	if err := m.Remove("news"); err != nil || len(listed(t, m)["news"].Dirs) != 0 {
 		t.Fatalf("remove: %v", err)
 	}
@@ -225,15 +235,4 @@ func TestOldStateMigratesToRoot(t *testing.T) {
 	}
 }
 
-func TestCleanDir(t *testing.T) {
-	for in, want := range map[string]string{"": "/", "/": "/", "/_news/": "/_news", "/a//b": "/a/b"} {
-		if got, err := CleanDir(in); err != nil || got != want {
-			t.Errorf("CleanDir(%q) = %q, %v", in, got, err)
-		}
-	}
-	for _, bad := range []string{"_news", "/../etc", "/a/./b", "/.hylo"} {
-		if _, err := CleanDir(bad); err == nil {
-			t.Errorf("CleanDir(%q) accepted", bad)
-		}
-	}
-}
+func onAtRoot(s SkillInfo) bool { return slices.Contains(s.Dirs, "/") }

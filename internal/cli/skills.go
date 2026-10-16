@@ -13,8 +13,8 @@ func newSkillsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "skills",
 		Short: "Add, turn on or off, and remove skills",
-		Long: `Skills are added to ~/.hylo/skills/ from GitHub, then turned on in the vault,
-where agents pick them up. Built-in skills are always on.`,
+		Long: `Skills are added to ~/.hylo/skills/ from GitHub, then turned on for a bot, whose
+agent picks them up. Built-in skills are always on for the main bot.`,
 		SilenceUsage: true,
 	}
 	cmd.AddCommand(newSkillsListCmd(), newSkillsCatalogCmd(), newSkillsAddCmd(),
@@ -26,7 +26,7 @@ func newSkillsListCmd() *cobra.Command {
 	var table bool
 	cmd := &cobra.Command{
 		Use:          "list",
-		Short:        "List the skills added to ~/.hylo/skills/ and the vault directories each is on in",
+		Short:        "List the skills added to ~/.hylo/skills/ and the bots each is on for",
 		Args:         cobra.NoArgs,
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -43,9 +43,13 @@ func newSkillsListCmd() *cobra.Command {
 			}
 			rows := make([][]string, len(skills))
 			for i, s := range skills {
-				on := strings.Join(s.Dirs, ", ")
+				names := make([]string, len(s.Bots))
+				for j, b := range s.Bots {
+					names[j] = b.Name
+				}
+				on := strings.Join(names, ", ")
 				if on == "" {
-					on = "off"
+					on = "no bot"
 				}
 				kind := ""
 				if s.Default {
@@ -53,7 +57,7 @@ func newSkillsListCmd() *cobra.Command {
 				}
 				rows[i] = []string{s.Name, on, kind, s.Description}
 			}
-			PrintTable([]Column{{Header: "NAME", MaxWidth: 40}, {Header: "ON IN", MaxWidth: 40}, {Header: "TYPE"}, {Header: "DESCRIPTION", MaxWidth: 60}}, rows)
+			PrintTable([]Column{{Header: "NAME", MaxWidth: 40}, {Header: "ON FOR", MaxWidth: 40}, {Header: "TYPE"}, {Header: "DESCRIPTION", MaxWidth: 60}}, rows)
 			return nil
 		},
 	}
@@ -105,9 +109,9 @@ func newSkillsAddCmd() *cobra.Command {
 	)
 	cmd := &cobra.Command{
 		Use:   "add <repo>",
-		Short: "Add a skill from a GitHub repository, turned off",
-		Long: `Downloads a skill from a GitHub repository into ~/.hylo/skills/. It starts off;
-turn it on with "hylo skills enable".
+		Short: "Add a skill from a GitHub repository",
+		Long: `Downloads a skill from a GitHub repository into ~/.hylo/skills/. It is on for no
+bot yet; turn it on for one with "hylo skills enable".
 
 <repo> is a URL or the owner/repo shorthand. --skill is the skill's name, or else
 the repository's; the skill is looked up by it in the usual places (the repository
@@ -127,7 +131,7 @@ An added skill of the same name is replaced only with --force.`,
 			if err != nil {
 				return err
 			}
-			fmt.Printf("Skill %q added; turn it on with: hylo skills enable %s\n", added, added)
+			fmt.Printf("Skill %q added; turn it on for a bot with: hylo skills enable %s --bot-id <bot-id>\n", added, added)
 			return nil
 		},
 	}
@@ -137,23 +141,21 @@ An added skill of the same name is replaced only with --force.`,
 }
 
 func newSkillsEnableCmd() *cobra.Command {
-	return skillDirCmd("enable", "Turn an added skill on in the vault root or a vault directory",
-		`Links the skill into the vault directory --dir (the vault root by default), so agents
-started there can use it. The directory is created if it doesn't exist.`,
-		"  hylo skills enable podwise\n  hylo skills enable hackernews --dir /_news",
+	return skillBotCmd("enable", "Turn an added skill on for a bot",
+		`Turns the skill on for the bot, so its runs from now on can use it.`,
+		"  hylo skills enable hackernews --bot-id <bot-id>",
 		(*client.Client).SkillsEnable, "on")
 }
 
 func newSkillsDisableCmd() *cobra.Command {
-	return skillDirCmd("disable", "Turn a skill off in the vault root or a vault directory",
-		`Unlinks the skill from the vault directory --dir (the vault root by default); its
-files stay in ~/.hylo/skills/.`,
-		"  hylo skills disable podwise\n  hylo skills disable hackernews --dir /_news",
+	return skillBotCmd("disable", "Turn a skill off for a bot",
+		`Turns the skill off for the bot; its files stay in ~/.hylo/skills/.`,
+		"  hylo skills disable hackernews --bot-id <bot-id>",
 		(*client.Client).SkillsDisable, "off")
 }
 
-func skillDirCmd(use, short, long, example string, op func(c *client.Client, name, dir string) error, state string) *cobra.Command {
-	var dir string
+func skillBotCmd(use, short, long, example string, op func(c *client.Client, name, botID string) error, state string) *cobra.Command {
+	var botID string
 	cmd := &cobra.Command{
 		Use:          use + " <name>",
 		Short:        short,
@@ -166,18 +168,15 @@ func skillDirCmd(use, short, long, example string, op func(c *client.Client, nam
 			if err != nil {
 				return err
 			}
-			if err := op(c, args[0], dir); err != nil {
+			if err := op(c, args[0], botID); err != nil {
 				return err
 			}
-			where := "the vault root"
-			if dir != "" {
-				where = dir
-			}
-			fmt.Printf("Skill %q is %s in %s.\n", args[0], state, where)
+			fmt.Printf("Skill %q is %s for bot %s.\n", args[0], state, botID)
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&dir, "dir", "", "vault directory, e.g. /_news (default: the vault root)")
+	cmd.Flags().StringVar(&botID, "bot-id", "", "bot id, from \"hylo bot list\"")
+	_ = cmd.MarkFlagRequired("bot-id")
 	return cmd
 }
 

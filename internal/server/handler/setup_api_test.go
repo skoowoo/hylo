@@ -30,8 +30,8 @@ func TestSetupBotOnlyForAnEmptyVault(t *testing.T) {
 	if code != http.StatusCreated || id == "" {
 		t.Fatalf("first setup: %d %q", code, id)
 	}
-	if bot, _ := store.GetMate(id); bot.Model != "sonnet" {
-		t.Fatalf("model %q", bot.Model)
+	if bot, _ := store.GetMate(id); bot.Model != "sonnet" || !bot.Main || bot.Cwd != "/" {
+		t.Fatalf("bot %+v", bot)
 	}
 	triggers, _ := store.ListTriggers(id)
 	var names []string

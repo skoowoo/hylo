@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS mates (
     model           TEXT    NOT NULL DEFAULT '',
     color           TEXT    NOT NULL DEFAULT '',
     cwd             TEXT    NOT NULL DEFAULT '',
+    main            INTEGER NOT NULL DEFAULT 0,
     system_prompt   TEXT    NOT NULL DEFAULT '',
     enabled         INTEGER NOT NULL DEFAULT 1,
     sort_order      INTEGER NOT NULL DEFAULT 0,
@@ -47,6 +48,7 @@ CREATE TABLE IF NOT EXISTS conversations (
     user_key               TEXT    NOT NULL DEFAULT '',
     agent_session_id       TEXT    NOT NULL DEFAULT '',
     agent_session_agent_id TEXT    NOT NULL DEFAULT '',
+    agent_session_cwd      TEXT    NOT NULL DEFAULT '',
     created_at             INTEGER NOT NULL,
     updated_at             INTEGER NOT NULL
 );
@@ -76,6 +78,8 @@ CREATE TABLE IF NOT EXISTS chat_message_note_access (
 );
 
 CREATE INDEX IF NOT EXISTS mate_triggers_mate_idx  ON mate_triggers(mate_id);
+-- A bot's folder, and the skills enabled there, belong to it alone.
+CREATE UNIQUE INDEX IF NOT EXISTS mates_cwd_idx ON mates(cwd) WHERE cwd NOT IN ('', '/');
 CREATE INDEX IF NOT EXISTS conversations_type_idx  ON conversations(type, updated_at);
 CREATE INDEX IF NOT EXISTS conversations_mate_idx  ON conversations(mate_id, updated_at);
 CREATE INDEX IF NOT EXISTS conversations_reply_idx ON conversations(type, mate_id, user_key);
@@ -134,11 +138,21 @@ func Open(vaultRoot string) (*Store, error) {
 			}
 		}
 	}
-	if _, err := db.Exec(`ALTER TABLE chat_messages ADD COLUMN trigger_id TEXT NOT NULL DEFAULT ''`); err != nil {
-		if !strings.Contains(err.Error(), "duplicate column name") {
-			db.Close()
-			return nil, fmt.Errorf("mate: add trigger_id column: %w", err)
+	for _, c := range []struct{ table, col, def string }{
+		{"chat_messages", "trigger_id", "TEXT NOT NULL DEFAULT ''"},
+		{"conversations", "agent_session_cwd", "TEXT NOT NULL DEFAULT ''"},
+		{"mates", "main", "INTEGER NOT NULL DEFAULT 0"},
+	} {
+		if _, err := db.Exec(`ALTER TABLE ` + c.table + ` ADD COLUMN ` + c.col + ` ` + c.def); err != nil {
+			if !strings.Contains(err.Error(), "duplicate column name") {
+				db.Close()
+				return nil, fmt.Errorf("mate: add %s column: %w", c.col, err)
+			}
 		}
+	}
+	if _, err := db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS mates_main_idx ON mates(main) WHERE main = 1`); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("mate: main index: %w", err)
 	}
 	return &Store{db: db}, nil
 }

@@ -398,7 +398,7 @@ Each skill is a directory containing a `SKILL.md` file:
 
 #### Managing skills with the CLI
 
-A skill is first **added** to `~/.hylo/skills/` from GitHub, then **enabled** in the vault, where agents pick it up. Added skills start off; built-in skills are always on.
+A skill is first **added** to `~/.hylo/skills/` from GitHub, then **enabled** for a bot, whose agent picks it up. Each bot works in a vault folder of its own (the main Hylo bot in the vault root), and a skill is on for a bot when it's enabled there. Built-in skills are always on for the main bot.
 
 **See what Hylo recommends**
 
@@ -418,18 +418,15 @@ hylo skills add https://github.com/hardhackerlabs/podwise-cli --skill podwise
 
 The skill is looked up by `--skill` in the usual places in the repository and saved to `~/.hylo/skills/<name>/`; without `--skill` the repository's name is used. Use `--force` to replace a skill already added under that name.
 
-**Turn a skill on or off**
+**Turn a skill on or off for a bot**
 
 ```sh
-hylo skills enable podwise
-hylo skills disable podwise
+hylo bot list
+hylo skills enable hackernews --bot-id <bot-id>
+hylo skills disable hackernews --bot-id <bot-id>
 ```
 
-By default a skill is turned on at the vault root. Use `--dir` to turn it on in a vault directory instead, for agents started there; the directory is created if needed:
-
-```sh
-hylo skills enable hackernews --dir /_news
-```
+In the app, a bot's skills are picked in **Settings → Bots**.
 
 **List added skills**
 

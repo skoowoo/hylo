@@ -42,14 +42,14 @@ func TestOverrideReplacesGlobal(t *testing.T) {
 }
 
 func TestMessageResumeSendsOnlyTheRequest(t *testing.T) {
-	full := Message("sys", "hi", "/vault", false)
-	if !strings.HasPrefix(full, "# Instructions\n\nsys") || !strings.Contains(full, "(vault): /vault") || !strings.HasSuffix(full, "# User request\n\nhi") {
+	full := Message("sys", "hi", "/vault", "/", false)
+	if !strings.HasPrefix(full, "# Instructions\n\nsys") || !strings.Contains(full, "directory: /vault (the vault root)") || !strings.HasSuffix(full, "# User request\n\nhi") {
 		t.Fatal(full)
 	}
-	if strings.Contains(Message("sys", "hi", "", false), "working directory") {
-		t.Fatal("a bot's own cwd is not named")
+	if sub := Message("sys", "hi", "/vault/_bots/_news", "/_bots/_news", false); !strings.Contains(sub, "directory: /vault/_bots/_news (vault path /_bots/_news)") {
+		t.Fatal(sub)
 	}
-	if got := Message("sys", "hi", "/vault", true); got != "hi" {
+	if got := Message("sys", "hi", "/vault", "/", true); got != "hi" {
 		t.Fatal(got)
 	}
 }

@@ -3,6 +3,8 @@ package mate
 import (
 	"database/sql"
 	"errors"
+	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -13,7 +15,7 @@ import (
 
 func (s *Store) ListMates() ([]Mate, error) {
 	rows, err := s.db.Query(
-		`SELECT m.id, m.name, m.description, m.agent_id, m.model, m.color, m.cwd, m.system_prompt, m.enabled, m.created_at, m.updated_at,
+		`SELECT m.id, m.name, m.description, m.agent_id, m.model, m.color, m.cwd, m.main, m.system_prompt, m.enabled, m.created_at, m.updated_at,
 		        (SELECT COUNT(*) FROM mate_triggers t WHERE t.mate_id = m.id) AS trigger_count
          FROM mates m ORDER BY m.sort_order ASC, m.created_at ASC`,
 	)
@@ -27,11 +29,11 @@ func (s *Store) ListMates() ([]Mate, error) {
 func (s *Store) GetMate(id string) (*Mate, error) {
 	var m Mate
 	var createdMs, updatedMs int64
-	var enabled int
+	var enabled, main int
 	err := s.db.QueryRow(
-		`SELECT id, name, description, agent_id, model, color, cwd, system_prompt, enabled, created_at, updated_at
+		`SELECT id, name, description, agent_id, model, color, cwd, main, system_prompt, enabled, created_at, updated_at
          FROM mates WHERE id = ?`, id,
-	).Scan(&m.ID, &m.Name, &m.Description, &m.AgentID, &m.Model, &m.Color, &m.Cwd,
+	).Scan(&m.ID, &m.Name, &m.Description, &m.AgentID, &m.Model, &m.Color, &m.Cwd, &main,
 		&m.SystemPrompt, &enabled, &createdMs, &updatedMs)
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -40,12 +42,60 @@ func (s *Store) GetMate(id string) (*Mate, error) {
 		return nil, err
 	}
 	m.Enabled = enabled != 0
+	m.Main = main != 0
 	m.CreatedAt = time.UnixMilli(createdMs)
 	m.UpdatedAt = time.UnixMilli(updatedMs)
 	return &m, nil
 }
 
+var unsafeDirChars = regexp.MustCompile(`[\s\\/:*?"<>|]+`)
+
+// botDir is the first free folder named after a bot, kept to characters and a
+// length every filesystem takes.
+func botDir(tx *sql.Tx, name string) (string, error) {
+	slug := unsafeDirChars.ReplaceAllString(strings.ToLower(strings.TrimSpace(name)), "-")
+	if r := []rune(slug); len(r) > 48 {
+		slug = string(r[:48])
+	}
+	slug = strings.Trim(slug, "-.")
+	if slug == "" {
+		slug = "bot"
+	}
+	rows, err := tx.Query(`SELECT cwd FROM mates`)
+	if err != nil {
+		return "", err
+	}
+	defer rows.Close()
+	taken := map[string]bool{}
+	for rows.Next() {
+		var c string
+		if err := rows.Scan(&c); err != nil {
+			return "", err
+		}
+		taken[c] = true
+	}
+	dir := "/_bots/_" + slug
+	for i := 2; taken[dir]; i++ {
+		dir = fmt.Sprintf("/_bots/_%s-%d", slug, i)
+	}
+	return dir, rows.Err()
+}
+
+// CreateMate stores m, giving it its working directory: the vault root for the
+// main bot, a folder of its own for any other.
 func (s *Store) CreateMate(m *Mate) error {
+	// One transaction, so two bots of the same name can't both pick the same free folder.
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback() //nolint:errcheck
+	m.Cwd = "/"
+	if !m.Main {
+		if m.Cwd, err = botDir(tx, m.Name); err != nil {
+			return err
+		}
+	}
 	now := time.Now().UnixMilli()
 	if m.ID == "" {
 		m.ID = uuid.NewString()
@@ -53,14 +103,16 @@ func (s *Store) CreateMate(m *Mate) error {
 	m.CreatedAt = time.UnixMilli(now)
 	m.UpdatedAt = time.UnixMilli(now)
 	var maxOrder int64
-	s.db.QueryRow(`SELECT COALESCE(MAX(sort_order), -1) FROM mates`).Scan(&maxOrder) //nolint:errcheck
-	_, err := s.db.Exec(
-		`INSERT INTO mates(id, name, description, agent_id, model, color, cwd, system_prompt, enabled, sort_order, created_at, updated_at)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
-		m.ID, m.Name, m.Description, m.AgentID, m.Model, m.Color, m.Cwd,
+	tx.QueryRow(`SELECT COALESCE(MAX(sort_order), -1) FROM mates`).Scan(&maxOrder) //nolint:errcheck
+	if _, err := tx.Exec(
+		`INSERT INTO mates(id, name, description, agent_id, model, color, cwd, main, system_prompt, enabled, sort_order, created_at, updated_at)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+		m.ID, m.Name, m.Description, m.AgentID, m.Model, m.Color, m.Cwd, boolToInt(m.Main),
 		m.SystemPrompt, boolToInt(m.Enabled), maxOrder+1, now, now,
-	)
-	return s.changed(err)
+	); err != nil {
+		return err
+	}
+	return s.changed(tx.Commit())
 }
 
 // ReorderMates assigns each mate the sort_order matching its position in ids.
@@ -93,9 +145,9 @@ func (s *Store) UpdateMateIf(m *Mate, prev time.Time) error {
 func (s *Store) updateMate(m *Mate, prev *time.Time) error {
 	// Strictly increasing, so two writes in one millisecond still tell apart.
 	now := max(time.Now().UnixMilli(), m.UpdatedAt.UnixMilli()+1)
-	q := `UPDATE mates SET name=?, description=?, agent_id=?, model=?, color=?, cwd=?, system_prompt=?, enabled=?, updated_at=?
+	q := `UPDATE mates SET name=?, description=?, agent_id=?, model=?, color=?, system_prompt=?, enabled=?, updated_at=?
          WHERE id=?`
-	args := []any{m.Name, m.Description, m.AgentID, m.Model, m.Color, m.Cwd,
+	args := []any{m.Name, m.Description, m.AgentID, m.Model, m.Color,
 		m.SystemPrompt, boolToInt(m.Enabled), now, m.ID}
 	if prev != nil {
 		q += ` AND updated_at=?`
@@ -245,10 +297,10 @@ func scanMatesWithTriggerCount(rows *sql.Rows) ([]Mate, error) {
 func scanMateRow(rows *sql.Rows, withTriggerCount bool) (Mate, error) {
 	var m Mate
 	var createdMs, updatedMs int64
-	var enabled int
+	var enabled, main int
 	var triggerCount int
 	var cols = []any{
-		&m.ID, &m.Name, &m.Description, &m.AgentID, &m.Model, &m.Color, &m.Cwd,
+		&m.ID, &m.Name, &m.Description, &m.AgentID, &m.Model, &m.Color, &m.Cwd, &main,
 		&m.SystemPrompt, &enabled, &createdMs, &updatedMs,
 	}
 	if withTriggerCount {
@@ -258,6 +310,7 @@ func scanMateRow(rows *sql.Rows, withTriggerCount bool) (Mate, error) {
 		return Mate{}, err
 	}
 	m.Enabled = enabled != 0
+	m.Main = main != 0
 	m.CreatedAt = time.UnixMilli(createdMs)
 	m.UpdatedAt = time.UnixMilli(updatedMs)
 	if withTriggerCount {

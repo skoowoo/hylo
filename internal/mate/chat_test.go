@@ -22,14 +22,14 @@ func TestConversationAgentSession(t *testing.T) {
 		t.Fatalf("new conversation should have empty agent session")
 	}
 
-	if err := store.SetConversationAgentSession(conv.ID, "claude", "sess-abc"); err != nil {
+	if err := store.SetConversationAgentSession(conv.ID, "claude", "/v", "sess-abc"); err != nil {
 		t.Fatal(err)
 	}
 	got, err := store.GetConversation(conv.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.AgentSessionID != "sess-abc" || got.AgentSessionAgentID != "claude" {
+	if got.AgentSessionID != "sess-abc" || got.AgentSessionAgentID != "claude" || got.AgentSessionCwd != "/v" {
 		t.Fatalf("got %+v", got)
 	}
 
@@ -40,7 +40,7 @@ func TestConversationAgentSession(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.AgentSessionID != "" || got.AgentSessionAgentID != "" {
+	if got.AgentSessionID != "" || got.AgentSessionAgentID != "" || got.AgentSessionCwd != "" {
 		t.Fatalf("expected cleared session, got %+v", got)
 	}
 }

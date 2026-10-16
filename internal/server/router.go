@@ -132,7 +132,7 @@ func newRouter(
 		mux.HandleFunc("DELETE /api/conversations/{id}", ch.ConversationDELETE)
 		mux.HandleFunc("PATCH /api/conversations/{id}/title", ch.ConversationTitlePATCH)
 
-		mh := handler.NewMateAPI(logger, mateStore)
+		mh := handler.NewMateAPI(logger, mateStore, skillsMgr)
 		mux.HandleFunc("GET /api/mate-events", mh.MateEventsGET)
 
 		mux.HandleFunc("GET /api/mates", mh.MatesGET)
@@ -144,7 +144,7 @@ func newRouter(
 		mux.HandleFunc("POST /api/mates/{id}/triggers/{tid}/run", ah.TriggerRunPOST)
 	}
 
-	skh := handler.NewSkillsHTTP(skillsMgr)
+	skh := handler.NewSkillsHTTP(skillsMgr, mateStore)
 	mux.HandleFunc("GET /api/skills", skh.List)
 	mux.HandleFunc("GET /api/skills/catalog", skh.Catalog)
 	mux.HandleFunc("POST /api/skills/add", skh.Add)

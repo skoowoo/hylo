@@ -397,7 +397,7 @@ Hylo 内置了一套 skill，agent 执行任务时会自动调用。你也可以
 
 #### 用 CLI 管理 skill
 
-skill 先从 GitHub **添加（add）**到 `~/.hylo/skills/`，再在 vault 里**启用（enable）**，agent 才能用到。新添加的 skill 默认关闭；内置 skill 始终开启。
+skill 先从 GitHub **添加（add）**到 `~/.hylo/skills/`，再为某个 bot **启用（enable）**，这个 bot 的 agent 才能用到。每个 bot 在 vault 里有自己的工作目录（主 bot Hylo 在 vault 根目录），skill 启用在 bot 的目录里。内置 skill 对主 bot 始终开启。
 
 **查看 Hylo 推荐的 skill**
 
@@ -417,18 +417,15 @@ hylo skills add https://github.com/hardhackerlabs/podwise-cli --skill podwise
 
 按 `--skill` 在仓库的常见位置里查找 skill，保存到 `~/.hylo/skills/<name>/`；不加 `--skill` 时用仓库名。同名 skill 已存在时，加 `--force` 才会替换。
 
-**启用或停用 skill**
+**为 bot 启用或停用 skill**
 
 ```sh
-hylo skills enable podwise
-hylo skills disable podwise
+hylo bot list
+hylo skills enable hackernews --bot-id <bot-id>
+hylo skills disable hackernews --bot-id <bot-id>
 ```
 
-默认在 vault 根目录启用。用 `--dir` 可以改为在 vault 的某个目录里启用，供从该目录启动的 agent 使用；目录不存在时会自动创建：
-
-```sh
-hylo skills enable hackernews --dir /_news
-```
+在 app 里，可以在 **设置 → Bots** 中为每个 bot 选择 skill。
 
 **查看已添加的 skill**
 

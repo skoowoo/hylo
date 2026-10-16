@@ -43,6 +43,7 @@ func hyloBot(agentID, model string) (*mate.Mate, []mate.MateTrigger) {
 		Description:  hyloBotDescription,
 		AgentID:      agentID,
 		Model:        model,
+		Main:         true,
 		SystemPrompt: prompt.HyloBot,
 		Enabled:      true,
 	}
