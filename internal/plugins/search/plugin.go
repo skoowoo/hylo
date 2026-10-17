@@ -26,6 +26,7 @@ type Plugin struct {
 	cfg     config.SearchConfig
 	logger  *slog.Logger
 	eventCh chan plugin.Event
+	settle  *plugin.Coalescer
 	indexer *BleveIndexer
 }
 
@@ -37,30 +38,38 @@ func New(cfg config.SearchConfig, vault *storage.Vault, logger *slog.Logger) *Pl
 			cfg.ExcludePrefixes[i] = "/" + p
 		}
 	}
-	return &Plugin{
+	p := &Plugin{
 		vault:   vault,
 		cfg:     cfg,
 		logger:  logger,
 		eventCh: make(chan plugin.Event, 512),
 	}
+	p.settle = plugin.NewCoalescer(plugin.IndexWindow, p.enqueue)
+	return p
 }
 
 // Name implements plugin.Plugin.
 func (p *Plugin) Name() string { return "search" }
 
-// Notify implements plugin.Plugin. Non-blocking; drops events when the channel
-// is full rather than blocking the vault's event-dispatch path.
+// Notify implements plugin.Plugin. A note being edited is reindexed once its
+// edits settle, not on every autosave.
 func (p *Plugin) Notify(e plugin.Event) {
 	switch e.Type {
 	case plugin.EventFSCreate, plugin.EventFSWrite,
 		plugin.EventVaultCreate, plugin.EventVaultWrite,
 		plugin.EventFSDelete, plugin.EventVaultDelete:
-		select {
-		case p.eventCh <- e:
-		default:
-			p.logger.Warn("search: event channel full, dropping event",
-				"type", e.Type, "path", e.Path)
-		}
+		p.settle.Add(e)
+	}
+}
+
+// enqueue is non-blocking; it drops events when the channel is full rather
+// than blocking the vault's event-dispatch path.
+func (p *Plugin) enqueue(e plugin.Event) {
+	select {
+	case p.eventCh <- e:
+	default:
+		p.logger.Warn("search: event channel full, dropping event",
+			"type", e.Type, "path", e.Path)
 	}
 }
 
@@ -87,6 +96,7 @@ func (p *Plugin) Start(ctx context.Context) error {
 
 // Stop implements plugin.Plugin.
 func (p *Plugin) Stop() error {
+	p.settle.Stop()
 	if p.indexer != nil {
 		return p.indexer.Close()
 	}

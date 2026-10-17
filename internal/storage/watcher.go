@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -17,20 +18,22 @@ import (
 // Watcher monitors the vault directory tree for external file-system changes
 // and keeps the metadata database in sync.
 //
-// Only markdown files (.md, .markdown) are tracked.
+// Markdown notes and image files are tracked.
 // Hidden files and directories (any path component starting with ".") are
 // ignored, which covers vault internals such as .hylo and the
 // temporary files created by Vault's two-phase write protocol.
 //
 // On kqueue (macOS, BSD), each directory must be watched (fsnotify Add) before the
 // kernel delivers events for paths inside it. After MkdirAll, writeNoteLocked and
-// Mkdir call ensureDirChain synchronously so fw.Add runs before CreateTemp→Rename;
+// Mkdir call ensureDirChain synchronously so fw.Add runs before the file write;
 // otherwise the watcher goroutine may not have processed a directory Create yet
 // and the final note path can miss fsnotify events (e.g. _clips/yyyy-mm-dd/... vs
 // _clips/file.md).
 //
-// All events are dispatched immediately with no debouncing; write-event debouncing
-// is handled by the plugin Manager before events reach plugins.
+// Vault API mutations update the file and the metadata row under one lock and
+// emit their own vault_* event, so the watcher compares each change with the
+// row under that lock: a change the row already reflects is the API's echo and
+// is dropped, everything else is synced and emitted as fs_*.
 type Watcher struct {
 	g      *Vault
 	fw     *fsnotify.Watcher
@@ -124,93 +127,160 @@ func (w *Watcher) handle(event fsnotify.Event) {
 			w.indexNewFiles(event.Name)
 			return
 		}
-		if !util.IsMarkdownPath(event.Name) {
-			return
-		}
-		if w.syncUpsert(slashRel, info) {
-			w.g.emit("fs_create", slashRel, false, info.ModTime())
-		}
+		w.changed(slashRel, false)
 
 	case event.Has(fsnotify.Write):
-		info, statErr := os.Stat(event.Name)
-		if statErr != nil || info.IsDir() {
-			return
-		}
-		if !util.IsMarkdownPath(event.Name) {
-			return
-		}
-		if w.syncUpsert(slashRel, info) {
-			w.g.emit("fs_write", slashRel, false, info.ModTime())
-		}
+		w.changed(slashRel, false)
 
 	case event.Has(fsnotify.Remove), event.Has(fsnotify.Rename):
 		// RENAME fires on the disappearing path; the new name emits a
 		// separate CREATE event that is handled by the case above.
-		if !util.IsMarkdownPath(event.Name) {
-			return
+		w.removed(slashRel)
+	}
+}
+
+// changed syncs the row for a note or image whose file appeared or changed,
+// and emits an event when the file holds a change the row does not reflect yet.
+func (w *Watcher) changed(relPath string, moved bool) {
+	switch {
+	case util.IsMarkdownPath(relPath):
+		typ, modTime, ok := w.syncUpsert(relPath)
+		if ok {
+			w.g.emitEvent(plugin.Event{Type: typ, Path: relPath, Time: modTime, Moved: moved && typ == plugin.EventFSCreate})
 		}
-		if w.syncDelete(slashRel) {
-			w.g.emit("fs_delete", slashRel, false, time.Now())
+	case IsImagePath(relPath):
+		if modTime, ok := w.syncImageUpsert(relPath); ok {
+			w.g.emit(string(plugin.EventFSImage), relPath, false, modTime)
 		}
 	}
 }
 
-// syncUpsert updates the metadata row for a markdown file and reports whether
-// it succeeded. Callers are responsible for emitting the appropriate event.
-//
-// Note: the Vault API uses atomic temp→rename writes, so fsnotify reports both
-// new files and overwrites as Create. For the compile plugin this is harmless
-// because IsCompiled() acts as a safety guard.
-func (w *Watcher) syncUpsert(relPath string, info os.FileInfo) bool {
-	p, ok := ParsePath(relPath)
-	if !ok {
-		return false
-	}
-
-	// Read the file so an out-of-band change (external editor, sync client)
-	// keeps preview current too, not just size/mtime.
-	var preview NotePreview
-	if abs, absErr := w.g.osPath(p); absErr == nil {
-		if data, readErr := os.ReadFile(abs); readErr == nil {
-			preview = notePreviewFromSummary(util.GeneratePreview(data, 0))
+// removed drops the row for a note or image whose file disappeared.
+func (w *Watcher) removed(relPath string) {
+	switch {
+	case util.IsMarkdownPath(relPath):
+		if w.syncDelete(relPath) {
+			w.g.emit(string(plugin.EventFSDelete), relPath, false, time.Now())
+		}
+	case IsImagePath(relPath):
+		if w.syncImageDelete(relPath) {
+			w.g.emit(string(plugin.EventFSImage), relPath, false, time.Now())
 		}
 	}
+}
 
-	w.g.mu.Lock()
-	err := dbUpsert(w.g.db, Note{
-		Dir:       p.Dir(),
-		Name:      p.Base(),
-		Size:      info.Size(),
-		UpdatedAt: info.ModTime(),
-		Preview:   preview,
-	})
-	w.g.mu.Unlock()
-
+// syncUpsert brings the metadata row for a markdown file in line with the file.
+// It reports false when there is nothing to announce: the row already matches
+// (the echo of a Vault API write), the file is gone, or the sync failed.
+func (w *Watcher) syncUpsert(relPath string) (plugin.EventType, time.Time, bool) {
+	p, ok := ParsePath(relPath)
+	if !ok {
+		return "", time.Time{}, false
+	}
+	abs, err := w.g.osPath(p)
 	if err != nil {
+		return "", time.Time{}, false
+	}
+
+	// Under the lock the file and its row are never mid-write by the Vault API.
+	w.g.mu.Lock()
+	defer w.g.mu.Unlock()
+
+	info, err := os.Stat(abs)
+	if err != nil || info.IsDir() {
+		return "", time.Time{}, false
+	}
+	prev, err := dbGet(w.g.db, p)
+	known := err == nil
+	if known && prev.Size == info.Size() && prev.UpdatedAt.Equal(info.ModTime()) {
+		return "", time.Time{}, false
+	}
+	data, err := os.ReadFile(abs)
+	if err != nil {
+		return "", time.Time{}, false
+	}
+	if err := dbUpsert(w.g.db, fileNoteMeta(Note{}, p, data, info)); err != nil {
 		w.logger.Error("vault watcher: note metadata upsert failed", "path", relPath, "err", err)
-		return false
+		return "", time.Time{}, false
 	}
 	w.logger.Debug("vault watcher: note metadata upserted", "path", relPath)
-	return true
+	if known {
+		return plugin.EventFSWrite, info.ModTime(), true
+	}
+	return plugin.EventFSCreate, info.ModTime(), true
 }
 
 // syncDelete removes the metadata row for a markdown file and reports whether
-// it succeeded. Callers are responsible for emitting the appropriate event.
+// a known note actually disappeared.
 func (w *Watcher) syncDelete(relPath string) bool {
 	p, ok := ParsePath(relPath)
 	if !ok {
 		return false
 	}
+	abs, err := w.g.osPath(p)
+	if err != nil {
+		return false
+	}
 
 	w.g.mu.Lock()
-	err := dbDelete(w.g.db, p)
-	w.g.mu.Unlock()
+	defer w.g.mu.Unlock()
 
-	if err != nil {
+	// Recreated since the event (atomic save, delete+recreate): its Create syncs it.
+	if _, err := os.Lstat(abs); err == nil {
+		return false
+	}
+	if _, err := dbGet(w.g.db, p); errors.Is(err, ErrMetadataNotFound) {
+		return false
+	}
+	if err := dbDelete(w.g.db, p); err != nil {
 		w.logger.Error("vault watcher: note metadata delete failed", "path", relPath, "err", err)
 		return false
 	}
 	w.logger.Debug("vault watcher: note metadata deleted", "path", relPath)
+	return true
+}
+
+// syncImageUpsert is syncUpsert for an image row.
+func (w *Watcher) syncImageUpsert(relPath string) (time.Time, bool) {
+	dir, name := PathParts(relPath)
+	abs := w.g.OsImagePath(Image{Dir: dir, Name: name})
+
+	w.g.mu.Lock()
+	defer w.g.mu.Unlock()
+
+	info, err := os.Stat(abs)
+	if err != nil || info.IsDir() {
+		return time.Time{}, false
+	}
+	if prev, err := dbImageGet(w.g.db, dir, name); err == nil &&
+		prev.Size == info.Size() && prev.UpdatedAt.Equal(info.ModTime()) {
+		return time.Time{}, false
+	}
+	if err := dbImageUpsert(w.g.db, imageFromFile(dir, name, info)); err != nil {
+		w.logger.Error("vault watcher: image metadata upsert failed", "path", relPath, "err", err)
+		return time.Time{}, false
+	}
+	return info.ModTime(), true
+}
+
+// syncImageDelete is syncDelete for an image row.
+func (w *Watcher) syncImageDelete(relPath string) bool {
+	dir, name := PathParts(relPath)
+	abs := w.g.OsImagePath(Image{Dir: dir, Name: name})
+
+	w.g.mu.Lock()
+	defer w.g.mu.Unlock()
+
+	if _, err := os.Lstat(abs); err == nil {
+		return false
+	}
+	if _, err := dbImageGet(w.g.db, dir, name); errors.Is(err, ErrMetadataNotFound) {
+		return false
+	}
+	if err := w.g.forgetImageLocked(dir, name); err != nil {
+		w.logger.Error("vault watcher: image metadata delete failed", "path", relPath, "err", err)
+		return false
+	}
 	return true
 }
 
@@ -286,7 +356,7 @@ func (w *Watcher) watchRecursive(dir string, reason string) error {
 
 const movedNoteAge = 10 * time.Second
 
-// indexNewFiles picks up notes written into a new directory before its watch
+// indexNewFiles picks up notes and images written into a new directory before its watch
 // was in place (mkdir -p a/b && write a/b/n.md): on kqueue their events never arrive.
 // A note older than the directory event came with a moved folder, not a write.
 func (w *Watcher) indexNewFiles(dir string) {
@@ -301,7 +371,7 @@ func (w *Watcher) indexNewFiles(dir string) {
 			}
 			return nil
 		}
-		if d.IsDir() || !util.IsMarkdownPath(path) {
+		if d.IsDir() || !(util.IsMarkdownPath(path) || IsImagePath(path)) {
 			return nil
 		}
 		info, err := d.Info()
@@ -312,15 +382,7 @@ func (w *Watcher) indexNewFiles(dir string) {
 		if err != nil {
 			return nil
 		}
-		slashRel := "/" + toSlash(rel)
-		if w.syncUpsert(slashRel, info) {
-			w.g.emitEvent(plugin.Event{
-				Type:  plugin.EventFSCreate,
-				Path:  slashRel,
-				Time:  info.ModTime(),
-				Moved: info.ModTime().Before(cutoff),
-			})
-		}
+		w.changed("/"+toSlash(rel), info.ModTime().Before(cutoff))
 		return nil
 	})
 }

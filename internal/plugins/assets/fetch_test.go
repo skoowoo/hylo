@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hardhacker/hylo/internal/plugin"
 	"github.com/hardhacker/hylo/internal/storage"
 )
 
@@ -155,14 +156,14 @@ func TestFetchRemoteRejects(t *testing.T) {
 
 func TestResolveCoverLocalMustBeRegistered(t *testing.T) {
 	p := newTestPlugin(t)
-	if _, _, ok := p.resolveCover("/n.md", coverSource{local: "missing.png"}); ok {
+	if _, _, ok := p.resolveCover("/n.md", coverSource{local: "missing.png"}, true); ok {
 		t.Fatal("unregistered local image must not become a cover")
 	}
 	img, err := p.vault.SaveImageBytes(pngBytes, ".png")
 	if err != nil {
 		t.Fatal(err)
 	}
-	name, src, ok := p.resolveCover("/n.md", coverSource{local: img.Name})
+	name, src, ok := p.resolveCover("/n.md", coverSource{local: img.Name}, true)
 	if !ok || name != img.Name || src != "" {
 		t.Fatalf("got %q %q %v", name, src, ok)
 	}
@@ -180,7 +181,7 @@ func TestExtractCoverFallsBackToNextCandidate(t *testing.T) {
 	raw := "---\nimage_url: \"" + srv.URL + "/dead.png\"\n---\n\n![[" + img.Name + "]]\n"
 
 	sp := storage.Path("/n.md")
-	p.extractCover(sp, string(sp), []byte(raw))
+	p.extractCover(sp, string(sp), []byte(raw), true)
 
 	got, err := p.vault.GetNoteAsset(sp, storage.AssetKindCover)
 	if err != nil || got.Filename != img.Name {
@@ -200,13 +201,13 @@ func TestExtractCoverUpdatesAndClearsExisting(t *testing.T) {
 	}
 
 	sp := storage.Path("/n.md")
-	p.extractCover(sp, string(sp), []byte("![["+first.Name+"]]\n"))
+	p.extractCover(sp, string(sp), []byte("![["+first.Name+"]]\n"), true)
 	got, err := p.vault.GetNoteAsset(sp, storage.AssetKindCover)
 	if err != nil || got.Filename != first.Name {
 		t.Fatalf("initial cover = %+v, err = %v; want %s", got, err, first.Name)
 	}
 
-	p.extractCover(sp, string(sp), []byte("![["+second.Name+"]]\n"))
+	p.extractCover(sp, string(sp), []byte("![["+second.Name+"]]\n"), true)
 	got, err = p.vault.GetNoteAsset(sp, storage.AssetKindCover)
 	if err != nil || got.Filename != second.Name {
 		t.Fatalf("updated cover = %+v, err = %v; want %s", got, err, second.Name)
@@ -219,9 +220,51 @@ func TestExtractCoverUpdatesAndClearsExisting(t *testing.T) {
 		t.Fatalf("cover rows = %d, want 1: %+v", len(covers), covers)
 	}
 
-	p.extractCover(sp, string(sp), []byte("no cover here\n"))
+	p.extractCover(sp, string(sp), []byte("no cover here\n"), true)
 	_, err = p.vault.GetNoteAsset(sp, storage.AssetKindCover)
 	if !errors.Is(err, storage.ErrMetadataNotFound) {
 		t.Fatalf("cleared cover err = %v, want ErrMetadataNotFound", err)
+	}
+}
+
+// A note saved before its embedded image exists gets its cover once the image arrives.
+func TestImageArrivalExtractsCoverOfEmbeddingNotes(t *testing.T) {
+	var hits atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits.Add(1)
+		http.NotFound(w, r)
+	}))
+	defer srv.Close()
+
+	p := newTestPlugin(t)
+	notes := map[storage.Path]string{
+		"/wiki.md":     "![[late.png]]\n",
+		"/markdown.md": "![shot](attachments/late.png)\n",
+		"/remote.md":   "![og](" + srv.URL + "/dead.png)\n![[late.png]]\n",
+	}
+	for sp, body := range notes {
+		if err := p.vault.WriteNote(sp, []byte(body), ""); err != nil {
+			t.Fatal(err)
+		}
+		p.handle(plugin.Event{Type: plugin.EventVaultCreate, Path: string(sp)})
+		if _, err := p.vault.GetNoteAsset(sp, storage.AssetKindCover); !errors.Is(err, storage.ErrMetadataNotFound) {
+			t.Fatalf("%s: cover before the image exists: err = %v", sp, err)
+		}
+	}
+
+	img, err := p.vault.SaveImageBytesNamed(pngBytes, "late", ".png")
+	if err != nil {
+		t.Fatal(err)
+	}
+	before := hits.Load()
+	p.handle(plugin.Event{Type: plugin.EventFSImage, Path: img.Dir + "/" + img.Name})
+	if hits.Load() != before {
+		t.Fatal("an image arriving must not retry remote cover candidates")
+	}
+	for sp := range notes {
+		got, err := p.vault.GetNoteAsset(sp, storage.AssetKindCover)
+		if err != nil || got.Filename != "late.png" {
+			t.Fatalf("%s: cover after the image arrived = %+v, err = %v", sp, got, err)
+		}
 	}
 }

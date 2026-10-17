@@ -592,34 +592,40 @@ func (g *Vault) CreateUntitledNote(dir string, content []byte) (Path, error) {
 	}
 
 	g.mu.Lock()
-	defer g.mu.Unlock()
+	p, modTime, err := g.createUntitledLocked(dir, content)
+	g.mu.Unlock()
+	if err != nil {
+		return "", err
+	}
+	g.emit("vault_create", p.String(), false, modTime)
+	return p, nil
+}
 
+func (g *Vault) createUntitledLocked(dir string, content []byte) (Path, time.Time, error) {
 	base := "Untitled " + time.Now().Format("2006-01-02 15-04-05")
 	name := base + ".md"
 	for i := 2; ; i++ {
 		abs, err := g.osPath(Path(JoinPath(dir, name)))
 		if err != nil {
-			return "", err
+			return "", time.Time{}, err
 		}
 		taken, err := dbNameTaken(g.db, name)
 		if err != nil {
-			return "", err
+			return "", time.Time{}, err
 		}
 		if !taken {
 			if _, statErr := os.Stat(abs); errors.Is(statErr, fs.ErrNotExist) {
 				break
 			} else if statErr != nil {
-				return "", mapOSError(statErr)
+				return "", time.Time{}, mapOSError(statErr)
 			}
 		}
 		name = fmt.Sprintf("%s (%d).md", base, i)
 	}
 
 	p := Path(JoinPath(dir, name))
-	if _, _, err := g.writeNoteLocked(p, content, Note{}); err != nil {
-		return "", err
-	}
-	return p, nil
+	_, modTime, err := g.writeNoteLocked(p, content, Note{})
+	return p, modTime, err
 }
 
 // PrependNote inserts incoming into the note at p immediately after the first
@@ -1906,6 +1912,16 @@ func (g *Vault) writeNoteLocked(p Path, data []byte, meta Note) (isNew bool, mod
 	if statErr2 != nil {
 		return false, time.Time{}, fmt.Errorf("vault: stat after write %q: %w", p.String(), statErr2)
 	}
+	if dbErr := dbUpsert(g.db, fileNoteMeta(meta, p, data, info)); dbErr != nil {
+		return false, time.Time{}, fmt.Errorf("vault: metadata upsert %q: %w", p.String(), dbErr)
+	}
+
+	return isNew, info.ModTime(), nil
+}
+
+// fileNoteMeta fills meta's file-derived fields from the note's bytes and stat.
+// The watcher uses it too, so an external edit records the same metadata.
+func fileNoteMeta(meta Note, p Path, data []byte, info os.FileInfo) Note {
 	meta.Dir = p.Dir()
 	meta.Name = p.Base()
 	meta.Size = info.Size()
@@ -1914,11 +1930,7 @@ func (g *Vault) writeNoteLocked(p Path, data []byte, meta Note) (isNew bool, mod
 		meta.Tags = fm.Tags
 	}
 	meta.Preview = notePreviewFromSummary(util.GeneratePreview(data, 0))
-	if dbErr := dbUpsert(g.db, meta); dbErr != nil {
-		return false, time.Time{}, fmt.Errorf("vault: metadata upsert %q: %w", p.String(), dbErr)
-	}
-
-	return isNew, info.ModTime(), nil
+	return meta
 }
 
 func validateNoteName(name string) error {

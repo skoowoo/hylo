@@ -46,15 +46,20 @@ type Runner struct {
 	doneHook atomic.Value // stores RunDoneHook
 	logger   *slog.Logger
 	sem      chan struct{} // concurrency limiter
+	settle   *plugin.Coalescer
 }
 
 // NewRunner creates a Runner. Call SetRunFunc before the vault watcher fires events.
 func NewRunner(store *Store, logger *slog.Logger) *Runner {
-	return &Runner{
+	r := &Runner{
 		store:  store,
 		logger: logger,
 		sem:    make(chan struct{}, 3),
 	}
+	// note_created and note_updated wait for the edit session to end instead
+	// of running an agent on the first keystroke and every autosave.
+	r.settle = plugin.NewCoalescer(plugin.AgentWindow, r.dispatch)
+	return r
 }
 
 // SetRunFunc wires in the function that fires an agent run for a trigger match.
@@ -80,9 +85,16 @@ func (r *Runner) Start(ctx context.Context) error {
 	return nil
 }
 
-func (r *Runner) Stop() error { return nil }
+func (r *Runner) Stop() error {
+	r.settle.Stop()
+	return nil
+}
 
 func (r *Runner) Notify(e plugin.Event) {
+	r.settle.Add(e)
+}
+
+func (r *Runner) dispatch(e plugin.Event) {
 	mateEvents := Translate(e)
 	if len(mateEvents) == 0 {
 		return

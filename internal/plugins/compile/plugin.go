@@ -29,6 +29,7 @@ type Plugin struct {
 	vault        *storage.Vault
 	logger       *slog.Logger
 	dispatchFn   atomicDispatch
+	settle       *plugin.Coalescer
 }
 
 type atomicDispatch struct {
@@ -58,11 +59,17 @@ func New(knowledgeDir string, vault *storage.Vault, logger *slog.Logger) (*Plugi
 		knowledgeDir = "/" + knowledgeDir
 	}
 
-	return &Plugin{
+	p := &Plugin{
 		knowledgeDir: knowledgeDir,
 		vault:        vault,
 		logger:       logger,
-	}, nil
+	}
+	p.settle = plugin.NewCoalescer(plugin.IndexWindow, func(e plugin.Event) {
+		if e.Type != plugin.EventFSDelete && e.Type != plugin.EventVaultDelete {
+			go p.handleKnowledgeDirNote(e.Path)
+		}
+	})
+	return p, nil
 }
 
 // SetDispatch wires the plugin event bus (called from server setup).
@@ -74,19 +81,22 @@ func (p *Plugin) SetDispatch(fn DispatchFunc) {
 func (p *Plugin) Name() string { return "compile" }
 
 // Notify implements plugin.Plugin. Non-blocking.
-// Fires for create/write events on .md files inside the knowledge output dir.
+// Fires for create/write events on .md files inside the knowledge output dir,
+// once a note's edits settle; deletes only drop a held write.
 func (p *Plugin) Notify(e plugin.Event) {
-	isCreate := e.Type == plugin.EventFSCreate || e.Type == plugin.EventVaultCreate
-	isWrite := e.Type == plugin.EventFSWrite || e.Type == plugin.EventVaultWrite
-	if !isCreate && !isWrite {
+	switch e.Type {
+	case plugin.EventFSCreate, plugin.EventVaultCreate,
+		plugin.EventFSWrite, plugin.EventVaultWrite,
+		plugin.EventFSDelete, plugin.EventVaultDelete:
+	default:
 		return
 	}
 	if !strings.HasSuffix(e.Path, ".md") {
 		return
 	}
-	vaultPath := normalizeVaultPath(e.Path)
-	if p.isKnowledgePath(vaultPath) {
-		go p.handleKnowledgeDirNote(vaultPath)
+	e.Path = normalizeVaultPath(e.Path)
+	if p.isKnowledgePath(e.Path) {
+		p.settle.Add(e)
 	}
 }
 
@@ -98,7 +108,10 @@ func (p *Plugin) Start(ctx context.Context) error {
 }
 
 // Stop implements plugin.Plugin.
-func (p *Plugin) Stop() error { return nil }
+func (p *Plugin) Stop() error {
+	p.settle.Stop()
+	return nil
+}
 
 // ── path helpers ──────────────────────────────────────────────────────────────
 

@@ -6,6 +6,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"path"
 	"strings"
 
 	"github.com/hardhacker/hylo/internal/plugin"
@@ -14,7 +15,7 @@ import (
 )
 
 // Plugin extracts note-attached resources on create/write: the cover image
-// and every ![[image]] body embed (kind=image — this is what backs the
+// and every local image the body embeds (kind=image — this is what backs the
 // Images gallery's "Linked Notes", see Vault.NoteNamesForImages). Later
 // kinds (audio, video) can be added as extra extractors without changing
 // the note_assets table.
@@ -22,16 +23,19 @@ type Plugin struct {
 	vault   *storage.Vault
 	logger  *slog.Logger
 	eventCh chan plugin.Event
+	settle  *plugin.Coalescer
 	client  *http.Client
 }
 
 func New(vault *storage.Vault, logger *slog.Logger) *Plugin {
-	return &Plugin{
+	p := &Plugin{
 		vault:   vault,
 		logger:  logger,
 		eventCh: make(chan plugin.Event, 256),
 		client:  newFetchClient(),
 	}
+	p.settle = plugin.NewCoalescer(plugin.IndexWindow, p.enqueue)
+	return p
 }
 
 func (p *Plugin) Name() string { return "assets" }
@@ -39,13 +43,22 @@ func (p *Plugin) Name() string { return "assets" }
 func (p *Plugin) Notify(e plugin.Event) {
 	switch e.Type {
 	case plugin.EventFSCreate, plugin.EventFSWrite,
-		plugin.EventVaultCreate, plugin.EventVaultWrite:
-		select {
-		case p.eventCh <- e:
-		default:
-			p.logger.Warn("assets: event channel full, dropping event",
-				"type", e.Type, "path", e.Path)
-		}
+		plugin.EventVaultCreate, plugin.EventVaultWrite,
+		plugin.EventFSDelete, plugin.EventVaultDelete,
+		plugin.EventVaultImage, plugin.EventFSImage:
+		p.settle.Add(e)
+	}
+}
+
+func (p *Plugin) enqueue(e plugin.Event) {
+	if e.Type == plugin.EventFSDelete || e.Type == plugin.EventVaultDelete {
+		return // only passed in so a deleted note's held write is dropped
+	}
+	select {
+	case p.eventCh <- e:
+	default:
+		p.logger.Warn("assets: event channel full, dropping event",
+			"type", e.Type, "path", e.Path)
 	}
 }
 
@@ -61,33 +74,42 @@ func (p *Plugin) Start(ctx context.Context) error {
 	}
 }
 
-func (p *Plugin) Stop() error { return nil }
+func (p *Plugin) Stop() error {
+	p.settle.Stop()
+	return nil
+}
 
 func (p *Plugin) handle(e plugin.Event) {
-	if !strings.HasSuffix(strings.ToLower(e.Path), ".md") {
+	if e.Type == plugin.EventVaultImage || e.Type == plugin.EventFSImage {
+		p.handleImage(e.Path)
 		return
 	}
-	pathStr := e.Path
-	if !strings.HasPrefix(pathStr, "/") {
-		pathStr = "/" + pathStr
-	}
-	if strings.HasPrefix(pathStr, "/_assets/") {
-		return
-	}
+	p.handleNote(e.Path)
+}
 
-	sp, ok := storage.ParsePath(pathStr)
+// handleImage gives a cover to notes that embed an image which just became
+// available and have none yet: their cover was skipped while it was missing.
+// It never fetches: the note's own save already tried its remote candidates.
+func (p *Plugin) handleImage(imagePath string) {
+	name := path.Base(imagePath)
+	if imgs, err := p.vault.GetImagesByName(name); err != nil || len(imgs) == 0 {
+		return
+	}
+	notes, err := p.vault.CoverlessNotesEmbedding(name)
+	if err != nil {
+		p.logger.Warn("assets: notes embedding image failed", "image", imagePath, "err", err)
+		return
+	}
+	for _, n := range notes {
+		if sp, pathStr, raw, short, ok := p.load(n.String()); ok && !short {
+			p.extractCover(sp, pathStr, raw, false)
+		}
+	}
+}
+
+func (p *Plugin) handleNote(pathStr string) {
+	sp, pathStr, raw, short, ok := p.load(pathStr)
 	if !ok {
-		return
-	}
-
-	note, err := p.vault.StatNote(sp)
-	if err != nil {
-		return
-	}
-
-	raw, err := p.vault.ReadNote(sp)
-	if err != nil {
-		p.logger.Debug("assets: read failed", "path", pathStr, "err", err)
 		return
 	}
 
@@ -98,18 +120,45 @@ func (p *Plugin) handle(e plugin.Event) {
 	// "cover" to speak of.
 	p.extractBodyImages(sp, pathStr, raw)
 
-	if note.Kind == storage.KindShort || util.IsShortNote(raw) {
+	if short {
 		return
 	}
-	p.extractCover(sp, pathStr, raw)
+	p.extractCover(sp, pathStr, raw, true)
 }
 
-// extractBodyImages records which images a note embeds via ![[name]], as
-// note_assets rows of kind=image — ReplaceNoteAssets atomically swaps the
-// whole set, so an embed the note has since removed is correctly dropped
-// too (unlike a naive additive update).
+// load reads a note the extractors apply to; short reports a short-note file.
+func (p *Plugin) load(pathStr string) (sp storage.Path, normalized string, raw []byte, short, ok bool) {
+	if !strings.HasSuffix(strings.ToLower(pathStr), ".md") {
+		return "", "", nil, false, false
+	}
+	if !strings.HasPrefix(pathStr, "/") {
+		pathStr = "/" + pathStr
+	}
+	if strings.HasPrefix(pathStr, "/_assets/") {
+		return "", "", nil, false, false
+	}
+	sp, ok = storage.ParsePath(pathStr)
+	if !ok {
+		return "", "", nil, false, false
+	}
+	note, err := p.vault.StatNote(sp)
+	if err != nil {
+		return "", "", nil, false, false
+	}
+	raw, err = p.vault.ReadNote(sp)
+	if err != nil {
+		p.logger.Debug("assets: read failed", "path", pathStr, "err", err)
+		return "", "", nil, false, false
+	}
+	return sp, pathStr, raw, note.Kind == storage.KindShort || util.IsShortNote(raw), true
+}
+
+// extractBodyImages records which local images a note embeds, via ![[name]]
+// or ![alt](path), as note_assets rows of kind=image — ReplaceNoteAssets
+// atomically swaps the whole set, so an embed the note has since removed is
+// correctly dropped too (unlike a naive additive update).
 func (p *Plugin) extractBodyImages(sp storage.Path, pathStr string, raw []byte) {
-	names := storage.ParseImageEmbeds(raw)
+	names := storage.ParseLocalImages(raw)
 	assets := make([]storage.NoteAsset, len(names))
 	for i, name := range names {
 		assets[i] = storage.NoteAsset{Kind: storage.AssetKindImage, Filename: name, Ord: i}
@@ -119,10 +168,12 @@ func (p *Plugin) extractBodyImages(sp storage.Path, pathStr string, raw []byte) 
 	}
 }
 
-func (p *Plugin) extractCover(sp storage.Path, pathStr string, raw []byte) {
+// extractCover picks the note's cover; without fetch, remote candidates count
+// only if already downloaded.
+func (p *Plugin) extractCover(sp storage.Path, pathStr string, raw []byte, fetch bool) {
 	var cover []storage.NoteAsset
 	for _, src := range parseCoverSources(raw) {
-		filename, sourceURL, ok := p.resolveCover(pathStr, src)
+		filename, sourceURL, ok := p.resolveCover(pathStr, src, fetch)
 		if !ok {
 			continue
 		}
@@ -145,7 +196,7 @@ func (p *Plugin) extractCover(sp storage.Path, pathStr string, raw []byte) {
 
 // resolveCover turns a candidate into a servable image filename. Local refs
 // must already be registered, otherwise the card would show a broken image.
-func (p *Plugin) resolveCover(pathStr string, src coverSource) (filename, sourceURL string, ok bool) {
+func (p *Plugin) resolveCover(pathStr string, src coverSource, fetch bool) (filename, sourceURL string, ok bool) {
 	if src.local != "" {
 		imgs, err := p.vault.GetImagesByName(src.local)
 		if err != nil || len(imgs) == 0 {
@@ -153,6 +204,10 @@ func (p *Plugin) resolveCover(pathStr string, src coverSource) (filename, source
 			return "", "", false
 		}
 		return src.local, "", true
+	}
+	if !fetch {
+		img, ok := p.findRemote(remoteStem(src.remote))
+		return img.Name, src.remote, ok
 	}
 
 	img, err := p.fetchRemote(src.remote)

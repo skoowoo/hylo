@@ -6,8 +6,8 @@ import (
 	"github.com/hardhacker/hylo/internal/plugin"
 )
 
-// Plugin turns vault events into note changes; behind the manager's dedup,
-// each write arrives once whether it came from the API or disk.
+// Plugin turns vault events into note changes; each write arrives once,
+// whether it came from the API or disk.
 type Plugin struct{ feed *Feed }
 
 func NewPlugin(f *Feed) *Plugin { return &Plugin{feed: f} }
@@ -43,7 +43,7 @@ func noteChange(e plugin.Event) (Change, bool) {
 		c.Op = "short"
 	case plugin.EventVaultPin:
 		c.Op = "pin"
-	case plugin.EventVaultImage:
+	case plugin.EventVaultImage, plugin.EventFSImage:
 		c.Op = "image"
 	default:
 		return Change{}, false

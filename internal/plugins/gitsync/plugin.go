@@ -90,8 +90,7 @@ func (p *Plugin) Notify(e plugin.Event) {
 	case plugin.EventFSCreate, plugin.EventFSWrite,
 		plugin.EventVaultCreate, plugin.EventVaultWrite,
 		plugin.EventFSDelete, plugin.EventVaultDelete:
-		// all vault mutations are relevant for git commits;
-		// Manager dedup ensures exactly one of fs_*/vault_* fires per mutation
+		// all vault mutations are relevant for git commits
 	default:
 		return
 	}

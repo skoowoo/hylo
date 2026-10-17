@@ -1270,6 +1270,34 @@ func dbDeleteNoteAssetsByFilename(db *sql.DB, filename string) error {
 	return err
 }
 
+func dbDeleteNoteAssetsByFilenameKind(db *sql.DB, filename string, kind NoteAssetKind) error {
+	_, err := db.Exec(`DELETE FROM note_assets WHERE filename = ? AND kind = ?`, filename, string(kind))
+	return err
+}
+
+func dbCoverlessNotesEmbedding(db *sql.DB, filename string) ([]Path, error) {
+	rows, err := db.Query(`
+		SELECT DISTINCT a.note_dir, a.note_name FROM note_assets a
+		WHERE a.filename = ? AND a.kind = ?
+		  AND NOT EXISTS (
+		      SELECT 1 FROM note_assets c
+		      WHERE c.note_dir = a.note_dir AND c.note_name = a.note_name AND c.kind = ?)`,
+		filename, string(AssetKindImage), string(AssetKindCover))
+	if err != nil {
+		return nil, fmt.Errorf("storage: coverless notes embedding %q: %w", filename, err)
+	}
+	defer rows.Close()
+	var out []Path
+	for rows.Next() {
+		var dir, name string
+		if err := rows.Scan(&dir, &name); err != nil {
+			return nil, err
+		}
+		out = append(out, Path(JoinPath(dir, name)))
+	}
+	return out, rows.Err()
+}
+
 func dbScanNoteAsset(scan func(dest ...any) error) (NoteAsset, error) {
 	var a NoteAsset
 	var createdNs int64
@@ -1406,6 +1434,25 @@ func dbImageGetByName(db *sql.DB, name string) ([]Image, error) {
 	}
 	defer rows.Close()
 	return dbImageScan(rows)
+}
+
+// dbImageGet returns the metadata row for the image at (dir, name).
+func dbImageGet(db *sql.DB, dir, name string) (Image, error) {
+	rows, err := db.Query(`
+		SELECT dir, name, ext, size, created_at, updated_at
+		FROM images WHERE dir = ? AND name = ?`, dir, name)
+	if err != nil {
+		return Image{}, fmt.Errorf("storage: image %s/%s: %w", dir, name, err)
+	}
+	defer rows.Close()
+	imgs, err := dbImageScan(rows)
+	if err != nil {
+		return Image{}, err
+	}
+	if len(imgs) == 0 {
+		return Image{}, ErrMetadataNotFound
+	}
+	return imgs[0], nil
 }
 
 // dbImageDelete removes the metadata row for the image identified by (dir, name).

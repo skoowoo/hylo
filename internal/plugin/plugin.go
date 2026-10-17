@@ -11,21 +11,15 @@ import (
 type EventType string
 
 const (
-	// Filesystem-driven events — emitted by the vault watcher in response to
-	// fsnotify signals. These fire asynchronously (after a short write debounce
-	// for Write events) and serve as the authoritative source for changes made
-	// by external editors or tools that bypass the Vault API entirely.
-	EventFSCreate EventType = "fs_create" // file created or overwritten (temp→rename makes Create/Write indistinguishable)
-	EventFSWrite  EventType = "fs_write"  // existing file content changed in-place
-	EventFSDelete EventType = "fs_delete" // file deleted or renamed away
+	// Filesystem-driven events — emitted by the vault watcher for changes made
+	// outside the Vault API (external editors, sync clients). The watcher drops
+	// the echoes of Vault API writes, so each mutation reaches plugins once.
+	EventFSCreate EventType = "fs_create" // a note the vault did not know about appeared
+	EventFSWrite  EventType = "fs_write"  // a known note's content changed
+	EventFSDelete EventType = "fs_delete" // a known note was deleted or renamed away
 
 	// Vault API-driven events — emitted synchronously by Vault operations
-	// immediately after the filesystem write and lock release. For every
-	// Vault-originated mutation both a vault_* event and a corresponding fs_*
-	// event will be dispatched; the plugin Manager deduplicates them within a
-	// short time window so each plugin sees exactly one event per mutation.
-	//
-	// External writes (not via the Vault API) produce only fs_* events.
+	// immediately after the filesystem write and lock release.
 	EventVaultCreate EventType = "vault_create" // note written for the first time via Vault API
 	EventVaultWrite  EventType = "vault_write"  // existing note overwritten or appended via Vault API
 	EventVaultDelete EventType = "vault_delete" // note(s) permanently deleted via Vault API
@@ -40,12 +34,10 @@ const (
 	// internal/plugins/renamesync, which uses it purely as a low-latency
 	// wake-up to check for pending RenameJob rows (see storage.RenameJob);
 	// its correctness never depends on this event actually arriving.
-	// Not subject to vault deduplication.
 	EventVaultRename EventType = "vault_rename"
 
 	// EventVaultShortAppend is emitted after every successful AppendShort call,
-	// regardless of whether the daily file is new or existing. It is not subject
-	// to deduplication and is never paired with an fs_* event.
+	// regardless of whether the daily file is new or existing.
 	EventVaultShortAppend EventType = "vault_short_append"
 
 	// EventVaultPin is emitted when a note is pinned or unpinned; Path is the note.
@@ -53,31 +45,30 @@ const (
 	EventVaultPin EventType = "vault_pin"
 
 	// EventVaultImage is emitted when an image is saved to or deleted from the
-	// vault; Path is the image. The watcher tracks markdown only, so this is the
-	// only signal for images.
+	// vault via the Vault API; Path is the image.
 	EventVaultImage EventType = "vault_image"
 
+	// EventFSImage is the watcher's counterpart: an image was added, changed or
+	// removed outside the Vault API.
+	EventFSImage EventType = "fs_image"
+
 	// EventWechatMessage is emitted when the WeChat bridge receives a direct text message.
-	// Not subject to vault deduplication.
 	EventWechatMessage EventType = "wechat_message"
 
 	// EventWechatNotify triggers the WeChat plugin to proactively send Content to WechatUserID.
 	// If WechatUserID is empty the plugin uses the logged-in owner's user ID.
-	// Not subject to vault deduplication.
 	EventWechatNotify EventType = "wechat_notify"
 
 	// EventDiscordMessage is emitted when the Discord bridge receives a DM.
-	// Not subject to vault deduplication.
 	EventDiscordMessage EventType = "discord_message"
 
 	// EventDiscordNotify triggers the Discord plugin to proactively send Content to DiscordUserID.
 	// If DiscordUserID is empty the plugin uses the configured owner's user ID.
-	// Not subject to vault deduplication.
 	EventDiscordNotify EventType = "discord_notify"
 
 	// EventCompileRequested is emitted when the user manually requests compilation
 	// of a vault note via the compile API. Path carries the vault-absolute note
-	// path. Handled by a mate agent; not subject to vault deduplication.
+	// path. Handled by a mate agent.
 	EventCompileRequested EventType = "compile_requested"
 )
 

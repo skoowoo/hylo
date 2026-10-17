@@ -8,13 +8,16 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
 
 	"github.com/hardhacker/hylo/internal/plugin"
+	"github.com/hardhacker/hylo/internal/util"
 )
 
 const MaxImageBytes = 10 << 20
@@ -76,8 +79,13 @@ type Image struct {
 	UpdatedAt time.Time
 }
 
-// wikiImageLinkRe matches Obsidian wiki-style image embeds: ![[filename.ext]] or ![[filename.ext|hint]]
-var wikiImageLinkRe = regexp.MustCompile(`!\[\[([^\]\|]+?)(?:\|[^\]]*?)?\]\]`)
+var (
+	// Group 1: <angle-bracket url>; 2: plain url (one level of balanced
+	// parens allowed); 3: wiki embed. One regex keeps document order.
+	imageRefRe = regexp.MustCompile(`!\[[^\]]*\]\(\s*(?:<([^>]+)>|((?:[^()\s]|\([^()\s]*\))+))(?:\s+(?:"[^"]*"|'[^']*'))?\s*\)` +
+		`|!\[\[([^\]|]+)(?:\|[^\]]*)?\]\]`)
+	fencedCodeRe = regexp.MustCompile("(?ms)^[ \t]*(?:```|~~~).*?^[ \t]*(?:```|~~~)[^\n]*$")
+)
 
 // imageExtensions is the set of recognised image file extensions (lowercase, with dot).
 var imageExtensions = map[string]bool{
@@ -117,7 +125,7 @@ func (g *Vault) DeleteImageMeta(dir, name string) error {
 	if err := dbImageDelete(g.db, dir, name); err != nil {
 		return err
 	}
-	return dbDeleteNoteAssetsIfImageNameUnused(g.db, name)
+	return dbDeleteCoversIfImageNameUnused(g.db, name)
 }
 
 // DeleteImage removes the image file at vault-relative (dir, name) and its
@@ -163,16 +171,24 @@ func (g *Vault) deleteImageLocked(abs, dir, name string) error {
 	if err := os.Remove(abs); err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return fmt.Errorf("storage: remove image file: %w", err)
 	}
+	return g.forgetImageLocked(dir, name)
+}
+
+// forgetImageLocked drops an image's row once its file is gone.
+func (g *Vault) forgetImageLocked(dir, name string) error {
 	if err := dbImageDelete(g.db, dir, name); err != nil {
 		return fmt.Errorf("storage: delete image metadata: %w", err)
 	}
-	if err := dbDeleteNoteAssetsIfImageNameUnused(g.db, name); err != nil {
-		return fmt.Errorf("storage: delete image asset references: %w", err)
+	if err := dbDeleteCoversIfImageNameUnused(g.db, name); err != nil {
+		return fmt.Errorf("storage: delete image cover references: %w", err)
 	}
 	return nil
 }
 
-func dbDeleteNoteAssetsIfImageNameUnused(db *sql.DB, name string) error {
+// dbDeleteCoversIfImageNameUnused drops covers that would now show a broken
+// image. Embed rows stay: they mirror note content, so a restored image gets
+// its linked notes back.
+func dbDeleteCoversIfImageNameUnused(db *sql.DB, name string) error {
 	imgs, err := dbImageGetByName(db, name)
 	if err != nil {
 		return err
@@ -180,7 +196,28 @@ func dbDeleteNoteAssetsIfImageNameUnused(db *sql.DB, name string) error {
 	if len(imgs) > 0 {
 		return nil
 	}
-	return dbDeleteNoteAssetsByFilename(db, name)
+	return dbDeleteNoteAssetsByFilenameKind(db, name, AssetKindCover)
+}
+
+// CoverlessNotesEmbedding returns the notes that embed the image filename in
+// their body but have no cover yet.
+func (g *Vault) CoverlessNotesEmbedding(name string) ([]Path, error) {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+	return dbCoverlessNotesEmbedding(g.db, name)
+}
+
+// imageFromFile builds an image row from its file; updated_at is the file's
+// mtime so the watcher can tell its own row from a later external change.
+func imageFromFile(dir, name string, info os.FileInfo) Image {
+	return Image{
+		Dir:       dir,
+		Name:      name,
+		Ext:       strings.ToLower(filepath.Ext(name)),
+		Size:      info.Size(),
+		CreatedAt: info.ModTime(),
+		UpdatedAt: info.ModTime(),
+	}
 }
 
 // ScanAndRegisterImages walks the entire vault root and upserts a metadata row
@@ -213,23 +250,14 @@ func (g *Vault) ScanAndRegisterImages() (int, error) {
 		if err != nil {
 			return nil
 		}
-		slashRel := "/" + filepath.ToSlash(rel)
-		dir, name := PathParts(slashRel)
-		ext := strings.ToLower(filepath.Ext(name))
+		dir, name := PathParts("/" + filepath.ToSlash(rel))
 
 		info, err := d.Info()
 		if err != nil {
 			return nil
 		}
 
-		if dbErr := dbImageUpsert(g.db, Image{
-			Dir:       dir,
-			Name:      name,
-			Ext:       ext,
-			Size:      info.Size(),
-			CreatedAt: info.ModTime(),
-			UpdatedAt: info.ModTime(),
-		}); dbErr != nil {
+		if dbErr := dbImageUpsert(g.db, imageFromFile(dir, name, info)); dbErr != nil {
 			return nil // best-effort: skip on error
 		}
 		count++
@@ -254,44 +282,103 @@ func (g *Vault) CountImages() (int, error) {
 }
 
 // NoteNamesForImages batch-resolves, for each image filename in names, the
-// basenames (without ".md") of every note that currently embeds it via
-// ![[name]] — backed by note_assets' kind=image rows (see ParseImageEmbeds
-// and the assets plugin, which keeps them current on every save).
+// basenames (without ".md") of every note that currently embeds it —
+// backed by note_assets' kind=image rows (see ParseLocalImages and the
+// assets plugin, which keeps them current on every save).
 func (g *Vault) NoteNamesForImages(names []string) (map[string][]string, error) {
 	g.mu.RLock()
 	defer g.mu.RUnlock()
 	return dbNoteNamesByAssetFilenames(g.db, names, AssetKindImage)
 }
 
-// ParseImageEmbeds returns the ordered, deduplicated list of image filenames
-// referenced via Obsidian-style ![[image.ext]] (or ![[image.ext|hint]]) wiki
-// embeds in note content. Used both by BackfillBodyImageLinks (vault-wide,
-// at startup) and by the assets plugin's per-save extractor
-// (internal/plugins/assets), which is what keeps note_assets' kind=image
-// rows current day to day.
-func ParseImageEmbeds(data []byte) []string {
-	if !bytes.Contains(data, []byte("![[")) {
+// ImageRef is one image reference in a note: a remote URL or the vault-wide
+// unique basename of a local image. At most one field is set.
+type ImageRef struct {
+	Remote string
+	Local  string
+}
+
+// ParseImageRefs returns the image references in a note body in document
+// order: markdown ![alt](ref) and wiki ![[name]] alike, skipping fenced code
+// and refs that cannot be an image.
+func ParseImageRefs(body []byte) []ImageRef {
+	if !bytes.Contains(body, []byte("![")) {
 		return nil
 	}
+	body = fencedCodeRe.ReplaceAll(body, []byte("\n"))
+	var out []ImageRef
+	for _, m := range imageRefRe.FindAllSubmatch(body, -1) {
+		var r ImageRef
+		switch {
+		case len(m[1]) > 0:
+			r = ClassifyImageRef(string(m[1]))
+		case len(m[2]) > 0:
+			r = ClassifyImageRef(string(m[2]))
+		case len(m[3]) > 0:
+			r = localImageRef(string(m[3]))
+		}
+		if r != (ImageRef{}) {
+			out = append(out, r)
+		}
+	}
+	return out
+}
+
+// ClassifyImageRef maps a markdown image target to a remote URL or a local
+// basename (/_assets/... paths and /api/images/serve?name= links included).
+func ClassifyImageRef(ref string) ImageRef {
+	ref = strings.TrimSpace(ref)
+	lower := strings.ToLower(ref)
+	switch {
+	case ref == "":
+		return ImageRef{}
+	case strings.HasPrefix(lower, "http://"), strings.HasPrefix(lower, "https://"):
+		return ImageRef{Remote: ref}
+	case strings.HasPrefix(ref, "//"):
+		return ImageRef{Remote: "https:" + ref}
+	}
+
+	u, err := url.Parse(ref)
+	if err != nil {
+		return localImageRef(ref)
+	}
+	if u.Scheme != "" {
+		return ImageRef{}
+	}
+	if name := u.Query().Get("name"); name != "" {
+		return localImageRef(name)
+	}
+	return localImageRef(u.Path)
+}
+
+func localImageRef(ref string) ImageRef {
+	name := strings.TrimSpace(path.Base(strings.ReplaceAll(strings.TrimSpace(ref), "\\", "/")))
+	if name == "" || name == "." || name == "/" || !IsImagePath(name) {
+		return ImageRef{}
+	}
+	return ImageRef{Local: name}
+}
+
+// ParseLocalImages returns the deduplicated basenames of the local images a
+// note's body embeds — the note_assets kind=image rows, kept by
+// BackfillBodyImageLinks at startup and the assets plugin on every save.
+func ParseLocalImages(raw []byte) []string {
+	_, body := util.ParseFrontmatter(raw)
 	var out []string
 	seen := map[string]bool{}
-	for _, m := range wikiImageLinkRe.FindAllSubmatch(data, -1) {
-		if len(m) < 2 {
+	for _, r := range ParseImageRefs(body) {
+		if r.Local == "" || seen[r.Local] {
 			continue
 		}
-		target := filepath.Base(strings.TrimSpace(string(m[1])))
-		if !IsImagePath(target) || seen[target] {
-			continue
-		}
-		seen[target] = true
-		out = append(out, target)
+		seen[r.Local] = true
+		out = append(out, r.Local)
 	}
 	return out
 }
 
 // BackfillBodyImageLinks walks every markdown note in the vault and
-// (re)writes its note_assets rows of kind=image to match the ![[image]]
-// embeds currently in its body — a global reconciliation pass, run once at
+// (re)writes its note_assets rows of kind=image to match the local images
+// currently embedded in its body — a global reconciliation pass, run once at
 // startup/init (see internal/cli/start.go, init.go) to pick up notes that
 // predate this feature or haven't been saved since. Day-to-day updates are
 // kept current incrementally by the assets plugin's extractBodyImages,
@@ -334,7 +421,7 @@ func (g *Vault) BackfillBodyImageLinks() error {
 		}
 		dir, name := PathParts("/" + filepath.ToSlash(rel))
 
-		notes = append(notes, noteImages{path: Path(JoinPath(dir, name)), images: ParseImageEmbeds(data)})
+		notes = append(notes, noteImages{path: Path(JoinPath(dir, name)), images: ParseLocalImages(data)})
 		return nil
 	})
 	if err != nil {
@@ -459,25 +546,37 @@ func (g *Vault) saveImage(data []byte, stem, ext string) (Image, error) {
 	}
 	name := stem + ext
 
-	absDir := filepath.Join(g.root, "_assets", month)
+	g.mu.Lock()
+	img, err := g.saveImageLocked(data, "/_assets/"+month, name)
+	g.mu.Unlock()
+	if err != nil {
+		return Image{}, err
+	}
+	g.emit(string(plugin.EventVaultImage), img.Dir+"/"+img.Name, false, img.UpdatedAt)
+	return img, nil
+}
+
+// saveImageLocked writes the file and its row under one lock, like
+// writeNoteLocked, so the watcher sees them together and drops the echo.
+func (g *Vault) saveImageLocked(data []byte, dir, name string) (Image, error) {
+	absDir := filepath.Join(g.root, filepath.FromSlash(dir))
 	if err := os.MkdirAll(absDir, 0o750); err != nil {
 		return Image{}, fmt.Errorf("storage: mkdir assets: %w", err)
+	}
+	if g.ensureWatch != nil {
+		g.ensureWatch(absDir)
 	}
 	absPath := filepath.Join(absDir, name)
 	if err := os.WriteFile(absPath, data, 0o644); err != nil {
 		return Image{}, fmt.Errorf("storage: write image: %w", err)
 	}
-
-	img := Image{
-		Dir:  "/_assets/" + month,
-		Name: name,
-		Ext:  ext,
-		Size: int64(len(data)),
+	info, err := os.Stat(absPath)
+	if err == nil {
+		img := imageFromFile(dir, name, info)
+		if err = dbImageUpsert(g.db, img); err == nil {
+			return img, nil
+		}
 	}
-	if err := g.RegisterImage(img); err != nil {
-		_ = os.Remove(absPath)
-		return Image{}, fmt.Errorf("storage: register image: %w", err)
-	}
-	g.emit(string(plugin.EventVaultImage), img.Dir+"/"+img.Name, false, time.Now())
-	return img, nil
+	_ = os.Remove(absPath)
+	return Image{}, fmt.Errorf("storage: register image: %w", err)
 }
