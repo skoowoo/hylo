@@ -25,6 +25,7 @@ import (
 	"github.com/hardhacker/hylo/internal/plugins/gitsync"
 	"github.com/hardhacker/hylo/internal/plugins/renamesync"
 	"github.com/hardhacker/hylo/internal/plugins/search"
+	"github.com/hardhacker/hylo/internal/prompt"
 	wechatplugin "github.com/hardhacker/hylo/internal/plugins/wechat"
 	"github.com/hardhacker/hylo/internal/skills"
 	"github.com/hardhacker/hylo/internal/storage"
@@ -46,6 +47,7 @@ type Server struct {
 func New(cfg *config.Config, cfgFileLoaded string, logger *slog.Logger, vault *storage.Vault) *Server {
 	feed := live.NewFeed()
 	skillsMgr := skills.Open(vault.Root(), agent.ShellEnv)
+	skillsMgr.SyncBuiltins(logger)
 	skillsMgr.LinkEnabled(logger)
 	skillsMgr.SetOnChange(feed.Notify(live.TopicSkills))
 
@@ -95,6 +97,19 @@ func New(cfg *config.Config, cfgFileLoaded string, logger *slog.Logger, vault *s
 		logger.Warn("mate store unavailable", "err", err)
 	} else {
 		mateStore = ms
+		for old, repl := range prompt.Superseded {
+			if err := ms.ReplacePrompt(old, repl); err != nil {
+				logger.Warn("mate: replace superseded trigger prompt", "err", err)
+			}
+		}
+		for old, repl := range skills.Retired {
+			if repl == "" {
+				continue
+			}
+			if err := ms.RenameSkill(old, repl); err != nil {
+				logger.Warn("mate: rename skill in prompts", "from", old, "to", repl, "err", err)
+			}
+		}
 		ms.SetOnChange(feed.Notify(live.TopicBots))
 		if err := ms.MarkStalledRunMessagesAsFailed(); err != nil {
 			logger.Warn("mate: mark stalled messages failed", "err", err)

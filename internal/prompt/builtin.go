@@ -16,15 +16,35 @@ const (
 // base, memory and wiki links; this one gives the main bot its job.
 var HyloBot = execute(parse("bot_hylo"), struct{ WechatTag, DiscordTag string }{WechatTag, DiscordTag})
 
+// SilentReply is what a trigger run answers when it has nothing worth sending;
+// the reply then stays out of the inbox.
+const SilentReply = "[silent]"
+
+// IsSilent reports whether a trigger run asked to may answer SilentReply did;
+// agents often narrate before it, and that narration is all the reply holds.
+// Other runs never go silent, so a stray marker can't swallow a real result.
+func IsSilent(asked, reply string) bool {
+	return strings.Contains(asked, SilentReply) && strings.HasSuffix(strings.TrimSpace(reply), SilentReply)
+}
+
 // Trigger templates of the Hylo bot.
 var (
-	TriggerCompile     = load("trigger_compile")
-	TriggerMemory      = load("trigger_memory")
-	TriggerRecapShort  = load("trigger_recap_short")
-	TriggerRecapWeekly = load("trigger_recap_weekly")
-	TriggerWechat      = WechatTag + "\n{Content}"
-	TriggerDiscord     = DiscordTag + "\n{Content}"
+	TriggerCompile      = load("trigger_compile")
+	TriggerMemory       = load("trigger_memory")
+	TriggerRecallShort  = load("trigger_recall_short")
+	TriggerRecallWeekly = load("trigger_recall_weekly")
+	TriggerWechat       = WechatTag + "\n{Content}"
+	TriggerDiscord      = DiscordTag + "\n{Content}"
 )
+
+// Superseded maps former texts of the built-in trigger prompts to the current
+// ones. Bots keep their own copy of a trigger's prompt, so one still holding a
+// former text word for word is moved to the new text; edited ones stay.
+var Superseded = map[string]string{
+	"Use the hylo-recall skill to compare this short note of mine with my knowledge base — anything that backs it up or pushes against it?\n\nIf nothing in my notes is related or in conflict, reply with exactly `[silent]` and nothing else.\n\nShort note content: `{Content}`": TriggerRecallShort,
+	"Use the hylo-recap skill to cross-check this short note against my knowledge base — anything related or conflicting?\n\nShort note content: `{Content}`":                                                                                                                       TriggerRecallShort,
+	"Use the hylo-recall skill to cross-check this short note against my knowledge base — anything related or conflicting?\n\nShort note content: `{Content}`":                                                                                                                      TriggerRecallShort,
+}
 
 var helloTmpl = parse("hello")
 

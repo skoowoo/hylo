@@ -36,13 +36,14 @@ entity_type: <freeform label>
 tags: [tag1, tag2]
 source_notes:
   - /path/to/current-note.md
+perspective: own   # own | external | mixed
 created_at: YYYY-MM-DDTHH:MM:SSZ
 last_compiled_at: YYYY-MM-DDTHH:MM:SSZ
 compile_count: 1
 ---
 ```
 
-Set `created_at` and `last_compiled_at` to today. `compile_count: 1`.
+Set `created_at` and `last_compiled_at` to today. `compile_count: 1`. `perspective` is the note's `source_perspective`.
 
 ---
 

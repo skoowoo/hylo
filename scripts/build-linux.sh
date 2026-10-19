@@ -32,7 +32,6 @@ docker run --rm --platform linux/amd64 \
   "
 
 cp config.example.toml dist/.linux-stage/
-cp -R skills dist/.linux-stage/skills
 tar -C dist/.linux-stage -czf dist/hylo_linux_amd64.tar.gz .
 rm -rf dist/.linux-stage
 echo "==> dist/hylo_linux_amd64.tar.gz"

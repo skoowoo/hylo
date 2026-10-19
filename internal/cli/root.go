@@ -53,6 +53,7 @@ func init() {
 	rootCmd.AddCommand(newShortCmd())
 	rootCmd.AddCommand(newSkillsCmd())
 	rootCmd.AddCommand(newBotCmd())
+	rootCmd.AddCommand(newCapabilitiesCmd())
 	rootCmd.AddCommand(newTriggerCmd())
 	rootCmd.AddCommand(newCompileCmd())
 	rootCmd.AddCommand(newAuthCmd())

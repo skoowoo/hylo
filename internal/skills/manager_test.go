@@ -2,11 +2,15 @@ package skills
 
 import (
 	"io"
+	"io/fs"
 	"log/slog"
 	"os"
 	"path/filepath"
 	"slices"
 	"testing"
+
+	"github.com/hardhacker/hylo/internal/util"
+	builtin "github.com/hardhacker/hylo/skills"
 )
 
 func newTestManager(t *testing.T) (*Manager, string) {
@@ -236,3 +240,105 @@ func TestOldStateMigratesToRoot(t *testing.T) {
 }
 
 func onAtRoot(s SkillInfo) bool { return slices.Contains(s.Dirs, "/") }
+
+// Built-ins track the binary: edits, extra files and older copies are replaced,
+// while hand-linked built-ins and other skills are left alone.
+func TestSyncBuiltins(t *testing.T) {
+	m, _ := newTestManager(t)
+	notes := filepath.Join(m.sourceDir, "hylo-notes")
+	writeSkill(t, notes)
+	if err := os.WriteFile(filepath.Join(notes, "stale.md"), []byte("old"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	dev := filepath.Join(t.TempDir(), "checkout")
+	writeSkill(t, dev)
+	if err := os.Symlink(dev, filepath.Join(m.sourceDir, "hylo-editor")); err != nil {
+		t.Fatal(err)
+	}
+	writeSkill(t, filepath.Join(m.sourceDir, "own"))
+
+	m.SyncBuiltins(slog.New(slog.NewTextHandler(io.Discard, nil)))
+
+	for _, name := range DefaultSkills {
+		if name == "hylo-editor" {
+			continue
+		}
+		want, _ := treeHash(builtin.FS, name)
+		if got, err := treeHash(os.DirFS(m.sourceDir), name); err != nil || got != want {
+			t.Errorf("%s not in sync: %v", name, err)
+		}
+	}
+	if target, _ := os.Readlink(filepath.Join(m.sourceDir, "hylo-editor")); target != dev {
+		t.Errorf("hand-linked built-in replaced: %q", target)
+	}
+	if !isSkillDir(filepath.Join(m.sourceDir, "own")) {
+		t.Error("non-built-in skill touched")
+	}
+	if entries, _ := os.ReadDir(m.sourceDir); len(entries) != len(DefaultSkills)+1 {
+		t.Errorf("leftovers in source dir: %v", entries)
+	}
+}
+
+// A retired built-in is deleted and wherever it was on, its replacement is.
+func TestSyncBuiltinsRetires(t *testing.T) {
+	m, vault := newTestManager(t)
+	writeSkill(t, filepath.Join(m.sourceDir, "hylo-recap"))
+	for _, dir := range []string{"/", "/_bots/_digest"} {
+		for _, d := range m.linkDirs(dir) {
+			if err := os.MkdirAll(d, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.Symlink(filepath.Join(m.sourceDir, "hylo-recap"), filepath.Join(d, "hylo-recap")); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	m.st.Enabled = map[string][]string{"hylo-recap": {"/_bots/_digest"}}
+
+	m.SyncBuiltins(slog.New(slog.NewTextHandler(io.Discard, nil)))
+	m.LinkEnabled(slog.New(slog.NewTextHandler(io.Discard, nil)))
+
+	if _, err := os.Lstat(filepath.Join(m.sourceDir, "hylo-recap")); !os.IsNotExist(err) {
+		t.Error("retired skill still in source dir")
+	}
+	for _, dir := range []string{"/", "/_bots/_digest"} {
+		for _, d := range m.linkDirs(dir) {
+			if _, err := os.Lstat(filepath.Join(d, "hylo-recap")); !os.IsNotExist(err) {
+				t.Errorf("old link left in %s", d)
+			}
+			if !isSkillDir(filepath.Join(d, "hylo-recall")) {
+				t.Errorf("replacement not linked in %s", d)
+			}
+		}
+	}
+	reloaded := &Manager{stateFile: filepath.Join(vault, ".hylo", "skills_state.json")}
+	if err := reloaded.loadState(); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := reloaded.st.Enabled["hylo-recap"]; ok || !slices.Contains(reloaded.st.Enabled["hylo-recall"], "/_bots/_digest") {
+		t.Errorf("state not moved: %v", reloaded.st.Enabled)
+	}
+}
+
+// Agents find a skill by its SKILL.md name, so each built-in must match its directory.
+func TestBuiltinNamesMatchDirs(t *testing.T) {
+	for _, name := range DefaultSkills {
+		src, err := fs.ReadFile(builtin.FS, name+"/SKILL.md")
+		if err != nil {
+			t.Fatal(err)
+		}
+		fm, _ := util.ParseFrontmatter(src)
+		var got string
+		for _, e := range fm.All {
+			if e.Key == "name" {
+				got = e.Value
+			}
+		}
+		if got != name {
+			t.Errorf("%s/SKILL.md is named %q", name, got)
+		}
+		if _, ok := Retired[name]; ok {
+			t.Errorf("%s is both shipped and retired", name)
+		}
+	}
+}

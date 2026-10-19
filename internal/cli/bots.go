@@ -19,7 +19,7 @@ func printJSON(v any) error {
 func newBotCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:          "bot",
-		Short:        "List, show or create agent bots",
+		Short:        "List, show, create, change or delete agent bots",
 		SilenceUsage: true,
 	}
 
@@ -91,7 +91,61 @@ func newBotCmd() *cobra.Command {
 	createCmd.Flags().StringVar(&description, "description", "", "one line on what the bot does")
 	createCmd.Flags().StringVar(&systemPrompt, "system-prompt", "", "standing instructions for every run of this bot")
 
-	cmd.AddCommand(listCmd, getCmd, createCmd)
+	var change notes.BotChange
+	botUpdateCmd := &cobra.Command{
+		Use:          "update <bot-id>",
+		Short:        "Change a bot's name, description or system prompt, or turn it on or off",
+		Example:      `  hylo bot update <bot-id> --name "Morning News" --enabled=false`,
+		Args:         cobra.ExactArgs(1),
+		SilenceUsage: true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			c, err := openClient()
+			if err != nil {
+				return err
+			}
+			fl := cmd.Flags()
+			if fl.Changed("description") {
+				change.Description = &description
+			}
+			if fl.Changed("system-prompt") {
+				change.SystemPrompt = &systemPrompt
+			}
+			if fl.Changed("enabled") {
+				on, _ := fl.GetBool("enabled")
+				change.Enabled = &on
+			}
+			b, err := notes.BotUpdate(c, args[0], change)
+			if err != nil {
+				return err
+			}
+			return printJSON(b)
+		},
+	}
+	botUpdateCmd.Flags().StringVar(&change.Name, "name", "", "new name")
+	botUpdateCmd.Flags().StringVar(&description, "description", "", "new description")
+	botUpdateCmd.Flags().StringVar(&systemPrompt, "system-prompt", "", "new system prompt, replacing the old one")
+	botUpdateCmd.Flags().Bool("enabled", true, "turn the bot on (true) or off (false)")
+
+	botDeleteCmd := &cobra.Command{
+		Use:          "delete <bot-id>",
+		Short:        "Delete a bot with its triggers and chats",
+		Long:         `Deletes the bot, its triggers and its chats; its vault folder stays. There is no undo.`,
+		Args:         cobra.ExactArgs(1),
+		SilenceUsage: true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			c, err := openClient()
+			if err != nil {
+				return err
+			}
+			if err := notes.BotDelete(c, args[0]); err != nil {
+				return err
+			}
+			fmt.Println("Bot deleted.")
+			return nil
+		},
+	}
+
+	cmd.AddCommand(listCmd, getCmd, createCmd, botUpdateCmd, botDeleteCmd)
 	return cmd
 }
 

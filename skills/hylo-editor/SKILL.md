@@ -1,6 +1,6 @@
 ---
 name: hylo-editor
-description: "Write and revise notes live inside Hylo's open editor with the editor_type, editor_read and editor_rewrite MCP tools, so the user watches the text being typed. Use this skill whenever the user wants writing to happen in the editor — 'write it in the editor', 'type this into my note', 'continue where my cursor is', 'rewrite this paragraph', 'improve what I selected', 'fix the second section', '写到编辑器里', '接着我光标的位置写', '改写我选中的这段', '润色这一段' — or whenever you plan to call any editor_* tool. Also covers Hylo's markdown dialect (wikilinks, wiki images, mindmap blocks, tasks, tables) for anything typed into a note."
+description: "Writes and revises notes live in Hylo's open editor (editor_type, editor_read, editor_rewrite), so the user watches the text being typed. Use when they want writing to happen in the editor ('write it in my note', 'continue at my cursor', 'rewrite what I selected', '写到编辑器里', '改写我选中的这段'), or before any editor_* call. Also covers Hylo's markdown dialect."
 ---
 
 # Hylo Editor — live writing through MCP

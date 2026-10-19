@@ -444,7 +444,7 @@ func settingsAgentBotsTabHTML() string {
                               <div class="agent-bot-block-label">
                                 <span class="agent-bot-block-title">Name <span style="font-weight:400;opacity:0.6;">(optional)</span></span>
                               </div>
-                              <input class="field-input agent-bot-form-input" type="text" x-model="t.name" placeholder="Compiler, Memory, Recap…">
+                              <input class="field-input agent-bot-form-input" type="text" x-model="t.name" placeholder="Compiler, Memory, Recall…">
                             </div>
                             <div class="agent-bot-trigger-block agent-bot-trigger-events">
                               <div class="agent-bot-block-label">

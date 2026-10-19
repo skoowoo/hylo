@@ -19,6 +19,14 @@ type botCreateReq struct {
 	SystemPrompt string `json:"system_prompt,omitempty" jsonschema:"standing instructions for every run of this bot"`
 }
 
+type botUpdateReq struct {
+	BotID        string  `json:"bot_id" jsonschema:"bot id, from bot_list"`
+	Name         string  `json:"name,omitempty" jsonschema:"new name; empty keeps it"`
+	Description  *string `json:"description,omitempty" jsonschema:"new description; omit to keep it, empty string clears it"`
+	SystemPrompt *string `json:"system_prompt,omitempty" jsonschema:"new system prompt, replacing the old one; omit to keep it"`
+	Enabled      *bool   `json:"enabled,omitempty" jsonschema:"turn the bot on or off; omit to keep it"`
+}
+
 type triggerAddReq struct {
 	BotID        string   `json:"bot_id" jsonschema:"bot id, from bot_list"`
 	Name         string   `json:"name,omitempty" jsonschema:"short label for the trigger"`
@@ -154,6 +162,23 @@ func registerBotTools(s *sdk.Server, c *client.Client) {
 				return botOut{}, err
 			}
 			return toBotOut(m), nil
+		})
+
+	addTool(s, "bot_update", "Change a bot's name, description or system prompt, or turn it on or off. Its triggers and skills are changed with their own tools. Not for the main bot. Ask the user first.", destructiveIdempotent,
+		func(_ context.Context, in botUpdateReq) (botOut, error) {
+			m, err := notes.BotUpdate(c, in.BotID, notes.BotChange{
+				Name: in.Name, Description: in.Description, SystemPrompt: in.SystemPrompt, Enabled: in.Enabled,
+			})
+			if err != nil {
+				return botOut{}, err
+			}
+			return toBotOut(m), nil
+		})
+
+	addTool(s, "bot_delete", "Delete a bot with its triggers and chats; its folder in the vault stays. There is no undo. Not for the main bot. Ask the user first.", destructiveIdempotent,
+		func(_ context.Context, in botIDReq) (okOut, error) {
+			err := notes.BotDelete(c, in.BotID)
+			return okOut{OK: err == nil}, err
 		})
 
 	addTool(s, "trigger_add", "Add a trigger to a bot: give a schedule to run it on a timer, or events to run it when they happen. Its output goes to the user's inbox. Ask the user first.", additive,

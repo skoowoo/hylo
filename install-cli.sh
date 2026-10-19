@@ -93,11 +93,6 @@ if [ -f "$TMP_DIR/config.example.toml" ]; then
     fi
 fi
 
-if [ -d "$TMP_DIR/skills" ]; then
-    echo "==> Installing built-in skills to $HYLO_DIR/skills/..."
-    cp -r "$TMP_DIR/skills" "$HYLO_DIR/"
-fi
-
 echo "${GREEN}==> Installation complete!${NC}"
 echo "You can now run: $BINARY_NAME"
 echo "==> External skills can be installed from Settings > Skills in the UI."

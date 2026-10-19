@@ -15,6 +15,9 @@ export function cardEntry(info) {
 
 registerFenceCard({ lang: 'mindmap', load: () => import('./mindmap.js'), minHeight: 360 });
 registerFenceCard({ lang: 'choices', load: () => import('./choices.js'), minHeight: 36, inline: true, editor: false });
+registerFenceCard({ lang: 'proposal', load: () => import('./proposal.js'), minHeight: 120, inline: true, editor: false });
+registerFenceCard({ lang: 'receipt', load: () => import('./receipt.js'), minHeight: 48, inline: true, editor: false });
+registerFenceCard({ lang: 'sources', load: () => import('./sources.js'), minHeight: 20, inline: true, editor: false });
 
 // A closed fence → { info, body, from, to } (whole lines), else null.
 // Fences nested in lists or quotes are supported when the opening line carries only

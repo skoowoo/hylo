@@ -507,9 +507,13 @@
           }
         });
         this.$watch('tabs', function(){ self._persist(); });
-        this.$watch('activeTab', function(i) {
-          self._persist();
-        });
+        this.$watch('activeTab', function(i) { self._persist(); });
+        // Watches the note itself, not the index: closing, renaming or first
+        // saving a tab changes it while activeTab stays put.
+        this.$watch(function() {
+          var t = self.contentPaneOpen ? self.tabs[self.activeTab] : null;
+          return t && t.path ? t.path + '\n' + (t.title || '') : '';
+        }, function() { window.dispatchEvent(new CustomEvent('hylo:active-note')); });
 
         // Sync pane state from other section views (each section is a separate
         // WebContentsView with its own JS context; storage events cross view boundaries).

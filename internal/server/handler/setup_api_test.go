@@ -5,10 +5,13 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
+	"slices"
 	"strings"
 	"testing"
 
 	"github.com/hardhacker/hylo/internal/mate"
+	"github.com/hardhacker/hylo/internal/skills"
 )
 
 func TestSetupBotOnlyForAnEmptyVault(t *testing.T) {
@@ -38,7 +41,7 @@ func TestSetupBotOnlyForAnEmptyVault(t *testing.T) {
 	for _, tr := range triggers {
 		names = append(names, tr.Name)
 	}
-	if got := strings.Join(names, ","); got != "WeChat,Discord,Compiler,Compiler,Memory,Recap,Recap" {
+	if got := strings.Join(names, ","); got != "WeChat,Discord,Compiler,Compiler,Memory,Recall,Recall" {
 		t.Fatalf("trigger names in order: %s", got)
 	}
 	convs, _ := store.ListConversationsByType(id, mate.ConvTypeChat)
@@ -53,9 +56,19 @@ func TestSetupBotOnlyForAnEmptyVault(t *testing.T) {
 }
 
 func TestHyloBotTriggersAreValid(t *testing.T) {
-	_, triggers := hyloBot("pi", "")
+	bot, triggers := hyloBot("pi", "")
 	if err := mate.ValidateTriggers(triggers); err != nil {
 		t.Fatal(err)
+	}
+	// Prompts call skills by name; a renamed built-in would leave them pointing nowhere.
+	texts := []string{bot.SystemPrompt}
+	for _, tr := range triggers {
+		texts = append(texts, tr.Prompt)
+	}
+	for _, name := range regexp.MustCompile(`hylo-[a-z-]*[a-z]`).FindAllString(strings.Join(texts, "\n"), -1) {
+		if !slices.Contains(skills.DefaultSkills, name) {
+			t.Errorf("prompt names %s, which is not a built-in skill", name)
+		}
 	}
 }
 

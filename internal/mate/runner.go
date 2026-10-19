@@ -19,6 +19,7 @@ type RunResult struct {
 	Duration    time.Duration
 	LastMessage string
 	EventType   MateEventType // the MateEvent type that triggered this run
+	Prompt      string        // what the run was asked, so the hook can tell what reply it allowed
 }
 
 // RunDoneHook is called when a trigger run reaches a terminal state.
@@ -236,7 +237,7 @@ func (r *Runner) runTrigger(fn RunFunc, tr MateTrigger, ev MateEvent) {
 	}
 	r.logger.Info("mate_runner: trigger fired", fields...)
 
-	fn(context.Background(), m, convID, prompt, ev, r.buildOnDone(m, ev))
+	fn(context.Background(), m, convID, prompt, ev, r.buildOnDone(m, ev, prompt))
 }
 
 var (
@@ -279,12 +280,13 @@ func (r *Runner) FireNow(t MateTrigger) error {
 // feeds the registered RunDoneHook (inbox message on completion) and, on
 // success, fans out agent_run_completed so other mates' triggers can react —
 // the same behavior a fresh automatic fire would have produced.
-func (r *Runner) buildOnDone(m *Mate, ev MateEvent) func(RunResult) {
+func (r *Runner) buildOnDone(m *Mate, ev MateEvent, prompt string) func(RunResult) {
 	start := time.Now()
 	dh, _ := r.doneHook.Load().(RunDoneHook)
 	return func(result RunResult) {
 		result.Duration = time.Since(start)
 		result.EventType = ev.Type
+		result.Prompt = prompt
 		if dh != nil {
 			dh(m, result)
 		}
@@ -329,7 +331,7 @@ func (r *Runner) RetryRun(mateID, convID, prompt, userMsgID, assistantMsgID stri
 	defer func() { <-r.sem }()
 
 	ev := MateEvent{Type: eventType, FiredAt: time.Now(), TriggerID: triggerID}
-	runID := fn(context.Background(), m, convID, prompt, userMsgID, assistantMsgID, ev, r.buildOnDone(m, ev))
+	runID := fn(context.Background(), m, convID, prompt, userMsgID, assistantMsgID, ev, r.buildOnDone(m, ev, prompt))
 	return runID, nil
 }
 

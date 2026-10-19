@@ -393,12 +393,14 @@ func (a *AgentAPI) executeChat(ctx context.Context, run *agent.Run, body chatBod
 	// When mateId is provided, mate config in DB is authoritative for agent/model/cwd.
 	// systemPrompt can still be overridden by the caller.
 	dir := "/"
+	main := false
 	if body.MateID != "" && a.store != nil {
 		if m, err := a.store.GetMate(body.MateID); err == nil && m != nil {
 			body.AgentID = m.AgentID
 			body.Model = m.Model
 			run.AgentID = m.AgentID
 			dir = m.Cwd
+			main = m.Main
 			if body.SystemPrompt == "" {
 				body.SystemPrompt = m.SystemPrompt
 			}
@@ -406,6 +408,7 @@ func (a *AgentAPI) executeChat(ctx context.Context, run *agent.Run, body chatBod
 	}
 	pr := prompt.Run{
 		Bot:       body.SystemPrompt,
+		Main:      main,
 		MCP:       a.mcpURL(body.AgentID) != "",
 		Overrides: map[string]string{prompt.SectionGlobal: a.cfg.Agent.SystemPrompt},
 	}

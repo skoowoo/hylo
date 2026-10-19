@@ -1,10 +1,13 @@
 package skills
 
 import (
+	"crypto/sha256"
 	_ "embed"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/fs"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -20,6 +23,7 @@ import (
 	gogitclient "github.com/go-git/go-git/v5/plumbing/transport/client"
 	githttp "github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/hardhacker/hylo/internal/util"
+	builtin "github.com/hardhacker/hylo/skills"
 )
 
 //go:embed catalog.json
@@ -29,15 +33,28 @@ var catalogJSON []byte
 // exactly once per process, using the first Add call's shell environment.
 var proxyOnce sync.Once
 
-// DefaultSkills are always enabled and cannot be disabled by the user.
-var DefaultSkills = []string{
-	"hylo-compile-note",
-	"hylo-editor",
-	"hylo-index-knowledge",
-	"hylo-memory",
-	"hylo-notes",
-	"hylo-recap",
-	"hylo-setup",
+// DefaultSkills are the built-in skills shipped in the binary: always on at the
+// vault root, and neither removable nor editable for good (see SyncBuiltins).
+var DefaultSkills = func() []string {
+	entries, err := fs.ReadDir(builtin.FS, ".")
+	if err != nil {
+		panic("skills: read built-ins: " + err.Error())
+	}
+	var names []string
+	for _, e := range entries {
+		if e.IsDir() {
+			names = append(names, e.Name())
+		}
+	}
+	return names
+}()
+
+// Retired maps built-in skills no longer shipped to the one that replaced them
+// ("" when none), so their files, links and the prompts naming them move on.
+var Retired = map[string]string{
+	"hylo-recap": "hylo-recall",
+	// Copied in by older install scripts, never embedded.
+	"hylo-quote-extract": "",
 }
 
 // state persists where skills are on, beyond built-ins at the vault root.
@@ -208,7 +225,8 @@ func (m *Manager) List() ([]SkillInfo, error) {
 	for _, e := range entries {
 		name := e.Name()
 		dir := filepath.Join(m.sourceDir, name)
-		if !isSkillDir(dir) {
+		// Skips staging dirs like .<name>.new that a crash mid-sync leaves behind.
+		if !ValidName(name) || !isSkillDir(dir) {
 			continue
 		}
 		dirs := m.dirsOf(name)
@@ -591,6 +609,92 @@ func copyFile(src, dst string, mode os.FileMode) error {
 	return err
 }
 
+// SyncBuiltins writes each built-in skill into ~/.hylo/skills when what is there
+// differs from the binary's copy, replacing it whole, and clears out retired ones.
+// A built-in linked in by hand (a development checkout) is left alone.
+// Called once at server startup, before LinkEnabled.
+func (m *Manager) SyncBuiltins(logger *slog.Logger) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if err := os.MkdirAll(m.sourceDir, 0755); err != nil {
+		logger.Warn("skills: create source dir", "path", m.sourceDir, "err", err)
+		return
+	}
+	for _, name := range DefaultSkills {
+		if err := m.syncBuiltin(name); err != nil {
+			logger.Warn("skills: sync built-in", "name", name, "err", err)
+		}
+	}
+	for old, repl := range Retired {
+		if err := os.RemoveAll(filepath.Join(m.sourceDir, old)); err != nil {
+			logger.Warn("skills: remove retired", "name", old, "err", err)
+		}
+		m.unlink(old, "/")
+		dirs, ok := m.st.Enabled[old]
+		if !ok {
+			continue
+		}
+		for _, dir := range dirs {
+			m.unlink(old, dir)
+			if repl != "" {
+				m.st.Enabled = addDir(m.st.Enabled, repl, dir)
+			}
+		}
+		delete(m.st.Enabled, old)
+		if err := m.saveState(); err != nil {
+			logger.Warn("skills: save state", "err", err)
+		}
+	}
+}
+
+func (m *Manager) syncBuiltin(name string) error {
+	dest := filepath.Join(m.sourceDir, name)
+	if fi, err := os.Lstat(dest); err == nil && fi.Mode()&os.ModeSymlink != 0 {
+		return nil
+	}
+	want, err := treeHash(builtin.FS, name)
+	if err != nil {
+		return err
+	}
+	if got, err := treeHash(os.DirFS(m.sourceDir), name); err == nil && got == want {
+		return nil
+	}
+	sub, err := fs.Sub(builtin.FS, name)
+	if err != nil {
+		return err
+	}
+	tmp := filepath.Join(m.sourceDir, "."+name+".new")
+	_ = os.RemoveAll(tmp)
+	if err := os.CopyFS(tmp, sub); err != nil {
+		_ = os.RemoveAll(tmp)
+		return err
+	}
+	if err := os.RemoveAll(dest); err != nil {
+		return err
+	}
+	return os.Rename(tmp, dest)
+}
+
+// treeHash fingerprints every file under root, paths included, so an edited,
+// added or deleted file all change it.
+func treeHash(fsys fs.FS, root string) (string, error) {
+	h := sha256.New()
+	err := fs.WalkDir(fsys, root, func(p string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return err
+		}
+		b, err := fs.ReadFile(fsys, p)
+		if err != nil {
+			return err
+		}
+		fmt.Fprintf(h, "%s\x00%d\x00", p, len(b))
+		h.Write(b)
+		return nil
+	})
+	return hex.EncodeToString(h.Sum(nil)), err
+}
+
 // LinkEnabled recreates the links of every skill in every vault directory it is on in.
 // Called once at server startup.
 func (m *Manager) LinkEnabled(logger *slog.Logger) {
@@ -608,7 +712,7 @@ func (m *Manager) LinkEnabled(logger *slog.Logger) {
 	for _, entry := range entries {
 		name := entry.Name()
 		src := filepath.Join(m.sourceDir, name)
-		if !isSkillDir(src) {
+		if !ValidName(name) || !isSkillDir(src) {
 			continue
 		}
 		for _, dir := range m.dirsOf(name) {

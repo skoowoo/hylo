@@ -1,6 +1,6 @@
 ---
 name: hylo-compile-note
-description: "Compiles a single raw Hylo note into knowledge units using a two-phase AI process (triage → compile). Use this skill whenever the user wants to compile a note into knowledge, extract knowledge from a note, update the knowledge base from a note, merge note content into knowledge units, or run knowledge compilation. Triggers on phrases like 'compile this note', 'compile note into knowledge', 'extract knowledge from note', 'update knowledge base', 'run compile on', or any request to turn a raw note into structured knowledge units."
+description: "Compiles one raw note into knowledge units under /_knowledge/ (triage, then create or update each unit). Use when the user wants a note compiled or turned into knowledge ('compile this note', '编译这篇笔记'), or when a compile trigger runs."
 ---
 
 # Hylo Compile Note
@@ -23,6 +23,13 @@ Calls below are Hylo's MCP tools (server `hylo`); your client may show them pref
 ## Step 1 — Read the note
 
 Read the full content of the target note. Note its path and **original publication date** — check in order: YAML front matter (`date` / `published`), filename date prefix, article/podcast header, or any explicit timestamp in the body. Record this as `source_date`. If none is found, mark `source_date` as unknown.
+
+Also record whose words the note holds, as `source_perspective`:
+
+- `own` — the author's own writing: short notes, journal, drafts, notes on their own projects or work, their own podcast or product.
+- `external` — what someone else wrote or said: clipped articles, transcripts of other people's podcasts or talks, book excerpts.
+
+Judge by the content, not only the folder; a clip with long comments of the author's own is still `external` unless the comments carry the note.
 
 ---
 
@@ -92,7 +99,6 @@ For each unit in the manifest, check its `operation` and read the corresponding 
 - **`create`** → read `references/create.md` and follow it completely.
 - **`update`** → read `references/update.md` and follow it completely.
 
-`references/extract.md` documents the partial-read tools (`extract_outline` / `extract_section` / `extract_segment` / …). Use them at any step when reading the full note is not necessary.
 
 Complete one unit fully before moving to the next. After all units are done, confirm in prose: which were created, which updated, and what changed in each.
 
@@ -100,7 +106,7 @@ Complete one unit fully before moving to the next. After all units are done, con
 
 ## Language
 
-Match the language of existing units in the knowledge directory. If no units exist, use the language of the source note. Dates in opinion sections always use `YYYY-MM-DD`. When the vault language is not English, translate all section names accordingly.
+Match the language of existing units in the knowledge directory. If no units exist, use the language of the source note. Dates are always `YYYY-MM-DD`. When the vault language is not English, translate all section names accordingly.
 
 ## Time attribution
 

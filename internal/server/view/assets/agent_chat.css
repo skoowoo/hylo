@@ -1120,6 +1120,36 @@
        imperatively in JS), so an animated radius alone would visibly
        "melt" the corners against an already-resized box instead of
        reading as one clean shape change. */
+    /* One-click context above the composer: the open note, or its selection. */
+    .chat-context {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-xxs);
+      margin: 0 0 var(--space-xs) 0.5rem;
+    }
+    .chat-context[hidden] { display: none; }
+    .chat-context-chip {
+      all: unset;
+      box-sizing: border-box;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      max-width: 20rem;
+      padding: 3px 10px;
+      border: var(--bd-w) solid var(--line-edge);
+      border-radius: var(--r-full);
+      background: var(--bg);
+      font-size: var(--text-xs);
+      line-height: 1.4;
+      color: var(--muted);
+      cursor: pointer;
+      transition: color var(--motion-fast), background-color var(--motion-fast);
+    }
+    .chat-context-chip:hover { color: var(--fg); background: var(--btn-bg-hov); }
+    .chat-context-chip:focus-visible { outline: 2px solid rgba(var(--accent-rgb), .5); outline-offset: 1px; }
+    .chat-context-plus { flex: none; font-weight: var(--fw-medium); }
+    .chat-context-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
     /* Same tinted-wash background as the shared .field-input (base.css), but
        unlike it, stays borderless even on focus — no accent outline here,
        by design. Border is still declared (transparent) rather than

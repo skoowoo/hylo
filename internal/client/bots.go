@@ -65,6 +65,11 @@ func (c *Client) UpdateBot(m mate.Mate) (*mate.Mate, error) {
 	return &out.Mate, nil
 }
 
+// DeleteBot calls DELETE /api/mates/{id}.
+func (c *Client) DeleteBot(id string) error {
+	return c.botJSON(http.MethodDelete, "/api/mates/"+url.PathEscape(id), nil, nil)
+}
+
 // RunTrigger calls POST /api/mates/{id}/triggers/{tid}/run.
 func (c *Client) RunTrigger(botID, triggerID string) error {
 	return c.botJSON(http.MethodPost, "/api/mates/"+url.PathEscape(botID)+"/triggers/"+url.PathEscape(triggerID)+"/run", nil, nil)

@@ -45,13 +45,14 @@ entity_type: <freeform label>
 tags: [tag1, tag2]
 source_notes:
   - /path/to/note.md
+perspective: own   # own | external | mixed
 created_at: YYYY-MM-DDTHH:MM:SSZ
 last_compiled_at: YYYY-MM-DDTHH:MM:SSZ
 compile_count: 1
 ---
 ```
 
-Add the current note path to `source_notes`. Update `last_compiled_at` to today. Increment `compile_count`.
+Add the current note path to `source_notes`. Update `last_compiled_at` to today. Increment `compile_count`. Set `perspective`: unchanged when it equals the note's `source_perspective`, `mixed` when they differ. If the unit has none yet, first judge it from its existing `source_notes` the same way.
 
 ---
 

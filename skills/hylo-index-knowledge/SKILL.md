@@ -1,6 +1,6 @@
 ---
 name: hylo-index-knowledge
-description: "Builds and refreshes domain-based index files for the Hylo knowledge base. Use this skill whenever the user wants to build, rebuild, refresh, or update the knowledge index, create domain indexes, organize knowledge by domain, or index the knowledge base. Triggers on phrases like 'build knowledge index', 'rebuild index', 'refresh knowledge index', 'update domain indexes', 'index my knowledge base', 'regenerate index', or any request to create or maintain the knowledge index files."
+description: "Adds knowledge units that aren't in any domain index to /_knowledge/_indexes/, creating domains as needed; safe to rerun. Use after compiling, or when the user asks to build or refresh the knowledge index."
 ---
 
 # Hylo Index Knowledge
@@ -49,7 +49,7 @@ If all units are already indexed, report and stop.
 
 For each unindexed unit, read its YAML front matter and first non-heading paragraph. Build an internal list:
 
-`references/extract.md` documents the partial-read tools — `extract_tag` retrieves front-matter tags directly; `extract_segment` with `head: N` retrieves the opening lines. Use them instead of a full `read` when only these fragments are needed.
+`extract_tag` returns the front-matter tags and `extract_segment` with `head` the opening lines, without a full `read`.
 
 ```
 title          | entity_type | tags          | summary (≤80 chars)                              | vault-absolute path

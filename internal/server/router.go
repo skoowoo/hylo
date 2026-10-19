@@ -17,6 +17,7 @@ import (
 	"github.com/hardhacker/hylo/internal/plugins/compile"
 	"github.com/hardhacker/hylo/internal/plugins/gitsync"
 	"github.com/hardhacker/hylo/internal/plugins/search"
+	"github.com/hardhacker/hylo/internal/prompt"
 	"github.com/hardhacker/hylo/internal/server/handler"
 	"github.com/hardhacker/hylo/internal/server/middleware"
 	"github.com/hardhacker/hylo/internal/server/view"
@@ -84,7 +85,7 @@ func newRouter(
 			if inboxStore == nil {
 				return
 			}
-			if strings.TrimSpace(result.LastMessage) == "" {
+			if strings.TrimSpace(result.LastMessage) == "" || prompt.IsSilent(result.Prompt, result.LastMessage) {
 				return
 			}
 			title := m.Name

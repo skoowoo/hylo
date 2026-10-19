@@ -42,6 +42,7 @@ func NewHandler(c *client.Client, opts ...Option) http.Handler {
 	registerTagTools(srv, c)
 	registerShortTools(srv, c)
 	registerBotTools(srv, c)
+	registerCapabilitiesTool(srv, c)
 	if o.editor != nil {
 		registerEditorTools(srv, c, o.editor)
 	}

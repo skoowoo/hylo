@@ -104,3 +104,64 @@ func TestNewDailyTriggerNotDueAfterTodaysSlot(t *testing.T) {
 		t.Fatal("new trigger fired for a slot that passed before it existed")
 	}
 }
+
+// Prompts keep their own copy of a skill's name, so a rename reaches into them, once.
+func TestRenameSkill(t *testing.T) {
+	store, err := Open(filepath.Join(t.TempDir(), "vault"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	m := &Mate{Name: "Hylo", AgentID: "claude", Enabled: true, SystemPrompt: "Lean on hylo-recap for reviews; see [[hylo-recap-notes]] and notes/hylo-recaps.md."}
+	if err := store.CreateMate(m); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.ReplaceTriggersForMate(m.ID, []MateTrigger{
+		{ID: "a", EventTypes: []string{string(MateEventShortNoteCreated)}, Prompt: "Use the hylo-recap skill.", Enabled: true},
+		{ID: "b", EventTypes: []string{string(MateEventShortNoteCreated)}, Prompt: "Use hylo-memory.", Enabled: true},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	for range 2 {
+		if err := store.RenameSkill("hylo-recap", "hylo-recall"); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	triggers, _ := store.ListTriggers(m.ID)
+	if triggers[0].Prompt != "Use the hylo-recall skill." || triggers[1].Prompt != "Use hylo-memory." {
+		t.Errorf("trigger prompts: %q, %q", triggers[0].Prompt, triggers[1].Prompt)
+	}
+	if got, _ := store.GetMate(m.ID); got.SystemPrompt != "Lean on hylo-recall for reviews; see [[hylo-recap-notes]] and notes/hylo-recaps.md." {
+		t.Errorf("system prompt: %q", got.SystemPrompt)
+	}
+	if err := store.RenameSkill("hylo-x", "hylo-x2"); err == nil {
+		t.Error("a rename that repeats on every run was accepted")
+	}
+}
+
+func TestReplacePromptLeavesEditsAlone(t *testing.T) {
+	store, err := Open(filepath.Join(t.TempDir(), "vault"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	m := &Mate{Name: "Hylo", AgentID: "claude", Enabled: true}
+	if err := store.CreateMate(m); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.ReplaceTriggersForMate(m.ID, []MateTrigger{
+		{ID: "a", EventTypes: []string{string(MateEventShortNoteCreated)}, Prompt: "old text", Enabled: true},
+		{ID: "b", EventTypes: []string{string(MateEventShortNoteCreated)}, Prompt: "old text, edited", Enabled: true},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.ReplacePrompt("old text", "new text"); err != nil {
+		t.Fatal(err)
+	}
+	triggers, _ := store.ListTriggers(m.ID)
+	if triggers[0].Prompt != "new text" || triggers[1].Prompt != "old text, edited" {
+		t.Errorf("prompts: %q, %q", triggers[0].Prompt, triggers[1].Prompt)
+	}
+}

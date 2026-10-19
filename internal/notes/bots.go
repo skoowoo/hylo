@@ -28,6 +28,52 @@ func BotCreate(c *client.Client, name, description, systemPrompt string) (*mate.
 	})
 }
 
+// BotChange holds the fields to change; zero values keep what's there.
+type BotChange struct {
+	Name         string
+	Description  *string
+	SystemPrompt *string
+	Enabled      *bool
+}
+
+// BotUpdate changes a bot's own settings, never its triggers or the main bot.
+func BotUpdate(c *client.Client, botID string, ch BotChange) (*mate.Mate, error) {
+	var out *mate.Mate
+	err := editBot(c, botID, func(m *mate.Mate) error {
+		if m.Main {
+			return errMainBot
+		}
+		if ch.Name != "" {
+			m.Name = ch.Name
+		}
+		if ch.Description != nil {
+			m.Description = *ch.Description
+		}
+		if ch.SystemPrompt != nil {
+			m.SystemPrompt = *ch.SystemPrompt
+		}
+		if ch.Enabled != nil {
+			m.Enabled = *ch.Enabled
+		}
+		return nil
+	}, func(m *mate.Mate) { out = m })
+	return out, err
+}
+
+// BotDelete removes a bot with its triggers and chats.
+func BotDelete(c *client.Client, botID string) error {
+	m, err := c.Bot(botID)
+	if err != nil {
+		return err
+	}
+	if m.Main {
+		return errMainBot
+	}
+	return c.DeleteBot(botID)
+}
+
+var errMainBot = errors.New("the main bot can't be changed or deleted this way")
+
 // TriggerSpec describes a new trigger; a schedule alone makes it a scheduled one.
 type TriggerSpec struct {
 	Name         string

@@ -1,5 +1,4 @@
 use std::fs;
-use std::io;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -159,7 +158,7 @@ fn copy_defaults(tmp: &Path, data_dir: &Path) {
     if let Err(e) = fs::create_dir_all(&hylo_dir) {
         server::diag_log(
             data_dir,
-            &format!("cli-installer: config/skills copy failed (non-fatal): {e}"),
+            &format!("cli-installer: config copy failed (non-fatal): {e}"),
         );
         return;
     }
@@ -173,38 +172,4 @@ fn copy_defaults(tmp: &Path, data_dir: &Path) {
             ),
         );
     }
-    let skills_src = tmp.join("skills");
-    if skills_src.is_dir() {
-        let skills_dst = hylo_dir.join("skills");
-        if let Err(e) = copy_missing(&skills_src, &skills_dst) {
-            server::diag_log(
-                data_dir,
-                &format!("cli-installer: config/skills copy failed (non-fatal): {e}"),
-            );
-        } else {
-            server::diag_log(
-                data_dir,
-                &format!(
-                    "cli-installer: installed built-in skills to {}",
-                    skills_dst.display()
-                ),
-            );
-        }
-    }
-}
-
-/// Copy files that are not already present. Never overwrites user edits.
-fn copy_missing(src: &Path, dst: &Path) -> io::Result<()> {
-    fs::create_dir_all(dst)?;
-    for entry in fs::read_dir(src)? {
-        let entry = entry?;
-        let from = entry.path();
-        let to = dst.join(entry.file_name());
-        if from.is_dir() {
-            copy_missing(&from, &to)?;
-        } else if !to.exists() {
-            fs::copy(&from, &to)?;
-        }
-    }
-    Ok(())
 }

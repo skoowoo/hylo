@@ -15,15 +15,15 @@ Without the editor tools, write and re-read the article file with the regular no
 
 ## Phase 0 — Topic alignment
 
-Ask the user for three things (can be in one message):
+You need three things. Take what the request already says, and ask for the rest in one message:
 
 1. **What** — the topic or question the article addresses
 2. **Who** — the intended reader (their background, what they already know)
 3. **Stance** — the position or argument the article will take
 
-If the user didn't say where to save the article, ask now. Remember the path.
+If the user didn't say where to save the article, pick a fitting top-level folder yourself (never a nested one) and say the path in one line. Remember it.
 
-Once you have those three, scan the knowledge base with `knowledge_list_indexes` (a Hylo MCP tool; your client may show it prefixed, e.g. `mcp__hylo__knowledge_list_indexes`).
+Once you have those three, scan the knowledge base with `knowledge_list_indexes`.
 
 Select 1–3 domain indexes most relevant to the topic. Read those indexes with `knowledge_read` to find matching units. If no indexes exist, scan `_knowledge/` directly.
 
@@ -34,12 +34,12 @@ Select 1–3 domain indexes most relevant to the topic. Read those indexes with 
 
 | #   | Knowledge unit | What it contributes                                  |
 | --- | -------------- | ---------------------------------------------------- |
-| 1   | `unit-name`    | one sentence on what this unit brings to the article |
+| 1   | [[unit-name]]  | one sentence on what this unit brings to the article |
 | 2   | …              | …                                                    |
 
 **Possible gaps:** list anything you think the article needs that the knowledge base doesn't cover (if any).
 
-> That's everything I found. Does this palette cover what you need, or should we add more? If something's missing, compile the relevant notes with `hylo-compile-note` first and I'll re-scan.
+Then ask with `choices`, in the user's language: start writing with these; drop some; compile more notes first.
 ---
 
 Wait for the user to confirm, remove units, or tell you what's missing before moving on. If the user wants to add coverage: suggest they run `hylo-compile-note` on the relevant source, then re-scan and re-present the updated palette. Do not continue to Phase 1 with a palette the user hasn't confirmed.
@@ -50,7 +50,7 @@ Wait for the user to confirm, remove units, or tell you what's missing before mo
 
 Write 2–3 candidate **starting beats**, each drawn from different units in the confirmed palette. Each beat is a different entry point into the article — a different angle on the same topic.
 
-Show the beats before writing anything to the article file. For each, name which knowledge unit(s) it draws from, and preview where it might lead next.
+Show the beats before writing anything to the article file. For each, name which knowledge unit(s) it draws from, and preview where it might lead next. Then offer them as `choices`, one short label per beat.
 
 The user picks one. Then go to Phase 2.
 
@@ -62,7 +62,7 @@ Loop until the article reaches a natural end:
 
 1. Write **only the chosen beat** to the article (in the editor: `editor_type` at `end`, one call per beat). Pull material from relevant knowledge units — paraphrase, quote, recombine. The units are a quarry. Preserve any time-anchored content ("as of YYYY-MM-DD") if it matters to the argument.
 2. Re-read the article (in the editor: `editor_read`).
-3. Offer 2–3 candidate **next beats** — different directions from where the article now stands. Name the knowledge unit(s) each would draw from.
+3. Offer 2–3 candidate **next beats** — different directions from where the article now stands. Name the knowledge unit(s) each would draw from, then offer them as `choices`, plus one to end the article here.
 4. The user picks one. Repeat.
 
 ---
@@ -71,7 +71,7 @@ Loop until the article reaches a natural end:
 
 When the article reaches its natural end, write the final beat and stop.
 
-Then ask: **Do you want to compile this article back into the knowledge base?** If yes, trigger the `hylo-compile-note` skill on the article file. The article itself becomes a source — its argument, its synthesis, its publication date feed back as new knowledge.
+Then ask with `choices` whether to compile this article back into the knowledge base. If yes, trigger the `hylo-compile-note` skill on the article file. The article itself becomes a source — its argument, its synthesis, its publication date feed back as new knowledge.
 
 Finally, output the article's wiki link — derive it from the saved path by taking the filename without the `.md` extension:
 
@@ -105,7 +105,7 @@ Pull material from knowledge units to populate the beat. You can paraphrase, spl
 
 **Drilling into source notes.** Knowledge units carry backlinks to the original notes they were compiled from. When the unit-level material feels thin — missing a concrete example, a specific quote, a vivid detail — follow the backlinks and read the source note directly. The source note is the unprocessed quarry; the knowledge unit is the refined extract. Use whichever layer serves the beat. If you pull something from a source note that isn't captured in its unit, note the gap — it may be worth compiling later.
 
-**Partial reads.** `references/extract.md` documents the `extract_*` tools for reading outlines, sections, or line ranges without loading the full note. Use them when you don't need the whole file.
+**Partial reads.** Use the `extract_*` tools when you don't need the whole file.
 
 ## Handling knowledge gaps
 

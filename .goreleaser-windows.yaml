@@ -28,7 +28,6 @@ archives:
       - zip
     files:
       - config.example.toml
-      - skills/**/*
 
 checksum:
   disable: true

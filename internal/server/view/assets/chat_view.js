@@ -1071,6 +1071,7 @@
     var ta = rootEl.querySelector('#chat-textarea');
     var hint = rootEl.querySelector('#chat-input-hint');
     var hintName = rootEl.querySelector('#chat-hint-name');
+    var ctxRow = rootEl.querySelector('#chat-context');
     var sendBtn = rootEl.querySelector('#chat-send');
     var stopBtn = rootEl.querySelector('#chat-stop');
     var newBtn = rootEl.querySelector('#chat-new-btn');
@@ -1175,18 +1176,41 @@
       if (snap.convType === 'chat' && !snap.busy && msgs[i].status !== 'running') return { mode: 'active' };
       return { mode: 'answered' };
     }
+    // A receipt's undo stays usable on older replies, since its text names what it
+    // undoes; it's done once a later message from the user says exactly that.
+    function receiptState(snap, card) {
+      var row = card.closest('.msg-row');
+      var id = row && row._msgId;
+      var msgs = snap.messages;
+      var undo = (card._hyReceipt.undo() || '').trim();
+      var i = msgs.length - 1;
+      while (i >= 0 && (msgs[i].id || ('i' + i)) !== id) i--;
+      if (i < 0 || msgs[i].role !== 'assistant' || !undo) return { mode: 'static' };
+      for (var j = i + 1; j < msgs.length; j++) {
+        if (msgs[j].role === 'user' && (msgs[j].content || '').trim() === undo) return { mode: 'done' };
+      }
+      if (snap.convType !== 'chat') return { mode: 'static' };
+      var last = msgs[msgs.length - 1];
+      return { mode: snap.busy || (last && last.status === 'running') ? 'busy' : 'active' };
+    }
+    function cardState(snap, card) {
+      return card._hyReceipt ? receiptState(snap, card) : choiceState(snap, card);
+    }
     // Scanned rather than registered: a card mounted while the thread was out of
     // the page never got to announce itself.
     function syncChoices(snap) {
       thread.querySelectorAll('.hy-choices-host').forEach(function (card) {
         if (card._hyChoices) card._hyChoices.setState(choiceState(snap, card));
       });
+      thread.querySelectorAll('.hy-receipt-host').forEach(function (card) {
+        if (card._hyReceipt) card._hyReceipt.setState(receiptState(snap, card));
+      });
     }
     on(thread, 'hylo:choices-mount', function () {
       syncChoices(api.state());
     });
     on(thread, 'hylo:choice', function (e) {
-      if (choiceState(api.state(), e.target).mode !== 'active') return;
+      if (cardState(api.state(), e.target).mode !== 'active') return;
       void api.sendChoice(e.detail.text);
     });
 
@@ -1249,12 +1273,16 @@
         hintName.textContent = mate ? ('Ask ' + mate.name + '…') : 'Select a bot from the sidebar';
       }
       if (ta) {
+        // Renders run per streamed token; the chips only depend on these two.
+        var ctxStale = ctxKey === null || ta.disabled !== !snap.mateId;
         ta.disabled = !snap.mateId;
         if (document.activeElement !== ta && ta.value !== snap.draft) {
           ta.value = snap.draft;
           root.__hyloAutoResize(ta);
+          ctxStale = true;
         }
         show(hint, !ta.value);
+        if (ctxStale) refreshContext();
       }
       if (sendBtn) {
         show(sendBtn, !live);
@@ -1704,6 +1732,7 @@
         root.__hyloAutoResize(ta);
         ac.refresh();
         show(hint, !ta.value);
+        refreshContext();
         var snap = api.state();
         if (sendBtn) sendBtn.disabled = snap.busy || !ta.value.trim() || !snap.mateId;
       });
@@ -1734,6 +1763,83 @@
         }
       });
     }
+
+    function insertAtCaret(text, spaced) {
+      var cur = ta ? ta.value : api.draft();
+      var start = ta ? ta.selectionStart : cur.length;
+      var end = ta ? ta.selectionEnd : start;
+      var before = cur.slice(0, start);
+      var after = cur.slice(end);
+      var insert = text;
+      if (spaced) {
+        if (before.length > 0 && !/\s$/.test(before)) insert = ' ' + insert;
+        if (after.length > 0 && !/^\s/.test(after)) insert += ' ';
+      }
+      var next = before + insert + after;
+      api.setDraft(next);
+      if (ta) {
+        ta.value = next;
+        var pos = start + insert.length;
+        ta.selectionStart = ta.selectionEnd = pos;
+        ta.focus();
+        root.__hyloAutoResize(ta);
+        show(hint, !next);
+      }
+      refreshContext();
+    }
+    function insertWikilink(stem) {
+      if (stem) insertAtCaret('[[' + stem + ']]', true);
+    }
+
+    // Offers the note open in the pane, or the text selected in it, as one click
+    // instead of an @ search. Read on demand: nothing here watches the editor.
+    var usedSelection = '';
+    function paneContext() {
+      var pane = root.__hyloContentPane;
+      var tab = pane && pane.contentPaneOpen && pane.tabs ? pane.tabs[pane.activeTab] : null;
+      if (!tab || !tab.path) return null;
+      var stem = noteStem(tab.path);
+      var ed = root.__hyloEditor;
+      var text = '';
+      if (ed && ed.view && ed.currentPath === tab.path) {
+        var sel = ed.view.state.selection.main;
+        text = ed.view.state.sliceDoc(sel.from, sel.to).trim();
+      }
+      return { stem: stem, title: tab.title || stem, selection: text };
+    }
+    function contextChip(label, onClick) {
+      var b = el('button', 'chat-context-chip');
+      b.type = 'button';
+      b.appendChild(el('span', 'chat-context-plus')).textContent = '+';
+      b.appendChild(el('span', 'chat-context-label')).textContent = label;
+      b.addEventListener('click', onClick);
+      return b;
+    }
+    var ctxKey = null;
+    function refreshContext() {
+      if (!ctxRow || !ta) return;
+      var c = ta.disabled ? null : paneContext();
+      var draft = ta.value;
+      var chips = [];
+      if (c && c.selection && c.selection !== usedSelection) {
+        var lines = c.selection.split('\n').filter(function (l) { return l.trim(); }).length;
+        chips.push({ key: 's:' + c.selection, label: 'Selection · ' + lines + (lines === 1 ? ' line' : ' lines'), run: function () {
+          usedSelection = c.selection;
+          var quote = c.selection.split('\n').map(function (l) { return '> ' + l; }).join('\n');
+          var lead = ta.value.slice(0, ta.selectionStart);
+          insertAtCaret((lead && !/\n$/.test(lead) ? '\n' : '') + '[[' + c.stem + ']]\n' + quote + '\n\n');
+        } });
+      } else if (c && draft.indexOf('[[' + c.stem + ']]') === -1) {
+        chips.push({ key: 'n:' + c.stem, label: c.title, run: function () { insertWikilink(c.stem); } });
+      }
+      var key = chips.map(function (x) { return x.key; }).join('|');
+      if (key === ctxKey) return;
+      ctxKey = key;
+      ctxRow.replaceChildren.apply(ctxRow, chips.map(function (x) { return contextChip(x.label, x.run); }));
+      ctxRow.hidden = !chips.length;
+    }
+    on(ta, 'focus', refreshContext);
+    on(root, 'hylo:active-note', refreshContext);
 
     // The composer is the chat's resting focus: pointing at a control doesn't take
     // it, a plain click or typing hands it back, and a focused control that vanishes returns it.
@@ -1823,27 +1929,7 @@
         show(hint, true);
       },
       focusComposer: focusComposer,
-      insertWikilink: function (stem) {
-        if (!stem) return;
-        var cur = ta ? ta.value : api.draft();
-        var start = ta ? ta.selectionStart : cur.length;
-        var end = ta ? ta.selectionEnd : start;
-        var before = cur.slice(0, start);
-        var after = cur.slice(end);
-        var leadSp = before.length > 0 && before[before.length - 1] !== ' ' ? ' ' : '';
-        var tailSp = after.length > 0 && after[0] !== ' ' ? ' ' : '';
-        var insert = leadSp + '[[' + stem + ']]' + tailSp;
-        var next = before + insert + after;
-        api.setDraft(next);
-        if (ta) {
-          ta.value = next;
-          var pos = start + insert.length;
-          ta.selectionStart = ta.selectionEnd = pos;
-          ta.focus();
-          root.__hyloAutoResize(ta);
-          show(hint, !next);
-        }
-      },
+      insertWikilink: insertWikilink,
       destroy: function () {
         detaching = true;
         root.__hyloReleaseFenceCards(thread);

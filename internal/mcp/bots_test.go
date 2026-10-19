@@ -21,6 +21,7 @@ type fakeBots struct {
 	added   []string
 	enabled []string
 	ran     []string
+	deleted []string
 }
 
 func botSession(t *testing.T, f *fakeBots) *sdk.ClientSession {
@@ -60,17 +61,30 @@ func botSession(t *testing.T, f *fakeBots) *sdk.ClientSession {
 		f.mu.Unlock()
 		reply(w, map[string]any{"mate": m})
 	})
+	mux.HandleFunc("DELETE /api/mates/{id}", func(w http.ResponseWriter, r *http.Request) {
+		f.mu.Lock()
+		f.deleted = append(f.deleted, r.PathValue("id"))
+		f.mu.Unlock()
+		reply(w, map[string]any{"ok": true})
+	})
 	mux.HandleFunc("POST /api/mates/{id}/triggers/{tid}/run", func(w http.ResponseWriter, r *http.Request) {
 		f.mu.Lock()
 		f.ran = append(f.ran, r.PathValue("tid"))
 		f.mu.Unlock()
 		w.WriteHeader(http.StatusAccepted)
 	})
+	mux.HandleFunc("GET /api/skills", func(w http.ResponseWriter, _ *http.Request) {
+		reply(w, map[string]any{"skills": []client.SkillInfo{
+			{Name: "hylo-notes", Default: true, Bots: []client.SkillBot{{ID: "news", Name: "News"}}},
+			{Name: "the-news", Bots: []client.SkillBot{{ID: "news", Name: "News"}}},
+			{Name: "humanizer"},
+		}})
+	})
 	mux.HandleFunc("GET /api/skills/catalog", func(w http.ResponseWriter, _ *http.Request) {
 		reply(w, map[string]any{"skills": []client.CatalogEntry{
 			{Name: "hackernews", Repo: "a/b", Category: "news"},
 			{Name: "the-news", Repo: "c/the-news", Category: "news", Added: true},
-			{Name: "humanizer", Repo: "c/d"},
+			{Name: "humanizer", Repo: "c/d", Added: true},
 		}})
 	})
 	mux.HandleFunc("POST /api/skills/add", func(w http.ResponseWriter, r *http.Request) {
@@ -149,5 +163,56 @@ func TestSkillsCatalogAddEnable(t *testing.T) {
 	call(t, cs, "skills_enable", map[string]any{"name": "hackernews", "bot_id": "news"})
 	if strings.Join(f.added, ",") != "a/b:hackernews" || strings.Join(f.enabled, ",") != "hackernews@news" {
 		t.Fatalf("added %v enabled %v", f.added, f.enabled)
+	}
+}
+
+func TestBotUpdateAndDelete(t *testing.T) {
+	f := &fakeBots{bot: mate.Mate{ID: "news", Name: "News", Description: "d", SystemPrompt: "old", Enabled: true,
+		Triggers: []mate.MateTrigger{{ID: "t1", EventTypes: []string{"scheduled"}, Schedule: "daily 08:00", Prompt: "a"}}}}
+	cs := botSession(t, f)
+	if _, isErr := call(t, cs, "bot_update", map[string]any{"bot_id": "news", "system_prompt": "new", "enabled": false}); isErr {
+		t.Fatal("bot_update failed")
+	}
+	if b := f.bot; b.Name != "News" || b.Description != "d" || b.SystemPrompt != "new" || b.Enabled || len(b.Triggers) != 1 {
+		t.Fatalf("bot %+v", b)
+	}
+	if _, isErr := call(t, cs, "bot_delete", map[string]any{"bot_id": "news"}); isErr || f.deleted[0] != "news" {
+		t.Fatalf("bot_delete: %v", f.deleted)
+	}
+	f.bot.Main = true
+	if _, isErr := call(t, cs, "bot_update", map[string]any{"bot_id": "news", "name": "x"}); !isErr {
+		t.Fatal("main bot must not be updated")
+	}
+	if _, isErr := call(t, cs, "bot_delete", map[string]any{"bot_id": "news"}); !isErr || len(f.deleted) != 1 {
+		t.Fatal("main bot must not be deleted")
+	}
+}
+
+func TestCapabilitiesInOneCall(t *testing.T) {
+	f := &fakeBots{bot: mate.Mate{ID: "news", Name: "News", Cwd: "/_bots/_news", Enabled: true,
+		Triggers: []mate.MateTrigger{{ID: "t1", EventTypes: []string{"scheduled"}, Schedule: "daily 08:00", Prompt: "long prompt"}}}}
+	cs := botSession(t, f)
+	m, isErr := call(t, cs, "capabilities", map[string]any{})
+	if isErr {
+		t.Fatalf("capabilities: %v", m)
+	}
+	bots := m["bots"].([]any)
+	b := bots[0].(map[string]any)
+	tr := b["triggers"].([]any)[0].(map[string]any)
+	if sk := b["skills"].([]any); len(bots) != 1 || len(sk) != 1 || sk[0] != "the-news" || tr["schedule"] != "daily 08:00" || tr["prompt"] != nil {
+		t.Fatalf("bots %v", bots)
+	}
+	var catalog []string
+	for _, e := range m["catalog"].([]any) {
+		catalog = append(catalog, e.(map[string]any)["name"].(string))
+	}
+	if strings.Join(catalog, ",") != "hackernews" {
+		t.Fatalf("catalog must leave out added skills: %v", catalog)
+	}
+	if u := m["unused_skills"].([]any); len(u) != 1 || u[0] != "humanizer" {
+		t.Fatalf("unused %v", u)
+	}
+	if len(m["events"].([]any)) != len(mate.BuiltinEvents) {
+		t.Fatal("events")
 	}
 }

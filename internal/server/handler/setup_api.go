@@ -22,7 +22,7 @@ const (
 )
 
 // hyloBot answers wherever the user talks to Hylo (the chat triggers stay idle
-// until WeChat or Discord is connected), and compiles, keeps memory and recaps.
+// until WeChat or Discord is connected), and compiles, keeps memory and recalls.
 // The two schedules are apart so they don't run at once on Mondays.
 func hyloBot(agentID, model string) (*mate.Mate, []mate.MateTrigger) {
 	if model == "" {
@@ -53,8 +53,8 @@ func hyloBot(agentID, model string) (*mate.Mate, []mate.MateTrigger) {
 		on("Compiler", mate.MateEventCompileRequested, prompt.TriggerCompile),
 		webClips,
 		scheduled("Memory", "daily 09:00", prompt.TriggerMemory),
-		on("Recap", mate.MateEventShortNoteCreated, prompt.TriggerRecapShort),
-		scheduled("Recap", "weekly mon 09:05", prompt.TriggerRecapWeekly),
+		on("Recall", mate.MateEventShortNoteCreated, prompt.TriggerRecallShort),
+		scheduled("Recall", "weekly mon 09:05", prompt.TriggerRecallWeekly),
 	}
 }
 

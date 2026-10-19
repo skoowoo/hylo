@@ -24,6 +24,8 @@ type Run struct {
 	Kind Kind
 	// Bot is the bot's own system prompt.
 	Bot string
+	// Main is set for the main bot, the user's one entry point.
+	Main bool
 	// MCP is set when Hylo's MCP tools are injected into this run.
 	MCP   bool
 	Intro *Intro

@@ -1,11 +1,13 @@
 ---
 name: hylo-memory
-description: "Extract and update personal memories from Hylo notes into structured memory files. Use when the user wants to update their personal memory, extract memories from notes, run memory extraction, or refresh the personal memory base. Triggers on phrases like 'update my memory', 'extract memories from notes', 'run memory extraction', 'refresh personal memory', or any request to build or maintain a personal memory base from notes."
+description: "Keeps the user's personal memory under /_memory/: extracts it from recent notes, or records one fact they just told you. Use for 'update my memory', 'refresh my memory from my notes', or when they share something lasting about themselves and want it kept ('remember that I…', '记住我…')."
 ---
 
-# Hylo Memory Extract
+# Hylo Memory
 
-Extracts personal memories from short notes (`/_shorts`) and the knowledge base (`/_knowledge`) into six structured memory files under `/_memory/`. On first run (no memory files exist yet), scans the last 90 days for a rich initial snapshot. On subsequent runs, scans only the last 2 days. Memories not reinforced over time gradually fade and are eventually removed.
+Two jobs: **extract** memories from recent notes (the steps below), or **record one fact** the user just told you (the last section). Both use the file format and update rules in Step 4.
+
+Extraction pulls personal memories from short notes (`/_shorts`) and the knowledge base (`/_knowledge`) into six structured memory files under `/_memory/`. On first run (no memory files exist yet), scans the last 90 days for a rich initial snapshot. On subsequent runs, scans only the last 2 days. Memories not reinforced over time gradually fade and are eventually removed.
 
 Calls below are Hylo's MCP tools (server `hylo`); your client may show them prefixed, e.g. `mcp__hylo__read`. If they are not in your tool list, search your deferred tools for "hylo".
 
@@ -15,7 +17,7 @@ Calls below are Hylo's MCP tools (server `hylo`); your client may show them pref
 
 ## Inputs
 
-1. **Self-introduction** — a brief description the user provides about themselves (name, role, projects, relationships, etc.). Used throughout extraction to identify personal content and disambiguate knowledge units. Ask for this if not provided.
+1. **Self-introduction** — optional. Whatever the user says about themselves in the request (name, role, projects). This often runs in the background, where nobody can answer, so never ask for it.
 2. **Extra scan paths** — additional vault path prefixes to scan beyond the two defaults (optional).
 3. **Memory directory** — where memory files live (default: `/_memory/`).
 
@@ -34,13 +36,13 @@ read {"path": "/_memory/_identity.md"}
 
 Record today's date as `today`.
 
-Parse the self-introduction into an **author profile** to use as a lens throughout extraction:
+Build an **author profile** from `/_memory/_identity.md` and `/_memory/_goals.md` (whichever exist) plus any self-introduction in the request, to use as a lens throughout extraction:
 - Name and known aliases/IDs
 - Projects or products the author owns or runs (these may appear as vault directories or knowledge unit titles)
 - Roles (creator, host, founder, etc.)
 - People the author mentions as part of their personal life
 
-This profile is critical for the knowledge base step: if a `source_notes` path falls under a directory that belongs to the author's own project (e.g. their own podcast, their own product), treat it as a **personal source**, not an external one.
+The profile matters in the knowledge base step for units without a `perspective`: a `source_notes` path under the author's own project (e.g. their own podcast, their own product) is their own, not an external source.
 
 ---
 
@@ -86,32 +88,26 @@ Short notes are the author's own unfiltered voice. Extract from **all six dimens
 knowledge_read {"path": "<path>"}
 ```
 
-**Classify each unit by its `source_notes` paths, using the author profile from Step 1:**
+**Sort each unit by its `perspective`** (whose words it holds; see your instructions). A unit without one: judge from its `source_notes` the same way, using the author profile from Step 1 — paths under the author's own projects count as their own.
 
-**Class 1 — Author's own content** (source_notes point to the author's own projects — e.g. their own podcast directory, their own product notes — or to personal paths like `/_shorts/`, `/journal/`)
+**`own`** — the author's own words or experience. Extract from **all six dimensions**, same as Source A.
 
-The unit captures the author's own words or experience. Extract from **all six dimensions**, same as Source A.
+**`external`** — a synthesis of what the author heard or read, not their own views:
+- **Do not** extract beliefs from it; a view the unit reports belongs to its source.
+- **Do not** extract people (third-party guests and case-study figures are not personal relationships).
+- Only preferences, synthesized as below.
 
-**Class 2 — External source** (source_notes point to content produced by others — podcasts the author listened to, articles, clips)
+**`mixed`** — treat it as both: its title and tags join the external pool below, and the six dimensions come only from what the unit attributes to the author's own sources.
 
-Body content synthesises what the author heard or read, not their own views. Extract only:
-- `## 立场` section → `beliefs` (the author's own dated opinion; skip if section absent)
-- **Do not** extract people (third-party guests and case-study figures are not personal relationships)
-- **Do not** extract from body sections like `## 核心启示`, `## 关键认知`, `## 核心定义` — these synthesise others' views
+**No `source_notes` at all** — treat as personal. Extract from all six dimensions.
 
-**Preferences from external sources — synthesize after all Class 2 units are read:**
+**Preferences from external sources — synthesize after all `external` and `mixed` units are read:**
 
-Do not write per-unit `关注 X` entries. Instead:
-1. Collect all Class 2 unit titles and tags into a pool.
+Do not write one "interested in X" entry per unit. Instead:
+1. Collect their titles and tags into a pool.
 2. Group into theme clusters by overlapping tags or subject matter.
 3. For each cluster of ≥2 units, write **one synthesized preference item** describing the author's underlying orientation or taste — not a list of topics. The item should read like a trait, not a reading log. Example: units tagged `[indie-dev, startup]`, `[ai, startup]`, `[ai, llm]` → `对 AI 驱动的独立技术创业有持续投入，偏工程实践侧`.
 4. Discard single-unit clusters — one reading is not a preference.
-
-**Class 3 — No source_notes**
-
-Treat as personal. Extract from all six dimensions.
-
-**When classification is ambiguous**, use the author profile: if the directory or context matches something the author owns or created, prefer Class 1.
 
 ### Source C: Extra scan paths
 
@@ -184,3 +180,13 @@ Report:
 - Which memory files were updated
 - Counts: added / refreshed / faded / deleted
 - Deleted items by name (for user verification)
+
+---
+
+## Record one fact
+
+When the user tells you something lasting about themselves, or asks you to remember it:
+
+1. Pick its file by the dimension table in Step 3, read it, and apply the update rules in Step 4 to that one item, in their words where you can.
+2. Add `pinned` only for something they state as a standing preference or fact ("always answer in English", "I'm vegetarian"); not for current work or moods, which should fade.
+3. Write the file and say in one line what you kept.

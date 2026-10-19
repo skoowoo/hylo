@@ -385,7 +385,7 @@ Agent 会自己调用 `hylo-memory` skill 完成提取。首次运行扫最近 9
 
 ## Skills
 
-Hylo 内置了一套 skill，agent 执行任务时会自动调用。你也可以从 GitHub 安装外部 skill，或者把自己写的 skill 扔进 `~/.hylo/skills/` 来扩展。
+Hylo 内置了一套 skill，agent 执行任务时会自动调用。内置 skill 打包在程序里，每次启动时写入 `~/.hylo/skills/`，和程序版本保持一致。你也可以从 GitHub 安装外部 skill，或者把自己写的 skill 扔进 `~/.hylo/skills/` 来扩展。
 
 每个 skill 就是一个带 `SKILL.md` 的目录：
 
@@ -462,11 +462,11 @@ Hylo 的每一层 AI 输出都可以自定义：
 
 #### 3. 重写 LLM-Wiki 编译 Skill
 
-LLM Wiki 编译行为由 `~/.hylo/skills/hylo-compile-note/SKILL.md` 定义。编辑此文件即可改变原始笔记被编译成结构化知识、并链接进 LLM Wiki 网络的方式。
+LLM Wiki 编译行为由 `~/.hylo/skills/hylo-compile-note/SKILL.md` 定义。编辑此文件即可改变原始笔记被编译成结构化知识、并链接进 LLM Wiki 网络的方式。注意：Hylo 每次启动都会用内置版本覆盖它，改动需要自己保存好。
 
 #### 4. 重写记忆抽取 Skill
 
-个人记忆抽取行为由 `~/.hylo/skills/hylo-memory/SKILL.md` 定义。编辑此文件即可改变抽取内容与记忆文件的组织结构。
+个人记忆抽取行为由 `~/.hylo/skills/hylo-memory/SKILL.md` 定义。编辑此文件即可改变抽取内容与记忆文件的组织结构。和编译 skill 一样，每次启动都会被内置版本覆盖。
 
 #### 5. 安装或编写自定义 Skill
 

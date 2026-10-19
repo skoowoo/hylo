@@ -56,7 +56,7 @@ func buildConfigSchema() []SchemaField {
 			Enum:        []string{"text", "json"}},
 
 		{Key: "agent.system_prompt", Type: "string", Section: "agent", Label: "Agent system prompt",
-			Description: "Global system prompt prepended to every agent run. Leave empty to always use the latest built-in default. Joined with the mate's own system prompt (if any) via a markdown divider.",
+			Description: "Global system prompt prepended to every agent run. Leave empty to always use the latest built-in default. Hylo's vault conventions (wiki links, knowledge base, memory) follow it either way, then the mate's own system prompt (if any), each after a markdown divider.",
 			Multiline: true, Default: prompt.GlobalDefault},
 
 		{Key: "plugins.search.use_jieba", Type: "bool", Section: "plugins.search", Label: "Use jieba",

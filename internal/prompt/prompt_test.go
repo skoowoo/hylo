@@ -18,11 +18,15 @@ func TestSectionsApplyByRun(t *testing.T) {
 		run  Run
 		want string
 	}{
-		{Run{}, "global,choices"},
-		{Run{Kind: Trigger}, "global"},
-		{Run{Kind: Trigger, Bot: " ", MCP: true}, "global,mcp"},
-		{Run{Bot: "be brief", MCP: true, Intro: &Intro{}}, "global,bot,mcp,choices,intro"},
+		{Run{}, "global,vault,choices"},
+		{Run{Kind: Trigger}, "global,vault"},
+		{Run{Kind: Trigger, Bot: " ", MCP: true}, "global,vault,mcp"},
+		{Run{Bot: "be brief", MCP: true, Intro: &Intro{}}, "global,vault,bot,mcp,choices,intro"},
 		{Run{Kind: OneShot, MCP: true}, ""},
+		{Run{Main: true, MCP: true}, "global,vault,mcp,choices,capabilities"},
+		{Run{Main: true}, "global,vault,choices"},
+		{Run{Kind: Trigger, Main: true, MCP: true}, "global,vault,mcp"},
+		{Run{Main: true, MCP: true, Intro: &Intro{}}, "global,vault,mcp,choices,intro"},
 	}
 	for _, c := range cases {
 		if got := ids(c.run); got != c.want {
@@ -33,10 +37,10 @@ func TestSectionsApplyByRun(t *testing.T) {
 
 func TestOverrideReplacesGlobal(t *testing.T) {
 	got := System(Run{Kind: Trigger, Bot: "bot", Overrides: map[string]string{SectionGlobal: " mine "}})
-	if got != "mine\n\n---\n\nbot" {
+	if got != "mine\n\n---\n\n"+vaultText+"\n\n---\n\nbot" {
 		t.Fatalf("%q", got)
 	}
-	if got := System(Run{Kind: Trigger, Overrides: map[string]string{SectionGlobal: "  "}}); got != GlobalDefault {
+	if got := System(Run{Kind: Trigger, Overrides: map[string]string{SectionGlobal: "  "}}); !strings.HasPrefix(got, GlobalDefault+"\n") {
 		t.Fatal("blank override must fall back to the default")
 	}
 }
@@ -145,5 +149,36 @@ func TestFillIsSinglePass(t *testing.T) {
 	got := Fill("{Name}: {Content} {Missing}", map[string]string{"Name": "a", "Content": "says {Name}"})
 	if got != "a: says {Name} {Missing}" {
 		t.Fatal(got)
+	}
+}
+
+func TestSilentReply(t *testing.T) {
+	if !strings.Contains(TriggerRecallShort, "`"+SilentReply+"`") {
+		t.Error("the short-note trigger doesn't ask for the silent reply")
+	}
+	for reply, want := range map[string]bool{
+		"[silent]":                            true,
+		"Searching your notes…\n\n[silent]\n": true,
+		"":                                    false,
+		"# Recall\n\nNothing [silent] here.":  false,
+	} {
+		if got := IsSilent(TriggerRecallShort, reply); got != want {
+			t.Errorf("IsSilent(%q) = %v", reply, got)
+		}
+	}
+	if IsSilent(TriggerRecallWeekly, "# Week\n\nLots happened.\n\n[silent]") {
+		t.Error("a trigger that never asked for the silent reply went silent")
+	}
+}
+
+func TestSupersededPromptsMoveForward(t *testing.T) {
+	current := map[string]bool{TriggerCompile: true, TriggerMemory: true, TriggerRecallShort: true, TriggerRecallWeekly: true}
+	for old, repl := range Superseded {
+		if current[old] {
+			t.Errorf("a current prompt is marked superseded: %q", old)
+		}
+		if !current[repl] {
+			t.Errorf("superseded prompt moves to a non-built-in text: %q", repl)
+		}
 	}
 }

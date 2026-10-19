@@ -268,6 +268,88 @@ func (s *Store) ReplaceTriggersForMate(mateID string, triggers []MateTrigger) er
 	return s.changed(tx.Commit())
 }
 
+// ReplacePrompt moves triggers whose prompt is exactly old to repl.
+func (s *Store) ReplacePrompt(old, repl string) error {
+	_, err := s.db.Exec(`UPDATE mate_triggers SET prompt = ? WHERE prompt = ?`, repl, old)
+	return err
+}
+
+// RenameSkill rewrites bot and trigger prompts that name the skill old to name
+// repl instead; they hold their own copies of the text, so a renamed built-in
+// would otherwise go missing from them. Only the whole name is replaced, so
+// longer names and paths that start with it are left alone.
+func (s *Store) RenameSkill(old, repl string) error {
+	if strings.Contains(repl, old) {
+		return fmt.Errorf("mate: rename %q to %q would repeat on every run", old, repl)
+	}
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback() //nolint:errcheck
+	for _, q := range []struct{ table, col string }{{"mate_triggers", "prompt"}, {"mates", "system_prompt"}} {
+		if err := renameWordIn(tx, q.table, q.col, old, repl); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
+func renameWordIn(tx *sql.Tx, table, col, old, repl string) error {
+	rows, err := tx.Query(`SELECT id, `+col+` FROM `+table+` WHERE instr(`+col+`, ?) > 0`, old)
+	if err != nil {
+		return err
+	}
+	type row struct{ id, text string }
+	var hits []row
+	for rows.Next() {
+		var r row
+		if err := rows.Scan(&r.id, &r.text); err != nil {
+			rows.Close()
+			return err
+		}
+		hits = append(hits, r)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	for _, r := range hits {
+		next := replaceName(r.text, old, repl)
+		if next == r.text {
+			continue
+		}
+		if _, err := tx.Exec(`UPDATE `+table+` SET `+col+` = ? WHERE id = ?`, next, r.id); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// replaceName replaces old where it stands as a whole skill name.
+func replaceName(text, old, repl string) string {
+	nameByte := func(c byte) bool {
+		return c == '-' || c == '_' || c >= '0' && c <= '9' || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z'
+	}
+	var b strings.Builder
+	for {
+		i := strings.Index(text, old)
+		if i < 0 {
+			b.WriteString(text)
+			return b.String()
+		}
+		end := i + len(old)
+		whole := (i == 0 || !nameByte(text[i-1])) && (end == len(text) || !nameByte(text[end]))
+		b.WriteString(text[:i])
+		if whole {
+			b.WriteString(repl)
+		} else {
+			b.WriteString(old)
+		}
+		text = text[end:]
+	}
+}
+
 // ── scan helpers ──────────────────────────────────────────────────────────────
 
 func scanMates(rows *sql.Rows) ([]Mate, error) {

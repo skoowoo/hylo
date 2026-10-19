@@ -11,10 +11,10 @@ With few notes there's little to learn them from, so ask. What they tell you see
 
 ## Record
 
-1. Following the file format and update rules of the `hylo-memory` skill, add what they told you:
+1. Record what they told you as in the `hylo-memory` skill's "Record one fact" section, one item per fact:
    - who they are and what they do → `/_memory/_identity.md`
    - what they're working on or toward → `/_memory/_goals.md`
    - what they're into → `/_memory/_preferences.md`
 
-   One item per fact, in their words where you can. Don't add `pinned`: these change over time.
+   Don't add `pinned`: these change over time.
 2. Mark `- [x] about-you — <a few words>`.

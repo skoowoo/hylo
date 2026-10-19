@@ -386,7 +386,7 @@ The agent invokes the `hylo-memory` skill and completes the extraction. The firs
 
 ## Skills
 
-Hylo ships with a set of built-in skills that agents can use when running tasks. You can extend it with external skills from GitHub or your own custom skills placed in `~/.hylo/skills/`.
+Hylo ships with a set of built-in skills that agents can use when running tasks. They are bundled in the binary and written to `~/.hylo/skills/` on every start, so they always match the installed version. You can extend it with external skills from GitHub or your own custom skills placed in `~/.hylo/skills/`.
 
 Each skill is a directory containing a `SKILL.md` file:
 
@@ -463,11 +463,11 @@ In **Settings → Bots**, each bot exposes two customization points:
 
 #### 3. Rewrite the LLM-Wiki Compile Skill
 
-The LLM wiki compilation behavior is defined in `~/.hylo/skills/hylo-compile-note/SKILL.md`. Edit this file to change how raw notes are compiled into structured knowledge and linked into the LLM wiki network.
+The LLM wiki compilation behavior is defined in `~/.hylo/skills/hylo-compile-note/SKILL.md`. Edit this file to change how raw notes are compiled into structured knowledge and linked into the LLM wiki network. Note that Hylo overwrites it with the built-in version on every start, so keep your own copy of any changes.
 
 #### 4. Rewrite the Memory Extraction Skill
 
-The personal memory extraction behavior is defined in `~/.hylo/skills/hylo-memory/SKILL.md`. Edit this file to change what gets extracted and how memory files are structured.
+The personal memory extraction behavior is defined in `~/.hylo/skills/hylo-memory/SKILL.md`. Edit this file to change what gets extracted and how memory files are structured. Like the compile skill, it is overwritten with the built-in version on every start.
 
 #### 5. Install or Build Custom Skills
 

@@ -173,7 +173,7 @@ type AgentConfig struct {
 	UploadDir string `mapstructure:"upload_dir" json:"upload_dir" toml:"upload_dir"`
 
 	// SystemPrompt replaces the built-in global layer of the system prompt
-	// (prompt.GlobalDefault) when set; see internal/prompt.
+	// (prompt.GlobalDefault) when set; the vault conventions below it stay. See internal/prompt.
 	SystemPrompt string `mapstructure:"system_prompt" json:"system_prompt" toml:"system_prompt"`
 }
 
