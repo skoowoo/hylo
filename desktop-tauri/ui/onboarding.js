@@ -465,7 +465,7 @@ document.addEventListener('alpine:init', function () {
         if (o.current) return 'Hylo keeps using this folder.';
         return o.kind === 'new'
           ? 'Hylo will create this folder for you.'
-          : 'Hylo only adds a hidden .hylo folder here. Your notes stay as they are.';
+          : 'Opens as it is. Hylo only adds a hidden .hylo folder.';
       },
 
       // Sync is global: switching folders would back the new one up to the old one's remote.

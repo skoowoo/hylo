@@ -37,10 +37,9 @@
                 style="--d:210ms">Y</span><span class="ob-rise" style="--d:260ms">L</span><span class="ob-rise"
                 style="--d:310ms">O</span></span>
           </p>
-          <h1 class="ob-title ob-rise" style="--d:420ms">A personal AI agent<br>powered by your notes</h1>
-          <p class="ob-lead ob-rise" style="--d:540ms">You just write. Hylo learns what matters to you
-            and works for you around the clock.</p>
-          <p class="ob-points ob-rise" style="--d:620ms">Runs 24/7 on your own server · Works with Obsidian · Bring your own agent</p>
+          <h1 class="ob-title ob-rise" style="--d:420ms">A personal notes agent</h1>
+          <p class="ob-lead ob-rise" style="--d:540ms">You write. Your bots organize, search and write notes for you.</p>
+          <p class="ob-points ob-rise" style="--d:620ms">Obsidian-compatible · Uses your AI agent · Self-hosted 24/7</p>
         </div>
         <div class="ob-actions ob-rise" style="--d:680ms">
           <button type="button" class="ob-primary" @click="primary()">
@@ -60,7 +59,7 @@
         x-transition:enter="ob-enter" x-transition:enter-start="ob-enter-from"
         x-transition:leave="ob-leave" x-transition:leave-end="ob-leave-to">
         <h2 class="ob-title">Where should your notes live?</h2>
-        <p class="ob-lead">Start fresh, or use a folder you already have. You can change this later.</p>
+        <p class="ob-lead">Plain Markdown files in a folder you own. You can change this later.</p>
         <div class="ob-body ob-body--fill" role="radiogroup" aria-label="Notes folder">
           <template x-for="o in options()" :key="o.path">
             <div class="ob-opt">
@@ -105,8 +104,8 @@
       <section class="ob-step" x-show="is('ai')" x-cloak
         x-transition:enter="ob-enter" x-transition:enter-start="ob-enter-from"
         x-transition:leave="ob-leave" x-transition:leave-end="ob-leave-to">
-        <h2 class="ob-title">Connect your AI</h2>
-        <p class="ob-lead">Hylo is powered by an AI agent already on your computer. Pick the one to use.</p>
+        <h2 class="ob-title">Connect your AI agent</h2>
+        <p class="ob-lead">Hylo runs an agent you're already signed in to. No API key needed.</p>
 
         <div class="ob-scan" :class="'is-' + agentPhase + (revealed.length ? ' has-found' : '')">
           <span class="ob-radar" aria-hidden="true"></span>
