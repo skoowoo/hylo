@@ -972,11 +972,12 @@ func (g *Vault) RenameNote(p Path, newName string) (Path, int64, error) {
 
 	g.rewriteDependentPathRefs(knowledgeDependents, indexDependents, p, newPath)
 
-	g.emit("vault_delete", p.String(), false, time.Now())
-	g.emit("vault_create", newPath.String(), false, time.Now())
+	// Rename first: open editor tabs follow it before the old path's delete.
 	g.emitEvent(plugin.Event{
 		Type: plugin.EventVaultRename, Path: newPath.String(), OldPath: p.String(), Time: time.Now(),
 	})
+	g.emit("vault_delete", p.String(), false, time.Now())
+	g.emit("vault_create", newPath.String(), false, time.Now())
 	return newPath, jobID, nil
 }
 

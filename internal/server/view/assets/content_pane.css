@@ -613,7 +613,7 @@
     html.macos .content-pane.open .content-pane-tool-bar { -webkit-app-region: drag; cursor: default; }
     html.macos .content-pane.open .content-pane-tool-bar button,
     html.macos .content-pane.open .content-pane-tool-bar input,
-    html.macos .content-pane.open .content-pane-tabstrip,
+    html.macos .content-pane.open .content-pane-tab,
     html.macos .content-pane.open .content-pane-tabs-menu,
     html.macos .content-pane.open .content-pane-bot-menu,
     html.macos .content-pane.open .content-pane-more-menu { -webkit-app-region: no-drag; }

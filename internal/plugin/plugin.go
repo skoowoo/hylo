@@ -26,7 +26,7 @@ const (
 
 	// EventVaultRename is emitted by Vault.RenameNote once the filename change
 	// itself has committed (filesystem + metadata DB). Path carries the new
-	// vault-absolute path, OldPath the previous one. Always paired with a
+	// vault-absolute path, OldPath the previous one. Always followed by a
 	// vault_delete(OldPath)+vault_create(Path) pair (same as MoveNote), so
 	// plugins that only care about content/index sync (e.g. search) don't
 	// need to special-case it — this event exists for plugins that care

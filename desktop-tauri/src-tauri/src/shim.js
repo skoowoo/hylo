@@ -123,7 +123,7 @@
   // -webkit-app-region is Chromium-only. Tag the same chrome the Go CSS marks as drag.
   function blocked(el) {
     return !!el.closest(
-      "button, a, input, textarea, select, label, .content-pane-tabstrip, .content-pane-tabs-menu, .content-pane-bot-menu, .content-pane-more-menu, .settings-modal-close"
+      "button, a, input, textarea, select, label, .content-pane-tab, .content-pane-tabs-menu, .content-pane-bot-menu, .content-pane-more-menu, .settings-modal-close"
     );
   }
   function clearDrag(root) {

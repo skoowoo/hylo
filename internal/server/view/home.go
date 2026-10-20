@@ -30,11 +30,12 @@ type homePageData struct {
 // from it and homeCtrl starts from it (#home-boot), so first paint already
 // matches what Alpine will show.
 type homeBoot struct {
-	UnreadCount int `json:"unreadCount"`
+	UnreadCount int    `json:"unreadCount"`
+	Vault       string `json:"vault"`
 }
 
 func (vh *ViewHandler) homeBoot() homeBoot {
-	var b homeBoot
+	b := homeBoot{Vault: vh.vault.Root()}
 	if vh.inbox != nil {
 		b.UnreadCount, _ = vh.inbox.UnreadCount()
 	}

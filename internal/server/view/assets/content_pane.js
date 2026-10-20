@@ -385,9 +385,13 @@
         document.addEventListener('mouseup', onUp);
       },
 
+      // Per vault: switching vaults keeps the origin, and the old tabs would
+      // point at notes the new vault doesn't have.
+      _storeKey: 'hylo.content-pane',
+
       _persist() {
         try {
-          localStorage.setItem('hylo.content-pane', JSON.stringify({
+          localStorage.setItem(this._storeKey, JSON.stringify({
             // A not-yet-materialized tab (no path) has nothing worth
             // persisting across a reload: if it's still empty, dropping it
             // is a no-op; if the user typed something,
@@ -403,7 +407,7 @@
 
       _restore() {
         try {
-          var raw = localStorage.getItem('hylo.content-pane'); if (!raw) return;
+          var raw = localStorage.getItem(this._storeKey); if (!raw) return;
           var data = JSON.parse(raw);
           if (!data || !Array.isArray(data.tabs) || !data.tabs.length) return;
           var tabs = data.tabs;
@@ -425,6 +429,7 @@
 
       initContentPane() {
         window.__hyloContentPane = this;
+        try { this._storeKey += ':' + JSON.parse(document.getElementById('home-boot').textContent).vault; } catch(_) {}
         this._restore();
         try {
           var savedRatio = parseFloat(localStorage.getItem('hylo.splitRatio'));
@@ -518,8 +523,16 @@
         // Sync pane state from other section views (each section is a separate
         // WebContentsView with its own JS context; storage events cross view boundaries).
         window.addEventListener('storage', function(e) {
-          if (e.key !== 'hylo.content-pane' || !e.newValue || self.contentPaneOpen) return;
+          if (e.key !== self._storeKey || !e.newValue || self.contentPaneOpen) return;
           self._restore();
+        });
+        // Notes change from anywhere (CLI, bots, disk, other views), not just
+        // this pane's own actions, so tabs follow the feed.
+        if (window.__hyloLive) __hyloLive.on('notes', function(changes) {
+          changes.forEach(function(c) {
+            if (c.op === 'rename') self.noteRenamed(c.oldPath, c.path);
+            else if (c.op === 'delete') self.noteDeleted(c.path);
+          });
         });
       },
 
@@ -725,11 +738,14 @@
           var liveIdx = this.tabs.indexOf(closingTab);
           if (liveIdx < 0) return;
           i = liveIdx;
-          wasActive = (i === this.activeTab);
         }
 
-        // Clear saved state for this tab
-        __hyloEditorClearTabState(closingTab.id);
+        this._removeTab(i);
+      },
+
+      _removeTab(i) {
+        var wasActive = (i === this.activeTab);
+        __hyloEditorClearTabState(this.tabs[i].id);
 
         // Captured before the splice below — if closing this tab shifts or
         // backfills any visible chip, the survivors slide into their new
@@ -769,7 +785,8 @@
         // Fit before loading: a wider backfill can shrink the window and
         // move which tab is active.
         this._syncFit();
-        if (wasActive) {
+        // A closed pane loads its active tab when it opens.
+        if (wasActive && this.contentPaneOpen) {
           var t = this.tabs[this.activeTab];
           if (!t) return;
           var savedState = __hyloEditorRestoreTabState(t.id);
@@ -826,56 +843,33 @@
         var reqBody = {path:tab.path};
         var resp = await fetch('/api/vault/delete', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(reqBody)});
         if (!resp.ok) return;
-        clearTimeout(__hyloEditor.saveTimer); __hyloEditor.saveTimer = null; __hyloEditor.dirty = false;
-        var cur = this.activeTab;
-        var deletedTab = this.tabs[cur];
-        if (deletedTab) __hyloEditorClearTabState(deletedTab.id);
-        var beforeDelete = this.tabs.length > 1 ? this._flipCapture() : null;
-        this.tabs.splice(cur, 1);
-        if (this.tabs.length === 0) {
-          this.contentPaneOpen = false; this.activeTab = -1;
-          __hyloEditor.currentPath = ''; __hyloEditor.currentMd = ''; __hyloEditorSaveStatus('');
-          if (__hyloEditor.view) {
-            __hyloEditor.view.setState(__hyloEditor._buildState('', false, false));
-            __hyloEditorSetModeState(false, false);
-          }
-        } else {
-          this.activeTab = cur > 0 ? cur-1 : 0;
-          this._syncFit();
-          if (this.contentPaneOpen) this._prepareEntering();
-          this._flipApply(beforeDelete);
-          var nextTab = this.tabs[this.activeTab];
-          if (nextTab && nextTab.path) void __hyloContentPaneLoadNote(nextTab.path, nextTab.id, __hyloEditorRestoreTabState(nextTab.id));
-          else if (nextTab) {
-            void this._openUntitledTab(nextTab, __hyloEditorRestoreTabState(nextTab.id));
-          }
-        }
+        this.noteDeleted(tab.path);
       },
 
-      // Moving a note is driven entirely from the home list (drag a card onto
-      // a sidebar folder — see home.js's drag-and-drop handlers), not from
-      // here. These two are the seam that side needs into the editor:
-      // flush a dirty active tab before the move (so the file that actually
-      // gets renamed has the latest content) and re-point an open tab at the
-      // new path afterward (autosave targets __hyloEditor.currentPath, not
-      // tab.path — miss that and the next edit would silently recreate the
-      // note at its old spot).
+      noteDeleted(path) {
+        var idx = this.tabs.findIndex(function(t) { return t.path === path; });
+        if (idx < 0) return;
+        if (idx === this.activeTab) this.cancelRenameActiveNote();
+        if (__hyloEditor.currentPath === path) {
+          // Nothing left to save to; a pending autosave would recreate the note.
+          clearTimeout(__hyloEditor.saveTimer); __hyloEditor.saveTimer = null; __hyloEditor.dirty = false;
+        }
+        this._removeTab(idx);
+      },
+
+      // Moving a note is driven from the home list (drag a card onto a
+      // sidebar folder — see home_drag.js). It flushes a dirty active tab
+      // first so the file that moves has the latest content; the moved note's
+      // tab then closes like a deleted one.
       async flushPendingSaveFor(path) {
         if (__hyloEditor.dirty && __hyloEditor.currentPath === path) {
           clearTimeout(__hyloEditor.saveTimer); __hyloEditor.saveTimer = null;
           await __hyloEditorDoSave();
         }
       },
-      noteMoved(oldPath, newPath) {
-        var tab = this.tabs.find(function(t) { return t.path === oldPath; });
-        if (!tab) return;
-        tab.path = newPath;
-        if (__hyloEditor.currentPath === oldPath) __hyloEditor.currentPath = newPath;
-      },
-
       // Renaming only ever changes the active tab's filename, never its
       // directory (see storage.Vault.RenameNote) — dir+move is drag-and-drop
-      // only, from the sidebar (home.js), same split as noteMoved above.
+      // only, from the sidebar (home_drag.js).
       renameActiveNote() {
         var tab = this.tabs[this.activeTab];
         if (!tab || !tab.path || this.renaming) return;
@@ -1009,6 +1003,8 @@
         }
       },
 
+      // Autosave targets __hyloEditor.currentPath, not tab.path — miss it and
+      // the next edit recreates the note at the old path.
       noteRenamed(oldPath, newPath) {
         var tab = this.tabs.find(function(t) { return t.path === oldPath; });
         if (!tab) return;

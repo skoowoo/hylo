@@ -164,10 +164,9 @@ async function __hyloDragMoveNote(sourcePath, targetDir, card, targetEl) {
       var msg = (await resp.text()).trim() || 'Move failed.';
       throw new Error(resp.status === 409 ? 'A note already exists at that location.' : msg);
     }
-    var data = await resp.json();
     moved = true;
     __hyloFlyCardToTarget(card, targetEl);
-    if (window.__hyloContentPane) window.__hyloContentPane.noteMoved(sourcePath, data.path);
+    if (window.__hyloContentPane) window.__hyloContentPane.noteDeleted(sourcePath);
   } catch (e) {
     if (moved) { console.error(e); return; }
     if (targetEl) targetEl.classList.remove('drag-over');
