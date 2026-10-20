@@ -313,6 +313,10 @@
         }
       },
 
+      revealListPane() {
+        if (this.contentPaneOpen && this.splitRatio <= 0.02) this.toggleMaximizeEditor();
+      },
+
       // Drags the divider between #home-list-pane and the editor pane.
       // Ratio is list-pane's share of the space left over once the
       // sidebar and resizer are accounted for (see home.css's

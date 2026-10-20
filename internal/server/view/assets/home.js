@@ -255,6 +255,8 @@ function homeCtrl() {
     selectTag(tag) { this.go('/home/section?type=tags&tag=' + encodeURIComponent(tag)); },
 
     go(url) {
+      // A maximized editor would cover the section the user just asked for.
+      this.revealListPane();
       this.curKey = __hyloSectionKey(url);
       // Lightbox and image select-mode point at the section being left.
       // The pane itself is parked, so coming back reattaches the same nodes.
@@ -284,8 +286,9 @@ function homeCtrl() {
 
     _showChat() {
       var url = '/home/section?type=chat';
-      if (document.getElementById('chat-root')) this.curKey = __hyloSectionKey(url);
-      else this.go(url);
+      if (!document.getElementById('chat-root')) return this.go(url);
+      this.revealListPane();
+      this.curKey = __hyloSectionKey(url);
     },
 
     initChatSection() {
