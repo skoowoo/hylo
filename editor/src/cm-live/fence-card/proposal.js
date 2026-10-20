@@ -4,7 +4,7 @@ import { parseFields, injectStyle, appendText } from './fields.js';
 import { mount as mountChoices } from './choices.js';
 
 const CSS = `
-.hy-proposal{display:flex;flex-direction:column;gap:var(--space-xs,8px);padding:var(--space-sm,12px);border:1px solid var(--line-edge,rgba(24,24,27,.16));border-radius:var(--r-md,8px);font:var(--text-sm,.8125rem)/1.5 var(--font-ui,system-ui,sans-serif);color:var(--fg,#18181b)}
+.hy-proposal{display:flex;flex-direction:column;gap:var(--space-xs,8px);padding:var(--space-sm,12px) 14px;border-radius:var(--r-lg,12px);background:var(--surface-soft,#f5f5f7);font:var(--text-sm,.8125rem)/1.5 var(--font-ui,system-ui,sans-serif);color:var(--fg,#18181b)}
 .hy-proposal-title{font-weight:var(--fw-semibold,600)}
 .hy-proposal-summary{color:var(--prose-body,#27272a)}
 .hy-proposal-more{all:unset;cursor:pointer;align-self:flex-start;font-size:var(--text-xs,.75rem);color:var(--muted,#6d7080)}

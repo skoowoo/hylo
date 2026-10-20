@@ -4,12 +4,12 @@ import { parseFields, injectStyle, appendText } from './fields.js';
 import { icon } from './icons.js';
 
 const CSS = `
-.hy-receipt{display:grid;grid-template-columns:auto 1fr auto;column-gap:var(--space-xs,8px);align-items:start;padding:var(--space-sm,12px);border:1px solid var(--line-edge,rgba(24,24,27,.16));border-radius:var(--r-md,8px);font:var(--text-sm,.8125rem)/1.5 var(--font-ui,system-ui,sans-serif);color:var(--fg,#18181b);transition:opacity var(--motion-fast,100ms)}
+.hy-receipt{display:grid;grid-template-columns:auto 1fr auto;column-gap:var(--space-xs,8px);align-items:start;padding:10px 14px;border-radius:var(--r-lg,12px);background:var(--surface-soft,#f5f5f7);font:var(--text-sm,.8125rem)/1.5 var(--font-ui,system-ui,sans-serif);color:var(--fg,#18181b);transition:opacity var(--motion-fast,100ms)}
 .hy-receipt-icon{display:flex;height:1.5em;align-items:center;color:var(--s-ok,#16a34a)}
 .hy-receipt-icon svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
 .hy-receipt-title{font-weight:var(--fw-semibold,600)}
 .hy-receipt-lines{grid-column:2;margin:2px 0 0;padding:0;list-style:none;color:var(--muted,#6d7080)}
-.hy-receipt-undo{all:unset;box-sizing:border-box;grid-column:3;grid-row:1;padding:2px 10px;border:1px solid var(--line-edge,rgba(24,24,27,.16));border-radius:var(--r-sm,6px);font-size:var(--text-xs,.75rem);color:var(--fg,#18181b);background:var(--btn-bg,rgba(24,24,27,.04));cursor:pointer;white-space:nowrap}
+.hy-receipt-undo{all:unset;box-sizing:border-box;grid-column:3;grid-row:1;padding:2px 10px;border-radius:var(--r-sm,6px);font-size:var(--text-xs,.75rem);color:var(--fg,#18181b);background:var(--btn-bg,rgba(24,24,27,.06));cursor:pointer;white-space:nowrap;transition:background-color var(--motion-fast,100ms)}
 .hy-receipt-undo:hover{background:var(--btn-bg-hov,rgba(24,24,27,.1))}
 .hy-receipt-undo[disabled]{cursor:default;opacity:.5}
 .hy-receipt-undo:focus-visible{outline:2px solid rgba(var(--accent-rgb,94,106,210),.5);outline-offset:1px}
