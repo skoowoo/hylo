@@ -1,6 +1,6 @@
 {
   "name": "clip",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "private": true,
   "description": "Chrome extension: clip pages to Markdown and save via local HTTP API",
   "scripts": {
