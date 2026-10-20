@@ -4,16 +4,16 @@ Hylo's editor renders GitHub-flavored markdown plus Obsidian-style wiki syntax, 
 
 ## Basics
 
-| Format        | Syntax                                               | Notes                                                                                       |
-| ------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| Headings      | `#` … `######`                                       | Prefer ATX (`#`). Setext (`===`/`---` underlines) works but is easy to trigger by accident. |
-| Bold / italic | `**bold**`, `*italic*`                               |                                                                                             |
-| Strikethrough | `~~text~~`                                           |                                                                                             |
-| Inline code   | `` `code` ``                                         |                                                                                             |
-| Link          | `[text](https://…)`, bare `https://…`, `<https://…>` | Prefer `[text](…)` for anything the reader shouldn't see as a raw URL.                      |
-| Quote         | `> text`, nested `> >`                               | Fences and lists inside quotes work.                                                        |
+| Format | Syntax | Notes |
+| --- | --- | --- |
+| Headings | `#` … `######` | Prefer ATX (`#`). Setext (`===`/`---` underlines) works but is easy to trigger by accident. |
+| Bold / italic | `**bold**`, `*italic*` |  |
+| Strikethrough | `~~text~~` |  |
+| Inline code | `` `code` `` |  |
+| Link | `[text](https://…)`, bare `https://…`, `<https://…>` | Prefer `[text](…)` for anything the reader shouldn't see as a raw URL. |
+| Quote | `> text`, nested `> >` | Fences and lists inside quotes work. |
 | Rule | `---` on its own line | Needs a blank line above, or it underlines the paragraph into a heading. Never as the note's first line: that reads as frontmatter. |
-| HTML          | allowed                                              | Shown as tinted markup, not rendered. Avoid it; use markdown.                               |
+| HTML | allowed | Shown as tinted markup, not rendered. Avoid it; use markdown. |
 
 There is no `==highlight==`, no inline `#tag` (tags live in frontmatter, which the editor tools never touch), no callouts (`> [!note]`), no math and no footnotes. They stay as literal text.
 
@@ -56,13 +56,13 @@ Syntax highlighting covers JavaScript, TypeScript, JSON, Python, Go, Rust, Java,
 
 ## Wikilinks
 
-| Syntax                      | Meaning                                                              |
-| --------------------------- | -------------------------------------------------------------------- |
-| `[[Note name]]`             | Link to the note whose file is `Note name.md`, anywhere in the vault |
-| `[[Note name#Heading]]`     | Link to a heading in that note                                       |
-| `[[Note name\|shown text]]` | Link with different display text                                     |
-| `[[#Heading]]`              | Jump to a heading in the current note                                |
-| `[[folder/Note name]]`      | Vault path, only when two notes share a name                         |
+| Syntax | Meaning |
+| --- | --- |
+| `[[Note name]]` | Link to the note whose file is `Note name.md`, anywhere in the vault |
+| `[[Note name#Heading]]` | Link to a heading in that note |
+| `[[Note name\|shown text]]` | Link with different display text |
+| `[[#Heading]]` | Jump to a heading in the current note |
+| `[[folder/Note name]]` | Vault path, only when two notes share a name |
 
 - The target is the **file name without `.md`**, not the title inside the note. Hylo enforces unique note names, so a bare name is almost always enough.
 - Links to notes that don't exist render as broken. Confirm targets with `resolve` (or `search` for fuzzy matches) before linking.

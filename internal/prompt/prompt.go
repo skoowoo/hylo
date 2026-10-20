@@ -3,7 +3,10 @@
 // texts under text/.
 package prompt
 
-import "strings"
+import (
+	"path/filepath"
+	"strings"
+)
 
 // Kind is where a run comes from; sections use it to decide whether they apply.
 type Kind int
@@ -96,7 +99,9 @@ func Message(system, request, cwd, dir string, resume bool) string {
 	if dir == "/" {
 		sb.WriteString(" (the vault root)\n\n")
 	} else {
-		sb.WriteString(" (vault path " + dir + ")\n\n")
+		// Skills run shell commands from the root, which a bot's own folder isn't.
+		root := strings.TrimSuffix(cwd, filepath.FromSlash(dir))
+		sb.WriteString(" (vault path " + dir + "; the vault root is " + root + ")\n\n")
 	}
 	sb.WriteString("# User request\n\n")
 	sb.WriteString(request)

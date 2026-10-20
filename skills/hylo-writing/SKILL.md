@@ -1,136 +1,44 @@
 ---
 name: hylo-writing
-description: Write an article beat-by-beat, drawing from the vault's knowledge base. The user states what to write, who it's for, and what stance to take — the skill discovers relevant knowledge units and leads a choose-your-own-adventure writing journey. Use when the user wants to write something grounded in their accumulated understanding, not assemble raw notes.
+description: "Every writing request: rewriting notes, short notes or this conversation into a piece ('write up these notes', 'turn what we discussed into a note', 'draft my weekly report', 'make a WeChat version of [[X]]'); revising existing text — polish, shorten, expand, rephrase, continue, translate, title it, or just give feedback ('polish this', 'what's weak here?'); writing an article from the knowledge base; and writing rules ('never use em dashes'). '整理成一篇', '把刚才聊的写成笔记', '写个周报', '改成公众号版', '润色一下', '缩短', '换个说法', '接着写', '起个标题', '帮我看看哪里不好', '写一篇关于 X 的文章', '以后别用破折号'."
 ---
 
-<what-to-do>
+# Hylo Writing
 
-## Writing surface
+One entry for all writing. Pick the mode here, then read its workflow.
 
-If the `hylo-editor` skill is available and the `editor_*` tools are in your tool list, write the article **in the live editor**, so the user watches each beat being typed. Load `hylo-editor` before the first write and follow it. "Write a beat" then means `editor_type`, "re-read the article" means `editor_read` (it includes the user's unsaved edits), and "rewrite a beat" means `editor_rewrite`.
+Tools named here are Hylo's MCP tools (server `hylo`, maybe shown as `mcp__hylo__read`). If they aren't in your tool list, search your deferred tools for "hylo"; if still missing, say Hylo's tools are unavailable and stop.
 
-If the first editor call fails because no editor is open, ask the user to open Hylo, or ask whether to write the file directly instead. Once the article is going through the editor, every write for it stays there: don't switch to file tools mid-article.
+## Pick the mode
 
-Without the editor tools, write and re-read the article file with the regular note tools.
+First: **is there existing text to change?** If yes, it's revise. If no, ask: do they want a finished piece in one go, or an argued article they steer as it's written?
 
-## Phase 0 — Topic alignment
+| The user says | Mode | Because | Read |
+| ------------- | ---- | ------- | ---- |
+| "polish this", "shorten this paragraph", "say it another way", "continue", "what's weak here?" | **Revise** | there's text to change (quote, selection, current note) | `workflows/revise.md` |
+| "write up these notes", "turn what we discussed into a note", "draft my weekly report", "make a WeChat version", "summarize my notes on X" | **Draft** | they point at the material or name a form, and want the finished piece | `workflows/draft.md` |
+| "write an article on X", "help me write a piece arguing Y", "I want to write something but don't know what" | **Longform** | a topic or stance to develop, with them choosing the direction beat by beat | `workflows/longform.md` |
+| "never use em dashes", "all my articles use short sentences" | none | a writing rule | record it (see Voice below) |
 
-You need three things. Take what the request already says, and ask for the rest in one message:
+When unsure, don't ask: treat it as **Draft**. It makes a new note and touches no existing text, so it's the cheapest mistake.
 
-1. **What** — the topic or question the article addresses
-2. **Who** — the intended reader (their background, what they already know)
-3. **Stance** — the position or argument the article will take
+## The existing text
 
-If the user didn't say where to save the article, pick a fitting top-level folder yourself (never a nested one) and say the path in one line. Remember it.
+For revise, take the first of these that exists:
 
-Once you have those three, scan the knowledge base with `knowledge_list_indexes`.
+1. A quote in the message: the selection chip above the composer inserts `[[note]]` + `> the selected text`. This is the most reliable snapshot.
+2. The user says "the selected part" and the message has no quote: `editor_read`'s `selection`.
+3. A `[[note]]` in the message: the whole note.
+4. The note open in the editor: only when they say "this one", "here".
 
-Select 1–3 domain indexes most relevant to the topic. Read those indexes with `knowledge_read` to find matching units. If no indexes exist, scan `_knowledge/` directly.
+## Rules for every mode
 
-**Present the palette for confirmation.** Do not proceed to Phase 1 until the user signs off. Format it like this:
+- **Read the voice before writing a word.** `read /_memory/_voice.md` (skip if missing). It holds how the user writes (learned from their short notes), the rules they've stated, and their recurring forms. Its rules beat your own taste.
+- **Use only the material.** Don't invent facts, quotes or examples. Say what's missing instead of filling it.
+- **Don't ask where to save.** Pick a fitting top-level folder yourself, never a nested one.
+- **Forms** (weekly report, minutes, WeChat article, thread…): `references/forms.md`.
+- **Where the writing lands**: `references/surface.md`, for every mode. Notes are written in the live editor whenever it's available, and as files only when it isn't.
 
----
-**Sources found**
+## When the user states a writing rule
 
-| #   | Knowledge unit | What it contributes                                  |
-| --- | -------------- | ---------------------------------------------------- |
-| 1   | [[unit-name]]  | one sentence on what this unit brings to the article |
-| 2   | …              | …                                                    |
-
-**Possible gaps:** list anything you think the article needs that the knowledge base doesn't cover (if any).
-
-Then ask with `choices`, in the user's language: start writing with these; drop some; compile more notes first.
----
-
-Wait for the user to confirm, remove units, or tell you what's missing before moving on. If the user wants to add coverage: suggest they run `hylo-compile-note` on the relevant source, then re-scan and re-present the updated palette. Do not continue to Phase 1 with a palette the user hasn't confirmed.
-
----
-
-## Phase 1 — Starting beats
-
-Write 2–3 candidate **starting beats**, each drawn from different units in the confirmed palette. Each beat is a different entry point into the article — a different angle on the same topic.
-
-Show the beats before writing anything to the article file. For each, name which knowledge unit(s) it draws from, and preview where it might lead next. Then offer them as `choices`, one short label per beat.
-
-The user picks one. Then go to Phase 2.
-
----
-
-## Phase 2 — Beat-by-beat writing
-
-Loop until the article reaches a natural end:
-
-1. Write **only the chosen beat** to the article (in the editor: `editor_type` at `end`, one call per beat). Pull material from relevant knowledge units — paraphrase, quote, recombine. The units are a quarry. Preserve any time-anchored content ("as of YYYY-MM-DD") if it matters to the argument.
-2. Re-read the article (in the editor: `editor_read`).
-3. Offer 2–3 candidate **next beats** — different directions from where the article now stands. Name the knowledge unit(s) each would draw from, then offer them as `choices`, plus one to end the article here.
-4. The user picks one. Repeat.
-
----
-
-## Phase 3 — Close
-
-When the article reaches its natural end, write the final beat and stop.
-
-Then ask with `choices` whether to compile this article back into the knowledge base. If yes, trigger the `hylo-compile-note` skill on the article file. The article itself becomes a source — its argument, its synthesis, its publication date feed back as new knowledge.
-
-Finally, output the article's wiki link — derive it from the saved path by taking the filename without the `.md` extension:
-
-```
-[[Article Title]]
-```
-
-For example, if the file was saved to `essays/on-focus.md`, output `[[on-focus]]`. Output this as the last line of your response so the user can copy it directly into any note.
-
-</what-to-do>
-
-<supporting-info>
-
-## What is a beat
-
-A beat is one move in the journey. It does one thing — sets a scene, lands a point, asks a question, drops an aside, twists the angle. Then it stops, leaving the reader at a place where the next beat can pivot.
-
-A beat is sized by what it needs:
-
-- A single sentence if that's all the move is ("And then nothing happened for three weeks.").
-- A short paragraph if the move needs setup.
-- Multiple paragraphs if the beat is a self-contained vignette, argument, or example.
-
-If a "beat" needs five paragraphs and three subheadings, it's not a beat — it's two beats glued together. Split it.
-
-## Writing one beat
-
-Once a beat is picked, write _that beat only_ to the article file. Do not write the next beat.
-
-Pull material from knowledge units to populate the beat. You can paraphrase, split, recombine, or quote directly. If a unit has dated opinions or time-anchored positions, use them — "as of 2024-03, X believed Y" is more honest than flattening it to a timeless claim.
-
-**Drilling into source notes.** Knowledge units carry backlinks to the original notes they were compiled from. When the unit-level material feels thin — missing a concrete example, a specific quote, a vivid detail — follow the backlinks and read the source note directly. The source note is the unprocessed quarry; the knowledge unit is the refined extract. Use whichever layer serves the beat. If you pull something from a source note that isn't captured in its unit, note the gap — it may be worth compiling later.
-
-**Partial reads.** Use the `extract_*` tools when you don't need the whole file.
-
-## Handling knowledge gaps
-
-If a beat the user wants to write has no support in the palette, say so clearly: "The knowledge base doesn't have coverage here." Options:
-
-1. Skip this beat and pivot to what is covered.
-2. The user provides a fragment of raw material inline — treat it as a one-off quarry for this beat only, not a unit.
-3. Pause the session, compile a new note, and resume.
-
-Do not fabricate coverage that isn't in the knowledge units.
-
-## Ending the journey
-
-The article ends when the argument lands — not when the palette is exhausted. Most units will have content that doesn't make it in. That is fine; that is the point of having more understanding than any single article can hold.
-
-## Writing rhythm
-
-- Append one beat at a time. Never write ahead.
-- Re-read the article before every write (`editor_read` in the editor, from disk otherwise). Preserve user edits absolutely.
-- If the user edits a previous beat substantially, let it change what comes next.
-- If the user says "rewrite that beat" or "go back and try a different beat 3", do it — edit in place, leave the rest alone. In the editor, that is `editor_rewrite` on the beat's blocks from a fresh `editor_read`.
-- If typing in the editor comes back `interrupted`, the user has taken over. Don't retype the rest of the beat; re-read and ask how to continue.
-
-## The knowledge-writing loop
-
-Writing is not separate from knowing. When the article is done, it contains synthesis that may not exist anywhere in the knowledge base yet — the act of writing created it. Compiling the article back closes the loop: the vault gets smarter from having written.
-
-</supporting-info>
+When the user states one ("from now on…", "my articles always…"), record it there with the `hylo-memory` skill's *Record one fact*, as `pinned`, and say in one line what you kept. Then carry on with any writing they asked for in the same message.

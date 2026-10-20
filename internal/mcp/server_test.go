@@ -70,7 +70,7 @@ func TestToolsAlignWithCLI(t *testing.T) {
 		"rename", "rename_status", "resolve", "knowledge_list", "knowledge_read",
 		"knowledge_search", "knowledge_delete", "knowledge_list_indexes",
 		"extract_outline", "extract_section", "extract_code", "extract_link", "extract_list",
-		"extract_segment", "extract_tag", "tag_list", "tag_count", "tag_delete",
+		"extract_segment", "extract_tag", "tag_list", "tag_count",
 		"short_create", "short_list",
 	} {
 		if !got[name] {

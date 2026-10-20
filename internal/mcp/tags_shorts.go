@@ -49,17 +49,6 @@ func registerTagTools(s *sdk.Server, c *client.Client) {
 			return c.TagCount(in.Tag)
 		})
 
-	addTool(s, "tag_delete", "Remove all notes with this tag from the search index; note files on disk are untouched.", destructiveIdempotent,
-		func(_ context.Context, in tagReq) (*client.TagDeleteResponse, error) {
-			resp, err := c.TagDelete(in.Tag)
-			if err != nil {
-				return nil, err
-			}
-			if resp.Paths == nil {
-				resp.Paths = []string{}
-			}
-			return resp, nil
-		})
 }
 
 func registerShortTools(s *sdk.Server, c *client.Client) {

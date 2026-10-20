@@ -50,7 +50,7 @@ func TestMessageResumeSendsOnlyTheRequest(t *testing.T) {
 	if !strings.HasPrefix(full, "# Instructions\n\nsys") || !strings.Contains(full, "directory: /vault (the vault root)") || !strings.HasSuffix(full, "# User request\n\nhi") {
 		t.Fatal(full)
 	}
-	if sub := Message("sys", "hi", "/vault/_bots/_news", "/_bots/_news", false); !strings.Contains(sub, "directory: /vault/_bots/_news (vault path /_bots/_news)") {
+	if sub := Message("sys", "hi", "/vault/_bots/_news", "/_bots/_news", false); !strings.Contains(sub, "directory: /vault/_bots/_news (vault path /_bots/_news; the vault root is /vault)") {
 		t.Fatal(sub)
 	}
 	if got := Message("sys", "hi", "/vault", "/", true); got != "hi" {

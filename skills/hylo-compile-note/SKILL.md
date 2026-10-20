@@ -5,112 +5,86 @@ description: "Compiles one raw note into knowledge units under /_knowledge/ (tri
 
 # Hylo Compile Note
 
-Compiles a single raw note into **knowledge units** — wiki-style pages that capture the author's accumulating understanding of the entities and concepts that matter to them.
+Compiles one raw note into **knowledge units**: wiki-style pages holding the author's growing understanding of the entities that matter to them.
 
-Calls below are Hylo's MCP tools (server `hylo`); your client may show them prefixed, e.g. `mcp__hylo__read`. If they are not in your tool list, search your deferred tools for "hylo".
+Tools named here are Hylo's MCP tools (server `hylo`, maybe shown as `mcp__hylo__read`). If they aren't in your tool list, search your deferred tools for "hylo"; if still missing, say Hylo's tools are unavailable and stop.
 
-**Run all five steps to completion without stopping.** Do not present intermediate results, ask for confirmation, or pause between steps. Pre-compile (Step 3) is internal — never output it to the user. Only speak at the end (Step 5 summary).
+**Run all four steps without stopping**: no intermediate results, confirmations or pauses. Speak only at the end of Step 4.
 
----
-
-## Inputs
-
-1. **Note path** — the raw note to compile (vault-absolute or filesystem path)
-2. **Knowledge directory** — where knowledge units live (default: `_knowledge/` relative to cwd, which is always the vault root)
-
----
+The input is the note to compile (a vault-absolute or filesystem path). Units live in `/_knowledge/`.
 
 ## Step 1 — Read the note
 
-Read the full content of the target note. Note its path and **original publication date** — check in order: YAML front matter (`date` / `published`), filename date prefix, article/podcast header, or any explicit timestamp in the body. Record this as `source_date`. If none is found, mark `source_date` as unknown.
+Read it in full. Record:
 
-Also record whose words the note holds, as `source_perspective`:
+- `source_date`, its **original publication date**, from the first of: frontmatter `date` / `published`, a date prefix in the filename, an article or podcast header, a timestamp in the body. None found: unknown.
+- `source_perspective`, whose words it holds. `own`: the author's writing (short notes, journal, drafts, notes on their own projects, their own podcast or product). `external`: someone else's (clipped articles, transcripts of others' podcasts or talks, book excerpts). Judge by content, not folder; a clip with the author's comments stays `external` unless the comments carry the note.
 
-- `own` — the author's own writing: short notes, journal, drafts, notes on their own projects or work, their own podcast or product.
-- `external` — what someone else wrote or said: clipped articles, transcripts of other people's podcasts or talks, book excerpts.
+## Step 2 — Load the relevant index
 
-Judge by the content, not only the folder; a clip with long comments of the author's own is still `external` unless the comments carry the note.
+`knowledge_list_indexes`, pick the 1–2 domains closest to the note, and read only those indexes for their unit tables. No indexes: `knowledge_list {"kind": "knowledge"}` and build a compact table yourself (title | entity_type | tags | first paragraph, ≤80 chars).
 
----
+## Step 3 — Pre-compile (internal, never shown)
 
-## Step 2 — Load relevant knowledge index
+List the units to create or update, without writing content yet.
 
-List available domain indexes with `knowledge_list_indexes`. It returns `indexes`, a list of `{"domain": "...", "path": "..."}` objects. Based on the note's content, select the 1–2 domains most relevant to what the note covers. Read only those index files to obtain the unit table for this compilation.
+A unit is a wiki page for a **key entity** the note treats with substance: a person, company, book, concept, technique, place, event, product, method, anything. It qualifies only if all three hold; otherwise fold the content into another unit:
 
-If the output is empty (no indexes exist), fall back to cold start: scan `<knowledge-dir>` directly and build a compact table (title | entity_type | tags | first paragraph ≤80 chars).
+1. **A stable name**: a recognized term or proper noun, not a sentence ("the argument that…").
+2. **Depth to accumulate**: mechanisms, tensions, implications, not just a definition. One clear defining sentence, and more to say beyond it.
+3. **It will recur** across notes from different contexts and dates.
 
----
+Calibrate:
 
-## Step 3 — Pre-compile (internal, not shown to user)
+- **Too broad**: the title is a domain ("AI Trends"). Find the specific entity the note advances.
+- **Too narrow**: a sub-point, data point, metric, dependent sub-argument or passing mention. Fold it in.
+- **Two units or one**: split when they have different cores that would grow independently; keep one as a sub-point when it's an example or implication of the other.
 
-Scan the note and produce a **unit manifest** — a list of knowledge units to create or update. Do not generate any content yet.
+Manifest (may be empty):
 
-### What qualifies as a knowledge unit
+| unit name | entity_type | operation |
+| --- | --- | --- |
+| <unit title> | <freeform> | create |
+| <unit title> | <freeform> | update |
 
-A knowledge unit is a wiki page for any **core or key entity** in the note that has depth worth accumulating. There are no fixed types — an entity can be a person, company, book, concept, technique, place, event, story, product, methodology, or anything the note treats with substance.
-
-### Three qualifying questions
-
-Before adding a unit to the manifest, answer all three:
-
-1. **Does it have a stable name?** A recognized term or proper noun — not a sentence ("the argument that..."). Unnamed ideas belong inside another unit.
-2. **Does it have depth to accumulate?** If the content would just restate a definition, there's nothing to compile. A unit needs room to grow — mechanisms, tensions, implications, meaning.
-3. **Will it recur?** Would this entity appear across notes from different contexts and dates? If yes, it belongs here. One-off references don't.
-
-If any answer is no, fold the content into an existing unit instead.
-
-### Granularity calibration
-
-**Too broad** — the title is a domain, not an entity ("AI Trends"). Fix: find the specific entity the note actually advances.
-
-**Too narrow** — a sub-point or isolated fact with no room to grow. Fix: fold into the relevant unit.
-
-**Right size** — something you'd naturally treat as its own subject. One clear defining sentence, and more to say beyond it.
-
-### Split vs. sub-point
-
-Create two units when they have **different cores** and would grow independently. Keep as a sub-point when one is an example or implication of the other — separating them would leave both thin.
-
-### Don't add to the manifest
-
-- Data points and metrics
-- Sub-arguments that don't stand alone
-- Passing references with no analysis
-
-### Output: unit manifest
-
-| unit name      | entity_type  | operation |
-| -------------- | ------------ | --------- |
-| \<unit title\> | \<freeform\> | create    |
-| \<unit title\> | \<freeform\> | update    |
-
-`entity_type` is a short descriptive label for what this entity is (e.g. `person`, `company`, `book`, `concept`, `event`, `technique`). It is freeform metadata — there are no type restrictions and no templates tied to it.
-
-The manifest may be empty if the note has no content worth compiling. Immediately continue to Step 4.
-
-For every unit marked `update` in the manifest: read its existing file at `<knowledge-dir>/<unit-name>.md` now, before Step 4 begins. Do not proceed to Step 4 until all existing files are loaded.
-
----
+`entity_type` is a short freeform label (`person`, `company`, `book`, `concept`, `event`, `technique`…), with no templates tied to it. Before Step 4, read the file of every `update` unit at `/_knowledge/<unit-name>.md`.
 
 ## Step 4 — Compile
 
-For each unit in the manifest, check its `operation` and read the corresponding file:
-
-- **`create`** → read `references/create.md` and follow it completely.
-- **`update`** → read `references/update.md` and follow it completely.
-
-
-Complete one unit fully before moving to the next. After all units are done, confirm in prose: which were created, which updated, and what changed in each.
-
----
+Each unit follows *Unit format* below plus its operation's file: `references/create.md` or `references/update.md`. Finish one unit before the next. Then say which were created, which updated, and what changed in each.
 
 ## Language
 
-Match the language of existing units in the knowledge directory. If no units exist, use the language of the source note. Dates are always `YYYY-MM-DD`. When the vault language is not English, translate all section names accordingly.
+Match the language of the existing units, or of the note when there are none; section names follow it (`## 来源`). Dates are `YYYY-MM-DD`.
 
-## Time attribution
+## Time
 
-Knowledge units must anchor time to the **original publication date of the source material**, not the compilation date.
+Anchor time to the source's **original date**, not the compile date: write "as of <source_date>" for anything time-sensitive. When `source_date` is unknown, leave the time out or say "date unknown"; never use today's date.
 
-- If `source_date` is known: use it when writing any time-sensitive content in the unit (e.g. "as of YYYY-MM-DD", "at the time of publication").
-- If `source_date` is unknown: omit the time reference or mark it as "date unknown". Never substitute today's date.
+## Unit format
+
+**Content.** Choose and name sections freely; let the entity dictate the structure (a person, a book, a company and a technique each call for different organization). Ask what the author needs to know about it when they return later. A unit holds only what's most important: source notes are the permanent record, the unit is a living distillation.
+
+**Two required sections:**
+
+- `## Related Knowledge` — wikilinks to other knowledge units, each with a brief note on the relationship. Omit it when there are none.
+- `## Sources` — always the last section: one `- [[<note-stem>]]` per source note, never duplicated. The stem is the filename without path or extension (`/notes/2024-01-15 Weekly Review.md` → `[[2024-01-15 Weekly Review]]`).
+
+**Frontmatter:**
+
+```yaml
+---
+kind: knowledge
+title: <Title>
+entity_type: <freeform label>
+tags: [tag1, tag2]
+source_notes:
+  - /path/to/note.md
+perspective: own   # own | external | mixed
+created_at: YYYY-MM-DDTHH:MM:SSZ
+last_compiled_at: YYYY-MM-DDTHH:MM:SSZ
+compile_count: 1
+---
+```
+
+**Tags.** Call `tag_list` first. Decide the tags that describe the unit, then swap each for an existing equivalent (same concept, other language or spelling: `独立开发` ↔ `indie-dev`). Keep a new tag only when no equivalent exists.

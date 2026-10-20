@@ -4,13 +4,9 @@ Dig up ideas and material for something the user is thinking about or about to w
 
 **Gather to completion, then answer once.**
 
----
-
 ## Step 1 — Get the seed
 
 A topic, a question, a half-formed idea, or a draft. From a draft, take its main claims and the gaps it leaves. If the seed is just "give me something to write about", read `/_memory/_goals.md` and `/_memory/_state.md` and recent short notes (`short_list {"latest": 14}`) for what's on their mind, and start there.
-
----
 
 ## Step 2 — Gather from four places
 
@@ -20,8 +16,6 @@ A topic, a question, a half-formed idea, or a draft. From a draft, take its main
 4. **Old and forgotten**: search without a date filter, and prefer what hasn't been touched for a long time.
 
 Search with several phrasings, as in finding. Read only the parts you'll use.
-
----
 
 ## Step 3 — Answer
 

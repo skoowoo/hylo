@@ -15,7 +15,7 @@ What you did by hand earlier in the chat (curl calls, URLs, API parameters) is n
 2. `skills_catalog` (add `category` when the job clearly fits one): a fitting skill is part of the plan, marked as already added or not. When several fit, offer them as multi-pick `choices`.
 3. Nothing fits but the job reaches outside the vault: say in the plan that there's no ready skill for it, so the bot will search the web itself each run.
 
-Don't add skills the job doesn't need. Built-in skills are on for the main bot already; any other bot starts with none.
+Don't add skills the job doesn't need. Built-in skills are on for the main bot already; any other bot starts with none. A bot that writes pieces needs `hylo-writing` turned on, plus `hylo-editor` if it writes live in the editor.
 
 ## Adding one
 

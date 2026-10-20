@@ -1,5 +1,4 @@
 [
-  {"name": "hylo-writing", "repo": "skoowoo/hylo", "category": "writing"},
   {"name": "deep-reading-analyst", "repo": "yyh211/claude-meta-skill", "category": "reading",
    "description": "Read a clip or article for its argument, gaps, and what to do with it."},
   {"name": "podwise", "repo": "hardhackerlabs/podwise-cli", "category": "podcast"},
@@ -7,11 +6,8 @@
   {"name": "humanizer", "repo": "blader/humanizer", "category": "writing"},
   {"name": "humanizer-zh", "repo": "op7418/Humanizer-zh", "category": "writing",
    "description": "Polish Chinese prose: cut stock phrasing, keep the facts and the author's voice."},
-  {"name": "writing-beats", "repo": "mattpocock/skills", "category": "writing"},
   {"name": "writing-fragments", "repo": "mattpocock/skills", "category": "writing",
    "description": "Mine unstructured fragments into one file before an article has a shape."},
-  {"name": "writing-shape", "repo": "mattpocock/skills", "category": "writing",
-   "description": "Shape a pile of raw notes into an article, paragraph by paragraph."},
   {"name": "daily-ai-news", "repo": "yyh211/claude-meta-skill", "category": "news",
    "description": "Daily AI news from AI news sites and web search, with links to the originals."},
   {"name": "hackernews", "repo": "okou-ai/okou-skills", "category": "news",

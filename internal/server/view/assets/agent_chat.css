@@ -401,8 +401,11 @@
     }
     .msg-user-bubble.prose > :last-child { margin-bottom: 0; }
 
+    /* Full row width, not shrink-to-fit: cards size themselves from it, and a
+       width that followed their own layout let choices flip between row and column. */
     .msg-assistant-wrap {
-      max-width: 100%;
+      flex: 1 1 auto;
+      min-width: 0;
       display: flex;
       flex-direction: column;
       gap: 0.4rem;

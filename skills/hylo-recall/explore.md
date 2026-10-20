@@ -4,11 +4,9 @@ Show the user the shape of what they know: which areas it falls into and how big
 
 `/_knowledge` itself is flat, one file per unit, so listing it shows only names. The structure lives in the domain indexes, `/_knowledge/_indexes/<Domain>.md`: frontmatter `unit_count`, then a table row per unit (Title, Type, Tags, Summary, Path).
 
-The commands below run in a shell at the vault root, which is your working directory. Without a shell, use the tool noted after each one.
+Run the commands below from the vault root: your instructions give its path, so `cd` there first when your working directory is a bot's folder. Without a shell, use the tool noted after each one.
 
 **Run all steps to completion without stopping. Only speak at the end (Step 5).**
-
----
 
 ## Step 1 — Skeleton: areas and their size
 
@@ -28,8 +26,6 @@ find _knowledge -maxdepth 1 -name '*.md' | wc -l
 
 (Without a shell: `status`, whose `knowledge_notes` also counts the index files.) If noticeably more units exist than the indexes hold, note it for Step 5; don't fix the indexes yourself.
 
----
-
 ## Step 2 — Sources: where it comes from
 
 Notes per top-level folder, leaving out Hylo's own folders except short notes:
@@ -45,8 +41,6 @@ grep -h '^perspective:' _knowledge/*.md | sort | uniq -c
 ```
 
 Units with no `perspective` were compiled before it existed; judge the mix from the folder names instead (a clippings folder is what they read, short notes and a journal are their own). Without a shell, skip this step and say the sources weren't counted.
-
----
 
 ## Step 3 — Time: what is growing, what went quiet
 
@@ -65,13 +59,9 @@ grep -oF -e '/_knowledge/<Title A>.md' -e '/_knowledge/<Title B>.md' … _knowle
 - **Growing**: the domains with the most units updated in the last 30 days (`updated_at`).
 - **Quiet**: domains with 5 or more units and none updated in the last 90 days.
 
----
-
 ## Step 4 — Goals: does it line up
 
 Read the `## Active` items of `/_memory/_goals.md`. For each goal, find the domain or units it draws on (index names, or `knowledge_search` on its key words). Mark it **well covered**, **thin** (1–2 units) or **nothing yet**. No goals file: skip this step.
-
----
 
 ## Step 5 — Answer
 
@@ -80,4 +70,4 @@ Read the `## Active` items of `/_memory/_goals.md`. For each goal, find the doma
 3. If the indexes were behind (Step 1), one line saying how many units aren't indexed yet and offering to index them.
 4. A `choices` block with 3–4 next steps in the user's language, such as: open up one domain (name the largest), what went quiet, how this lines up with my goals, index the missing units (only when they were behind).
 
-A pick of one domain: read its index and show its units grouped by type or tag, with the summaries. A pick of a quiet area or a unit: hand over to Review (how a view changed) or Ask. Index the missing units: use the `hylo-index-knowledge` skill.
+A pick of one domain: read its index and show its units grouped by type or tag, with the summaries. A pick of a quiet area or a unit: hand over to Find (a topic, or how a view changed over time). Index the missing units: use the `hylo-index-knowledge` skill.

@@ -99,7 +99,7 @@ flowchart TB
         direction TB
         MP["prompt: bot_hylo.md（内置）"]
         MC["cwd: / （vault 根）"]
-        MS["skills: 8 个 DefaultSkills 常开 + 用户启用的"]
+        MS["skills: 9 个 DefaultSkills 常开 + 用户启用的"]
         MT["内置 triggers（setup_api.go 的 hyloBot）"]
     end
     subgraph Other["其他 bot"]
@@ -140,8 +140,8 @@ flowchart LR
     L1 & L2 --> AG["在该 cwd 启动的 agent<br/>按 description 自行加载"]
 ```
 
-- **DefaultSkills**（`internal/skills/manager.go`）就是 `skills/embed.go` 嵌进程序的那些目录，在 `/` 常开、不能关：bots、compile-note、editor、index-knowledge、memory、notes、recall、setup。每次启动和程序里的版本比对，不一致就整目录覆盖，用户改动不保留；手动链接进来的（开发时指向源码）不动。安装器不再复制 skill。主 bot 的 cwd 是 `/`，所以都能用；其他 bot 的 cwd 不在 `/`，默认一个都没有。
-- **目录里的 skill**（`internal/skills/catalog.json`）：Hylo 自带的 hylo-writing，以及外部的 news、podcast、reading、writing 等。要先 `skills_add`，再对某个 bot `skills_enable`。
+- **DefaultSkills**（`internal/skills/manager.go`）就是 `skills/embed.go` 嵌进程序的那些目录，在 `/` 常开、不能关：bots、compile-note、editor、index-knowledge、memory、notes、recall、setup、writing。每次启动和程序里的版本比对，不一致就整目录覆盖，用户改动不保留；手动链接进来的（开发时指向源码）不动。安装器不再复制 skill。主 bot 的 cwd 是 `/`，所以都能用；其他 bot 的 cwd 不在 `/`，默认一个都没有。
+- **目录里的 skill**（`internal/skills/catalog.json`）：外部的 news、podcast、reading、writing 等。和内置 skill 职责重叠的不进目录（如 writing-beats、writing-shape 与 hylo-writing 重叠），免得两个 description 抢同一句话。要先 `skills_add`，再对某个 bot `skills_enable`。
 - cwd 不是权限边界，它只决定 agent 能**发现**哪些 skill。
 
 ### 4.2 Skill 内部结构
@@ -151,14 +151,14 @@ flowchart LR
 | Skill | 结构 | 职责 |
 | --- | --- | --- |
 | hylo-notes | 单文件 | 存哪、改删边界；查找交给 hylo-recall |
-| hylo-editor | SKILL + `references/formats.md` | 在打开的编辑器里实时写；Hylo 的 markdown 方言 |
+| hylo-editor | SKILL + `references/formats.md` | `editor_*` 工具怎么用；Hylo 的 markdown 方言。写什么归 hylo-writing |
 | hylo-compile-note | SKILL + `references/{create,update}.md` | 一篇笔记 → 若干知识单元 |
 | hylo-index-knowledge | 单文件 | 维护 `/_knowledge/_indexes/` 的领域索引 |
 | hylo-memory | 单文件，两个任务 | 从近期短笔记和知识单元提取记忆；或记下一条事实 |
 | hylo-recall | 路由 + `find.md` / `inspire.md` / `review.md` / `explore.md` | 找（资源、话题、观点、相关内容，不限时间）/ 灵感素材 / 回顾（周、月、随机翻历史）/ 探（按领域索引和文件树看全貌），只输出到对话 |
 | hylo-bots | 路由 + `workflows/{create,update,delete,undo}` + `references/{cards,skills,system-prompt,triggers}` | 建、改、删、撤销 bot 和 trigger，挑选 skill |
 | hylo-setup | 路由 + `steps/*`（intro → language → about-you → news-bot → compile → channels → wrap-up） | 首次引导，进度写在进度文件里 |
-| hylo-writing（目录） | 单文件 | 按段落节奏写文章，素材来自知识单元 |
+| hylo-writing | 路由 + `workflows/{draft,revise,longform}` + `references/{beats,forms,surface}` | 写作的统一入口：成文 / 改稿（意见、候选、替换）/ 长文；共用文风（`_voice.md`）、格式、落点三条规则 |
 
 ### 4.3 Skill 之间的依赖
 
@@ -171,9 +171,12 @@ flowchart LR
     setup -->|language 步骤：改写引导文| editor[hylo-editor]
     setup -.->|compile 步骤调 compile 工具<br/>→ compile_requested 事件<br/>→ 主 bot Compiler trigger| compile[hylo-compile-note]
     compile -.->|trigger_compile.md 第 2 步| index[hylo-index-knowledge]
-    notes[hylo-notes] -->|实时写| editor
-    writing[hylo-writing] -->|实时写| editor
+    notes[hylo-notes] -->|写一篇 / 改一段| writing[hylo-writing]
+    writing -->|实时写| editor
     writing -->|写完可编译回知识库| compile
+    writing -->|文风规则记进 _voice.md| memory
+    writing -->|意见：对照旧笔记| recall[hylo-recall]
+    recall -->|灵感之后写成文| writing
     bots -.->|capabilities / skills_catalog| ext[目录里的外部 skill]
     botprompt["bot_hylo.md"] -->|记下关于用户的事| memory
     caps["capabilities.md"] -->|提议自动化 / 改 / 撤销| bots
@@ -188,14 +191,14 @@ flowchart LR
     N["普通笔记<br/>顶层文件夹/*.md"] -->|hylo-compile-note| K["知识单元<br/>/_knowledge/*.md"]
     WC["/Web Clips/"] -->|同上，自动| K
     K -->|hylo-index-knowledge| I["领域索引<br/>/_knowledge/_indexes/"]
-    SN["短笔记<br/>/_shorts"] -->|hylo-memory 提取| MEM["/_memory/ 6 个文件<br/>identity, goals, state,<br/>preferences, beliefs, people"]
+    SN["短笔记<br/>/_shorts"] -->|hylo-memory 提取| MEM["/_memory/ 7 个文件<br/>identity, goals, state,<br/>preferences, beliefs, people, voice"]
     K -->|hylo-memory 提取| MEM
     MEM -->|vault.md：每次运行按任务读| ALL[所有非 OneShot 运行]
-    I & K -->|检索| RW["hylo-recall（找、灵感、回顾、探，只输出到对话）<br/>hylo-writing（写出文章）"]
+    I & K -->|检索| RW["hylo-recall（找、灵感、回顾、探，只输出到对话）<br/>hylo-writing（成文、改稿、长文）"]
 ```
 
 - **知识**：compile-note 负责写，index-knowledge 负责建索引，其他 skill 只读。读的时候先看索引，再看单元，再看原文，最后才全文搜索（`vault.md` 规定的顺序，所有运行共用）。每个单元的 `perspective`（own / external / mixed）由 compile-note 写入，memory 和 recall 据此区分“你写的”和“你读到的”。
-- **记忆**：只有 hylo-memory 写。读的规则在 `vault.md`，所有运行共用。
+- **记忆**：只有 hylo-memory 写。读的规则在 `vault.md`，所有运行共用。`_voice.md` 只记怎么写：后台只从短笔记学写法（短笔记是用户原样打出的字，知识单元经过编译改写），加上明确说过的规则和确认过的格式。写作时必读，衰减窗口 180 天。
 - **hylo-memory 的提取规则**：自己写的内容可以提取身份、目标、观点等；外部来源只提取偏好。分辨内外靠知识单元的 `source_notes`，再对照 `_identity.md` 和 `_goals.md`。它常在后台 trigger 里运行，所以不向用户提问。
 
 ---
@@ -264,5 +267,5 @@ sequenceDiagram
 
 - **Trigger prompt 靠 skill 名字耦合**：`trigger_compile.md`、`trigger_recall_*.md` 直接写 skill 名。`TestHyloBotTriggersAreValid` 检查主 bot 的 prompt 里出现的 `hylo-*` 都是内置 skill；内置 skill 改名时，在 `skills.Retired` 登记旧名，启动时会改写数据库里各 bot 和 trigger 存的 prompt 副本。
 - **“找不到工具就搜 deferred tools”在每个 skill 里重复一遍**：在 vault 目录里直接启动 Claude Code 时没有 Hylo 的 system prompt，只能靠这句话找到工具。这是有意保留的；改 MCP server 名时要和 `mcp.md` 一起改。
-- **“存哪”的策略写了两处**：`bot_hylo.md` 说“短想法进今天的短笔记，长的放合适的顶层文件夹，不问用户”，hylo-notes 有同样的规则表。前者是主 bot 的行为准则，后者是具体做法，改的时候要保持一致。
+- **“存哪”只在 hylo-notes 定义**：`bot_hylo.md` 只说“交给 hylo-notes，不问存哪”；hylo-writing 只保留一句“自己挑顶层文件夹”。改存放规则时改 hylo-notes 的表。
 - **section 文本只随第一轮发送**：改 prompt 后要新开会话验证，见第 1 节。

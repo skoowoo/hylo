@@ -2,14 +2,12 @@
 
 Looks back. Two kinds:
 
-| Kind              | The user asks                                                         | Section below    |
-| ----------------- | --------------------------------------------------------------------- | ---------------- |
-| **Periodic**      | "weekly review", "回顾一下这周/这个月": everything from a past stretch | Periodic review  |
+| Kind | The user asks | Section below |
+| --- | --- | --- |
+| **Periodic** | "weekly review", "回顾一下这周/这个月": everything from a past stretch | Periodic review |
 | **Random look back** | "随便翻翻", "random look back", "anything I've forgotten": history at random | Random look back |
 
 **Run all steps to completion without stopping. Only speak at the end.** Say it in the conversation; never write a file.
-
----
 
 ## Periodic review
 
@@ -63,15 +61,13 @@ Omit any section with nothing in it.
 - <fast-growing threads, open questions, loose ends>
 ```
 
----
-
 ## Random look back
 
 Surface a few things from the past they've likely forgotten, chosen because they are interesting now, not just old.
 
 ### Step 1 — Draw candidates
 
-About 20 notes and units not touched for 90 days or more, at random:
+About 20 notes and units not touched for 90 days or more, at random, from the vault root (`cd` there first when your working directory is a bot's folder):
 
 ```bash
 find . -name '*.md' -not -path './.*' -not -path './_knowledge/_indexes/*' -not -path './_memory/*' -not -path './_bots/*' -not -path './_setup/*' -mtime +90 | sort -R | head -20

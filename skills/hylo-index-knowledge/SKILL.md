@@ -7,43 +7,22 @@ description: "Adds knowledge units that aren't in any domain index to /_knowledg
 
 Scans the knowledge directory, finds units not yet in any index, and adds them. Running this skill repeatedly is safe and always converges — it only ever adds missing entries, never rewrites existing ones.
 
-Domain index files live at `<knowledge-dir>/_indexes/<Domain>.md`. The compile skill matches a note to a domain by the index filename alone (e.g. `AI.md`, `Business.md`).
+Domain index files live at `/_knowledge/_indexes/<Domain>.md`. The compile skill matches a note to a domain by the index filename alone (e.g. `AI.md`, `Business.md`).
 
 A unit may appear in **at most 2** indexes: one primary domain, one secondary only when the unit genuinely straddles two.
 
-Calls below are Hylo's MCP tools (server `hylo`); your client may show them prefixed, e.g. `mcp__hylo__read`. If they are not in your tool list, search your deferred tools for "hylo".
+Tools named here are Hylo's MCP tools (server `hylo`, maybe shown as `mcp__hylo__read`). If they aren't in your tool list, search your deferred tools for "hylo"; if still missing, say Hylo's tools are unavailable and stop.
 
 **Run all steps to completion without stopping. Only speak at the end (Step 4 summary).**
 
----
-
-## Inputs
-
-- **Knowledge directory** — default: `_knowledge/` (relative to cwd, which is always the vault root)
-
-The index directory is always `<knowledge-dir>/_indexes/`. Create it if it does not exist.
-
----
-
 ## Step 1 — Find unindexed units
 
-Scan all knowledge units:
-
-```bash
-find <knowledge-dir> -name "*.md" -not -path "*/_indexes/*" | sort
-```
-
-Scan all existing index files and collect every `Path` value from their tables:
-
-```bash
-find <index-dir> -name "*.md" | sort
-```
+- All units: `knowledge_list {"kind": "knowledge"}`.
+- All indexes: `knowledge_list_indexes`, then `knowledge_read` each and collect every `Path` value from its table.
 
 A unit is **unindexed** if its vault-absolute path (e.g. `/_knowledge/Vertical Agent.md`) does not appear in any index table. Build a list of only these units.
 
 If all units are already indexed, report and stop.
-
----
 
 ## Step 2 — Read unindexed units
 
@@ -57,8 +36,6 @@ Vertical Agent | concept     | [ai, agent]   | AI product focused on a specific 
 Jane Smith     | person      | [founder, ai] | Founder of SophiaPro, AI startup                 | /_knowledge/Jane Smith.md
 ```
 
----
-
 ## Step 3 — Assign and update indexes
 
 For each unindexed unit, determine domain assignment:
@@ -71,7 +48,7 @@ For each unindexed unit, determine domain assignment:
 
 4. **Domain names** should be broad and stable (e.g. `AI`, `Business`, `Science`, `People`, `Philosophy`). Don't name a domain after a single entity unless it anchors a large cluster.
 
-For each affected domain index, append the new rows and update `unit_count` and `updated` in the frontmatter. If the index file does not exist yet, create it:
+For each affected domain index, add the new rows, update `unit_count` and `updated` in the frontmatter, and write the whole file back with `create` + `force`. A new domain is a new file at `/_knowledge/_indexes/<Domain>.md`, written with `create`:
 
 ```markdown
 ---
@@ -90,8 +67,6 @@ updated: <YYYY-MM-DD>
 ```
 
 Keep rows sorted alphabetically by Title within each index file.
-
----
 
 ## Step 4 — Report
 

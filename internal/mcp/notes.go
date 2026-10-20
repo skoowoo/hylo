@@ -111,7 +111,7 @@ func registerNoteTools(s *sdk.Server, c *client.Client) {
 			return c.Status()
 		})
 
-	addTool(s, "list", "List notes, most recently updated first.", readOnly,
+	addTool(s, "list", "List notes, most recently updated first; kind narrows it to raw notes, short notes, knowledge units or indexes.", readOnly,
 		func(_ context.Context, in listReq) (notesOut, error) {
 			entries, err := notes.List(c, notes.ListQuery{
 				Dir:   in.Path,
@@ -133,7 +133,7 @@ func registerNoteTools(s *sdk.Server, c *client.Client) {
 			return c.Compile(in.Path)
 		})
 
-	addTool(s, "search", "Full-text search over notes by filename, content or tag.", readOnly,
+	addTool(s, "search", "Full-text search over every note, knowledge units and short notes included, by filename, content or tag.", readOnly,
 		func(_ context.Context, in searchReq) (notes.SearchResult, error) {
 			return notes.Search(c, notes.SearchQuery{Query: in.Query, Field: in.Field, Limit: in.Limit})
 		})

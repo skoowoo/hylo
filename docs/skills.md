@@ -15,7 +15,7 @@ This guide covers what each built-in skill does and how to talk to it. For how s
   - [hylo-memory — extract personal memory](#hylo-memory--extract-personal-memory)
   - [hylo-recall — find, inspire, review, explore](#hylo-recall--find-inspire-review-explore)
   - [hylo-setup — guided setup in chat](#hylo-setup--guided-setup-in-chat)
-  - [hylo-writing — beat-by-beat article writing](#hylo-writing--beat-by-beat-article-writing)
+  - [hylo-writing — write, revise, and long-form articles](#hylo-writing--write-revise-and-long-form-articles)
 
 ## hylo-notes — save and change notes
 
@@ -33,9 +33,9 @@ Rename my "Q3 plan" note to "Q3 launch plan"
 
 ## hylo-editor — live writing in the editor
 
-Writes and revises notes inside the editor you have open, so you watch the text being typed: the note opens in front of you and an "Agent" caret types in a natural rhythm. It can add to the end of a note, under a given heading or at your cursor, and it can rewrite or delete a paragraph, a range of blocks, or exactly what you have selected. Each write is one undo step, and typing anything yourself stops the agent and hands control back. The skill also teaches the agent Hylo's markdown dialect — wikilinks, wiki images, mindmap blocks, tasks and tables — so what it types renders correctly. It needs the Hylo app to be open; if it isn't, the agent tells you instead of quietly writing the file.
+Writes and revises notes inside the editor you have open, so you watch the text being typed: the note opens in front of you and an "Agent" caret types in a natural rhythm. It can add to the end of a note, under a given heading or at your cursor, and it can rewrite or delete a paragraph, a range of blocks, or exactly what you have selected. Each write is one undo step, and typing anything yourself stops the agent and hands control back. The skill also teaches the agent Hylo's markdown dialect — wikilinks, wiki images, mindmap blocks, tasks and tables — so what it types renders correctly. It needs the Hylo app to be open. If it isn't, writing done by `hylo-writing` goes straight to the file and the agent says so in one line; if you asked to watch, it asks you to open Hylo instead.
 
-**Use it for:** drafting while you watch, continuing from where your cursor is, or polishing a passage you've selected.
+**Use it for:** watching writing happen in your note. What to write and how is `hylo-writing`'s job; this skill is how the agent types it into the editor.
 
 **Example prompts**
 
@@ -76,7 +76,7 @@ Update the knowledge index to include anything I'm missing
 
 ## hylo-memory — extract personal memory
 
-Extracts personal memory from your short notes and knowledge base into six structured files under `/_memory/` — identity, preferences, goals, beliefs, people, and current state. The first run scans the last 90 days; later runs scan incrementally. Memories that stop being reinforced fade out over time.
+Extracts personal memory from your short notes and knowledge base into seven structured files under `/_memory/` — identity, preferences, goals, beliefs, people, current state, and voice (how you write, learned from your short notes, plus the writing rules you've stated and the formats of your recurring pieces). The first run scans the last 90 days; later runs scan incrementally. Memories that stop being reinforced fade out over time.
 
 See the [Personal Memory](../README.md#personal-memory) section in the main README for the full setup (including a daily scheduled bot trigger).
 
@@ -125,15 +125,26 @@ Continue Hylo setup
 Run Hylo setup again
 ```
 
-## hylo-writing — beat-by-beat article writing
+## hylo-writing — write, revise, and long-form articles
 
-Leads a choose-your-own-adventure writing process: you state the topic, the intended reader, and the stance; the skill scans the knowledge base for relevant units, proposes a palette of sources for your approval, then writes the article one beat (one paragraph-sized move) at a time, offering a few candidate next beats after each one. When the article is done, it can be compiled back into the knowledge base, closing the loop. If the Hylo editor is open, each beat is typed live into it (via `hylo-editor`), so you watch the article grow.
+The one entry point for writing, always on for the main bot. It first decides whether there's existing text to change, then works in one of three modes:
 
-**Use it for:** writing something grounded in your own accumulated understanding, rather than starting from a blank page or copy-pasting raw notes together.
+- **Draft** — turns material you already have (a few notes, this week's short notes, the conversation you just had, or one note in a new format) into a new note. No questions: it picks the title and folder, writes the note (live in the editor whenever Hylo is open, to the file otherwise), lists the source notes at the end, and replies with a line or two plus next steps. The original is never touched.
+- **Revise** — works on existing text: a quoted selection, your current selection, or a `[[note]]`. It first tells apart what you want: *feedback* (3–5 quoted points in chat, your text untouched), *candidates* (2–3 numbered versions, written in only when you pick one), or a *replacement* (polish, shorten, expand, translate, continue — written straight in, one undo step). It changes only the range you gave.
+- **Long-form** — an article with a point of view from your knowledge base. It guesses the reader and stance from your request and memory, shows a palette of sources (knowledge units first, then notes and short notes) for you to confirm, then writes beat by beat, with an option to finish the rest in one go. With no topic, it proposes three from what you've been compiling lately. The finished article can be compiled back into the knowledge base.
+
+All modes follow your voice in `/_memory/_voice.md`. Say a rule once ("never use em dashes") and it's kept there for every future piece. Recurring formats like weekly reports follow your last note of the same kind, falling back to a short built-in default.
+
+**Use it for:** any writing — pulling notes together, writing up a discussion, weekly reports and minutes, adapting a note for another platform, polishing or getting feedback on a passage, or a long-form piece grounded in what you know.
 
 **Example prompts**
 
 ```
-I want to write an article about why SEO is dying, for indie hackers, arguing that content moats matter more than ever. Save it to /essays/seo-is-dying.md.
-Help me write a piece on remote work culture, aimed at first-time managers, taking the position that async-first is usually the wrong default.
+Turn this week's short notes into one piece.
+Write up what we just discussed as a note.
+Draft my weekly report.
+Make a Xiaohongshu version of [[Attention management]].
+Polish this. / What's weak about this paragraph? / Give it a title.
+Write an article on why SEO is dying, for indie hackers.
+From now on, never use em dashes in my writing.
 ```

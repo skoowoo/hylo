@@ -64,10 +64,10 @@ type editorRewriteOut struct {
 	Message     string `json:"message,omitempty"`
 }
 
-// The editor tools never fall back to writing the file: the user asked to watch the
-// edit happen, and a write racing an editor that is still typing would duplicate text.
+// errNoEditor guarantees nothing was written, so writing the note another way is safe;
+// errEditorGone doesn't, and a write racing an editor still typing would duplicate text.
 var (
-	errNoEditor   = errors.New("no editor is open in Hylo; ask the user to open the app, then retry. Do not write the note with other tools instead")
+	errNoEditor   = errors.New("no editor is open in Hylo, so nothing was written. If the user asked to watch the writing, ask them to open the app and retry; otherwise write the note with the note tools")
 	errEditorGone = errors.New("the editor disconnected while working on the note; part of it may be written. Call editor_read once the user reopens it; do not write the note with other tools instead")
 )
 
@@ -108,8 +108,8 @@ func dispatch(ctx context.Context, bus *editorbus.Bus, op editorbus.Op) (editorb
 func registerEditorTools(s *sdk.Server, c *client.Client, bus *editorbus.Bus) {
 	addTool(s, "editor_type",
 		"Type markdown into a note inside the user's open editor, character by character, as if they were typing. "+
-			"Use it instead of append when the user asks to write in the editor or wants to watch the writing happen. "+
-			"Needs the Hylo app open; when it fails, report that to the user instead of writing the note another way.", additive,
+			"Prefer it over create/append for writing the user is there to see. "+
+			"Needs the Hylo app open; if none is, it fails without writing anything.", additive,
 		func(ctx context.Context, in editorTypeReq) (editorTypeOut, error) {
 			out := editorTypeOut{Path: in.Path}
 			if err := notes.CheckMarkdownPath(in.Path); err != nil {
@@ -121,16 +121,22 @@ func registerEditorTools(s *sdk.Server, c *client.Client, bus *editorbus.Bus) {
 			if !bus.Connected() {
 				return out, errNoEditor
 			}
+			created := false
 			if exists, err := c.Exists(in.Path); err == nil && !exists {
 				if _, err := notes.Create(c, in.Path, false, func() ([]byte, error) { return nil, nil }); err != nil {
 					return out, err
 				}
+				created = true
 			}
 
 			res, err := dispatch(ctx, bus, editorbus.Op{
 				Kind: editorbus.KindType, Path: in.Path, Content: in.Content, At: in.At, Heading: in.Heading, Speed: in.Speed,
 			})
 			if err != nil {
+				// The editor closed after the check: keep "nothing was written" true.
+				if created && errors.Is(err, errNoEditor) {
+					_ = notes.Delete(c, in.Path)
+				}
 				return out, err
 			}
 			out.Chars, out.Interrupted = res.Chars, res.Interrupted

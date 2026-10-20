@@ -4,20 +4,16 @@ Find what the user is looking for in their notes: a resource, a topic, a view, e
 
 **Search to completion, then answer once.**
 
----
-
 ## Step 1 — Know what you're looking for
 
-| They ask for                                              | You're after                                               |
-| --------------------------------------------------------- | ---------------------------------------------------------- |
-| A resource ("that article on X", "the book Y recommended") | one or a few notes; stop when found                        |
-| A topic ("everything on X")                                | every unit and note on it, across all time                 |
-| A view ("what do I think about X", "what did I say about Y") | their own statements on it, with dates                   |
+| They ask for | You're after |
+| --- | --- |
+| A resource ("that article on X", "the book Y recommended") | one or a few notes; stop when found |
+| A topic ("everything on X") | every unit and note on it, across all time |
+| A view ("what do I think about X", "what did I say about Y") | their own statements on it, with dates |
 | What relates to a piece of content (a note, draft, link or pasted text) | units that back it up, and units that conflict with it |
 
 For a piece of content, first pull 3–8 search phrases from it: its entities and, above all, the **claims** it makes. Conflict depends on stance, not keyword overlap. A link: fetch it with your own web tool, or ask them to paste it.
-
----
 
 ## Step 2 — Search wide, not just recent
 
@@ -29,8 +25,6 @@ Search in the order your instructions give, and don't stop at the first hits:
 - Read only enough of each hit to know it fits: `extract_outline`, then `extract_section`, or the `search` snippet.
 
 Note each unit's `perspective`, and each note's date (frontmatter `date`, a date in its name, or when it was created).
-
----
 
 ## Step 3 — Answer
 
@@ -57,4 +51,4 @@ Note each unit's `perspective`, and each note's date (frontmatter `date`, a date
 
 Nothing found: say so in one line, and what you searched for. If the request tells you how to reply when there is nothing, do exactly that.
 
-Close with a `sources` block per your instructions when you leaned on two or more notes. On WeChat or Discord, give only the answer and note names, no blocks.
+Close with a `sources` block when you leaned on two or more notes.

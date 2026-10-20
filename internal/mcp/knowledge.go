@@ -34,13 +34,13 @@ func registerKnowledgeTools(s *sdk.Server, c *client.Client) {
 			return notesOut{Notes: entries}, err
 		})
 
-	addTool(s, "knowledge_read", "Read a knowledge note's full content.", readOnly,
+	addTool(s, "knowledge_read", "Read a knowledge unit's full content; like read, but a bare name resolves only among knowledge units.", readOnly,
 		func(_ context.Context, in readReq) (readOut, error) {
 			p, content, err := notes.Read(c, in.Path, true)
 			return readOut{Path: p, Content: content}, err
 		})
 
-	addTool(s, "knowledge_search", "Full-text search over knowledge notes only.", readOnly,
+	addTool(s, "knowledge_search", "Full-text search over knowledge units only; search covers every note.", readOnly,
 		func(_ context.Context, in searchReq) (notes.SearchResult, error) {
 			return notes.Search(c, notes.SearchQuery{Query: in.Query, Field: in.Field, Limit: in.Limit, KnowledgeOnly: true})
 		})

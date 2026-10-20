@@ -16,9 +16,10 @@ import (
 	"github.com/spf13/pflag"
 )
 
-// Commands that manage the local install rather than the vault; deliberately not MCP tools.
+// Commands deliberately not MCP tools: they manage the local install, or, like tag_delete
+// (which de-indexes notes rather than deleting a tag), would mislead an agent.
 var notMCPTools = map[string]bool{
-	"init": true, "start_server": true, "auth_show": true, "auth_rotate": true,
+	"init": true, "start_server": true, "auth_show": true, "auth_rotate": true, "tag_delete": true,
 }
 
 // Flags that exist only on the CLI because of how it prints or reads input. Keyed by tool; "*" applies to all.

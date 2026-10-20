@@ -7,15 +7,15 @@ description: "Gets things back out of the user's notes and knowledge base: finds
 
 Gets things back out of the user's notes. Everything here is said in the conversation; nothing is saved unless they pick that afterwards.
 
-The tools named here are Hylo's MCP tools (server `hylo`); your client may show them prefixed, e.g. `mcp__hylo__read`. If they are not in your tool list, search your deferred tools for "hylo". If they are still missing, tell the user Hylo's tools are unavailable and stop.
+Tools named here are Hylo's MCP tools (server `hylo`, maybe shown as `mcp__hylo__read`). If they aren't in your tool list, search your deferred tools for "hylo"; if still missing, say Hylo's tools are unavailable and stop.
 
 ## Pick the mode
 
-| Mode        | The user wants                                                                       | Read         |
-| ----------- | ------------------------------------------------------------------------------------ | ------------ |
-| **Find**    | a resource, a topic, a view, every note touching something, or what relates to a piece of content | `find.md`    |
-| **Inspire** | ideas and material for something they're thinking about or about to write           | `inspire.md` |
-| **Review**  | a look back over the past week or month, or at random through their history          | `review.md`  |
+| Mode | The user wants | Read |
+| --- | --- | --- |
+| **Find** | a resource, a topic, a view, every note touching something, or what relates to a piece of content | `find.md` |
+| **Inspire** | ideas and material for something they're thinking about or about to write | `inspire.md` |
+| **Review** | a look back over the past week or month, or at random through their history | `review.md` |
 | **Explore** | the whole picture: what their knowledge covers, where it comes from, what's growing or quiet | `explore.md` |
 
 Read the matching file and follow it. If you can't tell which they mean, ask with `choices`.

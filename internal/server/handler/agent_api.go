@@ -623,31 +623,17 @@ func (a *AgentAPI) executeChat(ctx context.Context, run *agent.Run, body chatBod
 	// any duplicated/reformatted deltas that may have accumulated during streaming.
 	// text_replace IS forwarded: it signals the client to replace (not append) text,
 	// preventing duplicate display when cursor-agent reformats mid-stream.
-	var textAcc strings.Builder
+	var textAcc agent.TextAccumulator
 	// Tracks which vault notes this run's tool calls touched, normalized across
 	// every backend's tool_use shape. See agent.NoteAccessTracker.
 	noteTracker := agent.NewNoteAccessTracker(cwd, a.vault.Root())
 	emit := func(ev string, data any) {
 		if ev == "agent" {
 			if m, ok := data.(map[string]any); ok {
+				textAcc.Feed(m)
 				switch m["type"] {
 				case "text_snapshot":
-					// Internal only: reset textAcc to the final authoritative text.
-					if t, ok := m["text"].(string); ok {
-						textAcc.Reset()
-						textAcc.WriteString(t)
-					}
-					return // do not forward to SSE clients
-				case "text_replace":
-					// Reset accumulator to the replacement text; forward to clients.
-					if t, ok := m["text"].(string); ok {
-						textAcc.Reset()
-						textAcc.WriteString(t)
-					}
-				case "text_delta":
-					if d, ok := m["delta"].(string); ok {
-						textAcc.WriteString(d)
-					}
+					return // internal only: the final authoritative text
 				case "tool_use":
 					for _, na := range noteTracker.Feed(m) {
 						a.hub.Emit(run, "agent", map[string]any{

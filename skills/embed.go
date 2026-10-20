@@ -4,5 +4,5 @@ package skills
 
 import "embed"
 
-//go:embed hylo-bots hylo-compile-note hylo-editor hylo-index-knowledge hylo-memory hylo-notes hylo-recall hylo-setup
+//go:embed hylo-bots hylo-compile-note hylo-editor hylo-index-knowledge hylo-memory hylo-notes hylo-recall hylo-setup hylo-writing
 var FS embed.FS
