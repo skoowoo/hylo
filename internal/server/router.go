@@ -79,7 +79,7 @@ func newRouter(
 		mateRunner.SetRunFunc(ah.FireTriggerRun)
 		mateRunner.SetRetryFunc(ah.FireTriggerRetry)
 		mateRunner.SetRunDoneHook(func(m *mate.Mate, result mate.RunResult) {
-			if result.EventType == mate.MateEventWechatMessage || result.EventType == mate.MateEventDiscordMessage {
+			if mate.IsChatEvent(result.EventType) {
 				return
 			}
 			if inboxStore == nil {
@@ -167,6 +167,12 @@ func newRouter(
 	mux.HandleFunc("POST /api/wechat/login/start", wxHTTP.LoginStart)
 	mux.HandleFunc("GET /api/wechat/login/status", wxHTTP.LoginStatus)
 	mux.HandleFunc("POST /api/wechat/logout", wxHTTP.Logout)
+
+	tgHTTP := handler.NewTelegramHTTP(logger, cfg, cfgFileLoaded)
+	mux.HandleFunc("GET /api/telegram/status", tgHTTP.Status)
+	mux.HandleFunc("POST /api/telegram/pair/start", tgHTTP.PairStart)
+	mux.HandleFunc("GET /api/telegram/pair/status", tgHTTP.PairStatus)
+	mux.HandleFunc("POST /api/telegram/unpair", tgHTTP.Unpair)
 
 	// MCP endpoint; tools call back into mux in-process, so auth is enforced once at the edge.
 	mux.HandleFunc("GET /api/editor/agent", editorBus.StreamSSE)

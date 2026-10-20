@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/hardhacker/hylo/internal/config"
+	"github.com/hardhacker/hylo/internal/qrpng"
 	"github.com/hardhacker/hylo/internal/wechat"
 )
 
@@ -129,7 +130,7 @@ func (w *WechatHTTP) LoginStatus(wr http.ResponseWriter, r *http.Request) {
 		Qrcode:           result.Qrcode,
 		QrcodeImgContent: result.QrcodeImgContent,
 	}); payload != "" {
-		if img, err := wechat.QrcodePNGDataURL(payload, 0); err == nil {
+		if img, err := qrpng.DataURL(payload); err == nil {
 			out["qrcode_image"] = img
 		} else {
 			w.logger.Warn("wechat login QR render failed", "err", err)

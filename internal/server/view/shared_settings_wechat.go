@@ -3,49 +3,26 @@ package view
 // WeChat iLink login panel, shown under the plugins.wechat section of the
 // Server tab. Its fields are schema-driven like every other section; only
 // the QR login flow lives here.
-const settingsWechatCSS = `
-    .cfg-wechat-auth { padding: 0.88rem 0 0; margin-top: 0.5rem; }
-    .cfg-wechat-auth-head {
-      display: flex; align-items: center; justify-content: space-between;
-      gap: 0.75rem; margin-bottom: 0.65rem;
-    }
-    .cfg-wechat-auth-title { font-size: var(--text-sm); font-weight: 500; color: var(--body); }
-    .cfg-wechat-meta { font-size: var(--text-xs); color: var(--muted); line-height: 1.55; margin: 0 0 0.75rem; }
-    .cfg-wechat-meta code {
-      font-size: var(--text-2xs); padding: 0.05rem 0.3rem; border-radius: var(--r-xs);
-      background: var(--code-bg);
-    }
-    .cfg-wechat-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
-    .cfg-wechat-qr {
-      margin-top: 0.85rem; padding: 0.75rem;
-      background: var(--code-bg); text-align: center;
-    }
-    .cfg-wechat-qr img { width: 180px; height: 180px; object-fit: contain; background: #fff; }
-    .cfg-wechat-status { font-size: var(--text-xs); color: var(--muted); margin-top: 0.5rem; }
-    .cfg-wechat-err { font-size: var(--text-xs); color: var(--s-err); margin-top: 0.5rem; }
-    .cfg-wechat-ok { font-size: var(--text-xs); color: var(--s-ok); margin-top: 0.5rem; }
-`
-
 func settingsWechatHTML() string {
 	return `
-                    <div class="cfg-wechat-auth hairline" x-show="openSection === 'plugins.wechat'">
-                      <div class="cfg-wechat-auth-head">
-                        <span class="cfg-wechat-auth-title">WeChat login</span>
+                    <div class="cfg-link hairline" x-show="openSection === 'plugins.wechat'">
+                      <div class="cfg-link-head">
+                        <span class="cfg-link-title">WeChat login</span>
                         <span class="badge"
                               :class="{ 'badge--ok': wechatStatus.connected }"
                               x-text="wechatStatus.connected ? 'Connected' : 'Not connected'"></span>
                       </div>
-                      <p class="cfg-wechat-meta">
+                      <p class="cfg-link-meta">
                         Scan with WeChat to obtain an iLink bot token. Credentials are saved to
                         <code>config.toml</code>. Create a bot with a <code>wechat_message</code> trigger to handle replies.
                       </p>
                       <template x-if="wechatStatus.connected">
                         <div>
-                          <p class="cfg-wechat-meta" x-show="wechatStatus.account_id">
+                          <p class="cfg-link-meta" x-show="wechatStatus.account_id">
                             Bot ID: <code x-text="wechatStatus.account_id"></code>
                             <span x-show="wechatStatus.saved_at"> · saved <span x-text="wechatStatus.saved_at"></span></span>
                           </p>
-                          <div class="cfg-wechat-actions">
+                          <div class="cfg-link-actions">
                             <button type="button" class="btn-solid btn-solid--danger"
                                     @click="wechatLogout()"
                                     :disabled="wechatAuthBusy"
@@ -55,7 +32,7 @@ func settingsWechatHTML() string {
                       </template>
                       <template x-if="!wechatStatus.connected">
                         <div>
-                          <div class="cfg-wechat-actions">
+                          <div class="cfg-link-actions">
                             <button type="button" class="btn-solid"
                                     @click="startWechatLogin()"
                                     :disabled="wechatAuthBusy || wechatLoginBusy"
@@ -64,14 +41,14 @@ func settingsWechatHTML() string {
                                     x-show="wechatLoginBusy"
                                     @click="cancelWechatLogin()">Cancel</button>
                           </div>
-                          <div class="cfg-wechat-qr" x-show="wechatQrcodeImg">
+                          <div class="cfg-link-qr" x-show="wechatQrcodeImg">
                             <img :src="wechatQrcodeImg" alt="WeChat login QR code">
-                            <p class="cfg-wechat-status" x-show="wechatLoginStatus" x-text="wechatLoginStatus"></p>
+                            <p class="cfg-link-status" x-show="wechatLoginStatus" x-text="wechatLoginStatus"></p>
                           </div>
                         </div>
                       </template>
-                      <p class="cfg-wechat-err" x-show="wechatAuthError" x-text="wechatAuthError"></p>
-                      <p class="cfg-wechat-ok" x-show="wechatLoginOk">Connected — restart the server to start the bridge.</p>
+                      <p class="cfg-link-err" x-show="wechatAuthError" x-text="wechatAuthError"></p>
+                      <p class="cfg-link-ok" x-show="wechatLoginOk">Connected — restart the server to start the bridge.</p>
                     </div>
 `
 }

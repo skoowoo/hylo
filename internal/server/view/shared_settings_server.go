@@ -2,7 +2,7 @@ package view
 
 // Server tab: server/connection config, the Config section picker ↔
 // detail (see cfg-section-grid/cfg-detail in the CSS below), and the
-// WeChat/Discord plugin auth flows that live inside it.
+// chat app linking flows (WeChat login, Telegram pairing) that live inside it.
 const settingsServerCSS = `
     /* ── Server config ────────────────────────────────────────── */
     .cfg-content { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
@@ -246,7 +246,7 @@ func settingsServerTabHTML() string {
                       </template>
                     </div>
 
-` + settingsWechatHTML() + `
+` + settingsWechatHTML() + settingsTelegramHTML() + `
                   </div>
                 </template>
 
@@ -324,6 +324,7 @@ const settingsServerJS = `
           'plugins.search': 'Search', 'plugins.git_sync': 'Git Sync',
           'plugins.wechat': 'WeChat',
           'plugins.discord': 'Discord',
+          'plugins.telegram': 'Telegram',
         };
         return m[s] || s;
       },
@@ -335,7 +336,8 @@ const settingsServerJS = `
           'plugins.search': 'Indexing and search quality.',
           'plugins.git_sync': 'Automatic git push/pull for the vault.',
           'plugins.wechat': 'WeChat iLink bridge — poll DMs and emit wechat_message bot events.',
-          'plugins.discord': 'Discord Bot bridge — receive DMs and emit discord_message bot events. The bot must share a server with you before it can send proactive DMs; restart the server after changing the token.',
+          'plugins.discord': 'Discord Bot bridge — receive DMs and emit discord_message bot events. Only DMs from the owner user ID are answered; restart the server after changing the token.',
+          'plugins.telegram': 'Telegram Bot bridge — receive private messages and emit telegram_message bot events. Only the account that paired the bot is answered.',
         };
         return m[s] || '';
       },
@@ -345,6 +347,7 @@ const settingsServerJS = `
       openSectionDetail(s) {
         this.openSection = s;
         if (s === 'plugins.wechat') this.loadWechatStatus();
+        if (s === 'plugins.telegram') this.loadTelegramStatus();
       },
 
       sectionHasDirty(s) { return this.fieldsForSection(s).some(f => this.isDirty(f.key)); },

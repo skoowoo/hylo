@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/hardhacker/hylo/internal/plugins/chatbridge"
 	"github.com/hardhacker/hylo/internal/wechat"
 )
 
@@ -58,28 +59,14 @@ func (p *Plugin) sendTypingStatus(ctx context.Context, userID, contextToken stri
 	})
 }
 
-// startTypingIndicators sends typing immediately and refreshes every typingRefreshInterval
-// until the returned cancel function is called.
-func (p *Plugin) startTypingIndicators(userID, contextToken string) context.CancelFunc {
-	ctx, cancel := context.WithCancel(context.Background())
-	go func() {
-		p.sendTypingStatus(ctx, userID, contextToken, wechat.TypingStatusTyping)
-		ticker := time.NewTicker(typingRefreshInterval)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-ticker.C:
-				p.sendTypingStatus(ctx, userID, contextToken, wechat.TypingStatusTyping)
-			}
-		}
-	}()
-	return cancel
-}
-
-func (p *Plugin) cancelTypingIndicators(userID, contextToken string) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+// Typing implements chatbridge.App.
+func (p *Plugin) Typing(ctx context.Context, userID string) {
+	ct := p.contextToken()
+	chatbridge.KeepTyping(ctx, typingRefreshInterval, func() {
+		p.sendTypingStatus(ctx, userID, ct, wechat.TypingStatusTyping)
+	})
+	// The typing state outlives our refreshes unless it is cancelled.
+	cancelCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	p.sendTypingStatus(ctx, userID, contextToken, wechat.TypingStatusCancel)
+	p.sendTypingStatus(cancelCtx, userID, ct, wechat.TypingStatusCancel)
 }

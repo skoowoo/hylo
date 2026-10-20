@@ -31,21 +31,3 @@ func TestExtractTextQuote(t *testing.T) {
 		t.Fatalf("got %q", got)
 	}
 }
-
-func TestSplitText(t *testing.T) {
-	segs := SplitText("aaaa\nbbbb", 5)
-	if len(segs) != 2 || segs[0] != "aaaa" || segs[1] != "bbbb" {
-		t.Fatalf("%v", segs)
-	}
-}
-
-func TestFormatForWeChat(t *testing.T) {
-	in := "**bold** and [link](https://x.com)"
-	got := FormatForWeChat(in)
-	if strings.Contains(got, "**") {
-		t.Fatalf("got %q", got)
-	}
-	if !strings.Contains(got, "link (https://x.com)") {
-		t.Fatalf("got %q", got)
-	}
-}

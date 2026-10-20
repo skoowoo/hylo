@@ -16,4 +16,4 @@ Once something is written through the editor, the piece stays there (the `hylo-e
 
 A whole-file write-back must leave every other paragraph byte-for-byte as it was.
 
-**From WeChat, Discord or another chat app:** a draft is saved as a note as usual, and the reply gives its name and a two-sentence summary. A revise only replies with the revised text and leaves the note alone: on a phone they can't check what changed.
+**From WeChat, Discord, Telegram or another chat app:** a draft is saved as a note as usual, and the reply gives its name and a two-sentence summary. A revise only replies with the revised text and leaves the note alone: on a phone they can't check what changed.

@@ -76,7 +76,6 @@ func RunMonitor(ctx context.Context, opts MonitorOpts) error {
 		}
 		opts.OnMessage(Message{
 			ChannelID: m.ChannelID,
-			MessageID: m.ID,
 			AuthorID:  m.Author.ID,
 			Content:   content,
 		})

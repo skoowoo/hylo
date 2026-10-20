@@ -1,0 +1,30 @@
+package view
+
+// Shared look of the panels that link a chat app account (WeChat login,
+// Telegram pairing) under their section of the Server tab.
+const settingsChatLinkCSS = `
+    .cfg-link { padding: 0.88rem 0 0; margin-top: 0.5rem; }
+    .cfg-link-head {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 0.75rem; margin-bottom: 0.65rem;
+    }
+    .cfg-link-title { font-size: var(--text-sm); font-weight: 500; color: var(--body); }
+    .cfg-link-meta { font-size: var(--text-xs); color: var(--muted); line-height: 1.55; margin: 0 0 0.75rem; }
+    .cfg-link-meta code {
+      font-size: var(--text-2xs); padding: 0.05rem 0.3rem; border-radius: var(--r-xs);
+      background: var(--code-bg);
+    }
+    .cfg-link-meta a { color: var(--accent-text); }
+    .cfg-link-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+    .cfg-link-actions .cfg-input { flex: 1 1 14rem; min-width: 0; }
+    .cfg-link-qr {
+      margin-top: 0.85rem; padding: 0.75rem;
+      background: var(--code-bg); text-align: center;
+    }
+    .cfg-link-qr + .cfg-link-actions { margin-top: 0.75rem; }
+    .cfg-link-qr img { width: 180px; height: 180px; object-fit: contain; background: #fff; }
+    .cfg-link-status { font-size: var(--text-xs); color: var(--muted); margin-top: 0.5rem; }
+    .cfg-link-status a { color: var(--accent-text); }
+    .cfg-link-err { font-size: var(--text-xs); color: var(--s-err); margin-top: 0.5rem; }
+    .cfg-link-ok { font-size: var(--text-xs); color: var(--s-ok); margin-top: 0.5rem; }
+`

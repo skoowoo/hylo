@@ -4,11 +4,9 @@ package discord
 // TextChunkLimit is the maximum characters per Discord message.
 const TextChunkLimit = 2000
 
-// Message is a normalised inbound Discord message.
+// Message is a normalised inbound Discord DM.
 type Message struct {
 	ChannelID string
-	MessageID string
 	AuthorID  string
 	Content   string
-	GuildID   string // empty for DMs
 }

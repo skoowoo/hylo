@@ -1,6 +1,6 @@
 # Plan and receipt cards
 
-Hylo's chat draws these fenced blocks as cards. In a message from WeChat or Discord, say the same in plain text instead. Write every visible line in the user's language, as results they'd notice ("every day at 08:00, 5 AI news items in your inbox"), not as tool calls.
+Hylo's chat draws these fenced blocks as cards. In a message from WeChat, Discord or Telegram, say the same in plain text instead. Write every visible line in the user's language, as results they'd notice ("every day at 08:00, 5 AI news items in your inbox"), not as tool calls.
 
 ## Plan: `proposal`
 

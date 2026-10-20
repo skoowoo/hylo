@@ -43,7 +43,7 @@ func TestSetupBotOnlyForAnEmptyVault(t *testing.T) {
 	for _, tr := range triggers {
 		names = append(names, tr.Name)
 	}
-	if got := strings.Join(names, ","); got != "WeChat,Discord,Compiler,Compiler,Memory" {
+	if got := strings.Join(names, ","); got != "WeChat,Discord,Telegram,Compiler,Compiler,Memory" {
 		t.Fatalf("trigger names in order: %s", got)
 	}
 	convs, _ := store.ListConversationsByType(id, mate.ConvTypeChat)

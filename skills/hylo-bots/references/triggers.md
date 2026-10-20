@@ -26,6 +26,7 @@ Several scheduled triggers on one bot: stagger them five minutes apart (`daily 0
 | `short_note_created` | a short note is appended                    | `{Path}` `{Name}` `{Content}`|
 | `wechat_message`     | a WeChat DM arrives                         | `{Content}` `{WechatUserID}` |
 | `discord_message`    | a Discord DM arrives                        | `{Content}` `{DiscordChannelID}` `{DiscordUserID}` |
+| `telegram_message`   | a Telegram private message arrives          | `{Content}` `{TelegramUserID}` |
 | `compile_requested`  | the user asks to compile a note             | `{Path}` `{Name}`            |
 | `agent_run_completed`| another bot's run succeeds                  | `{Name}` `{Content}` `{Now}` |
 

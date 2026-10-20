@@ -107,8 +107,12 @@ func (r *Runner) dispatchMateEvents(mateEvents []MateEvent) {
 	triggers, err := r.store.ListAllEnabledTriggers()
 	if err != nil {
 		r.logger.Warn("mate_runner: list triggers", "err", err)
+		for _, me := range mateEvents {
+			me.answer(plugin.ReplyResult{Status: "failed"})
+		}
 		return
 	}
+	fired := false
 	for _, t := range triggers {
 		if TriggerHasScheduled(t) {
 			continue
@@ -124,6 +128,20 @@ func (r *Runner) dispatchMateEvents(mateEvents []MateEvent) {
 			continue
 		}
 		r.fireTrigger(t, matched)
+		fired = true
+	}
+	if !fired {
+		for _, me := range mateEvents {
+			me.answer(plugin.ReplyResult{Status: "unhandled"})
+		}
+	}
+}
+
+// answer ends an event that no run will answer: whoever waits on its reply
+// (a chat app showing "typing…") must hear back once, whatever happened.
+func (me MateEvent) answer(res plugin.ReplyResult) {
+	if me.Reply != nil {
+		me.Reply(context.Background(), res) //nolint:errcheck
 	}
 }
 
@@ -170,33 +188,29 @@ func (r *Runner) tickScheduled() {
 	}
 }
 
-func isWechatSessionCommand(text string) bool {
+func isSessionCommand(text string) bool {
 	t := strings.ToLower(strings.TrimSpace(text))
 	return t == "/new" || t == "/clear"
 }
 
-func (r *Runner) handleWechatSessionReset(mateID string, ev MateEvent) {
+func (r *Runner) handleSessionReset(mateID string, ev MateEvent) {
 	if _, err := r.store.CreateConversation(mateID, ""); err != nil {
-		r.logger.Warn("mate_runner: reset wechat session", "err", err)
-		if ev.Reply != nil {
-			ev.Reply(context.Background(), plugin.ReplyResult{Text: "对话重置失败，请稍后再试", Status: "failed"}) //nolint:errcheck
-		}
+		r.logger.Warn("mate_runner: reset chat session", "err", err)
+		ev.answer(plugin.ReplyResult{Text: "对话重置失败，请稍后再试", Status: "failed"})
 		return
 	}
-	if ev.Reply != nil {
-		ev.Reply(context.Background(), plugin.ReplyResult{Text: "新对话已开启", Status: "succeeded"}) //nolint:errcheck
-	}
+	ev.answer(plugin.ReplyResult{Text: "新对话已开启", Status: "succeeded"})
 }
 
 func (r *Runner) fireTrigger(t MateTrigger, me MateEvent) {
-	isChat := me.Type == MateEventWechatMessage || me.Type == MateEventDiscordMessage
-	if isChat && isWechatSessionCommand(me.Content) {
-		go r.handleWechatSessionReset(t.MateID, me)
+	if IsChatEvent(me.Type) && isSessionCommand(me.Content) {
+		go r.handleSessionReset(t.MateID, me)
 		return
 	}
 
 	fn, _ := r.runFn.Load().(RunFunc)
 	if fn == nil {
+		me.answer(plugin.ReplyResult{Status: "failed"})
 		return
 	}
 	go func(tr MateTrigger, ev MateEvent) {
@@ -204,18 +218,22 @@ func (r *Runner) fireTrigger(t MateTrigger, me MateEvent) {
 		case r.sem <- struct{}{}:
 		default:
 			r.logger.Warn("mate_runner: semaphore full, skipping trigger", "triggerID", tr.ID)
+			ev.answer(plugin.ReplyResult{Status: "failed"})
 			return
 		}
 		defer func() { <-r.sem }()
-		r.runTrigger(fn, tr, ev)
+		if !r.runTrigger(fn, tr, ev) {
+			ev.answer(plugin.ReplyResult{Status: "failed"})
+		}
 	}(t, me)
 }
 
-// runTrigger runs tr with r.sem already held by the caller.
-func (r *Runner) runTrigger(fn RunFunc, tr MateTrigger, ev MateEvent) {
+// runTrigger runs tr with r.sem already held by the caller. It reports
+// whether the run started; a started run answers ev.Reply itself.
+func (r *Runner) runTrigger(fn RunFunc, tr MateTrigger, ev MateEvent) bool {
 	m, err := r.store.GetMate(tr.MateID)
 	if err != nil || m == nil {
-		return
+		return false
 	}
 
 	var convID string
@@ -226,7 +244,7 @@ func (r *Runner) runTrigger(fn RunFunc, tr MateTrigger, ev MateEvent) {
 	}
 	if err != nil {
 		r.logger.Warn("mate_runner: get trigger conv", "err", err)
-		return
+		return false
 	}
 
 	ev.TriggerID = tr.ID
@@ -238,6 +256,7 @@ func (r *Runner) runTrigger(fn RunFunc, tr MateTrigger, ev MateEvent) {
 	r.logger.Info("mate_runner: trigger fired", fields...)
 
 	fn(context.Background(), m, convID, prompt, ev, r.buildOnDone(m, ev, prompt))
+	return true
 }
 
 var (
@@ -354,7 +373,7 @@ func matchMateEvent(triggerTypes []string, events []MateEvent) (MateEvent, bool)
 }
 
 // matchPathPrefixes returns true when the event should pass through the trigger's path filter.
-// Events without a path (scheduled, wechat_message, discord_message) always pass. An empty prefix list passes all.
+// Events without a path (scheduled) always pass. An empty prefix list passes all.
 func matchPathPrefixes(prefixes []string, me MateEvent) bool {
 	if len(prefixes) == 0 || me.Path == "" {
 		return true
@@ -382,9 +401,10 @@ func renderPrompt(tmpl string, me MateEvent) string {
 		"Path":             me.Path,
 		"Name":             strings.TrimSuffix(path.Base(me.Path), ".md"),
 		"Content":          me.Content,
-		"WechatUserID":     me.WechatUserID,
-		"DiscordChannelID": me.DiscordChannelID,
-		"DiscordUserID":    me.DiscordUserID,
+		"WechatUserID":     me.UserID,
+		"DiscordChannelID": me.ChatID,
+		"DiscordUserID":    me.UserID,
+		"TelegramUserID":   me.UserID,
 		"Now":              fired.Format(time.RFC3339),
 		"Date":             fired.Format("2006-01-02"),
 		"Time":             fired.Format("15:04"),

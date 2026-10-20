@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"strings"
 	"sync"
 
 	"github.com/hardhacker/hylo/internal/config"
@@ -70,18 +71,44 @@ func applySecretMask(m map[string]any, reveal bool) map[string]bool {
 			srv["api_key"] = nil
 		}
 	}
-	plugs, _ := m["plugins"].(map[string]any)
-	if plugs != nil {
-		if wx, ok := plugs["wechat"].(map[string]any); ok {
-			if s, ok := wx["token"].(string); ok && s != "" {
-				sec["plugins.wechat.token"] = true
-				if !reveal {
-					wx["token"] = nil
-				}
-			}
+	for _, key := range secretKeys {
+		if maskSecret(m, key, reveal) {
+			sec[key] = true
 		}
 	}
 	return sec
+}
+
+// secretKeys are config values hidden unless revealed: the sensitive form
+// fields plus credentials that pairing or login saves.
+var secretKeys = func() []string {
+	keys := []string{"plugins.wechat.token", "plugins.telegram.bot_token"}
+	for _, f := range staticConfigSchemaFields {
+		if f.Sensitive {
+			keys = append(keys, f.Key)
+		}
+	}
+	return keys
+}()
+
+// maskSecret reports whether the dotted key holds a value, nulling it unless reveal.
+func maskSecret(m map[string]any, key string, reveal bool) bool {
+	parts := strings.Split(key, ".")
+	for _, p := range parts[:len(parts)-1] {
+		next, ok := m[p].(map[string]any)
+		if !ok {
+			return false
+		}
+		m = next
+	}
+	last := parts[len(parts)-1]
+	if s, ok := m[last].(string); !ok || s == "" {
+		return false
+	}
+	if !reveal {
+		m[last] = nil
+	}
+	return true
 }
 
 // Schema handles GET /api/config/schema .

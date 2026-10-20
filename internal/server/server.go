@@ -25,8 +25,9 @@ import (
 	"github.com/hardhacker/hylo/internal/plugins/gitsync"
 	"github.com/hardhacker/hylo/internal/plugins/renamesync"
 	"github.com/hardhacker/hylo/internal/plugins/search"
-	"github.com/hardhacker/hylo/internal/prompt"
+	telegramplugin "github.com/hardhacker/hylo/internal/plugins/telegram"
 	wechatplugin "github.com/hardhacker/hylo/internal/plugins/wechat"
+	"github.com/hardhacker/hylo/internal/prompt"
 	"github.com/hardhacker/hylo/internal/skills"
 	"github.com/hardhacker/hylo/internal/storage"
 )
@@ -131,6 +132,13 @@ func New(cfg *config.Config, cfgFileLoaded string, logger *slog.Logger, vault *s
 		dp.SetDispatch(mgr.Dispatch)
 		mgr.Register(dp)
 		logger.Info("discord plugin registered")
+	}
+
+	if cfg.Plugins.Telegram.Enabled {
+		tp := telegramplugin.New(cfg.Plugins.Telegram, logger)
+		tp.SetDispatch(mgr.Dispatch)
+		mgr.Register(tp)
+		logger.Info("telegram plugin registered")
 	}
 
 	vault.SetShortsDir(cfg.Vault.ShortsDir)

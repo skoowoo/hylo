@@ -604,6 +604,10 @@ const settingsAgentBotsJS = `
           placeholder: 'Reply to this Discord message:\n\n{Content}',
           hint: 'Discord DM trigger — use Content, DiscordChannelID and DiscordUserID in the prompt',
         },
+        telegram_message: {
+          placeholder: 'Reply to this Telegram message:\n\n{Content}',
+          hint: 'Telegram DM trigger — use Content and TelegramUserID in the prompt',
+        },
         compile_requested: {
           placeholder: 'Compile {Path} into knowledge units.',
           hint: 'Fires when the user manually triggers compilation via the API — Path carries the note',
@@ -1003,10 +1007,12 @@ const settingsAgentBotsJS = `
       eventOf(t) { return (t.eventTypes || [])[0] || ''; },
       agentBotEventKind(t) { return this.AGENT_BOT_EVENT_KINDS[this.eventOf(t)] || null; },
 
-      // Schedule and chat (WeChat/Discord) triggers carry no path; the rest filter
-      // by path prefix (or, for agent_run_completed, by source bot name — same field).
+      // Schedule and chat app triggers carry no path; the rest filter by path
+      // prefix (or, for agent_run_completed, by source bot name — same field).
       filterKindOf(et) {
-        if (['scheduled', 'wechat_message', 'discord_message'].indexOf(et) >= 0) return 'none';
+        if (et === 'scheduled') return 'none';
+        const def = this.agentBotEventDefs.find(function(d){ return d.type === et; });
+        if (def && def.chat) return 'none';
         return et === 'agent_run_completed' ? 'bots' : 'path';
       },
       hasPathFilter(t) { return this.filterKindOf(this.eventOf(t)) !== 'none'; },

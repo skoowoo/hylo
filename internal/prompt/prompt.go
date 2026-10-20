@@ -14,7 +14,7 @@ type Kind int
 const (
 	// Chat is the user talking in Hylo's own chat UI.
 	Chat Kind = iota
-	// Trigger is a bot run fired by an event, including WeChat/Discord replies.
+	// Trigger is a bot run fired by an event, including chat app replies.
 	Trigger
 	// OneShot is an internal single-shot ask, like the setup hello: its
 	// message is self-contained and must not read the vault or use tools.

@@ -52,19 +52,9 @@ const (
 	// removed outside the Vault API.
 	EventFSImage EventType = "fs_image"
 
-	// EventWechatMessage is emitted when the WeChat bridge receives a direct text message.
-	EventWechatMessage EventType = "wechat_message"
-
-	// EventWechatNotify triggers the WeChat plugin to proactively send Content to WechatUserID.
-	// If WechatUserID is empty the plugin uses the logged-in owner's user ID.
-	EventWechatNotify EventType = "wechat_notify"
-
-	// EventDiscordMessage is emitted when the Discord bridge receives a DM.
-	EventDiscordMessage EventType = "discord_message"
-
-	// EventDiscordNotify triggers the Discord plugin to proactively send Content to DiscordUserID.
-	// If DiscordUserID is empty the plugin uses the configured owner's user ID.
-	EventDiscordNotify EventType = "discord_notify"
+	// EventChatMessage is emitted when a chat app bridge (WeChat, Discord,
+	// Telegram) receives a direct message from its owner; Channel names the app.
+	EventChatMessage EventType = "chat_message"
 
 	// EventCompileRequested is emitted when the user manually requests compilation
 	// of a vault note via the compile API. Path carries the vault-absolute note
@@ -75,10 +65,10 @@ const (
 // Event carries information about a single vault mutation.
 type Event struct {
 	Type    EventType
-	Path    string // vault-relative slash path, or /wechat/{userId} for WeChat
+	Path    string // vault-relative slash path, or /{channel}/{chatId} for chat messages
 	Time    time.Time
 	IsDir   bool   // true when Path is a directory (only meaningful for delete events)
-	Content string // note content, short note body, or WeChat message text
+	Content string // note content, short note body, or chat message text
 
 	// Moved marks an fs_create for a note that arrived with its directory
 	// (folder rename, move or sync pull) rather than being written.
@@ -88,23 +78,11 @@ type Event struct {
 	// Only set for EventVaultRename, where Path is the new path.
 	OldPath string
 
-	// WechatUserID is the iLink user ID associated with the event.
-	// For EventWechatMessage: the sender's user ID.
-	// For EventWechatNotify: the target user ID (empty = logged-in owner).
-	WechatUserID string
-
-	// DiscordChannelID is the Discord channel ID (DM channel) associated with the event.
-	// For EventDiscordMessage: the channel the message arrived in.
-	// For EventDiscordNotify: unused (plugin opens a DM channel from DiscordUserID).
-	DiscordChannelID string
-
-	// DiscordUserID is the Discord user ID associated with the event.
-	// For EventDiscordMessage: the sender's user ID.
-	// For EventDiscordNotify: the target user ID (empty = configured owner).
-	DiscordUserID string
-
-	// DiscordMessageID is the original Discord message ID, used to reply-link the response.
-	DiscordMessageID string
+	// Channel, UserID and ChatID are set for EventChatMessage: the app's
+	// plugin name, the sender, and the chat the reply goes back to.
+	Channel string
+	UserID  string
+	ChatID  string
 
 	// Reply is an optional callback invoked after a matched mate trigger run completes.
 	Reply ReplyFunc

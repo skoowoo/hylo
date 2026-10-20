@@ -93,11 +93,13 @@ func TestIntroKeepsTheHelloLanguage(t *testing.T) {
 }
 
 func TestHyloBotExplainsTheChatTags(t *testing.T) {
-	if !strings.Contains(HyloBot, WechatTag) || !strings.Contains(HyloBot, DiscordTag) {
-		t.Fatal(HyloBot)
-	}
-	if !strings.HasPrefix(TriggerWechat, WechatTag) || !strings.HasPrefix(TriggerDiscord, DiscordTag) {
-		t.Fatal("chat triggers must open with their tag")
+	for tag, trigger := range map[string]string{WechatTag: TriggerWechat, DiscordTag: TriggerDiscord, TelegramTag: TriggerTelegram} {
+		if !strings.Contains(HyloBot, tag) {
+			t.Fatal(HyloBot)
+		}
+		if !strings.HasPrefix(trigger, tag) {
+			t.Fatal("chat triggers must open with their tag")
+		}
 	}
 }
 

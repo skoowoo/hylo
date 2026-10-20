@@ -13,6 +13,7 @@
 - [Bots](#bots)
 - [微信](#微信)
 - [Discord](#discord)
+- [Telegram](#telegram)
 - [LLM-Wiki 编译器](#llm-wiki-编译器)
 - [个人记忆（Memory）](#个人记忆memory)
 - [Skills](#skills)（[完整指南](./docs/skills_zh.md)）
@@ -30,7 +31,7 @@
 #### 🤖 事件驱动的多 Agent 系统
 - **集成了 6 个 agent CLI**，直接复用你本地的 Agent CLI
 - **事件触发自动化**，笔记一创建、消息一来，agent 自动跑起来
-- **微信 & Discord 直连**，直接在微信或 Discord 私信里和 agent 对话
+- **微信、Discord & Telegram 直连**，直接在微信、Discord 或 Telegram 私信里和 agent 对话
 
 #### 🧠 LLM-Wiki 编译器
 - 把笔记编译成**结构化知识**，构建互联的 **LLM Wiki 网络**
@@ -41,11 +42,11 @@
 
 #### ☁️ 全天在线，自主部署
 - 把 Hylo 部署到家里的服务器或云主机上，agent **7×24 小时在线**，合上笔记本也不停
-- 定时 bot 照常运行，微信、Discord 随时找得到它
+- 定时 bot 照常运行，微信、Discord、Telegram 随时找得到它
 - 数据始终在你自己的机器上：Markdown 文件、SQLite 元数据、全文索引。参见[远程部署](./docs/remote-deployment.md)
 
 #### 🌐 多端都能用
-- **CLI**、**桌面 App**、**微信**、**Discord**，随便选
+- **CLI**、**桌面 App**、**微信**、**Discord**、**Telegram**，随便选
 
 ## 架构
 
@@ -184,6 +185,7 @@ Bot 最有意思的地方是事件驱动：配好触发器，你什么都不用�
 | `scheduled`          | 按你设定的时间或间隔定时触发 |
 | `wechat_message`     | 收到微信私信                 |
 | `discord_message`    | 收到 Discord 私信            |
+| `telegram_message`   | 收到 Telegram 私信           |
 | `compile_requested`  | 手动触发了 LLM Wiki 编译     |
 
 #### 🧩 Hylo bot
@@ -192,7 +194,7 @@ Bot 最有意思的地方是事件驱动：配好触发器，你什么都不用�
 
 | 触发器                              | 作用                                     |
 | ----------------------------------- | ---------------------------------------- |
-| `wechat_message`、`discord_message` | 连上微信、Discord 后在那边回复你         |
+| `wechat_message`、`discord_message`、`telegram_message` | 连上微信、Discord、Telegram 后在那边回复你 |
 | `compile_requested`                 | 手动发起编译时，把笔记编译成知识单元     |
 | `note_created`（`/Web Clips/`）     | 剪藏的网页自动编译                       |
 | `scheduled` 每天 09:00              | 更新个人记忆                             |
@@ -254,7 +256,7 @@ Bot 最有意思的地方是事件驱动：配好触发器，你什么都不用�
 5. 填入 **Bot token** 和你的 **Owner user ID**（开启开发者模式 → 右键头像 → 复制用户 ID），把 **enabled** 打开
 6. **Save all** 后重启服务，Bot 头像变绿说明连上了
 
-Bot 要能给你发主动消息（如定时推送），需要和你在同一个服务器里。
+任何人都能私信 Discord Bot，所以桥接只回复 **Owner user ID** 本人，其他人的消息一律忽略。不填的话谁都不回。
 
 访问不通时，在 **Proxy URL** 填本地代理地址（如 `http://127.0.0.1:7890`）。
 
@@ -268,6 +270,24 @@ Bot 要能给你发主动消息（如定时推送），需要和你在同一个�
 6. 保存
 
 搞定，Discord Bot 收到私信就会触发对应的 bot 并回复。
+
+## Telegram
+
+在 Telegram 里和 bot 聊。Hylo 通过长轮询拉取 Telegram 消息，在内网、没有公网地址也能用。
+
+#### 第一步：配对 Telegram Bot
+
+1. 在 Telegram 里给 [@BotFather](https://t.me/BotFather) 发 `/newbot`，复制它给你的 token
+2. 打开 **Settings → Server → Config → Telegram**。如果访问不了 `api.telegram.org`，先填 **Proxy URL**（如 `http://127.0.0.1:7890`）
+3. 粘贴 token，点 **Connect**，会出现二维码和 bot 的链接
+4. 用手机扫码（或打开链接），在 Telegram 里点 **Start**
+5. 状态变成 **Connected** 后桥接已自动启用，重启服务即可生效
+
+Telegram Bot 是公开的，谁都能搜到、给它发消息。配对会把 bot 绑定到点了 Start 的那个账号，其他人的消息一律忽略。配对链接只能用一次，10 分钟后失效。要换账号，先 **Disconnect** 再重新配对。
+
+#### 第二步：创建一个 `telegram_message` 触发的 Bot
+
+设置时创建的 Hylo bot 已经带了这个触发器。自己建的 bot 加一个 **Event** 为 `telegram_message` 的触发器即可，可用变量：`{Content}`、`{TelegramUserID}`。在 Telegram 里发 `/new` 开始新对话。
 
 ## LLM-Wiki 编译器
 
@@ -393,7 +413,7 @@ Hylo 的每一层 AI 输出都可以自定义：
 在**设置 → Bots** 中，每个 Bot 有两个自定义点：
 
 - **System Prompt**：Bot 专属指令，附加在全局 system prompt 之后（用 `---` 分隔）。
-- **Trigger Prompt 模板**：Trigger 触发时发送给 agent 的用户消息，支持变量：vault 事件用 `{Path}`、`{Name}`、`{Content}`；定时触发用 `{Now}`、`{Date}`、`{Time}`；微信消息用 `{Content}`、`{WechatUserID}`；Discord 消息用 `{Content}`、`{DiscordChannelID}`、`{DiscordUserID}`。
+- **Trigger Prompt 模板**：Trigger 触发时发送给 agent 的用户消息，支持变量：vault 事件用 `{Path}`、`{Name}`、`{Content}`；定时触发用 `{Now}`、`{Date}`、`{Time}`；微信消息用 `{Content}`、`{WechatUserID}`；Discord 消息用 `{Content}`、`{DiscordChannelID}`、`{DiscordUserID}`；Telegram 消息用 `{Content}`、`{TelegramUserID}`。
 
 #### 3. 重写 LLM-Wiki 编译 Skill
 

@@ -15,6 +15,7 @@ You just write. Hylo learns who you are from your notes, then works for you arou
 - [Bots](#bots)
 - [WeChat](#wechat)
 - [Discord](#discord)
+- [Telegram](#telegram)
 - [LLM-Wiki Compiler](#llm-wiki-compiler)
 - [Personal Memory](#personal-memory)
 - [Skills](#skills) ([full guide](./docs/skills.md))
@@ -32,7 +33,7 @@ You just write. Hylo learns who you are from your notes, then works for you arou
 #### 🤖 Event-Driven Multi-Agent System
 - **6 agent CLIs** supported out of the box
 - **Event-triggered automation**: agents run tasks automatically when notes change, messages arrive, or schedules fire
-- **WeChat & Discord integration**: chat with agents directly from WeChat or Discord DMs
+- **WeChat, Discord & Telegram integration**: chat with agents directly from WeChat, Discord or Telegram DMs
 
 #### 🧠 LLM-Wiki Compiler
 - Compiles your notes into **structured knowledge** and builds an interconnected **LLM wiki network**
@@ -43,11 +44,11 @@ You just write. Hylo learns who you are from your notes, then works for you arou
 
 #### ☁️ Always On, Self-Hosted
 - Deploy Hylo on a home server or cloud instance and your agent stays **online 24/7**, even when your laptop is closed
-- Scheduled bots keep running, and the agent answers on WeChat or Discord anytime
+- Scheduled bots keep running, and the agent answers on WeChat, Discord or Telegram anytime
 - Your data stays on a machine you own: Markdown files, SQLite metadata, full-text index. See [Remote Deployment](./docs/remote-deployment.md)
 
 #### 🌐 Multiple Access Channels
-- Available via **CLI**, **desktop app**, **WeChat**, and **Discord**
+- Available via **CLI**, **desktop app**, **WeChat**, **Discord**, and **Telegram**
 
 ## Architecture
 
@@ -186,6 +187,7 @@ Add one or more triggers to a bot and it runs automatically whenever a matching 
 | `scheduled`          | On a configured interval, daily time, or weekly time |
 | `wechat_message`     | A WeChat direct message is received                  |
 | `discord_message`    | A Discord DM is received                             |
+| `telegram_message`   | A Telegram private message is received               |
 | `compile_requested`  | An LLM wiki compilation is manually triggered        |
 
 #### 🧩 The Hylo bot
@@ -194,7 +196,7 @@ The desktop app creates a **Hylo** bot during onboarding. If you skipped that, o
 
 | Trigger                          | What it does                                                                  |
 | -------------------------------- | ----------------------------------------------------------------------------- |
-| `wechat_message`, `discord_message` | Replies to you on WeChat and Discord once they're connected                |
+| `wechat_message`, `discord_message`, `telegram_message` | Replies to you on WeChat, Discord and Telegram once they're connected |
 | `compile_requested`              | Compiles a note into knowledge units when you ask for it                      |
 | `note_created` on `/Web Clips/`  | Compiles new web clips automatically                                          |
 | `scheduled` daily 09:00          | Updates your personal memory                                                  |
@@ -257,7 +259,7 @@ Same idea as WeChat, but Discord. The bot connects over the Gateway and replies 
 5. Paste the token into **Bot token**, fill in your **Owner user ID** (Developer Mode → right-click your avatar → Copy User ID), and set **enabled** to true
 6. Click **Save all** and restart the server. The Bot's status dot turns green once connected.
 
-To send proactive DMs (e.g. from a scheduled trigger), the Bot must share at least one server with you.
+Anyone can DM a Discord bot, so the bridge answers only the **Owner user ID** and ignores everyone else. Leave it empty and the bot answers no one.
 
 If `discord.com` is not directly reachable, set **Proxy URL** to your local proxy (e.g. `http://127.0.0.1:7890`).
 
@@ -271,6 +273,24 @@ If `discord.com` is not directly reachable, set **Proxy URL** to your local prox
 6. Save the bot
 
 Done. Every incoming DM now triggers the bot and gets a reply.
+
+## Telegram
+
+Chat with your bots from Telegram. Hylo long-polls the Telegram Bot API, so it works behind NAT with no public URL.
+
+#### Step 1: Pair a Telegram bot
+
+1. In Telegram, message [@BotFather](https://t.me/BotFather), send `/newbot` and copy the token it gives you
+2. Open **Settings → Server → Config → Telegram**. If `api.telegram.org` is blocked where you are, set **Proxy URL** first (e.g. `http://127.0.0.1:7890`)
+3. Paste the token and click **Connect**; a QR code and a link to your bot appear
+4. Scan it with your phone (or open the link) and tap **Start** in Telegram
+5. Once the badge shows **Connected**, the bridge is enabled; restart the server to start it
+
+Telegram bots are public: anyone can find and message them. Pairing binds the bot to the account that tapped Start, and the bridge ignores messages from anyone else. The pairing link is single-use and expires after 10 minutes. To move the bot to another account, **Disconnect** and pair again.
+
+#### Step 2: Create a Bot with a `telegram_message` trigger
+
+The Hylo bot made during setup already has one. For your own bot, add a trigger with the **Event** `telegram_message`. Available variables: `{Content}`, `{TelegramUserID}`. Send `/new` in Telegram to start a fresh conversation.
 
 ## LLM-Wiki Compiler
 
@@ -394,7 +414,7 @@ Every layer of AI output in Hylo is customizable:
 In **Settings → Bots**, each bot exposes two customization points:
 
 - **System Prompt** — agent-bot-specific instructions. Appended to the global system prompt (joined with `---`).
-- **Trigger Prompt template**: the user message sent to the agent when a trigger fires. Supports variables: `{Path}`, `{Name}`, `{Content}` for vault events; `{Now}`, `{Date}`, `{Time}` for scheduled triggers; `{Content}`, `{WechatUserID}` for WeChat triggers; `{Content}`, `{DiscordChannelID}`, `{DiscordUserID}` for Discord triggers.
+- **Trigger Prompt template**: the user message sent to the agent when a trigger fires. Supports variables: `{Path}`, `{Name}`, `{Content}` for vault events; `{Now}`, `{Date}`, `{Time}` for scheduled triggers; `{Content}`, `{WechatUserID}` for WeChat triggers; `{Content}`, `{DiscordChannelID}`, `{DiscordUserID}` for Discord triggers; `{Content}`, `{TelegramUserID}` for Telegram triggers.
 
 #### 3. Rewrite the LLM-Wiki Compile Skill
 

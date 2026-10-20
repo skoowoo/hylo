@@ -8,13 +8,14 @@ import (
 // Chat triggers open every message with a tag so the bot can tell where it
 // came from; a message without one was typed in Hylo's own chat.
 const (
-	WechatTag  = "[Message via WeChat]"
-	DiscordTag = "[Message via Discord]"
+	WechatTag   = "[Message via WeChat]"
+	DiscordTag  = "[Message via Discord]"
+	TelegramTag = "[Message via Telegram]"
 )
 
 // HyloBot sits under the global prompt, which already covers the knowledge
 // base, memory and wiki links; this one gives the main bot its job.
-var HyloBot = execute(parse("bot_hylo"), struct{ WechatTag, DiscordTag string }{WechatTag, DiscordTag})
+var HyloBot = execute(parse("bot_hylo"), struct{ WechatTag, DiscordTag, TelegramTag string }{WechatTag, DiscordTag, TelegramTag})
 
 // SilentReply is what a trigger run answers when it has nothing worth sending;
 // the reply then stays out of the inbox.
@@ -29,10 +30,11 @@ func IsSilent(asked, reply string) bool {
 
 // Trigger templates of the Hylo bot.
 var (
-	TriggerCompile = load("trigger_compile")
-	TriggerMemory  = load("trigger_memory")
-	TriggerWechat  = WechatTag + "\n{Content}"
-	TriggerDiscord = DiscordTag + "\n{Content}"
+	TriggerCompile  = load("trigger_compile")
+	TriggerMemory   = load("trigger_memory")
+	TriggerWechat   = WechatTag + "\n{Content}"
+	TriggerDiscord  = DiscordTag + "\n{Content}"
+	TriggerTelegram = TelegramTag + "\n{Content}"
 )
 
 // Trigger templates of the Recall bot, which hylo-setup creates quoting them word for word.

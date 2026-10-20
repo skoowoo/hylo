@@ -106,7 +106,7 @@ const settingsModalCSS = `
     .settings-scroll-pane { flex: 1; overflow-y: auto; padding: 1.75rem 1.5rem 3rem; }
     ::-webkit-scrollbar { display: none; }
 
-` + settingsAppearanceCSS + settingsServerCSS + settingsWechatCSS + settingsAgentCLICSS + settingsNotificationsCSS + settingsShortcutsCSS + settingsAgentBotsCSS + settingsSkillsCSS
+` + settingsAppearanceCSS + settingsServerCSS + settingsChatLinkCSS + settingsAgentCLICSS + settingsNotificationsCSS + settingsShortcutsCSS + settingsAgentBotsCSS + settingsSkillsCSS
 
 // settingsModalHTML returns the settings modal DOM. Include once per page —
 // opened via the sidebar's bottom-row Settings button (see home.html).
@@ -205,6 +205,7 @@ const settingsCtrlJS = `
           if (!open) {
             if (window.__hyloEscPop) window.__hyloEscPop('settings');
             this.cancelWechatLogin();
+            this.cancelTelegramPairing();
             this.stopBotSetup();
             return;
           }
@@ -263,7 +264,7 @@ const settingsCtrlJS = `
       },
 
 ` +
-	settingsAppearanceJS + settingsServerJS + settingsWechatJS + settingsAgentCLIJS + settingsNotificationsJS + settingsShortcutsJS + settingsAgentBotsJS + settingsSkillsJS +
+	settingsAppearanceJS + settingsServerJS + settingsWechatJS + settingsTelegramJS + settingsAgentCLIJS + settingsNotificationsJS + settingsShortcutsJS + settingsAgentBotsJS + settingsSkillsJS +
 	`    };
   }
 `

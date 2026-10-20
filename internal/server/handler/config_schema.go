@@ -91,10 +91,16 @@ func buildConfigSchema() []SchemaField {
 			Description: "Discord Bot token from the Developer Portal. Obtain under Bot → Reset Token.",
 			Sensitive: true, Default: ""},
 		{Key: "plugins.discord.user_id", Type: "string", Section: "plugins.discord", Label: "Owner user ID",
-			Description: "Your Discord user ID for proactive DM push. Enable Developer Mode → right-click your avatar → Copy User ID.",
+			Description: "Required: only DMs from this Discord user reach your bots. Enable Developer Mode → right-click your avatar → Copy User ID.",
 			Default: ""},
 		{Key: "plugins.discord.proxy_url", Type: "string", Section: "plugins.discord", Label: "Proxy URL",
 			Description: "Optional HTTP/SOCKS5 proxy for Discord API and WebSocket traffic (e.g. http://127.0.0.1:7890).",
+			Default: ""},
+
+		{Key: "plugins.telegram.enabled", Type: "bool", Section: "plugins.telegram", Label: "Telegram bridge enabled",
+			Description: "Turned on by pairing. When true, poll the paired Telegram bot and emit telegram_message mate events for your private messages.", Default: false},
+		{Key: "plugins.telegram.proxy_url", Type: "string", Section: "plugins.telegram", Label: "Proxy URL",
+			Description: "Optional HTTP/SOCKS5 proxy for api.telegram.org (e.g. http://127.0.0.1:7890). Pairing uses it too.",
 			Default: ""},
 	}
 }

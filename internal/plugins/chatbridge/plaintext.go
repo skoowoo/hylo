@@ -1,4 +1,4 @@
-package wechat
+package chatbridge
 
 import (
 	"regexp"
@@ -17,8 +17,8 @@ var (
 	reBlankLines = regexp.MustCompile(`\n{3,}`)
 )
 
-// FormatForWeChat strips markdown for plain-text WeChat delivery.
-func FormatForWeChat(text string) string {
+// PlainText strips markdown for apps that show messages as plain text.
+func PlainText(text string) string {
 	out := reImageLink.ReplaceAllString(text, "[$1]")
 	out = reMDLink.ReplaceAllString(out, "$1 ($2)")
 	out = reBold3.ReplaceAllString(out, "$1")

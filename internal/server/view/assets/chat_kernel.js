@@ -70,11 +70,21 @@
       return m ? m.name : (msg.agentId || 'Agent');
     }
 
-    function triggerLabel(type) {
+    function eventDef(type) {
       for (var i = 0; i < eventDefs.length; i++) {
-        if (eventDefs[i].type === type) return eventDefs[i].label;
+        if (eventDefs[i].type === type) return eventDefs[i];
       }
-      return type;
+      return null;
+    }
+
+    function triggerLabel(type) {
+      var d = eventDef(type);
+      return d ? d.label : type;
+    }
+
+    function isChatEvent(type) {
+      var d = eventDef(type);
+      return !!(d && d.chat);
     }
 
     function findMsg(id) {
@@ -158,6 +168,7 @@
         triggersLoaded: triggersFor === mateId,
         triggerFilter: triggerFilter,
         triggerLabel: triggerLabel,
+        isChatEvent: isChatEvent,
         mateName: mateName,
       };
     }
@@ -785,13 +796,13 @@
       if (drop && messages.indexOf(prompt) !== -1) messages.splice(messages.indexOf(prompt), 1);
       var userMsgId = R.genId();
       messages.push({ id: userMsgId, role: 'user', content: text, createdAt: Date.now(), rev: 1 });
-      // wechat_message/discord_message runs reply externally and resume a
-      // persistent agent session (resolveAgentSession) in the same conv a
-      // human types into — only a non-reply trigger (vault/schedule/
-      // agent_run_completed, confined to the mate's separate "Auto runs"
-      // conv) is retried through the trigger pipeline, so its completion
-      // still reaches the inbox the way the original fire did.
-      if (triggerEvent && triggerEvent !== 'wechat_message' && triggerEvent !== 'discord_message') {
+      // Chat app runs reply externally and resume a persistent agent session
+      // (resolveAgentSession) in the same conv a human types into — only a
+      // non-reply trigger (vault/schedule/agent_run_completed, confined to
+      // the mate's separate "Auto runs" conv) is retried through the trigger
+      // pipeline, so its completion still reaches the inbox the way the
+      // original fire did.
+      if (triggerEvent && !isChatEvent(triggerEvent)) {
         await retryTriggerRun(text, userMsgId, triggerEvent, msg.triggerId || '', mate, msg.id);
       } else {
         await runTurn(text, userMsgId, mate, { retryOf: msg.id });

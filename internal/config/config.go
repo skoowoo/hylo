@@ -19,10 +19,11 @@ type Config struct {
 
 // PluginsConfig groups all optional plugin configurations.
 type PluginsConfig struct {
-	Search  SearchConfig  `mapstructure:"search" json:"search" toml:"search"`
-	GitSync GitSyncConfig `mapstructure:"git_sync" json:"git_sync" toml:"git_sync"`
-	Wechat  WechatConfig  `mapstructure:"wechat" json:"wechat" toml:"wechat"`
-	Discord DiscordConfig `mapstructure:"discord" json:"discord" toml:"discord"`
+	Search   SearchConfig   `mapstructure:"search" json:"search" toml:"search"`
+	GitSync  GitSyncConfig  `mapstructure:"git_sync" json:"git_sync" toml:"git_sync"`
+	Wechat   WechatConfig   `mapstructure:"wechat" json:"wechat" toml:"wechat"`
+	Discord  DiscordConfig  `mapstructure:"discord" json:"discord" toml:"discord"`
+	Telegram TelegramConfig `mapstructure:"telegram" json:"telegram" toml:"telegram"`
 }
 
 // SearchConfig holds settings for the full-text search plugin.
@@ -51,7 +52,7 @@ type DiscordConfig struct {
 	// BotToken is the Discord Bot token from the Developer Portal (sensitive).
 	BotToken string `mapstructure:"bot_token" json:"bot_token" toml:"bot_token"`
 
-	// UserID is the owner's Discord user ID used for proactive DM push.
+	// UserID is the owner's Discord user ID; DMs from anyone else are ignored.
 	// Obtain by enabling Developer Mode in Discord → right-click your avatar → Copy User ID.
 	UserID string `mapstructure:"user_id" json:"user_id" toml:"user_id"`
 
@@ -336,4 +337,6 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("plugins.wechat.enabled", false)
 
 	v.SetDefault("plugins.discord.enabled", false)
+
+	v.SetDefault("plugins.telegram.enabled", false)
 }

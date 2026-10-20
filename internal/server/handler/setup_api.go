@@ -18,11 +18,11 @@ import (
 
 const (
 	hyloBotName        = "Hylo"
-	hyloBotDescription = "Your personal AI agent: chat here, on WeChat or on Discord."
+	hyloBotDescription = "Your personal AI agent: chat here, on WeChat, Discord or Telegram."
 )
 
 // hyloBot answers wherever the user talks to Hylo (the chat triggers stay idle
-// until WeChat or Discord is connected), compiles and keeps memory. Reviews are
+// until a chat app is connected), compiles and keeps memory. Reviews are
 // a Recall bot's job, which hylo-setup offers.
 func hyloBot(agentID, model string) (*mate.Mate, []mate.MateTrigger) {
 	if model == "" {
@@ -50,6 +50,7 @@ func hyloBot(agentID, model string) (*mate.Mate, []mate.MateTrigger) {
 	return m, []mate.MateTrigger{
 		on("WeChat", mate.MateEventWechatMessage, prompt.TriggerWechat),
 		on("Discord", mate.MateEventDiscordMessage, prompt.TriggerDiscord),
+		on("Telegram", mate.MateEventTelegramMessage, prompt.TriggerTelegram),
 		on("Compiler", mate.MateEventCompileRequested, prompt.TriggerCompile),
 		webClips,
 		scheduled("Memory", "daily 09:00", prompt.TriggerMemory),

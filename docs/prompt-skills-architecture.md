@@ -18,7 +18,7 @@ Hylo 交给 agent 的指令分三层，各管一件事：
 flowchart LR
     subgraph 入口
         C[Chat<br/>Hylo 聊天]
-        T[Trigger<br/>事件 / 定时 / 微信 / Discord]
+        T[Trigger<br/>事件 / 定时 / 微信 / Discord / Telegram]
         O[OneShot<br/>内部单次请求，如 setup hello]
     end
     C & T & O --> R["prompt.Run<br/>{Kind, Bot, Main, MCP, Intro, Overrides}"]
@@ -81,12 +81,12 @@ agent CLI 没有独立的 system prompt 参数，所以指令只随第一轮发�
 | 主 bot 聊天 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
 | 其他 bot 聊天 | ✅ | ✅ | ✅ | ✅ | ✅ | | |
 | setup 首聊（主 bot） | ✅ | ✅ | ✅ | ✅ | ✅ | | ✅ |
-| Trigger（含微信 / Discord 回复） | ✅ | ✅ | ✅ | ✅ | | | |
+| Trigger（含微信 / Discord / Telegram 回复） | ✅ | ✅ | ✅ | ✅ | | | |
 | OneShot | | | 有则 ✅ | | | | |
 
 由此推出两点：
 
-- **Trigger 运行没有 `choices`**：卡片只在 Hylo 聊天里渲染。所以 skill 里凡是要出卡片的地方，都要写明“在微信 / Discord 里改用纯文本”（hylo-bots `references/cards.md` 已经这样写）。
+- **Trigger 运行没有 `choices`**：卡片只在 Hylo 聊天里渲染。所以 skill 里凡是要出卡片的地方，都要写明“在微信 / Discord / Telegram 里改用纯文本”（hylo-bots `references/cards.md` 已经这样写）。
 - **只有主 bot 会主动提议升级**：主 bot 是用户唯一的总入口，其他 bot 专职做一件事，不需要路由能力。
 
 ---
@@ -117,6 +117,7 @@ flowchart TB
 | --- | --- | --- | --- |
 | WeChat | `wechat_message` | `[Message via WeChat]\n{Content}` | 无，由 `bot_hylo.md` 规定纯文本回复 |
 | Discord | `discord_message` | `[Message via Discord]\n{Content}` | 同上 |
+| Telegram | `telegram_message` | `[Message via Telegram]\n{Content}` | 同上 |
 | Compiler | `compile_requested` | `trigger_compile.md` | 点名 hylo-compile-note → hylo-index-knowledge → humanizer（有就用） |
 | Compiler | `note_created`，限 `/Web Clips/` | 同上 | 同上 |
 | Memory | `scheduled`，daily 09:00 | `trigger_memory.md` | 不点名，靠 description 匹配到 hylo-memory |
@@ -220,7 +221,7 @@ flowchart LR
 | `proposal` | hylo-bots `references/cards.md` | 自动化计划，接受即授权执行 | 摘要 + 可展开的细节 + 内嵌 choices |
 | `receipt` | hylo-bots `references/cards.md` | 执行回执；`ids` 记下做了哪些改动 | 撤销按钮发送撤销文本，由 hylo-bots `workflows/undo.md` 按 `ids` 从后往前回滚 |
 
-卡片只在 Chat 里渲染。Trigger 运行没有 `choices` section，在微信 / Discord 里一律用纯文本。
+卡片只在 Chat 里渲染。Trigger 运行没有 `choices` section，在微信 / Discord / Telegram 里一律用纯文本。
 
 ---
 

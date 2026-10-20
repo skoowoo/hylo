@@ -43,16 +43,20 @@ func TestReplyTypingLifecycle(t *testing.T) {
 	}))
 	t.Cleanup(srv.Close)
 
-	p := New(config.WechatConfig{}, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	p := New(config.WechatConfig{UserID: "u1"}, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	p.client = wechat.NewClient()
 	p.token = &wechat.TokenData{BaseURL: srv.URL, Token: "t"}
+	p.lastContextToken = "ctx"
 
-	reply := p.makeReplyFunc("u1", "ctx")
+	var reply plugin.ReplyFunc
+	p.SetDispatch(func(e plugin.Event) { reply = e.Reply })
+	p.Receive("u1", "u1", "ping")
 	time.Sleep(20 * time.Millisecond)
 
 	if err := reply(context.Background(), plugin.ReplyResult{Text: "hello", Status: "succeeded"}); err != nil {
 		t.Fatal(err)
 	}
+	time.Sleep(20 * time.Millisecond)
 
 	mu.Lock()
 	defer mu.Unlock()

@@ -60,21 +60,3 @@ func mediaPlaceholder(items []MessageItem) string {
 	}
 	return ""
 }
-
-// IsSessionCommand reports whether the message text is a session-reset command (/new or /clear).
-func IsSessionCommand(text string) bool {
-	t := strings.ToLower(strings.TrimSpace(text))
-	return t == "/new" || t == "/clear"
-}
-
-// PreviewMessage returns a short log preview.
-func PreviewMessage(msg Message) string {
-	text := ExtractText(msg)
-	if text != "" {
-		if len(text) > 50 {
-			return text[:50] + "..."
-		}
-		return text
-	}
-	return "[empty]"
-}
