@@ -90,5 +90,5 @@ Skim each candidate (`extract_segment` with `head: 20`, or the short note itself
 <why it's worth a look now, one line>
 ```
 
-One block per find. End with `choices`, such as: draw again, dig into one of these (name it), find everything related to it.
+One block per find.
 

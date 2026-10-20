@@ -6,8 +6,9 @@ With few notes there's little to learn them from, so ask. What they tell you see
 
 ## Do
 
-1. Ask, in one or two short sentences, what they do and what they're into lately. Make it feel like curiosity, not a form; give one example answer so it's easy to reply.
-2. On their answer, react in one sentence that shows you got it. If they'd rather not say, skip the step.
+1. Ask, in one or two short sentences, what they do and what they're into lately. Make it feel like curiosity, not a form, and give one example answer so it's easy to reply.
+2. Offer `choices`: one or two guesses at the answer when their notes, folders or note apps hint at who they are (e.g. "Product designer, into AI tools"), then the skip option.
+3. On their answer, react in one sentence that shows you got it. If they skip or would rather not say, skip the step.
 
 ## Record
 

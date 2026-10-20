@@ -172,7 +172,7 @@ func TestSilentReply(t *testing.T) {
 }
 
 func TestSupersededPromptsMoveForward(t *testing.T) {
-	current := map[string]bool{TriggerCompile: true, TriggerMemory: true, TriggerRecallShort: true, TriggerRecallWeekly: true}
+	current := map[string]bool{TriggerCompile: true, TriggerMemory: true, TriggerRecallShort: true, TriggerRecallWeekly: true, TriggerRecallRandom: true}
 	for old, repl := range Superseded {
 		if current[old] {
 			t.Errorf("a current prompt is marked superseded: %q", old)

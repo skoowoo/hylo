@@ -120,8 +120,14 @@ flowchart TB
 | Compiler | `compile_requested` | `trigger_compile.md` | 点名 hylo-compile-note → hylo-index-knowledge → humanizer（有就用） |
 | Compiler | `note_created`，限 `/Web Clips/` | 同上 | 同上 |
 | Memory | `scheduled`，daily 09:00 | `trigger_memory.md` | 不点名，靠 description 匹配到 hylo-memory |
-| Recall | `short_note_created` | `trigger_recall_short.md` | 点名 hylo-recall（找：支持和矛盾）；没结果时只回 `[silent]`，不进收件箱 |
-| Recall | `scheduled`，weekly mon 09:05 | `trigger_recall_weekly.md` | 点名 hylo-recall（周回顾） |
+
+回顾不在主 bot 上：周回顾、速记比对是定时 / 事件型的消费，不是对话，交给独立的 Recall bot，由 hylo-setup 的 recall-bot 步骤创建（`/_bots/_recall`，启用内置 hylo-recall），三条 trigger 由用户多选。trigger prompt 就是 `trigger_recall_*.md`，步骤文件逐字引用，`TestRecallBotStepQuotesTriggerPrompts` 防止两边走样。
+
+| Trigger | 事件 | Prompt | 走哪个 skill |
+| --- | --- | --- | --- |
+| Weekly review | `scheduled`，weekly mon 09:05 | `trigger_recall_weekly.md` | 点名 hylo-recall（周回顾） |
+| Look back | `scheduled`，weekly sat 09:00 | `trigger_recall_random.md` | 点名 hylo-recall（随机翻历史） |
+| Short notes | `short_note_created` | `trigger_recall_short.md` | 点名 hylo-recall（找：支持和矛盾）；没结果时只回 `[silent]`，不进收件箱 |
 
 **Trigger prompt 的写法**（hylo-bots `references/triggers.md` + `references/skills.md`）：只写做什么、点名用哪个 skill、加上用户偏好（话题、数量、语言），不写方法。不写 curl、URL、API 参数，这些属于 skill。
 
@@ -157,7 +163,7 @@ flowchart LR
 | hylo-memory | 单文件，两个任务 | 从近期短笔记和知识单元提取记忆；或记下一条事实 |
 | hylo-recall | 路由 + `find.md` / `inspire.md` / `review.md` / `explore.md` | 找（资源、话题、观点、相关内容，不限时间）/ 灵感素材 / 回顾（周、月、随机翻历史）/ 探（按领域索引和文件树看全貌），只输出到对话 |
 | hylo-bots | 路由 + `workflows/{create,update,delete,undo}` + `references/{cards,skills,system-prompt,triggers}` | 建、改、删、撤销 bot 和 trigger，挑选 skill |
-| hylo-setup | 路由 + `steps/*`（intro → language → about-you → news-bot → compile → channels → wrap-up） | 首次引导，进度写在进度文件里 |
+| hylo-setup | 路由 + `steps/*`（intro → language → about-you → recall-bot → news-bot → compile → channels → wrap-up） | 首次引导，进度写在进度文件里 |
 | hylo-writing | 路由 + `workflows/{draft,revise,longform}` + `references/{beats,forms,surface}` | 写作的统一入口：成文 / 改稿（意见、候选、替换）/ 长文；共用文风（`_voice.md`）、格式、落点三条规则 |
 
 ### 4.3 Skill 之间的依赖
@@ -166,7 +172,7 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-    setup[hylo-setup] -->|news-bot 步骤| bots[hylo-bots]
+    setup[hylo-setup] -->|recall-bot、news-bot 步骤| bots[hylo-bots]
     setup -->|about-you 步骤：Record one fact| memory[hylo-memory]
     setup -->|language 步骤：改写引导文| editor[hylo-editor]
     setup -.->|compile 步骤调 compile 工具<br/>→ compile_requested 事件<br/>→ 主 bot Compiler trigger| compile[hylo-compile-note]

@@ -11,7 +11,9 @@ import (
 	"testing"
 
 	"github.com/hardhacker/hylo/internal/mate"
+	"github.com/hardhacker/hylo/internal/prompt"
 	"github.com/hardhacker/hylo/internal/skills"
+	builtin "github.com/hardhacker/hylo/skills"
 )
 
 func TestSetupBotOnlyForAnEmptyVault(t *testing.T) {
@@ -41,7 +43,7 @@ func TestSetupBotOnlyForAnEmptyVault(t *testing.T) {
 	for _, tr := range triggers {
 		names = append(names, tr.Name)
 	}
-	if got := strings.Join(names, ","); got != "WeChat,Discord,Compiler,Compiler,Memory,Recall,Recall" {
+	if got := strings.Join(names, ","); got != "WeChat,Discord,Compiler,Compiler,Memory" {
 		t.Fatalf("trigger names in order: %s", got)
 	}
 	convs, _ := store.ListConversationsByType(id, mate.ConvTypeChat)
@@ -72,3 +74,17 @@ func TestHyloBotTriggersAreValid(t *testing.T) {
 	}
 }
 
+
+func TestRecallBotStepQuotesTriggerPrompts(t *testing.T) {
+	b, err := builtin.FS.ReadFile("hylo-setup/steps/recall-bot.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The step quotes them indented under a list item.
+	step := regexp.MustCompile(`(?m)^ +`).ReplaceAllString(string(b), "")
+	for _, p := range []string{prompt.TriggerRecallWeekly, prompt.TriggerRecallRandom, prompt.TriggerRecallShort} {
+		if !strings.Contains(step, p) {
+			t.Errorf("recall-bot step doesn't quote %q", p)
+		}
+	}
+}

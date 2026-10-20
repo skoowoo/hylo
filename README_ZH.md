@@ -196,10 +196,8 @@ Bot 最有意思的地方是事件驱动：配好触发器，你什么都不用�
 | `compile_requested`                 | 手动发起编译时，把笔记编译成知识单元     |
 | `note_created`（`/Web Clips/`）     | 剪藏的网页自动编译                       |
 | `scheduled` 每天 09:00              | 更新个人记忆                             |
-| `short_note_created`                | 新速记自动与知识库交叉比对               |
-| `scheduled` 每周一 09:05            | 回顾一周写下的内容                       |
 
-可以在 **Settings → Bots** 里修改或删除，也可以点 **New Bot** 自己建。
+可以在 **Settings → Bots** 里修改或删除，也可以点 **New Bot** 自己建。onboarding 之后的设置对话还会帮你建一个 **Recall** bot，把你写过的东西带回给你，三种方式任选：每周一回顾上一周写下的内容，每周六随机翻出几条可能已经忘了的旧笔记，新速记自动与知识库交叉比对。
 
 #### 底层 Agent
 

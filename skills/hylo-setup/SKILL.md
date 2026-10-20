@@ -24,6 +24,7 @@ completed: <YYYY-MM-DD, once wrap-up is done>
 - [x] intro — [[Getting started with Hylo]]
 - [x] language — zh-Hans
 - [x] about-you — product designer, into AI tools
+- [ ] recall-bot
 - [ ] news-bot
 - [ ] compile
 - [ ] channels
@@ -38,15 +39,16 @@ Read it with `read {"path": "/_setup/progress.md"}`. If it doesn't exist, this i
 
 ## Steps, in order
 
-| id          | Sub-skill            |
-| ----------- | -------------------- |
-| `intro`     | @steps/intro.md      |
-| `language`  | @steps/language.md   |
-| `about-you` | @steps/about-you.md  |
-| `news-bot`  | @steps/news-bot.md   |
-| `compile`   | @steps/compile.md    |
-| `channels`  | @steps/channels.md   |
-| `wrap-up`   | @steps/wrap-up.md    |
+| id           | Sub-skill            |
+| ------------ | -------------------- |
+| `intro`      | @steps/intro.md      |
+| `language`   | @steps/language.md   |
+| `about-you`  | @steps/about-you.md  |
+| `recall-bot` | @steps/recall-bot.md |
+| `news-bot`   | @steps/news-bot.md   |
+| `compile`    | @steps/compile.md    |
+| `channels`   | @steps/channels.md   |
+| `wrap-up`    | @steps/wrap-up.md    |
 
 A progress file from an older version may miss a step or list one that's gone: add the missing ones as pending, drop the unknown ones.
 
@@ -58,9 +60,10 @@ A progress file from an older version may miss a step or list one that's gone: a
 2. If its condition doesn't hold, mark it skipped with the reason and go on to the next.
 3. When a step ends, update the progress file, then go straight into the next step in the same reply. Don't ask whether to continue.
 4. A step that asks the user something ends your turn with that question. Their answer finishes the step.
-5. If they want to stop ("later", "skip the rest", "以后再说"), mark the remaining steps skipped, and tell them in one line they can say "continue Hylo setup" anytime.
-6. If they ask something unrelated, help them, then come back in one line.
-7. If setup is already complete, say so and offer to redo a step they name.
+5. End every question with `choices`, so it takes one click to answer. If the step can be skipped, the last option skips it and says setup goes on, e.g. "Skip, next step" / "跳过，下一步"; in a multi-pick too. Picking it skips the step.
+6. If they want to stop ("later", "skip the rest", "以后再说"), mark the remaining steps skipped, and tell them in one line they can say "continue Hylo setup" anytime.
+7. If they ask something unrelated, help them, then come back in one line.
+8. If setup is already complete, say so and offer to redo a step they name.
 
 Speak in the progress file's `language` once it's set; before that, in the language you were told to use, or else the user's.
 

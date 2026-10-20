@@ -29,12 +29,17 @@ func IsSilent(asked, reply string) bool {
 
 // Trigger templates of the Hylo bot.
 var (
-	TriggerCompile      = load("trigger_compile")
-	TriggerMemory       = load("trigger_memory")
+	TriggerCompile = load("trigger_compile")
+	TriggerMemory  = load("trigger_memory")
+	TriggerWechat  = WechatTag + "\n{Content}"
+	TriggerDiscord = DiscordTag + "\n{Content}"
+)
+
+// Trigger templates of the Recall bot, which hylo-setup creates quoting them word for word.
+var (
 	TriggerRecallShort  = load("trigger_recall_short")
 	TriggerRecallWeekly = load("trigger_recall_weekly")
-	TriggerWechat       = WechatTag + "\n{Content}"
-	TriggerDiscord      = DiscordTag + "\n{Content}"
+	TriggerRecallRandom = load("trigger_recall_random")
 )
 
 // Superseded maps former texts of the built-in trigger prompts to the current

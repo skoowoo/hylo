@@ -114,7 +114,7 @@ What's in my knowledge base?
 
 ## hylo-setup — guided setup in chat
 
-Runs on your first chat after onboarding. Hylo walks you through setup one step at a time: it writes you a getting-started guide live in the editor, checks which language you'd like it to use and remembers it, asks a little about you if your vault is still empty, offers a News bot that brings a morning digest from news sources you pick, compiles a few of your notes into knowledge, then sums up what's in place. Progress is kept in `/_setup/progress.md`, so you can stop anytime and pick up later.
+Runs on your first chat after onboarding. Hylo walks you through setup one step at a time: it writes you a getting-started guide live in the editor, checks which language you'd like it to use and remembers it, asks a little about you if your vault is still empty, offers a Recall bot that brings your notes back to you (a weekly review, a random look back through your history, a cross-check of each new short note; pick any), offers a News bot that brings a morning digest from news sources you pick, compiles a few of your notes into knowledge, then sums up what's in place. Progress is kept in `/_setup/progress.md`, so you can stop anytime and pick up later.
 
 **Use it for:** finishing setup you skipped, or redoing a step. Name Hylo setup when you ask, so everyday requests to set something up don't start it.
 
