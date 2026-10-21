@@ -115,7 +115,7 @@ function openOverlay({ lang, source, renderer, onClose }) {
     if (prevFocus && prevFocus.isConnected) prevFocus.focus({ preventScroll: true });
     onClose();
   };
-  const fit = iconButton('focus', 'Fit to view', () => inst && inst.fit && inst.fit());
+  const fit = iconButton('scan', 'Fit to view', () => inst && inst.fit && inst.fit());
   const shut = iconButton('x', 'Close (Esc)', close);
   bar.append(...zoomButtons(() => inst), fit, shut);
   panel.append(body, bar);
@@ -172,8 +172,8 @@ export function mountShell({ into, lang, source, renderer, minHeight, onEdit, mo
   bar.className = 'hy-card-bar';
   bar.append(
     ...zoomButtons(() => inst),
-    iconButton('focus', 'Fit to view', () => inst && inst.fit && inst.fit()),
-    iconButton('expand', 'Fullscreen', () => {
+    iconButton('scan', 'Fit to view', () => inst && inst.fit && inst.fit()),
+    iconButton('maximize-2', 'Fullscreen', () => {
       if (!closeOverlay) closeOverlay = openOverlay({ lang, source: current, renderer, onClose: () => { closeOverlay = null; } });
     }),
   );

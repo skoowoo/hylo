@@ -1,5 +1,7 @@
 // Chat-only options card; `- [ ]` items allow several picks. Static until a host
 // calls el._hyChoices.setState({ mode, picked }); picks bubble as `hylo:choice`.
+import { icon } from './icons.js';
+
 const STYLE_ID = 'hy-choices-style';
 
 // No opacity transitions: the app's button:active dimming would animate, and WebKit
@@ -15,9 +17,12 @@ const CSS = `
 .hy-choices-active .hy-choice{cursor:pointer}
 .hy-choices-active .hy-choice:hover{background:var(--btn-bg-hov,rgba(24,24,27,.1))}
 .hy-choice:focus-visible{outline:2px solid rgba(var(--accent-rgb,94,106,210),.5);outline-offset:1px}
-.hy-choice-box{flex:none;width:12px;height:12px;border:1.5px solid currentColor;border-radius:3px;opacity:.55}
+.hy-choice-box{flex:none;display:flex;opacity:.55}
+.hy-choice-box svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.hy-choice-box svg+svg,.hy-choice-on .hy-choice-box svg:first-child{display:none}
+.hy-choice-on .hy-choice-box svg+svg{display:block}
 .hy-choices .hy-choice-on{background:var(--btn-bg-on,rgba(24,24,27,.15))}
-.hy-choice-on .hy-choice-box{opacity:1;width:9px;height:9px;padding:1.5px;background:currentColor;background-clip:content-box}
+.hy-choice-on .hy-choice-box{opacity:1}
 .hy-choices-answered .hy-choice:not(.hy-choice-on){opacity:.5}
 .hy-choices-send{all:unset;box-sizing:border-box;cursor:pointer;padding:7px 12px;border-radius:var(--r-md,8px);font:var(--fw-medium,500) var(--text-sm,.8125rem)/1.4 var(--font-ui,system-ui,sans-serif);color:var(--accent-fg,#fff);background:var(--accent,#5e6ad2)}
 .hy-choices-send[disabled]{cursor:default;opacity:.4}
@@ -79,6 +84,8 @@ export function mount(el, source, ctx = {}) {
       if (parsed.multi) {
         const box = document.createElement('span');
         box.className = 'hy-choice-box';
+        // Both glyphs share one frame, so toggling in place never shifts the label.
+        box.innerHTML = icon('square') + icon('square-check');
         b.appendChild(box);
         if (active) b.setAttribute('aria-pressed', String(picked.has(text)));
       }
