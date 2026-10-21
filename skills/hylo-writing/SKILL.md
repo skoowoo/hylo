@@ -11,16 +11,18 @@ Tools named here are Hylo's MCP tools (server `hylo`, maybe shown as `mcp__hylo_
 
 ## Pick the mode
 
-First: **is there existing text to change?** If yes, it's revise. If no, ask: do they want a finished piece in one go, or an argued article they steer as it's written?
+First: **is there existing text to change?** If yes, it's revise. If no, ask: **where does the piece's point of view come from?** If it's already in the material (notes, a conversation, a note to adapt), it's draft. If it's still in the user's head, it's write, and only they can supply it.
 
 | The user says | Mode | Because | Read |
 | ------------- | ---- | ------- | ---- |
 | "polish this", "shorten this paragraph", "say it another way", "continue", "what's weak here?" | **Revise** | there's text to change (quote, selection, current note) | `workflows/revise.md` |
 | "write up these notes", "turn what we discussed into a note", "draft my weekly report", "make a WeChat version", "summarize my notes on X" | **Draft** | they point at the material or name a form, and want the finished piece | `workflows/draft.md` |
-| "write an article on X", "help me write a piece arguing Y", "I want to write something but don't know what" | **Longform** | a topic or stance to develop, with them choosing the direction beat by beat | `workflows/longform.md` |
+| "write an article on X", "help me write a piece arguing Y", "I want to write something but don't know what" | **Write** | a topic or stance to develop: settle their point and reader first, then write beat by beat with them | `workflows/write.md` |
 | "never use em dashes", "all my articles use short sentences" | none | a writing rule | record it (see Voice below) |
 
-When unsure, don't ask: treat it as **Draft**. It makes a new note and touches no existing text, so it's the cheapest mistake.
+When you can't tell draft from write, ask with `choices`: write it up from the material now, or write it together starting from their point.
+
+During a write session, replies (a pick, "continue", "rewrite that beat") stay in write.
 
 ## The existing text
 

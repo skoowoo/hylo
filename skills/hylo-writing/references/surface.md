@@ -9,11 +9,11 @@ The editor is unavailable when the `editor_*` tools aren't there even after sear
 | Revise: feedback, or candidates not yet picked | chat only | chat only |
 | Revise: replacement, or a picked candidate | `editor_rewrite`, or `editor_type` with `at: "cursor"`; the user watches it change | read the whole note, write it back with `create` + `force` |
 | Draft | `editor_type` to the new path (a missing note is created), `speed: "fast"`; the user watches the note open and fill | `create` |
-| Longform | `editor_type`, one call per beat, default speed | `create`, then `append` per beat |
+| Write | `editor_type`, one call per beat, default speed | `create`, then `append` per beat |
 | A trigger running on its own (e.g. a scheduled weekly report) | `create`, never the editor: nobody is watching, and typing would take over the note they're editing | `create` |
 
 Once something is written through the editor, the piece stays there (the `hylo-editor` skill's *Commit to the editor*): any later failure, such as "the editor disconnected…", is reported, never finished with file tools.
 
 A whole-file write-back must leave every other paragraph byte-for-byte as it was.
 
-**From WeChat, Discord, Telegram or another chat app:** a draft is saved as a note as usual, and the reply gives its name and a two-sentence summary. A revise only replies with the revised text and leaves the note alone: on a phone they can't check what changed.
+**From WeChat, Discord, Telegram or another chat app:** a draft is saved as a note as usual, and the reply gives its name and a two-sentence summary. A revise only replies with the revised text and leaves the note alone: on a phone they can't check what changed. In write, each beat is saved to the note and also quoted in the reply, so they can read it before picking the next.

@@ -15,7 +15,7 @@ This guide covers what each built-in skill does and how to talk to it. For how s
   - [hylo-memory — extract personal memory](#hylo-memory--extract-personal-memory)
   - [hylo-recall — find, inspire, review, explore](#hylo-recall--find-inspire-review-explore)
   - [hylo-setup — guided setup in chat](#hylo-setup--guided-setup-in-chat)
-  - [hylo-writing — write, revise, and long-form articles](#hylo-writing--write-revise-and-long-form-articles)
+  - [hylo-writing — draft, revise, and write articles](#hylo-writing--draft-revise-and-write-articles)
 
 ## hylo-notes — save and change notes
 
@@ -125,17 +125,17 @@ Continue Hylo setup
 Run Hylo setup again
 ```
 
-## hylo-writing — write, revise, and long-form articles
+## hylo-writing — draft, revise, and write articles
 
-The one entry point for writing, always on for the main bot. It first decides whether there's existing text to change, then works in one of three modes:
+The one entry point for writing, always on for the main bot. It first decides whether there's existing text to change and, if not, whether the point of view is already in your material or still in your head, then works in one of three modes:
 
 - **Draft** — turns material you already have (a few notes, this week's short notes, the conversation you just had, or one note in a new format) into a new note. No questions: it picks the title and folder, writes the note (live in the editor whenever Hylo is open, to the file otherwise), lists the source notes at the end, and replies with a line or two plus next steps. The original is never touched.
 - **Revise** — works on existing text: a quoted selection, your current selection, or a `[[note]]`. It first tells apart what you want: *feedback* (3–5 quoted points in chat, your text untouched), *candidates* (2–3 numbered versions, written in only when you pick one), or a *replacement* (polish, shorten, expand, translate, continue — written straight in, one undo step). It changes only the range you gave.
-- **Long-form** — an article with a point of view from your knowledge base. It guesses the reader and stance from your request and memory, shows a palette of sources (knowledge units first, then notes and short notes) for you to confirm, then writes beat by beat, with an option to finish the rest in one go. With no topic, it proposes three from what you've been compiling lately. The finished article can be compiled back into the knowledge base.
+- **Write** — an article with a point of view, written with you. It first asks, one question at a time, what the article claims and who it's for (and, when it matters, why now and what the other side would say), offering guesses drawn from your notes and memory to pick from, and sums it up in a brief for you to confirm. It then gathers material for and against the point from your knowledge base and notes, proposes a direction of 3–6 beats, and writes one beat at a time, letting you pick each next move and asking you for your own example or judgment where the notes have none. With no topic, it proposes three from what you've been compiling lately. The finished article can be compiled back into the knowledge base.
 
 All modes follow your voice in `/_memory/_voice.md`. Say a rule once ("never use em dashes") and it's kept there for every future piece. Recurring formats like weekly reports follow your last note of the same kind, falling back to a short built-in default.
 
-**Use it for:** any writing — pulling notes together, writing up a discussion, weekly reports and minutes, adapting a note for another platform, polishing or getting feedback on a passage, or a long-form piece grounded in what you know.
+**Use it for:** any writing — pulling notes together, writing up a discussion, weekly reports and minutes, adapting a note for another platform, polishing or getting feedback on a passage, or writing an article together around a point you want to make.
 
 **Example prompts**
 

@@ -12,6 +12,8 @@ A beat is sized by what it needs:
 
 A beat that needs five paragraphs and three subheadings is two beats glued together. Split it.
 
+Beats are chosen by what they do for the point, not by which source they use. The source serves the move.
+
 ## Writing one beat
 
 Write that beat only. Pull from the sources: paraphrase, split, recombine or quote. Keep dated views dated: "as of 2024-03, X believed Y" is more honest than a timeless claim.
@@ -22,7 +24,7 @@ Write that beat only. Pull from the sources: paraphrase, split, recombine or quo
 
 ## Gaps
 
-If a beat the user wants has no support in the sources, say so: "Your notes don't cover this." Then offer: skip it and pivot to what is covered; they give a fragment inline, used for this beat only; or pause, compile a note, and resume. Never fabricate coverage.
+If a beat the user wants has no support in the sources, say so: "Your notes don't cover this." Ask first for what they have: their own example or view, told in a line or two, used for this beat only. If they have nothing, offer: skip it and pivot to what is covered; or pause, compile a note, and resume. Never fabricate coverage.
 
 ## Rhythm
 

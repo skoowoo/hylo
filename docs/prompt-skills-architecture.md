@@ -165,7 +165,7 @@ flowchart LR
 | hylo-recall | 路由 + `find.md` / `inspire.md` / `review.md` / `explore.md` | 找（资源、话题、观点、相关内容，不限时间）/ 灵感素材 / 回顾（周、月、随机翻历史）/ 探（按领域索引和文件树看全貌），只输出到对话 |
 | hylo-bots | 路由 + `workflows/{create,update,delete,undo}` + `references/{cards,skills,system-prompt,triggers}` | 建、改、删、撤销 bot 和 trigger，挑选 skill |
 | hylo-setup | 路由 + `steps/*`（intro → language → about-you → recall-bot → news-bot → compile → channels → wrap-up） | 首次引导，进度写在进度文件里 |
-| hylo-writing | 路由 + `workflows/{draft,revise,longform}` + `references/{beats,forms,surface}` | 写作的统一入口：成文 / 改稿（意见、候选、替换）/ 长文；共用文风（`_voice.md`）、格式、落点三条规则 |
+| hylo-writing | 路由 + `workflows/{draft,revise,write}` + `references/{beats,forms,surface}` | 写作的统一入口：成文 / 改稿（意见、候选、替换）/ 写作（先问观点，再逐拍写）；共用文风（`_voice.md`）、格式、落点三条规则 |
 
 ### 4.3 Skill 之间的依赖
 
@@ -201,7 +201,7 @@ flowchart LR
     SN["短笔记<br/>/_shorts"] -->|hylo-memory 提取| MEM["/_memory/ 7 个文件<br/>identity, goals, state,<br/>preferences, beliefs, people, voice"]
     K -->|hylo-memory 提取| MEM
     MEM -->|vault.md：每次运行按任务读| ALL[所有非 OneShot 运行]
-    I & K -->|检索| RW["hylo-recall（找、灵感、回顾、探，只输出到对话）<br/>hylo-writing（成文、改稿、长文）"]
+    I & K -->|检索| RW["hylo-recall（找、灵感、回顾、探，只输出到对话）<br/>hylo-writing（成文、改稿、写作）"]
 ```
 
 - **知识**：compile-note 负责写，index-knowledge 负责建索引，其他 skill 只读。读的时候先看索引，再看单元，再看原文，最后才全文搜索（`vault.md` 规定的顺序，所有运行共用）。每个单元的 `perspective`（own / external / mixed）由 compile-note 写入，memory 和 recall 据此区分“你写的”和“你读到的”。
