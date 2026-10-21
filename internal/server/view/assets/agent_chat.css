@@ -181,18 +181,18 @@
          content overflows), so the column doesn't shift sideways the moment
          a streaming reply grows tall enough to start scrolling. */
       scrollbar-gutter: stable;
-      /* Plain, uniform padding — bottom breathing room does NOT live here.
-         padding-bottom on this flex column + overflow-y:auto combination is
-         not reliably scrollable in practice (that's exactly why the
-         composer's own clearance below is a real spacer element and not
-         padding on this rule); trying to lean on it again for the trigger
-         tab reproduced the same "still flush at the true bottom" bug. */
-      padding: 1.5rem;
+      /* No bottom padding: the spacer below is the one bottom clearance. A
+         padding here stacked on it, so the last reply rested 72px above the
+         composer card. */
+      padding: 1.5rem 1.5rem 0;
       align-items: center;
       contain: layout style;
       /* chat_view.js keeps the reader's place itself, the same in every engine. */
       overflow-anchor: none;
     }
+    /* Scrolls from the bottom while stuck, so the thread stays exactly flush as
+       it grows with no scrollTop writes (WebKit rounds those to whole pixels). */
+    .chat-scroll.is-stuck { flex-direction: column-reverse; }
 
     /* .chat-input-outer floats over this pane's bottom edge (position:
        absolute) rather than sharing flex space with it, so scrolled content
@@ -460,7 +460,10 @@
     }
 
     .msg-body .prose> :last-child,
-    .trig-run-body.prose> :last-child {
+    .trig-run-body.prose> :last-child,
+    /* A card's margin sits inside its slot, out of reach of the rule above. */
+    .msg-body .prose> .hy-card-slot:last-child> .hy-card,
+    .trig-run-body.prose> .hy-card-slot:last-child> .hy-card {
       margin-bottom: 0;
     }
 
@@ -496,8 +499,9 @@
       margin-bottom: 0.15em;
     }
 
-    /* Trace — consecutive thinking/tool steps grouped on one rail; settled
-       traces fold into a one-line summary. */
+    /* Trace — a turn's thinking, tools and narration on one rail above the
+       reply. Live it shows the newest steps in a capped box; settled it folds
+       into the one-line summary. */
     .seg-trace {
       display: flex;
       flex-direction: column;
@@ -533,6 +537,13 @@
 
     .seg-trace-head.open svg { transform: rotate(90deg); }
 
+    .seg-trace-head span {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
     .seg-trace-shell {
       display: grid;
       grid-template-rows: 1fr;
@@ -540,6 +551,26 @@
     }
 
     .seg-trace-shell.is-collapsed { grid-template-rows: 0fr; }
+
+    /* Steps overflow upward, so the newest stay in view; folding keeps the
+       cap until the row has shrunk. */
+    .seg-trace-shell.is-capped .seg-trace-body {
+      max-height: 9.5rem;
+      justify-content: flex-end;
+    }
+
+    .seg-trace-shell.is-capped .seg-trace-body.is-overflow {
+      -webkit-mask-image: linear-gradient(to bottom, transparent, #000 2.5rem);
+      mask-image: linear-gradient(to bottom, transparent, #000 2.5rem);
+    }
+
+    .seg-trace-body > * { flex-shrink: 0; }
+
+    .msg-body .seg-trace-text {
+      --prose-body: var(--muted);
+      --prose-strong: var(--muted);
+      color: var(--muted);
+    }
 
     .seg-trace-body {
       position: relative;
@@ -676,6 +707,7 @@
     }
 
     .seg-tool.is-run .seg-tool-verb,
+    .seg-trace.is-live .seg-trace-head span,
     .seg-thinking-toggle.is-streaming .seg-thinking-label {
       background: linear-gradient(90deg, var(--muted) 30%, var(--accent-text) 50%, var(--muted) 70%) 0 0 / 250% 100%;
       -webkit-background-clip: text;
@@ -877,12 +909,14 @@
       line-height: 1.5;
     }
 
-    /* Message footer — same left inset as .msg-body, see there. */
+    /* Message footer — same left inset as .msg-body, see there. Tall enough
+       for the copy button, so the row keeps its height when it appears at the
+       end of a run. */
     .msg-footer {
       display: flex;
       align-items: center;
       gap: 0.5rem;
-      min-height: 16px;
+      min-height: 22px;
       padding-left: 0.625rem;
     }
 
@@ -989,10 +1023,9 @@
        and fade out rather than stopping dead at a hard line. --composer-fade-h
        does double duty: it's the gap between the panel's top edge and the
        composer card, AND the gradient's fade distance, so a message is fully
-       hidden by the time it reaches the card's top edge. .chat-scroll's
-       padding-bottom (kept in sync with this panel's real height via a
-       ResizeObserver — see initChatSection() in home.js) is what actually
-       lets a message scroll up far enough to clear it. */
+       hidden by the time it reaches the card's top edge. .chat-scroll-spacer
+       (this panel's measured height) is what lets a message scroll up far
+       enough to clear it. */
     .chat-input-outer {
       --composer-fade-h: 1.5rem;
       position: absolute;
@@ -1411,6 +1444,7 @@
 
     @media (prefers-reduced-motion: reduce) {
       .seg-tool.is-run .seg-tool-verb,
+      .seg-trace.is-live .seg-trace-head span,
       .seg-thinking-toggle.is-streaming .seg-thinking-label {
         animation: none;
         background: none;

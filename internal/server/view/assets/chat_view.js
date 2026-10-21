@@ -34,11 +34,14 @@
     }, 2000);
   }
 
+  function answerText(msg) {
+    var segs = msg.segments || [];
+    var ai = R.answerIndex(segs, msg.status === 'running');
+    return ai >= 0 ? (segs[ai].content || '').trim() : '';
+  }
+
   function copyReply(msg, btn) {
-    var text = (msg.segments || [])
-      .filter(function (s) { return s.type === 'text'; })
-      .map(function (s) { return s.content || ''; })
-      .join('').trim();
+    var text = answerText(msg);
     if (!text || !navigator.clipboard) return;
     navigator.clipboard.writeText(text).then(function () {
       rememberCopy(msg.id);
@@ -287,29 +290,16 @@
     node.style.display = on ? '' : 'none';
   }
 
-  function hasText(segs) {
-    for (var i = 0; i < segs.length; i++) {
-      if (segs[i].type === 'text' && segs[i].content) return true;
-    }
-    return false;
-  }
-
-  function thinkingLive(segs) {
-    var t = segs.length ? segs[segs.length - 1] : null;
-    return !!t && t.type === 'thinking' && !t.endedAt;
-  }
-
-  function hasStatus(segs) {
-    for (var i = 0; i < segs.length; i++) if (segs[i].type === 'status') return true;
-    return false;
-  }
+  // A fence opener still being typed would render as an empty code block until
+  // its info string is whole and the block can become its card.
+  var PARTIAL_FENCE = /(^|\n)[ \t]*(`{1,3}|~{1,3})[^`\n]*$/;
 
   function setProse(node, text, streaming) {
+    if (streaming) text = text.replace(PARTIAL_FENCE, '$1');
     if (node._raw === text) return;
     node._raw = text;
     node.innerHTML = root.__hyloRenderMarkdown(text, { cache: !streaming });
-    if (!streaming) root.__hyloHydrateFenceCards(node);
-    else if (node._fenceGen) root.__hyloReleaseFenceCards(node);
+    root.__hyloHydrateFenceCards(node);
   }
 
   function setText(node, text) {
@@ -404,9 +394,7 @@
 
   function segCtx(msg) {
     var segs = msg.segments || [];
-    var lastThink = -1;
-    for (var i = 0; i < segs.length; i++) if (segs[i].type === 'thinking') lastThink = i;
-    return { segs: segs, lastThink: lastThink, running: msg.status === 'running' };
+    return { segs: segs, running: msg.status === 'running' };
   }
 
   var kinds = {
@@ -662,38 +650,39 @@
     },
   };
 
-  // Adjacent thinking/tool/status segments form one trace; a lone step stays
-  // a plain segment. Only the tail trace of a running message is live.
-  var TRACE_TYPES = { thinking: 1, tool_use: 1, tool_result: 1, status: 1 };
+  // A turn is one trace (thinking, tools, narration) then the reply. While
+  // running the trace keeps its newest steps in a capped box; once settled it
+  // folds to a one-line summary.
+  var TRACE_TYPES = { thinking: 1, tool_use: 1, tool_result: 1, status: 1, text: 1 };
 
   function buildItems(ctx) {
-    var segs = ctx.segs, items = [], i = 0;
-    while (i < segs.length) {
-      if (!TRACE_TYPES[segs[i].type]) { items.push({ seg: segs[i], i: i }); i++; continue; }
-      var j = i, steps = 0;
-      while (j < segs.length && TRACE_TYPES[segs[j].type]) { if (segs[j].type !== 'status') steps++; j++; }
-      if (steps >= 2) items.push({ trace: true, start: i, segs: segs.slice(i, j), live: ctx.running && j === segs.length });
-      else for (var k = i; k < j; k++) items.push({ seg: segs[k], i: k });
-      i = j;
+    var segs = ctx.segs, ai = R.answerIndex(segs, ctx.running);
+    var trace = { trace: true, segs: [], idx: [], live: ctx.running }, rest = [], steps = 0;
+    for (var i = 0; i < segs.length; i++) {
+      if (i !== ai && TRACE_TYPES[segs[i].type]) {
+        trace.segs.push(segs[i]);
+        trace.idx.push(i);
+        if (segs[i].type !== 'status') steps++;
+      } else if (i !== ai) rest.push({ seg: segs[i], i: i });
     }
-    return items;
-  }
-
-  function itemCtx(ctx, item) {
-    if (!item.trace || item.live || !ctx.running) return ctx;
-    return { segs: ctx.segs, lastThink: ctx.lastThink, running: false };
+    var items = [];
+    if (steps) items.push(trace);
+    else for (var k = 0; k < trace.segs.length; k++) items.push({ seg: trace.segs[k], i: trace.idx[k] });
+    if (ai >= 0) items.push({ seg: segs[ai], i: ai });
+    return items.concat(rest);
   }
 
   var openTraces = new WeakMap();
   var traceState = new WeakMap();
 
-  function traceSummary(segs) {
-    var think = 0, hasThink = false, order = [], counts = {};
+  function traceSummary(segs, live) {
+    var think = 0, thinking = false, hasThink = false, order = [], counts = {};
     for (var i = 0; i < segs.length; i++) {
       var sg = segs[i];
       if (sg.type === 'thinking') {
         hasThink = true;
         if (sg.endedAt && sg.startedAt) think += sg.endedAt - sg.startedAt;
+        else if (live) thinking = true;
       } else if (sg.type === 'tool_use') {
         var v = toolVerb(sg.name, false);
         if (!(v in counts)) { counts[v] = 0; order.push(v); }
@@ -701,74 +690,93 @@
       }
     }
     var parts = [];
-    if (hasThink) { var d = fmtDur(think); parts.push(d ? 'Thought ' + d : 'Thought'); }
+    if (thinking) parts.push('Thinking');
+    else if (hasThink) { var d = fmtDur(think); parts.push(d ? 'Thought ' + d : 'Thought'); }
     for (var k = 0; k < order.length; k++) parts.push(order[k] + (counts[order[k]] > 1 ? ' ×' + counts[order[k]] : ''));
-    return parts.join(' · ') || 'Worked';
+    return parts.join(' · ') || (live ? 'Working' : 'Worked');
+  }
+
+  function traceText(slot, seg, ctx, rec) {
+    var node = el('div', 'prose seg-trace-text');
+    setProse(node, seg.content || '', ctx.running);
+    rec.node = node;
+    slot.appendChild(node);
+  }
+
+  // The capped box fades its top edge only once older steps are cut off.
+  // They overflow upward, which scrollHeight doesn't count.
+  function markOverflow(inner) {
+    requestAnimationFrame(function () {
+      var a = inner.firstElementChild, z = inner.lastElementChild;
+      var h = a && z ? z.offsetTop + z.offsetHeight - a.offsetTop : 0;
+      inner.classList.toggle('is-overflow', h > inner.clientHeight + 1);
+    });
   }
 
   function mountTrace(slot, item, ctx, msg, rec) {
     var first = item.segs[0];
     var live = item.live;
     var open = !!openTraces.get(first);
-    var collapsed = !live && !open;
+    var was = traceState.get(first);
+    traceState.set(first, live ? 'live' : 'settled');
+    var folding = !live && !open && was === 'live';
     var wrap = el('div', 'seg-trace' + (live ? ' is-live' : ''));
-    var shell = el('div', 'seg-trace-shell' + (collapsed ? ' is-collapsed' : ''));
+    var shell = el('div', 'seg-trace-shell' + (open ? '' : (live || folding ? ' is-capped' : ' is-collapsed')));
     var inner = el('div', 'seg-trace-body');
-    var cctx = itemCtx(ctx, item);
     rec.kids = [];
     for (var n = 0; n < item.segs.length; n++) {
       var seg = item.segs[n];
       var kslot = el('div');
       var krec = { type: seg.type };
-      var kind = kinds[seg.type];
-      if (kind) kind.mount(kslot, seg, cctx, item.start + n, msg, krec);
+      if (seg.type === 'text') traceText(kslot, seg, ctx, krec);
+      else if (kinds[seg.type]) kinds[seg.type].mount(kslot, seg, ctx, item.idx[n], msg, krec);
       inner.appendChild(kslot);
       rec.kids.push(krec);
     }
     shell.appendChild(inner);
-    if (!live) {
-      var head = el('button', 'seg-trace-head' + (open ? ' open' : ''));
-      head.type = 'button';
-      head.appendChild(svg(CHEVRON));
-      var label = el('span');
-      label.textContent = traceSummary(item.segs);
-      head.appendChild(label);
-      head.addEventListener('click', function () {
-        var on = !openTraces.get(first);
-        openTraces.set(first, on);
-        head.classList.toggle('open', on);
-        shell.classList.toggle('is-collapsed', !on);
-      });
-      wrap.appendChild(head);
-    }
+    var head = el('button', 'seg-trace-head' + (open ? ' open' : ''));
+    head.type = 'button';
+    head.appendChild(svg(CHEVRON));
+    var label = el('span');
+    label.textContent = traceSummary(item.segs, live);
+    if (live) phase(label, 1800);
+    head.appendChild(label);
+    head.addEventListener('click', function () {
+      var on = !openTraces.get(first);
+      openTraces.set(first, on);
+      head.classList.toggle('open', on);
+      shell.classList.remove('is-capped', 'is-collapsed');
+      if (!on) shell.classList.add(live ? 'is-capped' : 'is-collapsed');
+      if (!on && live) markOverflow(inner);
+    });
+    wrap.appendChild(head);
     wrap.appendChild(shell);
     slot.appendChild(wrap);
-    var was = traceState.get(first);
-    traceState.set(first, live ? 'live' : 'settled');
-    if (collapsed && was === 'live') {
-      shell.classList.remove('is-collapsed');
+    if (live || folding) markOverflow(inner);
+    if (folding) {
       requestAnimationFrame(function () {
         requestAnimationFrame(function () { shell.classList.add('is-collapsed'); });
       });
     }
     rec.n = item.segs.length;
     rec.live = live;
+    rec.inner = inner;
   }
 
   function rowSig(msg, snap) {
     if (msg.role === 'user') return 'u\0' + (msg.content || '');
     var ctx = segCtx(msg);
     var stopping = snap.stoppingId === msg.id ? 1 : 0;
-    var bits = [msg.status || '', stopping, msg.triggerEvent || '', snap.mateName(msg), hasText(ctx.segs) ? 1 : 0];
+    var bits = [msg.status || '', stopping, msg.triggerEvent || '', snap.mateName(msg), answerText(msg) ? 1 : 0];
     var items = buildItems(ctx);
     for (var n = 0; n < items.length; n++) {
       var it = items[n];
       var segs = it.trace ? it.segs : [it.seg];
-      var cctx = itemCtx(ctx, it);
       if (it.trace) bits.push('trace', it.live ? 1 : 0);
       for (var m = 0; m < segs.length; m++) {
         var kind = kinds[segs[m].type];
-        if (kind) bits.push.apply(bits, kind.sig(segs[m], cctx, (it.trace ? it.start : it.i) + m));
+        if (it.trace && segs[m].type === 'text') bits.push('tt');
+        else if (kind) bits.push.apply(bits, kind.sig(segs[m], ctx, it.trace ? it.idx[m] : it.i));
         else bits.push(segs[m].type || '');
       }
     }
@@ -808,12 +816,12 @@
       var rec = slots[n];
       if (it.trace) {
         if (!rec || rec.type !== 'trace' || rec.n !== it.segs.length || rec.live !== it.live) return false;
-        var cctx = itemCtx(ctx, it);
         for (var m = 0; m < it.segs.length; m++) {
-          var ks = it.segs[m], kr = rec.kids[m], kk = kinds[ks.type];
+          var ks = it.segs[m], kr = rec.kids[m], kk = ks.type === 'text' ? kinds.text : kinds[ks.type];
           if (!kr || kr.type !== ks.type) return false;
-          if (kk && kk.patch && kk.patch(kr, ks, cctx, it.start + m) === false) return false;
+          if (kk && kk.patch && kk.patch(kr, ks, ctx, it.idx[m]) === false) return false;
         }
+        if (it.live) markOverflow(rec.inner);
         continue;
       }
       var kind = kinds[it.seg.type];
@@ -834,7 +842,7 @@
       dots.appendChild(el('span')); dots.appendChild(el('span')); dots.appendChild(el('span'));
       stop.appendChild(dots);
       foot.appendChild(stop);
-    } else if (msg.status === 'running' && !hasText(segs) && !hasStatus(segs) && !thinkingLive(segs)) {
+    } else if (msg.status === 'running' && !segs.length) {
       var think = el('span', 'msg-thinking-label');
       think.appendChild(document.createTextNode('Thinking'));
       var dots2 = el('span', 'thinking-dots');
@@ -852,7 +860,7 @@
         foot._timeEl = time;
       }
     }
-    if (msg.status !== 'running' && hasText(segs)) {
+    if (msg.status !== 'running' && answerText(msg)) {
       var copy = el('button', 'msg-copy-btn' + (copiedNow(msg.id) ? ' copied' : ''));
       copy.type = 'button';
       copy.title = 'Copy reply';
@@ -1125,8 +1133,29 @@
     function markIntent() { intentAt = performance.now(); }
     function userScrolling() { return dragging || performance.now() - intentAt < 600; }
 
+    var glide = null;
+
+    // Each state scrolls from the end it holds still: a stuck thread from the
+    // bottom (column-reverse, 0 is the bottom and up is negative) and a reader's
+    // place from the top, so a streaming reply moves neither and nothing writes
+    // scrollTop per token. Only switching states moves the origin.
+    function fromBottom() { return reversed() ? -scrollEl.scrollTop : scrollEl.scrollHeight - scrollEl.clientHeight - scrollEl.scrollTop; }
+    function fromTop() { return scrollEl.scrollHeight - scrollEl.clientHeight - fromBottom(); }
+    function reversed() { return scrollEl.classList.contains('is-stuck'); }
+
+    function syncOrigin() {
+      var want = api.stick() && !triggerMode;
+      if (reversed() === want) return;
+      var top = fromTop();
+      scrollEl.classList.toggle('is-stuck', want);
+      scrollEl.scrollTop = want ? 0 : top;
+    }
+
+    // A glide in progress owns the scroll position until it lands.
     function pin() {
-      scrollEl.scrollTop = scrollEl.scrollHeight;
+      if (glide) return;
+      syncOrigin();
+      if (scrollEl.scrollTop !== 0) scrollEl.scrollTop = 0;
     }
 
     function captureAnchor() {
@@ -1150,9 +1179,12 @@
     // After anything that can move content: a render, a card or image settling, a resize.
     function settle() {
       if (!scrollEl || triggerMode || detaching || !rows.size) return;
+      // Rows landing mid-glide would shove the view up; the glide places it each time.
+      if (glide) { placeGlide(); return; }
       // A place that's gone (another chat, a reload that dropped older pages) falls back to the bottom.
       if (!api.stick() && !holdAnchor()) api.setStick(true);
       if (api.stick()) pin();
+      else syncOrigin();
       lastTop = scrollEl.scrollTop;
       updateJump();
     }
@@ -1211,14 +1243,94 @@
     });
     on(thread, 'hylo:choice', function (e) {
       if (cardState(api.state(), e.target).mode !== 'active') return;
+      armMorph(e.target, e.detail.text);
       void api.sendChoice(e.detail.text);
     });
+
+    // A card answer travels: the reply bubble rises out of the button that sent it
+    // while the thread scrolls smoothly to it, instead of jumping a screen. The glide
+    // runs in distance from the top, toward the bottom as it is each frame, so rows
+    // that land mid-way (the reply's placeholder) join the same motion.
+    var morph = null;
+    var GLIDE_MS = 380;
+    var reduceMotion = root.matchMedia && root.matchMedia('(prefers-reduced-motion: reduce)');
+
+    function armMorph(card, text) {
+      if (!scrollEl || (reduceMotion && reduceMotion.matches)) return;
+      var from = null;
+      card.querySelectorAll('button').forEach(function (b) {
+        if (!from && b.textContent.trim() === text) from = b;
+      });
+      var seen = {};
+      rows.forEach(function (row, id) { seen[id] = true; });
+      morph = {
+        text: text, seen: seen, top: fromTop(), at: performance.now(),
+        from: (from || card).getBoundingClientRect(),
+      };
+    }
+
+    function startMorph() {
+      if (!morph) return;
+      if (performance.now() - morph.at > 2000) { morph = null; return; }
+      var row = null;
+      rows.forEach(function (r, id) {
+        if (!morph.seen[id] && r.classList.contains('msg-row-user') && r.textContent.trim() === morph.text) row = r;
+      });
+      if (!row) return;
+      var bubble = row.querySelector('.msg-user-bubble');
+      endGlide();
+      glide = { from: morph.top, t0: performance.now(), bubble: bubble, chip: morph.from, raf: 0 };
+      morph = null;
+      placeGlide();
+      glide.raf = requestAnimationFrame(stepGlide);
+    }
+
+    function endGlide() {
+      if (!glide) return;
+      var g = glide;
+      cancelAnimationFrame(g.raf);
+      g.bubble.style.transform = '';
+      g.bubble.style.transformOrigin = '';
+      glide = null;
+      if (!userScrolling()) settle();
+    }
+
+    function stepGlide() {
+      var g = glide;
+      if (!g) return;
+      // Done, the reader took over, or the row left (another chat opened).
+      if (performance.now() - g.t0 >= GLIDE_MS || userScrolling() || !g.bubble.isConnected) { endGlide(); return; }
+      placeGlide();
+      g.raf = requestAnimationFrame(stepGlide);
+    }
+
+    function placeGlide() {
+      var g = glide;
+      var t = Math.min(1, (performance.now() - g.t0) / GLIDE_MS);
+      var e = 1 - Math.pow(1 - t, 3);
+      var bottom = scrollEl.scrollHeight - scrollEl.clientHeight;
+      var top = g.from + (bottom - g.from) * e;
+      scrollEl.scrollTop = reversed() ? top - bottom : top;
+      var left = fromBottom();
+      g.bubble.style.transform = '';
+      var r = g.bubble.getBoundingClientRect();
+      var c = g.chip;
+      // Centre to centre, toward where the bubble rests once the scroll lands. The
+      // vertical leg starts slower than the horizontal one, so the path arcs.
+      var ey = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(2 - 2 * t, 3) / 2;
+      var dx = c.left + c.width / 2 - (r.left + r.width / 2);
+      var dy = c.top + c.height / 2 - (r.top - left + r.height / 2);
+      var s0 = Math.min(1, c.height / r.height);
+      g.bubble.style.transformOrigin = 'center';
+      g.bubble.style.transform = 'translate(' + dx * (1 - e) + 'px,' + (dy * (1 - ey) - left) + 'px) scale(' + (s0 + (1 - s0) * e) + ')';
+    }
 
     function onContentHydrated() {
       if (triggerMode) measureRuns();
       else settle();
     }
     hydrateListener = onContentHydrated;
+    root.__hyloPreloadFenceCards();
 
     function updateJump(snap) {
       var st = snap || api.state();
@@ -1626,6 +1738,7 @@
       var wasTrigger = triggerMode;
       triggerMode = snap.convType === 'trigger';
       if (triggerMode) {
+        if (scrollEl) syncOrigin();
         if (!wasTrigger) {
           Array.from(rows.keys()).forEach(retire);
           var stale = rootEl.querySelector('.chat-empty');
@@ -1643,17 +1756,17 @@
       renderThread(snap);
       syncRetry(snap);
       settle();
+      startMorph();
       updateJump();
     }
 
     function onScroll() {
       if (scrollEl && !triggerMode && rows.size) {
-        var top = scrollEl.scrollTop;
-        var dist = scrollEl.scrollHeight - top - scrollEl.clientHeight;
-        if (dist <= 64) api.setStick(true);
-        else if (api.stick() && userScrolling() && top < lastTop - 1) api.setStick(false);
+        if (fromBottom() <= 64) api.setStick(true);
+        else if (api.stick() && userScrolling() && scrollEl.scrollTop < lastTop - 1) api.setStick(false);
         // Stuck but shoved off the bottom by a reflow the observer hasn't seen yet.
         else if (api.stick()) pin();
+        syncOrigin();
         // The place is the reader's to move; a reflow mid-layout would record a half-built one.
         if (!api.stick()) {
           if (userScrolling()) captureAnchor();
@@ -1666,12 +1779,11 @@
       scrollRaf = requestAnimationFrame(function () {
         scrollRaf = 0;
         if (!scrollEl) return;
-        var dist = scrollEl.scrollHeight - scrollEl.scrollTop - scrollEl.clientHeight;
         if (triggerMode) {
-          if (dist < 400) void api.loadOlder();
+          if (scrollEl.scrollHeight - scrollEl.scrollTop - scrollEl.clientHeight < 400) void api.loadOlder();
           return;
         }
-        if (scrollEl.scrollTop < 400) void api.loadOlder();
+        if (fromTop() < 400) void api.loadOlder();
       });
     }
 
@@ -1932,6 +2044,7 @@
       insertWikilink: insertWikilink,
       destroy: function () {
         detaching = true;
+        endGlide();
         root.__hyloReleaseFenceCards(thread);
         shelf.forEach(function (row) { root.__hyloReleaseFenceCards(row); });
         shelf.clear();

@@ -2,6 +2,7 @@ package mate
 
 import (
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -285,18 +286,20 @@ func (s *Store) DeleteRetried(convID, assistantID, prompt string) error {
 	return tx.Commit()
 }
 
-func (s *Store) UpdateMessageDone(id, content, status string) error {
+// UpdateMessageDone stores a finished run: its reply, and the agent events
+// (agent.TurnLog) the chat rebuilds the trace from.
+func (s *Store) UpdateMessageDone(id, content, trace, status string) error {
 	now := time.Now().UnixMilli()
 	_, err := s.db.Exec(
-		`UPDATE chat_messages SET content = ?, status = ?, updated_at = ? WHERE id = ?`,
-		content, status, now, id,
+		`UPDATE chat_messages SET content = ?, trace = ?, status = ?, updated_at = ? WHERE id = ?`,
+		content, trace, status, now, id,
 	)
 	return err
 }
 
 func (s *Store) ListMessages(conversationID string) ([]Message, error) {
 	rows, err := s.db.Query(
-		`SELECT id, conversation_id, role, content, agent_id, mate_id, model_id, run_id, status, trigger_event, trigger_id, created_at, updated_at
+		`SELECT id, conversation_id, role, content, agent_id, mate_id, model_id, run_id, status, trigger_event, trigger_id, trace, created_at, updated_at
 		 FROM chat_messages WHERE conversation_id = ? ORDER BY created_at ASC`,
 		conversationID,
 	)
@@ -318,7 +321,7 @@ func (s *Store) ListMessages(conversationID string) ([]Message, error) {
 // ones when beforeID is empty), oldest first, plus whether older ones remain.
 // rowid breaks created_at ties so the cursor never skips or repeats a row.
 func (s *Store) ListMessagesPage(conversationID, beforeID string, limit int) ([]Message, bool, error) {
-	q := `SELECT id, conversation_id, role, content, agent_id, mate_id, model_id, run_id, status, trigger_event, trigger_id, created_at, updated_at
+	q := `SELECT id, conversation_id, role, content, agent_id, mate_id, model_id, run_id, status, trigger_event, trigger_id, trace, created_at, updated_at
 		 FROM chat_messages WHERE conversation_id = ?`
 	args := []any{conversationID}
 	if beforeID != "" {
@@ -354,7 +357,7 @@ func (s *Store) ListMessagesPage(conversationID, beforeID string, limit int) ([]
 // are re-returned after UpdateMessageDone advances their updated_at on completion.
 func (s *Store) ListMessagesSince(conversationID string, sinceMs int64) ([]Message, error) {
 	rows, err := s.db.Query(
-		`SELECT id, conversation_id, role, content, agent_id, mate_id, model_id, run_id, status, trigger_event, trigger_id, created_at, updated_at
+		`SELECT id, conversation_id, role, content, agent_id, mate_id, model_id, run_id, status, trigger_event, trigger_id, trace, created_at, updated_at
 		 FROM chat_messages WHERE conversation_id = ? AND updated_at > ? ORDER BY created_at ASC`,
 		conversationID, sinceMs,
 	)
@@ -503,12 +506,16 @@ func scanMessages(rows *sql.Rows) ([]Message, error) {
 	for rows.Next() {
 		var m Message
 		var createdMs, updatedMs int64
+		var trace string
 		if err := rows.Scan(
 			&m.ID, &m.ConversationID, &m.Role, &m.Content,
 			&m.AgentID, &m.MateID, &m.ModelID, &m.RunID, &m.Status, &m.TriggerEvent, &m.TriggerID,
-			&createdMs, &updatedMs,
+			&trace, &createdMs, &updatedMs,
 		); err != nil {
 			return nil, err
+		}
+		if trace != "" {
+			m.Trace = json.RawMessage(trace)
 		}
 		m.CreatedAt = time.UnixMilli(createdMs)
 		m.UpdatedAt = time.UnixMilli(updatedMs)

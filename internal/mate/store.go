@@ -140,6 +140,7 @@ func Open(vaultRoot string) (*Store, error) {
 	}
 	for _, c := range []struct{ table, col, def string }{
 		{"chat_messages", "trigger_id", "TEXT NOT NULL DEFAULT ''"},
+		{"chat_messages", "trace", "TEXT NOT NULL DEFAULT ''"},
 		{"conversations", "agent_session_cwd", "TEXT NOT NULL DEFAULT ''"},
 		{"mates", "main", "INTEGER NOT NULL DEFAULT 0"},
 	} {

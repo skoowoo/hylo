@@ -2,6 +2,7 @@ package agent
 
 import (
 	"encoding/json"
+	"log/slog"
 	"strings"
 )
 
@@ -11,7 +12,7 @@ type JSONEventStream struct {
 	buffer string
 	on     func(map[string]any)
 	// cursor state
-	cursorText         string
+	cursorStreamed     string // streamed text whose whole block hasn't been re-sent yet
 	cursorResuming     bool   // true when suppressing session-history replay
 	cursorCurrUser     string // composed text sent to agent; marks end of history replay
 	openCodeTools      map[string]struct{}
@@ -50,23 +51,20 @@ func (j *JSONEventStream) Feed(chunk string) {
 		}
 		line := strings.TrimSpace(j.buffer[:nl])
 		j.buffer = j.buffer[nl+1:]
-		if line == "" {
-			continue
-		}
-		var obj map[string]any
-		if err := json.Unmarshal([]byte(line), &obj); err != nil {
-			j.on(map[string]any{"type": "raw", "line": line})
-			continue
-		}
-		if !j.dispatch(obj, line) {
-			j.on(map[string]any{"type": "raw", "line": line})
-		}
+		j.line(line)
 	}
 }
 
 func (j *JSONEventStream) Flush() {
 	s := strings.TrimSpace(j.buffer)
 	j.buffer = ""
+	j.line(s)
+}
+
+// line relays one stdout line. Text that isn't JSON is the CLI talking to a
+// person, so it shows; an event the protocol has but we don't use (approval
+// handshakes, telemetry) is not output and is dropped.
+func (j *JSONEventStream) line(s string) {
 	if s == "" {
 		return
 	}
@@ -76,7 +74,7 @@ func (j *JSONEventStream) Flush() {
 		return
 	}
 	if !j.dispatch(obj, s) {
-		j.on(map[string]any{"type": "raw", "line": s})
+		slog.Debug("agent: unhandled event", "agent", j.kind, "type", obj["type"], "subtype", obj["subtype"])
 	}
 }
 
@@ -161,7 +159,7 @@ func (j *JSONEventStream) cursor(obj map[string]any) bool {
 			text := extractCursorText(msg)
 			if text != "" && (text == j.cursorCurrUser || strings.Contains(text, j.cursorCurrUser)) {
 				j.cursorResuming = false
-				j.cursorText = "" // reset so the new response starts fresh
+				j.cursorStreamed = ""
 			}
 		} else {
 			j.emitCursorToolResults(msg)
@@ -174,55 +172,120 @@ func (j *JSONEventStream) cursor(obj map[string]any) bool {
 		msg, _ := obj["message"].(map[string]any)
 		j.emitCursorTools(msg)
 		text := extractCursorText(msg)
-		if text == "" {
-			return true
-		}
-		if j.cursorText == "" {
-			j.cursorText = text
-			j.on(map[string]any{"type": "text_delta", "delta": text})
-			return true
-		}
-		if strings.HasPrefix(text, j.cursorText) {
-			d := text[len(j.cursorText):]
-			j.cursorText = text
-			if d != "" {
-				j.on(map[string]any{"type": "text_delta", "delta": d})
+		_, stamped := obj["timestamp_ms"]
+		_, whole := obj["model_call_id"]
+		if whole || !stamped {
+			// A block re-sent whole after its deltas is consumed from what streamed,
+			// wherever steps landed in between; only a block that never streamed
+			// (no partial output) is new.
+			if j.cursorStreamed == "" {
+				if text != "" {
+					j.on(map[string]any{"type": "text_delta", "delta": text})
+				}
+			} else if strings.HasPrefix(j.cursorStreamed, text) {
+				j.cursorStreamed = j.cursorStreamed[len(text):]
+			} else {
+				j.cursorStreamed = ""
 			}
 			return true
 		}
-		// New message is not a continuation of the current accumulated text.
-		// Two sub-cases:
-		//
-		// (a) Regression: j.cursorText starts with the incoming text — the cursor
-		//     stream rewound (e.g. mid-stream reformat). Hold off; j.cursorText stays
-		//     at the longer value so the prefix-diff keeps working once the stream
-		//     advances past what was already emitted.
-		//
-		// (b) Divergence: the snapshot diverges from what was accumulated so far —
-		//     cursor reformatted earlier content mid-stream. Emit the full text as a
-		//     delta so the client sees it in real time. DB duplication is corrected
-		//     later by the text_snapshot emitted on "result".
-		if strings.HasPrefix(j.cursorText, text) {
-			// Regression: hold off — do not update j.cursorText.
+		if text != "" {
+			j.cursorStreamed += text
+			j.on(map[string]any{"type": "text_delta", "delta": text})
+		}
+		return true
+	case "thinking":
+		if j.cursorResuming {
 			return true
 		}
-		// Divergence: cursor reformatted earlier content. Emit a text_replace event so
-		// the client replaces (rather than appends) the displayed text, preventing
-		// duplication. DB persistence is authoritative via text_snapshot on "result".
-		j.cursorText = text
-		j.on(map[string]any{"type": "text_replace", "text": text})
+		if t := toString(obj["text"]); t != "" {
+			j.on(map[string]any{"type": "thinking_delta", "delta": t})
+		}
+		return true
+	case "tool_call":
+		if j.cursorResuming {
+			return true
+		}
+		j.cursorToolCall(obj)
 		return true
 	case "result":
-		// Emit the final complete text as a snapshot so the caller can use it for
-		// persistent storage, overriding any duplicated/partial deltas that may
-		// have accumulated during streaming reformats.
-		if j.cursorText != "" {
-			j.on(map[string]any{"type": "text_snapshot", "text": j.cursorText})
+		if isErr, _ := obj["is_error"].(bool); isErr {
+			j.on(map[string]any{"type": "error", "message": extractErr(obj["error"], obj["result"], "Cursor error")})
 		}
 		j.on(map[string]any{"type": "usage", "usage": obj["usage"], "durationMs": obj["duration_ms"]})
 		return true
+	case "error":
+		j.on(map[string]any{"type": "error", "message": extractErr(obj["message"], obj["error"], "Cursor error")})
+		return true
 	}
 	return false
+}
+
+// cursorToolCall relays a tool_call event, shaped {"<kind>ToolCall": {args, result}}.
+// MCP calls take Claude's mcp__<server>__<tool> name so both read the same.
+func (j *JSONEventStream) cursorToolCall(obj map[string]any) {
+	id := toString(obj["call_id"])
+	tc, _ := obj["tool_call"].(map[string]any)
+	if id == "" || tc == nil {
+		return
+	}
+	var name string
+	var call map[string]any
+	for k, v := range tc {
+		if m, ok := v.(map[string]any); ok && strings.HasSuffix(k, "ToolCall") {
+			name, call = strings.TrimSuffix(k, "ToolCall"), m
+			break
+		}
+	}
+	if call == nil {
+		return
+	}
+	args, _ := call["args"].(map[string]any)
+	input := any(args)
+	if name == "mcp" && args != nil {
+		name = "mcp__" + toString(args["providerIdentifier"]) + "__" + toString(args["toolName"])
+		input = args["args"]
+	}
+	switch obj["subtype"] {
+	case "started":
+		if _, seen := j.cursorToolsEmitted[id]; seen {
+			return
+		}
+		j.cursorToolsEmitted[id] = struct{}{}
+		j.on(map[string]any{"type": "tool_use", "id": id, "name": name, "input": input})
+	case "completed":
+		content, isErr := cursorToolResult(call["result"])
+		j.on(map[string]any{"type": "tool_result", "toolUseId": id, "content": content, "isError": isErr})
+	}
+}
+
+func cursorToolResult(v any) (string, bool) {
+	r, _ := v.(map[string]any)
+	if e, ok := r["error"]; ok {
+		if m, ok := e.(map[string]any); ok {
+			if s := firstNonEmpty(toString(m["error"]), toString(m["message"]), toString(m["stderr"])); s != "" {
+				return s, true
+			}
+		}
+		return stringifyToolResult(e), true
+	}
+	ok, _ := r["success"].(map[string]any)
+	if ok == nil {
+		if r == nil {
+			return "", false
+		}
+		return stringifyToolResult(r), false
+	}
+	if s := toString(ok["content"]); s != "" {
+		return s, false
+	}
+	if out := strings.TrimRight(toString(ok["stdout"])+toString(ok["stderr"]), "\n"); out != "" {
+		return out, false
+	}
+	if c, ok := ok["content"].([]any); ok {
+		return stringifyToolResult(c), false
+	}
+	return stringifyToolResult(ok), false
 }
 
 // emitCursorTools relays tool_use blocks from a cursor-agent assistant message.

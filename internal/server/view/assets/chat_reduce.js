@@ -35,7 +35,8 @@
         });
       } else {
         var at = m.updatedAt ? new Date(m.updatedAt).getTime() : (m.createdAt ? new Date(m.createdAt).getTime() : 0);
-        var segments = m.content ? [{ type: 'text', content: m.content }] : [];
+        var segments = replayTrace(m.trace);
+        settleAnswer(segments, m.content);
         if (m.noteAccess && m.noteAccess.length) {
           // See the note_access case in applyAgentSegment above for why
           // glob-pattern paths are dropped here too.
@@ -47,6 +48,7 @@
         out.push({
           id: m.id,
           role: 'assistant', agentId: m.agentId, agentBotId: m.mateId,
+          content: m.content || '',
           triggerEvent: m.triggerEvent || '',
           triggerId: m.triggerId || '',
           segments: segments,
@@ -62,9 +64,40 @@
     return out;
   }
 
-  function closeThinking(segs) {
+  function closeThinking(segs, at) {
     var t = segs.length ? segs[segs.length - 1] : null;
-    if (t && t.type === 'thinking' && !t.endedAt) t.endedAt = Date.now();
+    if (t && t.type === 'thinking' && !t.endedAt) t.endedAt = at || Date.now();
+  }
+
+  var STEP_TYPES = { thinking: 1, tool_use: 1, tool_result: 1 };
+
+  // The reply is the last text; text followed by more steps was narration.
+  // While running, text with a step after it is already known to be narration.
+  function answerIndex(segs, running) {
+    for (var i = segs.length - 1; i >= 0; i--) {
+      if (segs[i].type === 'text') return i;
+      if (running && STEP_TYPES[segs[i].type]) return -1;
+    }
+    return -1;
+  }
+
+  // The stored reply is authoritative over streamed text (cursor-agent
+  // reformats it at the end).
+  function settleAnswer(segs, content) {
+    if (!content) return;
+    var ai = answerIndex(segs, false);
+    if (ai >= 0) segs[ai].content = content;
+    else segs.push({ type: 'text', content: content });
+  }
+
+  // Rebuilds a finished run's segments from its stored agent events.
+  function replayTrace(trace) {
+    var segs = [];
+    if (!Array.isArray(trace)) return segs;
+    for (var i = 0; i < trace.length; i++) applyAgentSegment(segs, trace[i]);
+    var last = trace.length ? trace[trace.length - 1] : null;
+    closeThinking(segs, last && last.at);
+    return segs;
   }
 
   function shortPath(p) {
@@ -86,41 +119,33 @@
   // Applies one `agent` SSE payload to a segment list. `last` is the tail at
   // the start of this event — matching the previous in-controller switch.
   function applyAgentSegment(segs, data) {
-    if (data.type !== 'thinking_start' && data.type !== 'thinking_delta') closeThinking(segs);
+    var now = data.at || Date.now();
+    if (data.type !== 'thinking_start' && data.type !== 'thinking_delta') closeThinking(segs, now);
     var last = segs.length ? segs[segs.length - 1] : null;
     switch (data.type) {
       case 'text_delta': {
         var d = data.delta || ''; if (!d) break;
-        if (last && last.type === 'text') { last.content += d; }
+        // A status line mid-reply doesn't split it.
+        var host = null;
+        for (var hi = segs.length - 1; hi >= 0; hi--) {
+          if (segs[hi].type === 'status') continue;
+          if (segs[hi].type === 'text') host = segs[hi];
+          break;
+        }
+        if (host) { host.content += d; }
         else { segs.push({ type: 'text', content: d }); }
-        break;
-      }
-      case 'text_replace': {
-        var newText = data.text || '';
-        var lastTi = -1;
-        for (var rti = segs.length - 1; rti >= 0; rti--) {
-          if (segs[rti].type === 'text') { lastTi = rti; break; }
-        }
-        if (lastTi >= 0) {
-          for (var rti2 = lastTi - 1; rti2 >= 0; rti2--) {
-            if (segs[rti2].type === 'text') { segs.splice(rti2, 1); lastTi--; }
-          }
-          segs[lastTi].content = newText;
-        } else if (newText) {
-          segs.push({ type: 'text', content: newText });
-        }
         break;
       }
       case 'thinking_start': {
         if (!last || last.type !== 'thinking') {
-          segs.push({ type: 'thinking', content: '', startedAt: Date.now() });
+          segs.push({ type: 'thinking', content: '', startedAt: now });
         }
         break;
       }
       case 'thinking_delta': {
         var td = data.delta || ''; if (!td) break;
         if (last && last.type === 'thinking') { last.content += td; }
-        else { segs.push({ type: 'thinking', content: td, startedAt: Date.now() }); }
+        else { segs.push({ type: 'thinking', content: td, startedAt: now }); }
         break;
       }
       case 'tool_use': {
@@ -141,7 +166,7 @@
           if (sk.type === 'tool_use' && sk.name === toolName && sk.results.length >= sk.count) mergeTarget = sk;
           break;
         }
-        var call = { id: data.id || '', arg: toolArg(data.input), startedAt: Date.now() };
+        var call = { id: data.id || '', arg: toolArg(data.input), startedAt: now };
         if (mergeTarget) { mergeTarget.count++; (mergeTarget.calls = mergeTarget.calls || []).push(call); }
         else { segs.push({ type: 'tool_use', name: toolName, count: 1, results: [], calls: [call] }); }
         break;
@@ -177,7 +202,7 @@
         }
         if (pending) {
           var done = pending.calls && pending.calls[pending.results.length];
-          if (done) { done.endedAt = Date.now(); if (data.isError) done.failed = true; }
+          if (done) { done.endedAt = now; if (data.isError) done.failed = true; }
           pending.results.push(trContent);
         }
         else if (trContent) { segs.push({ type: 'tool_result', content: trContent }); }
@@ -235,22 +260,18 @@
     return out;
   }
 
-  // Merge DB rows into the live list. Rich segments (thinking, tools) survive
-  // only once a message has already left `running` — the DB stores final text.
+  // Merge DB rows into the live list. A message that streamed here keeps its
+  // own segments, so the rows and their open state survive; only the reply
+  // and the "Notes touched" cards (never built live) come from the DB.
   function mergeStored(ex, nm) {
     var prevStatus = ex.status;
     ex.content = nm.content;
     ex.status = nm.status;
     var hasRichSegs = (ex.segments || []).some(function (s) { return s.type !== 'text'; });
     if (prevStatus !== 'running' && hasRichSegs) {
-      // note_access is excluded here on purpose (never on the "keep the
-      // live version" side) — it's never built live to begin with (see
-      // the note_access case above), so it always has to come from the
-      // DB's row, and always goes last, after the DB's own text.
-      var richSegs = (ex.segments || []).filter(function (s) { return s.type !== 'text' && s.type !== 'note_access'; });
-      var dbTextSegs = (nm.segments || []).filter(function (s) { return s.type === 'text'; });
-      var dbNoteAccess = (nm.segments || []).filter(function (s) { return s.type === 'note_access'; });
-      ex.segments = richSegs.concat(dbTextSegs).concat(dbNoteAccess);
+      var segs = ex.segments.filter(function (s) { return s.type !== 'note_access'; });
+      settleAnswer(segs, nm.content);
+      ex.segments = segs.concat((nm.segments || []).filter(function (s) { return s.type === 'note_access'; }));
     } else {
       ex.segments = nm.segments;
     }
@@ -291,11 +312,9 @@
     });
   }
 
-  // Replace text segments with the authoritative DB body; keep everything else.
   function replaceTextFromDB(msg, dbContent) {
     if (!msg || msg.role !== 'assistant') return;
-    var nonText = (msg.segments || []).filter(function (s) { return s.type !== 'text'; });
-    msg.segments = nonText.concat([{ type: 'text', content: dbContent }]);
+    settleAnswer(msg.segments = msg.segments || [], dbContent);
     touch(msg);
   }
 
@@ -374,6 +393,7 @@
     touch: touch,
     formatStoredMessages: formatStoredMessages,
     applyAgentSegment: applyAgentSegment,
+    answerIndex: answerIndex,
     toolArg: toolArg,
     applySSE: applySSE,
     mergeSynced: mergeSynced,

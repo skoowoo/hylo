@@ -471,7 +471,7 @@ func (a *AgentAPI) executeChat(ctx context.Context, run *agent.Run, body chatBod
 		a.hub.Finish(run, "failed", map[string]any{})
 		a.invokeEventReply(ctx, body, "", "failed")
 		if assistantMsgID != "" && a.store != nil {
-			_ = a.store.UpdateMessageDone(assistantMsgID, "", "failed")
+			_ = a.store.UpdateMessageDone(assistantMsgID, "", "", "failed")
 		}
 		return mate.RunResult{Success: false}
 	}
@@ -487,7 +487,7 @@ func (a *AgentAPI) executeChat(ctx context.Context, run *agent.Run, body chatBod
 		a.hub.Finish(run, "failed", map[string]any{})
 		a.invokeEventReply(ctx, body, "", "failed")
 		if assistantMsgID != "" && a.store != nil {
-			_ = a.store.UpdateMessageDone(assistantMsgID, "", "failed")
+			_ = a.store.UpdateMessageDone(assistantMsgID, "", "", "failed")
 		}
 		return mate.RunResult{Success: false}
 	}
@@ -509,7 +509,7 @@ func (a *AgentAPI) executeChat(ctx context.Context, run *agent.Run, body chatBod
 		a.hub.Finish(run, "failed", map[string]any{})
 		a.invokeEventReply(ctx, body, "", "failed")
 		if assistantMsgID != "" && a.store != nil {
-			_ = a.store.UpdateMessageDone(assistantMsgID, "", "failed")
+			_ = a.store.UpdateMessageDone(assistantMsgID, "", "", "failed")
 		}
 		return mate.RunResult{Success: false}
 	}
@@ -522,7 +522,7 @@ func (a *AgentAPI) executeChat(ctx context.Context, run *agent.Run, body chatBod
 		a.hub.Finish(run, "failed", map[string]any{})
 		a.invokeEventReply(ctx, body, "", "failed")
 		if assistantMsgID != "" && a.store != nil {
-			_ = a.store.UpdateMessageDone(assistantMsgID, "", "failed")
+			_ = a.store.UpdateMessageDone(assistantMsgID, "", "", "failed")
 		}
 		return mate.RunResult{Success: false}
 	}
@@ -547,7 +547,7 @@ func (a *AgentAPI) executeChat(ctx context.Context, run *agent.Run, body chatBod
 		a.hub.Finish(run, "failed", map[string]any{})
 		a.invokeEventReply(ctx, body, "", "failed")
 		if assistantMsgID != "" && a.store != nil {
-			_ = a.store.UpdateMessageDone(assistantMsgID, "", "failed")
+			_ = a.store.UpdateMessageDone(assistantMsgID, "", "", "failed")
 		}
 		return mate.RunResult{Success: false}
 	}
@@ -577,7 +577,7 @@ func (a *AgentAPI) executeChat(ctx context.Context, run *agent.Run, body chatBod
 		a.hub.Finish(run, "failed", map[string]any{})
 		a.invokeEventReply(ctx, body, "", "failed")
 		if assistantMsgID != "" && a.store != nil {
-			_ = a.store.UpdateMessageDone(assistantMsgID, "", "failed")
+			_ = a.store.UpdateMessageDone(assistantMsgID, "", "", "failed")
 		}
 		return mate.RunResult{Success: false}
 	}
@@ -590,7 +590,7 @@ func (a *AgentAPI) executeChat(ctx context.Context, run *agent.Run, body chatBod
 		a.hub.Finish(run, "failed", map[string]any{})
 		a.invokeEventReply(ctx, body, "", "failed")
 		if assistantMsgID != "" && a.store != nil {
-			_ = a.store.UpdateMessageDone(assistantMsgID, "", "failed")
+			_ = a.store.UpdateMessageDone(assistantMsgID, "", "", "failed")
 		}
 		return mate.RunResult{Success: false}
 	}
@@ -617,24 +617,15 @@ func (a *AgentAPI) executeChat(ctx context.Context, run *agent.Run, body chatBod
 	}
 	a.logger.Info("agent spawn", logSpawn...)
 
-	// Accumulate text_delta/text_replace events so we can persist the assistant response.
-	// text_snapshot is an internal-only event (not forwarded to the SSE client):
-	// it carries the final clean text from agents like cursor-agent and overrides
-	// any duplicated/reformatted deltas that may have accumulated during streaming.
-	// text_replace IS forwarded: it signals the client to replace (not append) text,
-	// preventing duplicate display when cursor-agent reformats mid-stream.
-	var textAcc agent.TextAccumulator
+	var turn agent.TurnLog
 	// Tracks which vault notes this run's tool calls touched, normalized across
 	// every backend's tool_use shape. See agent.NoteAccessTracker.
 	noteTracker := agent.NewNoteAccessTracker(cwd, a.vault.Root())
 	emit := func(ev string, data any) {
 		if ev == "agent" {
 			if m, ok := data.(map[string]any); ok {
-				textAcc.Feed(m)
-				switch m["type"] {
-				case "text_snapshot":
-					return // internal only: the final authoritative text
-				case "tool_use":
+				turn.Feed(m)
+				if m["type"] == "tool_use" {
 					for _, na := range noteTracker.Feed(m) {
 						a.hub.Emit(run, "agent", map[string]any{
 							"type": "note_access", "path": na.Path, "action": na.Action, "tool": na.Tool,
@@ -664,12 +655,12 @@ func (a *AgentAPI) executeChat(ctx context.Context, run *agent.Run, body chatBod
 				slog.String("err", truncateStr(err.Error(), 256)))
 			a.hub.Emit(run, "error", map[string]any{"message": err.Error()})
 			if assistantMsgID != "" && a.store != nil {
-				_ = a.store.UpdateMessageDone(assistantMsgID, textAcc.String(), "failed")
+				_ = a.store.UpdateMessageDone(assistantMsgID, turn.Answer(), turn.JSON(), "failed")
 				_ = a.store.InsertMessageNoteAccess(assistantMsgID, toMateNoteAccess(noteTracker.Entries()))
 			}
 			a.hub.Finish(run, "failed", map[string]any{})
-			a.invokeEventReply(ctx, body, textAcc.String(), "failed")
-			return mate.RunResult{Success: false, LastMessage: textAcc.String()}
+			a.invokeEventReply(ctx, body, turn.Answer(), "failed")
+			return mate.RunResult{Success: false, LastMessage: turn.Answer()}
 		}
 	}
 	st := "succeeded"
@@ -681,7 +672,7 @@ func (a *AgentAPI) executeChat(ctx context.Context, run *agent.Run, body chatBod
 		st = "failed"
 	}
 	if assistantMsgID != "" && a.store != nil {
-		if err := a.store.UpdateMessageDone(assistantMsgID, textAcc.String(), st); err != nil {
+		if err := a.store.UpdateMessageDone(assistantMsgID, turn.Answer(), turn.JSON(), st); err != nil {
 			a.logger.Warn("chat: update assistant message", slog.String("err", err.Error()))
 		}
 		if err := a.store.InsertMessageNoteAccess(assistantMsgID, toMateNoteAccess(noteTracker.Entries())); err != nil {
@@ -699,8 +690,8 @@ func (a *AgentAPI) executeChat(ctx context.Context, run *agent.Run, body chatBod
 		slog.String("status", st),
 		slog.Int("exitCode", code))
 	a.hub.Finish(run, st, map[string]any{"exitCode": code})
-	a.invokeEventReply(ctx, body, textAcc.String(), st)
-	return mate.RunResult{Success: st == "succeeded", LastMessage: textAcc.String()}
+	a.invokeEventReply(ctx, body, turn.Answer(), st)
+	return mate.RunResult{Success: st == "succeeded", LastMessage: turn.Answer()}
 }
 
 // resolveTriggerSession returns an ephemeral agent session for a one-shot trigger run.

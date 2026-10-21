@@ -1,6 +1,9 @@
 package mate
 
-import "time"
+import (
+	"encoding/json"
+	"time"
+)
 
 // ── Mate ─────────────────────────────────────────────────────────────────────
 
@@ -64,7 +67,7 @@ type Message struct {
 	ID             string    `json:"id"`
 	ConversationID string    `json:"conversationId"`
 	Role           string    `json:"role"`    // "user" | "assistant"
-	Content        string    `json:"content"` // accumulated text; no thinking/tool detail
+	Content        string    `json:"content"` // the reply: the run's last text, without narration
 	AgentID        string    `json:"agentId"`
 	MateID         string    `json:"mateId"`
 	ModelID        string    `json:"modelId"`
@@ -78,6 +81,9 @@ type Message struct {
 	// NoteAccess lists the vault notes this run touched (assistant messages only).
 	// Populated on read via a join; not part of the chat_messages row itself.
 	NoteAccess []NoteAccessEntry `json:"noteAccess,omitempty"`
+
+	// Trace is the run's agent events as a JSON array (agent.TurnLog).
+	Trace json.RawMessage `json:"trace,omitempty"`
 }
 
 // Note access actions.

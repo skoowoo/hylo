@@ -13,19 +13,6 @@ test('text deltas append and then start a new segment after a tool', function ()
   assert.equal(segs.length, 3);
 });
 
-test('text_replace keeps the last text segment and drops earlier ones', function () {
-  var segs = [
-    { type: 'text', content: 'a' },
-    { type: 'thinking', content: 'hmm', open: false },
-    { type: 'text', content: 'b' },
-  ];
-  R.applyAgentSegment(segs, { type: 'text_replace', text: 'final' });
-  assert.deepEqual(segs.map(function (s) { return s.type + ':' + (s.content || ''); }), [
-    'thinking:hmm',
-    'text:final',
-  ]);
-});
-
 test('tool_use merges only into the latest completed call of the same name', function () {
   var segs = [];
   R.applyAgentSegment(segs, { type: 'tool_use', name: 'read' });
@@ -235,4 +222,57 @@ test('an empty orphan tool_result is dropped', function () {
   var segs = [];
   R.applyAgentSegment(segs, { type: 'tool_result', content: '' });
   assert.equal(segs.length, 0);
+});
+
+test('answerIndex: the last text, but only once no step follows while running', function () {
+  var segs = [];
+  R.applyAgentSegment(segs, { type: 'text_delta', delta: 'Writing now.' });
+  assert.equal(R.answerIndex(segs, true), 0);
+  R.applyAgentSegment(segs, { type: 'tool_use', name: 'editor_type' });
+  assert.equal(R.answerIndex(segs, true), -1);
+  assert.equal(R.answerIndex(segs, false), 0);
+  R.applyAgentSegment(segs, { type: 'tool_result', content: 'ok' });
+  R.applyAgentSegment(segs, { type: 'text_delta', delta: 'Done.' });
+  assert.equal(R.answerIndex(segs, true), 2);
+});
+
+test('a status line mid-reply does not split the text', function () {
+  var segs = [];
+  R.applyAgentSegment(segs, { type: 'text_delta', delta: 'Hel' });
+  R.applyAgentSegment(segs, { type: 'status', label: 'compacting' });
+  R.applyAgentSegment(segs, { type: 'text_delta', delta: 'lo' });
+  assert.equal(segs[0].content, 'Hello');
+  assert.equal(R.answerIndex(segs, true), 0);
+});
+
+test('a stored trace replays into the same segments, timed by its stamps', function () {
+  var stored = R.formatStoredMessages([{
+    id: 'a', role: 'assistant', content: 'Done, cleanly.', status: 'succeeded',
+    trace: [
+      { type: 'thinking_delta', delta: 'plan', at: 1000 },
+      { type: 'text_delta', delta: 'Writing now.', at: 3500 },
+      { type: 'tool_use', id: 't1', name: 'Read', input: { file_path: '/v/a.md' }, at: 4000 },
+      { type: 'tool_result', toolUseId: 't1', content: 'ok', at: 4600 },
+      { type: 'text_delta', delta: 'Done.', at: 5000 },
+    ],
+  }]);
+  var segs = stored[0].segments;
+  assert.deepEqual(segs.map(function (s) { return s.type; }), ['thinking', 'text', 'tool_use', 'text']);
+  assert.equal(segs[0].endedAt - segs[0].startedAt, 2500);
+  assert.equal(segs[2].calls[0].endedAt - segs[2].calls[0].startedAt, 600);
+  assert.equal(segs[3].content, 'Done, cleanly.');
+});
+
+test('merge after a live run only settles the reply text', function () {
+  var think = { type: 'thinking', content: 'hmm' };
+  var messages = [{
+    id: 'a', role: 'assistant', status: 'succeeded',
+    segments: [{ type: 'text', content: 'On it.' }, think, { type: 'text', content: 'Done' }],
+    completedAt: 1, rev: 1,
+  }];
+  R.mergeSynced(messages, [{ id: 'a', role: 'assistant', content: 'Done.', status: 'succeeded' }]);
+  var segs = messages[0].segments;
+  assert.equal(segs[1], think);
+  assert.equal(segs[0].content, 'On it.');
+  assert.equal(segs[2].content, 'Done.');
 });

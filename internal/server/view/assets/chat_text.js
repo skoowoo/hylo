@@ -13,24 +13,44 @@
     return 'pre > code.language-' + l;
   }).join(', ');
   var fenceLoad = null;
+  var fenceMod = null;
   function fenceModule() {
-    fenceLoad = fenceLoad || import('/static/fence-card.js');
+    fenceLoad = fenceLoad || import('/static/fence-card.js').then(function (m) { return (fenceMod = m); });
     return fenceLoad;
   }
+
+  // The chat loads its card renderers up front, so the first card in a reply mounts
+  // at its final size instead of growing in a few frames after the chunk arrives.
+  root.__hyloPreloadFenceCards = function () {
+    fenceModule().then(function (m) { return m.preloadInlineCards(); }).catch(function () {});
+  };
 
   // Bumping _fenceGen drops a hydrate still waiting on the chunk for content that has moved on.
   root.__hyloReleaseFenceCards = function (node) {
     if (!node) return;
     node._fenceGen = (node._fenceGen || 0) + 1;
-    if (fenceLoad) fenceLoad.then(function (m) { m.releaseFenceCards(node); }).catch(function () {});
+    if (fenceMod) fenceMod.releaseFenceCards(node);
+    else if (fenceLoad) fenceLoad.then(function (m) { m.releaseFenceCards(node); }).catch(function () {});
   };
 
-  // Once the chunk is in, always go through it: hydrating also releases the previous render.
+  // Once the chunk is in, a node already in the page hydrates in the same call: the
+  // chat pins its scroll right after rendering, so a card put back a microtask later
+  // would shift the content on every streamed token. A node still being built waits
+  // the microtask until its host has inserted it, so cards measure on mount.
+  // Hydrating also releases the previous render. Card fences stay hidden while the
+  // chunk loads, so they never paint as code.
   root.__hyloHydrateFenceCards = function (node) {
     if (!node) return;
     var gen = node._fenceGen = (node._fenceGen || 0) + 1;
-    if (!fenceLoad && !node.querySelector(FENCE_CARD_SEL)) return;
-    fenceModule().then(function (m) { if (node._fenceGen === gen) m.hydrateFenceCards(node); }).catch(function () {});
+    if (fenceMod && node.isConnected) { fenceMod.hydrateFenceCards(node); return; }
+    var pending = node.querySelectorAll(FENCE_CARD_SEL);
+    if (!fenceLoad && !pending.length) return;
+    var shown = function (on) {
+      pending.forEach(function (code) { code.parentElement.style.display = on ? '' : 'none'; });
+    };
+    shown(false);
+    fenceModule().then(function (m) { if (node._fenceGen === gen) m.hydrateFenceCards(node); })
+      .catch(function () { shown(true); });
   };
 
   root.__hyloRenderMarkdown = function (text, opts) {

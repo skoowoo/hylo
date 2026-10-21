@@ -5,7 +5,10 @@
 const entries = new Map();
 
 export function registerFenceCard({ lang, alias = [], load, minHeight = 280, inline = false, editor = true }) {
-  const entry = { lang, load, minHeight, inline, editor };
+  // `renderer` is set once loaded, so later cards can mount synchronously.
+  const entry = { lang, minHeight, inline, editor, renderer: null };
+  let pending = null;
+  entry.load = () => (pending = pending || load().then((r) => (entry.renderer = r), (e) => { pending = null; throw e; }));
   for (const name of [lang, ...alias]) entries.set(name.toLowerCase(), entry);
 }
 
@@ -18,6 +21,11 @@ registerFenceCard({ lang: 'choices', load: () => import('./choices.js'), minHeig
 registerFenceCard({ lang: 'proposal', load: () => import('./proposal.js'), minHeight: 120, inline: true, editor: false });
 registerFenceCard({ lang: 'receipt', load: () => import('./receipt.js'), minHeight: 48, inline: true, editor: false });
 registerFenceCard({ lang: 'sources', load: () => import('./sources.js'), minHeight: 20, inline: true, editor: false });
+
+// Loads the chat's inline renderers ahead of the first reply that uses one.
+export function preloadInlineCards() {
+  return Promise.all([...new Set(entries.values())].filter((e) => e.inline).map((e) => e.load()));
+}
 
 // A closed fence → { info, body, from, to } (whole lines), else null.
 // Fences nested in lists or quotes are supported when the opening line carries only
