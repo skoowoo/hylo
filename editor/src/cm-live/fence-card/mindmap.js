@@ -1,7 +1,6 @@
-import { Markmap } from 'markmap-view';
+import { HyloMarkmap } from './mindmap-view.js';
 import { zoomIdentity, zoomTransform } from 'd3-zoom';
 import { parseOutline } from './mindmap-tree.js';
-import { themeColors, onThemeChange } from './shell.js';
 
 // Widgets are rebuilt when scrolled out of view; folds and pan/zoom survive by source text.
 const viewCache = new Map();
@@ -17,13 +16,13 @@ function remember(source, state) {
 
 // Fold keys follow the text path, not the index path, so inserting a sibling doesn't
 // move a fold onto its neighbour. Duplicate sibling texts are told apart by occurrence.
-function annotate(node, folds, key = '', branch = 0, depth = 0) {
-  node.payload = { k: key, b: branch, fold: folds.has(key) ? 1 : 0 };
+function annotate(node, folds, key = '') {
+  node.payload = { k: key, fold: folds.has(key) ? 1 : 0 };
   const seen = new Map();
-  node.children.forEach((c, i) => {
+  node.children.forEach((c) => {
     const n = seen.get(c.content) || 0;
     seen.set(c.content, n + 1);
-    annotate(c, folds, `${key}/${c.content}#${n}`, depth === 0 ? i : branch, depth + 1);
+    annotate(c, folds, `${key}/${c.content}#${n}`);
   });
   return node;
 }
@@ -50,21 +49,14 @@ export function mount(el, source, ctx = {}) {
   let touched = ownsView && !!transform;
   let current = source;
 
-  // Root keeps the accent; each first-level branch gets its own muted hue, shared by its subtree.
-  const colorFn = () => {
-    const c = themeColors(el);
-    return (n) => (n.state.depth === 1 ? c.accent : c.branch[((n.payload && n.payload.b) || 0) % c.branch.length]);
-  };
-
-  const mm = Markmap.create(svg, {
-    color: colorFn(),
-    lineWidth: (n) => Math.max(1.5, 1 + 3 / 2 ** n.state.depth),
+  const mm = HyloMarkmap.create(svg, {
+    lineWidth: () => 1.5,
     pan: false,
     duration: ANIM_MS,
     maxWidth: 260,
-    paddingX: 10,
+    paddingX: 8,
     spacingVertical: 8,
-    spacingHorizontal: 90,
+    spacingHorizontal: 40,
     initialExpandLevel: -1,
     maxInitialScale: 1,
   });
@@ -127,10 +119,6 @@ export function mount(el, source, ctx = {}) {
     if (!touched) instant(() => mm.fit());
   });
   ro.observe(el);
-  const offTheme = onThemeChange(() => {
-    mm.setOptions({ color: colorFn() });
-    render(false);
-  });
 
   return {
     update(next) {
@@ -152,7 +140,6 @@ export function mount(el, source, ctx = {}) {
       return mm.rescale(factor).then(save);
     },
     destroy() {
-      offTheme();
       ro.disconnect();
       mm.destroy();
       el.replaceChildren();

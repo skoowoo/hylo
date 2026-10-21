@@ -36,6 +36,9 @@ class CardWidget extends WidgetType {
   toDOM(view) {
     const wrap = document.createElement('div');
     wrap.className = 'cm-card-widget';
+    // A press would drop the DOM selection inside the card, and CM's next DOM flush reads it as
+    // the caret entering the fence. Capture, since renderers stop propagation. Only Edit opens the source.
+    wrap.addEventListener('mousedown', (e) => e.preventDefault(), true);
     const h = mountCard(this.info, this.source, {
       onEdit: () => {
         const pos = view.posAtDOM(wrap);

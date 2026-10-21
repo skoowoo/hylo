@@ -33,7 +33,8 @@
     "@lezer/highlight": "^1.2.1",
     "@lezer/markdown": "^1.6.3",
     "d3-zoom": "^3.0.0",
-    "markmap-view": "^0.18.12"
+    "markmap-common": "0.18.9",
+    "markmap-view": "0.18.12"
   },
   "devDependencies": {
     "esbuild": "^0.25.4",

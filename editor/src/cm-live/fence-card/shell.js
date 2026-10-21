@@ -6,7 +6,24 @@ const STYLE_ID = 'hy-card-style';
 const CSS = `
 .hy-card{position:relative;margin:.6em 0;border-radius:var(--r-sm,6px);background:var(--th-bg,rgba(24,24,27,.04));overflow:hidden}
 .hy-card .markmap{--markmap-text-color:var(--prose-body,#27272a);--markmap-code-bg:var(--btn-bg,rgba(24,24,27,.06));--markmap-code-color:var(--prose-body,#27272a);--markmap-a-color:var(--accent-text,#2563eb);--markmap-a-hover-color:var(--accent-hov,#2563eb);--markmap-circle-open-bg:var(--bg,#fff);--markmap-font:400 var(--text-base,.875rem)/1.4 var(--font-ui,system-ui,sans-serif)}
-.hy-card .markmap-node>circle{r:4.5px}
+.hy-card .markmap-link{stroke:var(--muted-soft,#9b9eac)}
+.hy-card .mm-toggle{cursor:pointer;opacity:0;transition:opacity var(--motion-fast,100ms)}
+.hy-card .markmap-node:hover>.mm-toggle,.hy-card .markmap-fold>.mm-toggle{opacity:1}
+.hy-card .mm-toggle rect{fill:var(--markmap-circle-open-bg);stroke:var(--muted-soft,#9b9eac);transition:stroke var(--motion-fast,100ms)}
+.hy-card .mm-toggle:hover rect{stroke:var(--accent,#5e6ad2)}
+.hy-card .mm-toggle path{stroke:var(--muted,#6d7080);stroke-width:1.5;stroke-linecap:round}
+.hy-card .mm-toggle:hover path{stroke:var(--accent,#5e6ad2)}
+.hy-card .mm-toggle text{font:var(--fw-semibold,600) 10px var(--font-ui,system-ui,sans-serif);font-variant-numeric:tabular-nums;text-anchor:middle;dominant-baseline:central;fill:var(--muted,#6d7080)}
+.hy-card .markmap-fold>.mm-toggle rect{fill:var(--btn-bg-hov,rgba(24,24,27,.1));stroke:none}
+.hy-card .markmap-fold>.mm-toggle:hover text{fill:var(--accent-text,#5e6ad2)}
+.hy-card .markmap-fold>.mm-toggle path{display:none}
+.hy-card .markmap-foreign>div>div{padding:1px 4px;border-radius:var(--r-sm,6px)}
+.hy-card .markmap-foreign>div>div:empty{display:none}
+.hy-card .mm-text{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden;overflow-wrap:anywhere}
+.hy-card .markmap-node[data-depth="1"] .markmap-foreign>div>div{padding:6px 14px;background:var(--fg,#18181b);color:var(--bg,#fff);font-weight:var(--fw-semibold,600);font-size:var(--text-md,.9375rem)}
+.hy-card .markmap-node[data-depth="2"] .markmap-foreign>div>div{padding:3px 10px;background:var(--btn-bg-hov,rgba(24,24,27,.1));color:var(--fg,#18181b);font-weight:var(--fw-medium,500)}
+.hy-card .markmap-node:not([data-depth="1"],[data-depth="2"],[data-depth="3"]) .markmap-foreign>div>div{color:var(--muted,#6d7080);font-size:var(--text-sm,.8125rem)}
+.hy-card .markmap-foreign code{font:.85em var(--font-mono,ui-monospace,monospace);padding:.1em .35em;border-radius:4px}
 .hy-card-body{width:100%}
 .hy-card-body svg{width:100%;height:100%;display:block}
 .hy-card-bar{position:absolute;top:8px;right:8px;display:flex;gap:4px;opacity:0;transition:opacity var(--motion-base,160ms);will-change:opacity;z-index:1}
@@ -45,42 +62,6 @@ export function ensureStyle() {
   el.id = STYLE_ID;
   el.textContent = CSS;
   document.head.appendChild(el);
-}
-
-// The knowledge graph's cluster hues (_clusterPalette in home_graph.js), in the same order,
-// toned down for thin strokes: saturation ×0.78 / lightness ×0.92 on dark, ×0.82 / ×0.78 on light.
-const BRANCH = {
-  dark: ['hsl(213 73% 62%)', 'hsl(329 67% 65%)', 'hsl(158 50% 47%)', 'hsl(27 75% 56%)', 'hsl(255 72% 70%)', 'hsl(48 75% 49%)', 'hsl(188 67% 49%)', 'hsl(0 71% 65%)', 'hsl(84 63% 41%)', 'hsl(292 71% 67%)'],
-  light: ['hsl(213 77% 53%)', 'hsl(329 70% 55%)', 'hsl(158 53% 40%)', 'hsl(27 79% 48%)', 'hsl(255 75% 59%)', 'hsl(48 79% 41%)', 'hsl(188 70% 42%)', 'hsl(0 74% 55%)', 'hsl(84 66% 35%)', 'hsl(292 75% 57%)'],
-};
-
-// Same resolution as the token blocks in shared_tokens.go: explicit data-theme, else the OS.
-function isLight() {
-  const t = document.documentElement.getAttribute('data-theme');
-  if (t) return t === 'light';
-  return !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches);
-}
-
-export function themeColors(el) {
-  const accent = getComputedStyle(el).getPropertyValue('--accent').trim() || '#5e6ad2';
-  return { accent, branch: BRANCH[isLight() ? 'light' : 'dark'] };
-}
-
-const themeListeners = new Set();
-let themeWired = false;
-
-// Retint triggers: html[data-theme] (user pref), the OS scheme, and the accent picker
-// (inline vars on <html>, announced via hylo:accent).
-export function onThemeChange(fn) {
-  if (!themeWired) {
-    themeWired = true;
-    const fire = () => themeListeners.forEach((f) => f());
-    new MutationObserver(fire).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
-    if (window.matchMedia) window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', fire);
-    window.addEventListener('hylo:accent', fire);
-  }
-  themeListeners.add(fn);
-  return () => themeListeners.delete(fn);
 }
 
 export function iconButton(name, title, fn) {
