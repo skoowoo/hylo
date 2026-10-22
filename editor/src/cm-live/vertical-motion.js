@@ -45,7 +45,9 @@ function moveLines(forward, extend) {
       // Like cursorLineUp: a plain arrow on a selection first collapses it to that edge.
       if (!extend && !range.empty) return EditorSelection.cursor(forward ? range.to : range.from);
       const moved = guardedMove(view, range, forward);
-      return extend ? EditorSelection.range(range.anchor, moved.head, moved.goalColumn) : moved;
+      // Keep the side of a wrap point: a forward range defaults to the line
+      // above it, and the next press would land on the same point again.
+      return extend ? EditorSelection.range(range.anchor, moved.head, moved.goalColumn, moved.bidiLevel, moved.assoc) : moved;
     });
     view.dispatch({ selection: EditorSelection.create(ranges, sel.mainIndex), scrollIntoView: true, userEvent: 'select' });
     return true;

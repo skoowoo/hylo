@@ -3,10 +3,11 @@ import { keymap } from '@codemirror/view';
 import { resolveAncestor } from './tree-utils.js';
 import { livePreviewPlugin } from './live-preview.js';
 
-// Backspace right after a link/image widget would delete its hidden "]" or ")".
+// Backspace right after a wikilink widget would delete its hidden "]".
 // The first press shows the source instead; the next one edits it.
+// Images are atomic and delete as one unit.
 
-const WIDGET_NODES = new Set(['WikiLink', 'WikiImage', 'Image']);
+const WIDGET_NODES = new Set(['WikiLink']);
 
 export const revealWidget = StateEffect.define();
 

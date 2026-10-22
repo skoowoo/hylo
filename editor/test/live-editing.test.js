@@ -16,6 +16,7 @@ import { toggleBold, toggleInlineCode, insertLink } from '../src/cm-live/inline-
 import { nextCell, previousCell, tableEnter } from '../src/cm-live/table-keys.js';
 import { applyTarget } from '../src/cm-live/wikilink-complete.js';
 import { revealedWidgetField, revealWidgetBeforeCaret } from '../src/cm-live/widget-reveal.js';
+import { imageNodeAt, imageSpan } from '../src/cm-live/image-nodes.js';
 import { jumpToHeading } from '../src/cm-live/link-click.js';
 import { fenceBody } from '../src/cm-live/fence-card/registry.js';
 import { Decoration } from '@codemirror/view';
@@ -370,10 +371,61 @@ test('Backspace after a wikilink widget reveals the source first', () => {
   assert.ok(decoClasses(view).includes('WikiLinkWidget'));
 });
 
-test('Backspace after a markdown image reveals it; plain text is left to the default', () => {
-  const view = viewFor('![a](u.png)', 11);
-  assert.equal(revealWidgetBeforeCaret(view), true);
+test('Backspace after an image is left to delete the picture; plain text stays default', () => {
+  const doc = '![a](u.png)';
+  const view = viewFor(doc, doc.length);
+  assert.equal(revealWidgetBeforeCaret(view), false);
+  assert.ok(decoClasses(view).includes('ImageWidget'));
   assert.equal(revealWidgetBeforeCaret(viewFor('plain', 5)), false);
+});
+
+test('a selection covering images keeps them rendered and atomic', () => {
+  const doc = '![a](one.png)\n\n![b](two.png)\n';
+  const view = viewFor(doc, 0, doc.length);
+  const decos = decorate(view);
+  const images = decos.filter((r) => r.value.spec.atomicImage);
+  assert.equal(images.length, 2);
+  assert.equal(images[0].value.spec.widget.selected, true);
+  assert.equal(images[1].value.spec.widget.selected, true);
+  assert.ok(decoClasses(viewFor(doc, 2)).includes('cm-lp-wikiimage-raw'));
+});
+
+test('imageNodeAt finds markdown and wiki images', () => {
+  const doc = 'before\n\n![a](u.png)\n\n![[pic.png]]';
+  const state = viewFor(doc, 0).state;
+  const md = imageNodeAt(state, doc.indexOf('![a]') + 2);
+  assert.equal(state.sliceDoc(md.from, md.to), '![a](u.png)');
+  const wiki = imageNodeAt(state, doc.indexOf('![[') + 3);
+  assert.equal(state.sliceDoc(wiki.from, wiki.to), '![[pic.png]]');
+  assert.equal(imageNodeAt(state, doc.indexOf('before')), null);
+});
+
+test('a linked image stays rendered when selected and spans the whole link', () => {
+  const doc = '[![Image](https://img.example/a.png)](https://mp.weixin.qq.com/s?x=1 "title")\n';
+  const resting = viewFor(doc, 0);
+  const decos = decorate(resting);
+  Decoration.set(decos, true);
+  const images = decos.filter((r) => r.value.spec.atomicImage);
+  assert.equal(images.length, 1);
+  assert.equal(resting.state.sliceDoc(images[0].from, images[0].to), doc.slice(0, -1));
+  assert.equal(images[0].value.spec.widget.selected, false);
+  const node = imageNodeAt(resting.state, 0);
+  assert.equal(resting.state.sliceDoc(node.from, node.to), '![Image](https://img.example/a.png)');
+  const block = imageSpan(node);
+  assert.equal(resting.state.sliceDoc(block.from, block.to), doc.slice(0, -1));
+  const selected = viewFor(doc, block.from, block.to);
+  const selectedDecos = decorate(selected);
+  Decoration.set(selectedDecos, true);
+  const widget = selectedDecos.find((r) => r.value.spec.atomicImage);
+  assert.equal(widget.value.spec.widget.selected, true);
+  assert.ok(!decoClasses(selected).includes('cm-lp-wikiimage-raw'));
+  const inside = viewFor(doc, node.from + 2);
+  assert.ok(decoClasses(inside).includes('cm-lp-wikiimage-raw'));
+  assert.ok(!decoClasses(inside).includes('ImageWidget'));
+  const url = viewFor(doc, doc.indexOf('https://mp.weixin'));
+  assert.ok(decoClasses(url).includes('cm-lp-wikiimage-raw'));
+  assert.ok(!decoClasses(url).includes('ImageWidget'));
+  assert.ok(decoClasses(url).includes('cm-lp-link cm-lp-link-editing'));
 });
 
 test('wikilink completion keeps a #heading after the target', () => {

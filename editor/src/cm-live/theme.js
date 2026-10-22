@@ -366,7 +366,17 @@ export const livePreviewTheme = EditorView.theme({
   '.cm-lp-wikilink-broken:hover': { background: 'transparent', color: 'var(--muted, #6d7080)' },
 
   // ── Images ──────────────────────────────────────────────────────────────
-  '.cm-lp-wikiimage': { display: 'inline-block', verticalAlign: 'middle', maxWidth: '100%', cursor: 'text', position: 'relative' },
+  '.cm-lp-wikiimage': {
+    display: 'inline-block',
+    verticalAlign: 'middle',
+    maxWidth: '100%',
+    cursor: 'default',
+    position: 'relative',
+    userSelect: 'none',
+  },
+  '.cm-lp-image-selected img, .cm-lp-image-broken.cm-lp-image-selected': {
+    boxShadow: '0 0 0 2px var(--accent-text, #5e6ad2)',
+  },
   '.cm-lp-image-zoom': {
     position: 'absolute',
     top: '8px',

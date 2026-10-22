@@ -5,13 +5,14 @@
 // code decorators that don't carry enough independent state to justify one.
 import { Decoration } from '@codemirror/view';
 import { syntaxTree } from '@codemirror/language';
-import { selectionTouchesRange, selectionTouchesLine, selectionInsideRange, readingMode } from './selection.js';
+import { selectionTouchesRange, selectionTouchesLine, selectionInsideRange, selectionCoversRange, readingMode } from './selection.js';
 import { isRevealSuppressed } from './link-reveal-suppression.js';
 import { HangMarkWidget, WikiLinkWidget, ImageWidget, TaskCheckboxWidget, ListMarkerWidget, CodeHeaderWidget } from './widgets.js';
 import { wikiNodeInner, splitWikiLinkInner } from './wiki-syntax.js';
 import { hideRange, styleRange, hangRange, excludeFromTextSample } from './decoration-helpers.js';
 import { isSameNode } from './tree-utils.js';
 import { isWidgetRevealed } from './widget-reveal.js';
+import { imageSpan, imageFillsLink } from './image-nodes.js';
 import { decorateTableHeader, decorateTableBodyRow, decorateTableDelimiterRow } from './tables-decorate.js';
 import { decorateFrontmatter } from './frontmatter-decorate.js';
 import { cardFence, fenceBody } from './fence-card/registry.js';
@@ -222,6 +223,8 @@ function decorateQuoteMark(node, view, decos) {
 // pointer so the mouse reads as a text cursor.
 
 function decorateLink(node, view, decos, options, cache) {
+  // The picture widget replaces the whole link unless its source is being edited.
+  if (imageFillsLink(node.node) && !selectionInsideRange(view.state, node.from, node.to)) return;
   const target = linkTarget(view.state, node.node, cache);
   // An undefined reference is just bracketed text.
   if (!target) return;
@@ -314,7 +317,24 @@ function decorateHtmlComment(node, view, decos) {
   styleRange(node.from, node.to, 'cm-lp-html-comment', decos);
 }
 
-// ── ![alt](url) — strict inside like wikiimage: arrow keys step in to edit the source.
+// ── ![alt](url) / ![[file]] — atomic, so selection and Backspace treat the
+// picture as one object; a caret inside (double-click) reveals the source.
+
+// Spans the wrapping link too, so a caret in its URL keeps the source shown.
+function imageEditing(view, node) {
+  const span = imageSpan(node.node);
+  return selectionInsideRange(view.state, span.from, span.to);
+}
+
+function pushImage(decos, view, node, src, label, editOffset) {
+  const span = imageSpan(node.node);
+  decos.push(
+    Decoration.replace({
+      widget: new ImageWidget(src, label, editOffset, selectionCoversRange(view.state, span.from, span.to)),
+      atomicImage: true,
+    }).range(span.from, span.to)
+  );
+}
 
 function decorateImage(node, view, decos, options) {
   const marks = node.node.getChildren('LinkMark');
@@ -322,14 +342,14 @@ function decorateImage(node, view, decos, options) {
   if (marks.length < 2 || !urlNode) return;
   const url = view.state.doc.sliceString(urlNode.from, urlNode.to);
   const alt = view.state.doc.sliceString(marks[0].to, marks[1].from);
-  if (selectionInsideRange(view.state, node.from, node.to) || isWidgetRevealed(view.state, node.from, node.to)) {
+  if (imageEditing(view, node)) {
     styleRange(node.from, node.to, 'cm-lp-wikiimage-raw', decos);
     return;
   }
   // Relative paths name files in the vault, not URLs on the app's own page.
   const resolve = options && options.resolveMarkdownImageSrc;
   const src = resolve ? resolve(url) : url;
-  decos.push(Decoration.replace({ widget: new ImageWidget(src, alt || url, 2) }).range(node.from, node.to));
+  pushImage(decos, view, node, src, alt || url, 2);
 }
 
 // ── List markers. Each list gets a fixed-width marker column (bullet/task
@@ -511,7 +531,8 @@ function decorateFencedCode(node, view, decos) {
   hideRange(close.from, close.to, decos);
 }
 
-// ── Wikilink / wikiimage — not atomic, so arrow keys can step inside and reveal the source.
+// ── Wikilink — not atomic, so arrow keys can step inside and reveal the source.
+// Wiki images are atomic; see pushImage.
 
 function decorateWikiLink(node, view, decos, options) {
   const inner = wikiNodeInner(node.node, view.state.doc);
@@ -532,15 +553,12 @@ function decorateWikiLink(node, view, decos, options) {
 function decorateWikiImage(node, view, decos, options) {
   const filename = wikiNodeInner(node.node, view.state.doc);
   if (!filename) return;
-  if (selectionInsideRange(view.state, node.from, node.to) || isWidgetRevealed(view.state, node.from, node.to)) {
+  if (imageEditing(view, node)) {
     styleRange(node.from, node.to, 'cm-lp-wikiimage-raw', decos);
     return;
   }
-  decos.push(
-    Decoration.replace({
-      widget: new ImageWidget(options && options.resolveImageSrc ? options.resolveImageSrc(filename) : filename, filename, 3),
-    }).range(node.from, node.to)
-  );
+  const src = options && options.resolveImageSrc ? options.resolveImageSrc(filename) : filename;
+  pushImage(decos, view, node, src, filename, 3);
 }
 
 export const nodeDecorators = {

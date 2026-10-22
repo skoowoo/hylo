@@ -33,10 +33,12 @@
       border-radius: 0;
     }
 
-    /* Native selection (CM6 runs without drawSelection, so this is what
-       the editor shows too) in brand tint instead of the system blue. */
+    /* Native selection in brand tint instead of the system blue. The editor
+       draws its own (drawSelection) with the same --selection-bg. */
     ::selection { background: var(--selection-bg); }
-    * {
+    /* Inherited, not set per element: the editor's transparent native caret
+       must reach the spans inside its lines. */
+    html {
       caret-color: var(--fg);
     }
     /* html/body are page canvas, never a "shape" — every page sets

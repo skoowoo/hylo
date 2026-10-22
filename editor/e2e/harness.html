@@ -32,6 +32,7 @@ window.view = new cm.EditorView({
       cm.formatKeymap,
       cm.keymap.of([].concat(cm.defaultKeymap, cm.historyKeymap)),
       cm.EditorView.lineWrapping,
+      cm.drawnSelection(),
       cm.frontmatterCollapseField,
       cm.liveDecorations({ resolveImageSrc: (name) => '/image?' + encodeURIComponent(name) }),
     ],

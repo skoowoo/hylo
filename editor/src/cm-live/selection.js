@@ -31,3 +31,12 @@ export function selectionInsideRange(state, from, to) {
   }
   return false;
 }
+
+// selected outline while staying rendered — a caret inside still reveals.
+export function selectionCoversRange(state, from, to) {
+  if (state.facet(readingMode)) return false;
+  for (const range of state.selection.ranges) {
+    if (!range.empty && range.from <= from && range.to >= to) return true;
+  }
+  return false;
+}

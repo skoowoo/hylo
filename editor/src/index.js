@@ -1,5 +1,6 @@
 // Bundled to internal/server/static/editor.js; the host imports only what is exported here.
 export { EditorView, keymap } from '@codemirror/view';
+export { drawnSelection } from './cm-live/drawn-selection.js';
 export { EditorState, EditorSelection, Compartment } from '@codemirror/state';
 export { HighlightStyle, syntaxHighlighting, forceParsing } from '@codemirror/language';
 export { tags } from '@lezer/highlight';

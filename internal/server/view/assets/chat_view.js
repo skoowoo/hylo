@@ -1172,7 +1172,9 @@
       var row = a && rows.get(a.id);
       if (!row || row.parentNode !== thread) return false;
       var delta = row.getBoundingClientRect().top - scrollEl.getBoundingClientRect().top - a.top;
-      if (Math.abs(delta) >= 1) scrollEl.scrollTop += delta;
+      // A relative scroll adds to WebKit's in-flight position; assigning scrollTop would
+      // overwrite it and drop a compensation still on its way.
+      if (Math.abs(delta) >= 1) scrollEl.scrollBy(0, delta);
       return true;
     }
 
@@ -1762,15 +1764,22 @@
 
     function onScroll() {
       if (scrollEl && !triggerMode && rows.size) {
+        var wasStuck = api.stick();
         if (fromBottom() <= 64) api.setStick(true);
         else if (api.stick() && userScrolling() && scrollEl.scrollTop < lastTop - 1) api.setStick(false);
         // Stuck but shoved off the bottom by a reflow the observer hasn't seen yet.
         else if (api.stick()) pin();
         syncOrigin();
-        // The place is the reader's to move; a reflow mid-layout would record a half-built one.
+        // The reader moves the place only by how far they scrolled. Read from layout, it
+        // would also take in rows above that grew since the last settle, and the stale
+        // position WebKit reports right after our own scrollTop write.
         if (!api.stick()) {
-          if (userScrolling()) captureAnchor();
-          else holdAnchor();
+          var a = api.anchor();
+          if (wasStuck || !a) captureAnchor();
+          else {
+            if (userScrolling()) api.setAnchor({ id: a.id, top: a.top - (scrollEl.scrollTop - lastTop) });
+            if (holdAnchor() && userScrolling()) captureAnchor();
+          }
         }
         lastTop = scrollEl.scrollTop;
         updateJump();

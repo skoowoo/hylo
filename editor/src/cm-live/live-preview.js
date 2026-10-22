@@ -1,5 +1,5 @@
 // Viewport-scoped tree walk → decorators.js.
-import { ViewPlugin, Decoration } from '@codemirror/view';
+import { ViewPlugin, Decoration, EditorView } from '@codemirror/view';
 import { StateEffect, EditorState } from '@codemirror/state';
 import { syntaxTree } from '@codemirror/language';
 import { nodeDecorators, isListGapLine } from './decorators.js';
@@ -18,6 +18,7 @@ class LivePreviewPlugin {
   constructor(view, options) {
     this.options = options || {};
     this.decorations = Decoration.none;
+    this.imageAtoms = Decoration.none;
     // Per-node layout (table columns, list marker widths, link definitions).
     // Survives selection/viewport rebuilds; cleared when doc or tree changes.
     this.layoutCache = new Map();
@@ -74,11 +75,13 @@ class LivePreviewPlugin {
       tree.iterate({ from, to, enter });
     }
     this.decorations = Decoration.set(decos, true);
+    this.imageAtoms = Decoration.set(decos.filter((r) => r.value.spec.atomicImage), true);
   }
 }
 
 export const livePreviewPlugin = ViewPlugin.fromClass(LivePreviewPlugin, {
   decorations: (v) => v.decorations,
+  provide: (plugin) => EditorView.atomicRanges.of((view) => view.plugin(plugin)?.imageAtoms ?? Decoration.none),
 });
 
 // A collapsed list gap is 1px tall, so a caret parked there is invisible and

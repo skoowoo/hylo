@@ -1,6 +1,7 @@
 import { WidgetType, EditorView } from '@codemirror/view';
 import { allowFrontmatterCaret } from './frontmatter-readonly.js';
 import { openImageViewer } from './image-viewer.js';
+import { imageNodeAt } from './image-nodes.js';
 
 // Click puts the caret `offset` chars into the source the widget replaces,
 // which flips it back to raw markdown for editing.
@@ -66,18 +67,26 @@ const BROKEN_ICON =
   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m2 2 20 20"/><path d="M10.41 10.41a2 2 0 1 1-2.83-2.83"/><path d="M13.5 13.5 6 21"/><path d="M18 12l3 3"/><path d="M3.59 3.59A1.99 1.99 0 0 0 3 5v14a2 2 0 0 0 2 2h14c.55 0 1.052-.22 1.41-.59"/><path d="M21 15V5a2 2 0 0 0-2-2H9"/></svg>';
 
 // ![[file]] and ![alt](url). `src` is already resolved by the decorator;
-// `label` names the image in the broken-image placeholder. A click edits the
-// source (`editOffset` chars in); the corner button opens the viewer.
+// `label` names the image in the broken-image placeholder. Double-click edits
+// the source `editOffset` chars in; the corner button opens the viewer.
 export class ImageWidget extends WidgetType {
-  constructor(src, label, editOffset) {
+  constructor(src, label, editOffset, selected = false) {
     super();
     this.src = src;
     this.label = label;
     this.editOffset = editOffset;
+    this.selected = selected;
   }
 
   eq(other) {
-    return other.src === this.src && other.label === this.label;
+    return other.src === this.src && other.label === this.label && other.editOffset === this.editOffset && other.selected === this.selected;
+  }
+
+  // Selection changes the outline only — rebuilding would reload the image.
+  updateDOM(dom, _view, old) {
+    if (old.src !== this.src || old.label !== this.label || old.editOffset !== this.editOffset) return false;
+    dom.classList.toggle('cm-lp-image-selected', this.selected);
+    return true;
   }
 
   get estimatedHeight() {
@@ -86,7 +95,7 @@ export class ImageWidget extends WidgetType {
 
   toDOM(view) {
     const wrap = document.createElement('span');
-    wrap.className = 'cm-lp-wikiimage';
+    wrap.className = 'cm-lp-wikiimage' + (this.selected ? ' cm-lp-image-selected' : '');
     const img = document.createElement('img');
     img.alt = this.label;
     img.draggable = false;
@@ -99,7 +108,7 @@ export class ImageWidget extends WidgetType {
     img.addEventListener('error', () => {
       imageHeightCache.delete(this.src);
       wrap.style.minHeight = '';
-      wrap.className = 'cm-lp-wikiimage cm-lp-image-broken';
+      wrap.classList.add('cm-lp-image-broken');
       wrap.innerHTML = BROKEN_ICON;
       const text = document.createElement('span');
       text.textContent = 'Image not found · ' + this.label;
@@ -119,7 +128,18 @@ export class ImageWidget extends WidgetType {
       openImageViewer(this.src, this.label);
     });
     wrap.append(img, zoom);
-    editOnMouseDown(wrap, view, this.editOffset);
+    // Atomic ranges keep mouse selections out of the source, so a double-click
+    // is the way in. Caught on mousedown: WebKit never fires dblclick here.
+    wrap.addEventListener('mousedown', (e) => {
+      if (e.detail !== 2 || e.button !== 0 || !view.state.facet(EditorView.editable)) return;
+      if (e.target instanceof Element && e.target.closest('.cm-lp-image-zoom')) return;
+      e.preventDefault();
+      const node = imageNodeAt(view.state, view.posAtDOM(wrap));
+      if (!node) return;
+      const at = Math.min(node.to, node.from + this.editOffset);
+      view.dispatch({ selection: { anchor: at } });
+      view.focus();
+    });
     return wrap;
   }
 

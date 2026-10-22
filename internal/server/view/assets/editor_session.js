@@ -393,9 +393,9 @@
       var cmTheme = cm.EditorView.theme({
         '&': {height:'100%',color:'var(--prose-body)',background:'transparent'},
         '&.cm-focused': {outline:'none'},
-        '.cm-content': {caretColor:'var(--accent)'},
-        '.cm-cursor,.cm-dropCursor': {borderLeftColor:'var(--accent)'},
-        '.cm-selectionBackground': {background:'var(--selection-bg) !important'},
+        // borderRadius:0 — the global 8px reset would round the caret and each selection band.
+        '.cm-cursor,.cm-dropCursor': {borderLeftColor:'var(--fg)',borderLeftWidth:'2px',borderRadius:'0'},
+        '.cm-selectionBackground': {background:'var(--selection-bg) !important',borderRadius:'0'},
         '&.cm-focused .cm-selectionBackground': {background:'var(--selection-bg)'},
         '.cm-activeLine': {background:'var(--cm-active-line)'},
         '.cm-gutters': {display:'none'},
@@ -457,6 +457,9 @@
           // Outside the mode compartments, so it works in source mode too.
           cm.selectionFormatMenu(),
           cm.cjkWordSelection,
+          // WebKit's native caret spans the line gap above on a paragraph's
+          // wrapped lines and leaves stale paint; CM's is sized from the text.
+          cm.drawnSelection(),
           cm.agentCursorExtension,
           cm.keymap.of([].concat(cm.defaultKeymap, cm.historyKeymap)),
           cm.search({ top: true, createPanel: __hyloCreateSearchPanel }),

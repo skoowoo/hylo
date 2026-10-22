@@ -6,7 +6,6 @@ import { Prec } from '@codemirror/state';
 import { lineInsideCodeBlock } from './format-guards.js';
 import { resolveAncestor, nameIs } from './tree-utils.js';
 import { emptyQuoteEnter, emptyQuoteBackspace } from './quote-format.js';
-import { refreshDomCaret } from './dom-caret.js';
 
 // Tab/Shift-Tab nest/un-nest a list item. Two things the generic
 // indentMore/indentLess (CM6's default "smart tab") get wrong for markdown
@@ -138,7 +137,6 @@ function dispatchWithRenumber(view, changes) {
   const seenTops = new Set();
   for (const range of afterIndent.selection.ranges) renumberChangesAt(afterIndent, range.head, seenTops, renumber);
   view.dispatch({ changes: renumber.length ? indentChanges.compose(afterIndent.changes(renumber)) : indentChanges });
-  refreshDomCaret(view);
 }
 
 function smartIndentMore(view) {

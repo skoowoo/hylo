@@ -62,7 +62,7 @@ function layoutOf(doc) {
   return { skippable, firstLine: lineNo(bodyStart), lastLine: state.doc.lines };
 }
 
-async function walk(t, fixture, direction) {
+async function walk(t, fixture, direction, shift = false) {
   if (launchError) return t.skip('WebKit unavailable — run `npx playwright-core install webkit` (' + launchError.message.split('\n')[0] + ')');
   const doc = fs.readFileSync(path.join(FIXTURES, fixture), 'utf8');
   const { skippable, firstLine, lastLine } = layoutOf(doc);
@@ -92,7 +92,7 @@ async function walk(t, fixture, direction) {
     let line = await lineAfterFrame();
     let stall = 0;
     while (up ? line > firstLine : line < lastLine) {
-      await page.keyboard.press(up ? 'ArrowUp' : 'ArrowDown');
+      await page.keyboard.press((shift ? 'Shift+' : '') + (up ? 'ArrowUp' : 'ArrowDown'));
       const next = await lineAfterFrame();
       const moved = up ? line - next : next - line;
       assert.ok(moved >= 0, `${fixture} ${direction}: moved the wrong way, L${line} → L${next}`);
@@ -116,6 +116,11 @@ for (const fixture of ['handbook.md', 'mixed.md']) {
   for (const direction of ['up', 'down']) {
     test(`arrow ${direction} walks ${fixture} line by line`, (t) => walk(t, fixture, direction));
   }
+}
+
+// Extending lands on wrap points, where a range's default side differs from a caret's.
+for (const direction of ['up', 'down']) {
+  test(`shift+arrow ${direction} extends through mixed.md line by line`, (t) => walk(t, 'mixed.md', direction, true));
 }
 
 // Entering a mindmap card swaps it for its (shorter) source; a spacer keeps
@@ -159,8 +164,9 @@ test('editing a mindmap card keeps the text below in place', async (t) => {
   }
 });
 
-// Backspace right after a rendered link/image shows its source; the next press edits it.
-test('Backspace after a widget reveals the source before deleting', async (t) => {
+// Backspace right after a rendered wikilink shows its source; the next press edits it.
+// Images delete as a unit — covered by the test below.
+test('Backspace after a wikilink reveals the source before deleting', async (t) => {
   if (launchError) return t.skip('WebKit unavailable');
   const page = await browser.newPage({ viewport: { width: 900, height: 600 } });
   try {
@@ -175,6 +181,119 @@ test('Backspace after a widget reveals the source before deleting', async (t) =>
     assert.deepEqual(await state(), { doc: 'see [[note]]\n\n![a](/image?x)\n', raw: true });
     await page.keyboard.press('Backspace');
     assert.equal((await state()).doc, 'see [[note]\n\n![a](/image?x)\n');
+  } finally {
+    await page.close();
+  }
+});
+
+async function imagePage(doc, count) {
+  const page = await browser.newPage({ viewport: { width: 900, height: 1400 } });
+  await page.goto(server.url + '/?f=widgets.md');
+  await page.waitForFunction(() => window.ready);
+  await page.evaluate((doc) => {
+    window.view.dispatch({ changes: { from: 0, to: window.view.state.doc.length, insert: doc } });
+    window.cm.forceParsing(window.view, doc.length, 500);
+  }, doc);
+  await page.waitForFunction((count) => {
+    const imgs = document.querySelectorAll('.cm-lp-wikiimage img');
+    return imgs.length === count && [...imgs].every((i) => i.getBoundingClientRect().height > 0);
+  }, count);
+  return page;
+}
+
+const imageBox = (page, i) => page.evaluate((i) => {
+  const r = document.querySelectorAll('.cm-lp-wikiimage')[i].getBoundingClientRect();
+  return { left: r.left, right: r.right, top: r.top, bottom: r.bottom, x: r.left + r.width / 2, y: r.top + r.height / 2 };
+}, i);
+
+const editorState = (page) => page.evaluate(() => {
+  const doc = window.view.state.doc.toString();
+  const sel = window.view.state.selection.main;
+  return {
+    doc,
+    text: doc.slice(sel.from, sel.to),
+    head: sel.head,
+    raw: document.querySelector('.cm-lp-wikiimage-raw')?.textContent ?? null,
+    outlined: document.querySelectorAll('.cm-lp-image-selected').length,
+  };
+});
+
+test('clicking an image puts the caret beside it and one Backspace deletes it', async (t) => {
+  if (launchError) return t.skip('WebKit unavailable');
+  const doc = 'before\n\n![a](/image?x)\n\nafter';
+  const page = await imagePage(doc, 1);
+  try {
+    const box = await imageBox(page, 0);
+    await page.mouse.click(box.right - 10, box.y);
+    const caret = await editorState(page);
+    assert.equal(caret.head, doc.indexOf('\n\nafter'));
+    assert.equal(caret.raw, null);
+    await page.keyboard.press('Backspace');
+    assert.equal((await editorState(page)).doc, 'before\n\n\n\nafter');
+  } finally {
+    await page.close();
+  }
+});
+
+test('drag and shift-click select images whole; Backspace deletes them together', async (t) => {
+  if (launchError) return t.skip('WebKit unavailable');
+  const doc = 'before\n\n![a](/image?x)\n\n![b](/image?y)\n\nafter';
+  const page = await imagePage(doc, 2);
+  try {
+    const a = await imageBox(page, 0);
+    const b = await imageBox(page, 1);
+    await page.mouse.move(a.left + 10, a.y);
+    await page.mouse.down();
+    await page.mouse.move(b.right - 10, b.y, { steps: 10 });
+    await page.mouse.up();
+    const dragged = await editorState(page);
+    assert.equal(dragged.text, '![a](/image?x)\n\n![b](/image?y)');
+    assert.equal(dragged.outlined, 2);
+    assert.equal(dragged.raw, null);
+    await page.mouse.click(a.left + 10, a.y);
+    await page.keyboard.down('Shift');
+    await page.mouse.click(b.right - 10, b.y);
+    await page.keyboard.up('Shift');
+    assert.equal((await editorState(page)).text, '![a](/image?x)\n\n![b](/image?y)');
+    await page.keyboard.press('Backspace');
+    assert.equal((await editorState(page)).doc, 'before\n\n\n\nafter');
+  } finally {
+    await page.close();
+  }
+});
+
+test('double-clicking an image shows its source', async (t) => {
+  if (launchError) return t.skip('WebKit unavailable');
+  const page = await imagePage('before\n\n![a](/image?x)\n\nafter', 1);
+  try {
+    const box = await imageBox(page, 0);
+    await page.mouse.dblclick(box.x, box.y);
+    assert.equal((await editorState(page)).raw, '![a](/image?x)');
+  } finally {
+    await page.close();
+  }
+});
+
+test('a linked image selects and deletes as one, keeping its url hidden', async (t) => {
+  if (launchError) return t.skip('WebKit unavailable');
+  const link = '[![Image](https://img.example/a.png)](https://mp.weixin.qq.com/s?x=1 "title")';
+  const page = await imagePage('before\n\n' + link + '\n\nafter', 1);
+  try {
+    const box = await imageBox(page, 0);
+    await page.mouse.click(box.left + 2, box.y);
+    await page.keyboard.down('Shift');
+    await page.mouse.click(box.right - 2, box.y);
+    await page.keyboard.up('Shift');
+    const selected = await editorState(page);
+    assert.equal(selected.text, link);
+    assert.equal(selected.outlined, 1);
+    assert.equal(await page.evaluate(() => document.querySelector('.cm-content').innerText.includes('mp.weixin')), false);
+    await page.keyboard.press('ArrowRight');
+    await page.keyboard.press('Backspace');
+    assert.equal((await editorState(page)).doc, 'before\n\n\n\nafter');
+    await page.keyboard.press('Meta+z');
+    await page.mouse.dblclick(box.x, box.y);
+    assert.equal((await editorState(page)).raw, '![Image](https://img.example/a.png)');
   } finally {
     await page.close();
   }
