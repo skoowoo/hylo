@@ -52,6 +52,17 @@ export function parseChoices(source) {
   return { multi, options };
 }
 
+// A button shows an option's inline markdown as plain text; a click still sends the option as written.
+export function choiceLabel(option) {
+  return option
+    .replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, (_, target, alias) => alias || target)
+    .replace(/(\*\*|~~|`)(.+?)\1/g, '$2')
+    .replace(/(?<![\w*])\*(?!\s)(.+?)(?<!\s)\*(?![\w*])/g, '$1')
+    .replace(/\\([\\`*_[\]()#+\-.!~|])/g, '$1')
+    .trim() || option;
+}
+
 // Which options a reply picked: the whole reply for one, its parts for several.
 export function pickedOptions(options, reply) {
   const text = (reply || '').trim();
@@ -89,7 +100,7 @@ export function mount(el, source, ctx = {}) {
         b.appendChild(box);
         if (active) b.setAttribute('aria-pressed', String(picked.has(text)));
       }
-      b.appendChild(document.createTextNode(text));
+      b.appendChild(document.createTextNode(choiceLabel(text)));
       if (active) {
         b.type = 'button';
         b.addEventListener('click', () => {

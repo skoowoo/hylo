@@ -29,12 +29,19 @@
     }
   }
 
-  // Shows op.path in the editor, opening it first when needed.
+  // Shows op.path in the editor, opening it first when needed; an op without one
+  // targets the note in front of the user.
   async function __hyloAgentOpenNote(op) {
     var s = __hyloEditor;
     var pane = window.__hyloContentPane;
     if (!pane) throw new Error('editor is not available on this page');
     var tab = __hyloEditorActiveTab();
+    if (!op.path) {
+      if (!(pane.contentPaneOpen && tab && /\.md$/i.test(tab.path || ''))) {
+        throw new Error('no note is open in the editor; ask the user which note, then pass its path');
+      }
+      op.path = tab.path;
+    }
     if (!(pane.contentPaneOpen && tab && tab.path === op.path && s.currentPath === op.path)) {
       await pane.openNoteInContentPane(op.path, __hyloStripMdExt(op.path.split('/').pop()));
     }
@@ -65,7 +72,7 @@
       if (ctrl.signal.aborted) return void __hyloAgentAck({id: op.id, ok: false, interrupted: true, chars: 0});
 
       if (op.kind === 'read') {
-        await __hyloAgentAck({id: op.id, ok: true, data: __hyloCM.readAgentDoc(view.state)});
+        await __hyloAgentAck({id: op.id, ok: true, path: op.path, data: __hyloCM.readAgentDoc(view.state)});
         return;
       }
 
@@ -92,7 +99,7 @@
         signal: ctrl.signal,
         isCurrent: function() { return s.view === view && s.currentPath === op.path; },
       });
-      await __hyloAgentAck({id: op.id, ok: res.ok, interrupted: res.interrupted, error: res.interrupted ? '' : (res.error || ''), chars: res.chars});
+      await __hyloAgentAck({id: op.id, ok: res.ok, interrupted: res.interrupted, error: res.interrupted ? '' : (res.error || ''), chars: res.chars, path: op.path});
     } catch (e) {
       await __hyloAgentAck({id: op.id, ok: false, error: (e && e.message) || 'editor error', chars: 0});
     } finally {

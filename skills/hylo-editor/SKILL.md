@@ -11,6 +11,10 @@ The editor tools drive the Hylo editor the user has open: the note opens in fron
 
 You need `editor_type`, `editor_read` and `editor_rewrite` (maybe shown as `mcp__hylo__editor_type` or `hylo_editor_type`). If they aren't in your tool list, search your deferred tools for "hylo editor". If they still aren't there, live editing is unavailable: do what the skill that sent you here says (`hylo-writing` writes the file and says so in one line); otherwise ask the user whether to write the file directly.
 
+## Which note
+
+"This note", "here", "where my cursor is": the note open in the editor. Omit `path` and the tools act on it; every result returns its `path`. Pass that `path` on every later call for the same request, so a tab switch mid-request doesn't move the writing. If nothing is open, the call fails without writing: ask which note.
+
 ## When to use it
 
 Use the editor for writing the user is there to see: whatever `hylo-writing` writes or revises in a conversation, or when they ask to watch. Use the note tools for bulk or background work: many files, imports, a trigger running on its own, notes the user isn't looking at.
@@ -23,7 +27,7 @@ Use the editor for writing the user is there to see: whatever `hylo-writing` wri
 
 | Param | Meaning |
 | ----- | ------- |
-| `path` | Vault-absolute path, e.g. `/journal/2026-10-10.md`. A missing note is created empty. |
+| `path` | Vault-absolute path, e.g. `/journal/2026-10-10.md`. A missing note is created empty. Omit it for the note the user has open. |
 | `content` | Markdown to type; trailing whitespace is trimmed. |
 | `at` | `end` (default), or `cursor` for the user's caret. |
 | `heading` | Types at the end of that section instead (case-insensitive, with or without `#`). Wins over `at`. |
@@ -34,8 +38,9 @@ Use the editor for writing the user is there to see: whatever `hylo-writing` wri
 
 ### editor_read: see what the user sees
 
-Pass `path`. Returns the note as it is **in the editor**, unsaved edits included:
+Pass `path`, or omit it for the note the user has open. Returns the note as it is **in the editor**, unsaved edits included:
 
+- `path`: the note read.
 - `blocks`: `[{id, kind, text}]`, numbered `b1…bn` in document order, frontmatter excluded. `kind` is `heading`, `paragraph`, `list`, `code`, `quote`, `table`, `rule` or `htmlblock`; `text` is raw markdown.
 - `selection`: `{text, blocks}` when the user has text selected.
 

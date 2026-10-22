@@ -1,6 +1,7 @@
 package mcp
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -12,7 +13,7 @@ import (
 )
 
 type editorTypeReq struct {
-	Path    string `json:"path" jsonschema:"vault-absolute markdown path; created empty if missing"`
+	Path    string `json:"path,omitempty" jsonschema:"vault-absolute markdown path, created empty if missing; omit for the note open in the user's editor"`
 	Content string `json:"content" jsonschema:"markdown to type into the note"`
 	At      string `json:"at,omitempty" jsonschema:"where to type: end (default) or cursor"`
 	Heading string `json:"heading,omitempty" jsonschema:"type at the end of this section instead (case-insensitive heading text)"`
@@ -27,7 +28,7 @@ type editorTypeOut struct {
 }
 
 type editorReadReq struct {
-	Path string `json:"path" jsonschema:"vault-absolute path of an existing note"`
+	Path string `json:"path,omitempty" jsonschema:"vault-absolute path of an existing note; omit for the note open in the user's editor"`
 }
 
 type editorBlock struct {
@@ -48,7 +49,7 @@ type editorReadOut struct {
 }
 
 type editorRewriteReq struct {
-	Path     string `json:"path" jsonschema:"vault-absolute path of an existing note"`
+	Path     string `json:"path,omitempty" jsonschema:"vault-absolute path of an existing note; omit for the note open in the user's editor"`
 	Content  string `json:"content" jsonschema:"the new markdown for the region; empty deletes it"`
 	Target   string `json:"target,omitempty" jsonschema:"selection (what the user has selected), or a block id or range from editor_read such as b3 or b3-b5"`
 	Expect   string `json:"expect,omitempty" jsonschema:"required with a block target: the first words of the region, copied from editor_read, to detect a changed note"`
@@ -72,7 +73,11 @@ var (
 )
 
 // requireNote fails early for a missing note, so the editor never pops an error dialog for it.
+// No path means the note open in the editor, which the page resolves.
 func requireNote(c *client.Client, path string) error {
+	if path == "" {
+		return nil
+	}
 	if err := notes.CheckMarkdownPath(path); err != nil {
 		return err
 	}
@@ -112,8 +117,10 @@ func registerEditorTools(s *sdk.Server, c *client.Client, bus *editorbus.Bus) {
 			"Needs the Hylo app open; if none is, it fails without writing anything.", additive,
 		func(ctx context.Context, in editorTypeReq) (editorTypeOut, error) {
 			out := editorTypeOut{Path: in.Path}
-			if err := notes.CheckMarkdownPath(in.Path); err != nil {
-				return out, err
+			if in.Path != "" {
+				if err := notes.CheckMarkdownPath(in.Path); err != nil {
+					return out, err
+				}
 			}
 			if err := notes.CheckText([]byte(in.Content)); err != nil {
 				return out, err
@@ -122,11 +129,13 @@ func registerEditorTools(s *sdk.Server, c *client.Client, bus *editorbus.Bus) {
 				return out, errNoEditor
 			}
 			created := false
-			if exists, err := c.Exists(in.Path); err == nil && !exists {
-				if _, err := notes.Create(c, in.Path, false, func() ([]byte, error) { return nil, nil }); err != nil {
-					return out, err
+			if in.Path != "" {
+				if exists, err := c.Exists(in.Path); err == nil && !exists {
+					if _, err := notes.Create(c, in.Path, false, func() ([]byte, error) { return nil, nil }); err != nil {
+						return out, err
+					}
+					created = true
 				}
-				created = true
 			}
 
 			res, err := dispatch(ctx, bus, editorbus.Op{
@@ -139,7 +148,7 @@ func registerEditorTools(s *sdk.Server, c *client.Client, bus *editorbus.Bus) {
 				}
 				return out, err
 			}
-			out.Chars, out.Interrupted = res.Chars, res.Interrupted
+			out.Path, out.Chars, out.Interrupted = cmp.Or(res.Path, in.Path), res.Chars, res.Interrupted
 			if res.Interrupted {
 				out.Message = "the user interrupted typing; do not retype the rest unless asked"
 			}
@@ -148,7 +157,8 @@ func registerEditorTools(s *sdk.Server, c *client.Client, bus *editorbus.Bus) {
 
 	addTool(s, "editor_read",
 		"Read a note as it is in the user's open editor, unsaved edits included, split into numbered blocks, "+
-			"plus the text the user has selected. Call it before editor_rewrite to see what the user sees.", readOnly,
+			"plus the text the user has selected. Without path it reads the note the user has open and returns its path. "+
+			"Call it before editor_rewrite to see what the user sees.", readOnly,
 		func(ctx context.Context, in editorReadReq) (editorReadOut, error) {
 			out := editorReadOut{Path: in.Path}
 			if err := requireNote(c, in.Path); err != nil {
@@ -164,7 +174,7 @@ func registerEditorTools(s *sdk.Server, c *client.Client, bus *editorbus.Bus) {
 			if err := json.Unmarshal(res.Data, &out); err != nil {
 				return out, err
 			}
-			out.Path = in.Path
+			out.Path = cmp.Or(res.Path, in.Path)
 			return out, nil
 		})
 
@@ -188,7 +198,7 @@ func registerEditorTools(s *sdk.Server, c *client.Client, bus *editorbus.Bus) {
 			if err != nil {
 				return out, err
 			}
-			out.Chars, out.Interrupted = res.Chars, res.Interrupted
+			out.Path, out.Chars, out.Interrupted = cmp.Or(res.Path, in.Path), res.Chars, res.Interrupted
 			if res.Interrupted {
 				out.Message = "the user interrupted; the region may be partly rewritten. Call editor_read before doing anything else"
 			}

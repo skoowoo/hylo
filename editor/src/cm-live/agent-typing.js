@@ -1,7 +1,7 @@
 // Lets a server-side agent type into the live editor as if it were a person:
 // changes go through ordinary transactions (so rendering, undo and autosave behave
 // as for human input) and a separate agent caret shows where the text lands.
-import { StateField, StateEffect, Transaction, Annotation } from '@codemirror/state';
+import { StateField, StateEffect, Transaction, Annotation, EditorSelection } from '@codemirror/state';
 import { Decoration, EditorView, WidgetType } from '@codemirror/view';
 import { ensureSyntaxTree, syntaxTree } from '@codemirror/language';
 import { isolateHistory } from '@codemirror/commands';
@@ -257,6 +257,18 @@ export function planAgentRewrite(state, { target, expect, fromText, toText } = {
   return { pos: from, replaceTo: to, text: '' };
 }
 
+// Mapped through a replacement, a selection on the region would cover the first typed
+// chunk and stay there; it collapses to the region's start instead.
+function collapseOnto(state, changes) {
+  const { from, to } = changes;
+  const sel = state.selection;
+  if (!sel.ranges.some((r) => !r.empty && r.from < to && r.to > from)) return undefined;
+  const cs = state.changes(changes);
+  return EditorSelection.create(sel.ranges.map((r) => (
+    !r.empty && r.from < to && r.to > from ? EditorSelection.cursor(from) : r.map(cs)
+  )), sel.mainIndex);
+}
+
 // Keeps the agent's position in a comfortable band of the viewport. Scrolling happens in
 // one hop (to `target` of the height) only once it leaves the band, so the view moves
 // occasionally instead of creeping every tick. Wins over the user's own scrolling by design.
@@ -330,12 +342,14 @@ export async function agentType(view, plan, opts = {}) {
     first = false;
     const effects = [...(spec.effects || [])];
     let changes = spec.changes;
+    let selection;
     if (deleting) {
       changes = { ...changes, to: deleteEnd(changes.from) };
+      selection = collapseOnto(view.state, changes);
       effects.push(setAgentTarget.of(null));
       deleting = false;
     }
-    view.dispatch({ ...spec, changes, effects, annotations, userEvent: 'input.type.agent' });
+    view.dispatch({ ...spec, changes, selection, effects, annotations, userEvent: 'input.type.agent' });
     // input.type keeps the write one undo group but also opens completions, e.g. after "[[".
     if (completionStatus(view.state)) closeCompletion(view);
   };

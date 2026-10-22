@@ -238,6 +238,17 @@ test('rewrite: replaces the region and one undo restores it', async () => {
   assert.equal(view.state.doc.toString(), DOC);
 });
 
+test('rewrite: the replaced selection does not carry over onto the typed text', async () => {
+  const view = viewFor(DOC);
+  const from = DOC.indexOf('First');
+  view.dispatch({ selection: { anchor: from, head: from + 'First paragraph here.'.length } });
+  const p = planAgentRewrite(view.state, { target: 'selection' }, 'A much better paragraph.');
+  const seen = [];
+  await agentType(view, p, { speed: 'slow', sleep: async () => seen.push(view.state.selection.main.empty) });
+  assert.ok(seen.slice(2).every(Boolean), 'selection stayed on the typed text while typing');
+  assert.deepEqual([view.state.selection.main.from, view.state.selection.main.to], [from, from]);
+});
+
 test('rewrite: delete only', async () => {
   const view = viewFor(DOC);
   const p = planAgentRewrite(view.state, { target: 'b2', expect: 'First' }, '');

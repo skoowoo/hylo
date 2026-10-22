@@ -68,6 +68,8 @@ type Result struct {
 	Interrupted bool   `json:"interrupted,omitempty"`
 	Error       string `json:"error,omitempty"`
 	Chars       int    `json:"chars"`
+	// Path is the note the op ran on, resolved by the page when the op had none.
+	Path string `json:"path,omitempty"`
 	// Data carries a read's payload.
 	Data json.RawMessage `json:"data,omitempty"`
 }

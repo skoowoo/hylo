@@ -129,6 +129,22 @@ func TestEditorRead(t *testing.T) {
 	}
 }
 
+// Without a path the page reads the note it has open and names it.
+func TestEditorReadOpenNote(t *testing.T) {
+	bus := editorbus.New()
+	cs, _ := editorSession(t, bus)
+	fakeEditor(t, bus, func(op editorbus.Op) editorbus.Result {
+		if op.Path != "" {
+			t.Errorf("path = %q", op.Path)
+		}
+		return editorbus.Result{OK: true, Path: "/open.md", Data: json.RawMessage(`{"blocks":[]}`)}
+	})
+	m, isErr := call(t, cs, "editor_read", map[string]any{})
+	if isErr || m["path"] != "/open.md" {
+		t.Fatalf("m=%v err=%v", m, isErr)
+	}
+}
+
 func TestEditorRewriteForwardsTarget(t *testing.T) {
 	bus := editorbus.New()
 	cs, writes := editorSession(t, bus)
