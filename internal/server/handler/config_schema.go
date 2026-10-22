@@ -57,7 +57,7 @@ func buildConfigSchema() []SchemaField {
 
 		{Key: "agent.system_prompt", Type: "string", Section: "agent", Label: "Agent system prompt",
 			Description: "Global system prompt prepended to every agent run. Leave empty to always use the latest built-in default. Hylo's vault conventions (wiki links, knowledge base, memory) follow it either way, then the mate's own system prompt (if any), each after a markdown divider.",
-			Multiline: true, Default: prompt.GlobalDefault},
+			Multiline:   true, Default: prompt.GlobalDefault},
 
 		{Key: "plugins.search.use_jieba", Type: "bool", Section: "plugins.search", Label: "Use jieba",
 			Description: "Enable Chinese tokenisation for search (~50 MB + ~1s startup).",
@@ -81,27 +81,6 @@ func buildConfigSchema() []SchemaField {
 			Default:     "5m"},
 		{Key: "plugins.git_sync.sync_interval", Type: "duration", Section: "plugins.git_sync", Label: "Sync interval",
 			Description: "Pull/push interval; empty or 0 disables periodic remote sync.", Default: "24h"},
-
-		{Key: "plugins.wechat.enabled", Type: "bool", Section: "plugins.wechat", Label: "WeChat bridge enabled",
-			Description: "When true, poll WeChat iLink for direct messages and emit wechat_message mate events.", Default: false},
-
-		{Key: "plugins.discord.enabled", Type: "bool", Section: "plugins.discord", Label: "Discord bridge enabled",
-			Description: "When true, connect to Discord Gateway and emit discord_message mate events for incoming DMs.", Default: false},
-		{Key: "plugins.discord.bot_token", Type: "string", Section: "plugins.discord", Label: "Bot token",
-			Description: "Discord Bot token from the Developer Portal. Obtain under Bot → Reset Token.",
-			Sensitive: true, Default: ""},
-		{Key: "plugins.discord.user_id", Type: "string", Section: "plugins.discord", Label: "Owner user ID",
-			Description: "Required: only DMs from this Discord user reach your bots. Enable Developer Mode → right-click your avatar → Copy User ID.",
-			Default: ""},
-		{Key: "plugins.discord.proxy_url", Type: "string", Section: "plugins.discord", Label: "Proxy URL",
-			Description: "Optional HTTP/SOCKS5 proxy for Discord API and WebSocket traffic (e.g. http://127.0.0.1:7890).",
-			Default: ""},
-
-		{Key: "plugins.telegram.enabled", Type: "bool", Section: "plugins.telegram", Label: "Telegram bridge enabled",
-			Description: "Turned on by pairing. When true, poll the paired Telegram bot and emit telegram_message mate events for your private messages.", Default: false},
-		{Key: "plugins.telegram.proxy_url", Type: "string", Section: "plugins.telegram", Label: "Proxy URL",
-			Description: "Optional HTTP/SOCKS5 proxy for api.telegram.org (e.g. http://127.0.0.1:7890). Pairing uses it too.",
-			Default: ""},
 	}
 }
 

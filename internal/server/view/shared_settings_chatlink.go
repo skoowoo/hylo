@@ -1,7 +1,6 @@
 package view
 
-// Shared look of the panels that link a chat app account (WeChat login,
-// Telegram pairing) under their section of the Server tab.
+// Shared look of the panels that connect a chat app to a bot.
 const settingsChatLinkCSS = `
     .cfg-link { padding: 0.88rem 0 0; margin-top: 0.5rem; }
     .cfg-link-head {

@@ -185,9 +185,6 @@ Add one or more triggers to a bot and it runs automatically whenever a matching 
 | `note_deleted`       | Any note is deleted                                  |
 | `short_note_created` | A short-note entry is appended                       |
 | `scheduled`          | On a configured interval, daily time, or weekly time |
-| `wechat_message`     | A WeChat direct message is received                  |
-| `discord_message`    | A Discord DM is received                             |
-| `telegram_message`   | A Telegram private message is received               |
 | `compile_requested`  | An LLM wiki compilation is manually triggered        |
 
 #### 🧩 The Hylo bot
@@ -196,7 +193,6 @@ The desktop app creates a **Hylo** bot during onboarding. If you skipped that, o
 
 | Trigger                          | What it does                                                                  |
 | -------------------------------- | ----------------------------------------------------------------------------- |
-| `wechat_message`, `discord_message`, `telegram_message` | Replies to you on WeChat, Discord and Telegram once they're connected |
 | `compile_requested`              | Compiles a note into knowledge units when you ask for it                      |
 | `note_created` on `/Web Clips/`  | Compiles new web clips automatically                                          |
 | `scheduled` daily 09:00          | Updates your personal memory                                                  |
@@ -216,81 +212,17 @@ Hylo integrates **6 agent CLIs** out of the box:
 - GitHub Copilot CLI
 - Pi
 
-## WeChat
+## WeChat, Discord, Telegram
 
-Hylo can receive WeChat direct messages and route them to a bot automatically. Setup has two steps.
+Each bot can connect its own contact. A message from that contact is a turn in the bot's current chat, the same conversation as on the desktop. `/new` in the app starts a new one, and the desktop follows it.
 
-#### Step 1: Connect WeChat in Server Config
+Open the bot under **Settings → Bots** and use **Channels**.
 
-1. Open **Settings → Server → Config → WeChat**
-2. Click **Scan QR to log in** — a QR code appears
-3. Open WeChat on your phone and scan the code; confirm when prompted
-4. Once the status badge shows **Connected**, click **Save all**
+- **WeChat:** click Connect and scan. One WeChat account stays on one bot. Scanning again disconnects the previous bot.
+- **Discord:** create a bot in the [Developer Portal](https://discord.com/developers/applications), enable **Message Content Intent**, and paste the bot token plus your user ID (Developer Mode → right-click your avatar → Copy User ID). If `discord.com` is blocked, set a proxy such as `http://127.0.0.1:7890`.
+- **Telegram:** message [@BotFather](https://t.me/BotFather), send `/newbot`, paste the token, then open the link on your phone and tap Start. Set a proxy first if `api.telegram.org` is blocked.
 
-The WeChat iLink bridge begins polling for new DMs.
-
-#### Step 2: Create a Bot with a `wechat_message` trigger
-
-1. Open **Settings → Bots** and click **New Bot**
-2. Fill in a name, pick an agent and model
-3. Under **Triggers**, click **+ Add trigger**
-4. Set the **Event** to `wechat_message`
-5. Write a prompt template:
-
-   Example prompt:
-   ```
-   {Content}
-   ```
-
-6. Save the bot
-
-From this point on, every WeChat DM fires the trigger and the bot replies automatically.
-
-## Discord
-
-Same idea as WeChat, but Discord. The bot connects over the Gateway and replies to DMs.
-
-#### Step 1: Configure Discord in Server Config
-
-1. Create a Bot at the [Discord Developer Portal](https://discord.com/developers/applications)
-2. Under **Bot → Privileged Gateway Intents**, enable **Message Content Intent**
-3. Copy the Bot token
-4. Open **Settings → Server → Config → Discord**
-5. Paste the token into **Bot token**, fill in your **Owner user ID** (Developer Mode → right-click your avatar → Copy User ID), and set **enabled** to true
-6. Click **Save all** and restart the server. The Bot's status dot turns green once connected.
-
-Anyone can DM a Discord bot, so the bridge answers only the **Owner user ID** and ignores everyone else. Leave it empty and the bot answers no one.
-
-If `discord.com` is not directly reachable, set **Proxy URL** to your local proxy (e.g. `http://127.0.0.1:7890`).
-
-#### Step 2: Create a Bot with a `discord_message` trigger
-
-1. Open **Settings → Bots** and click **New Bot**
-2. Fill in a name, pick an agent and model
-3. Under **Triggers**, click **+ Add trigger**
-4. Set the **Event** to `discord_message`
-5. Write a prompt template. Available variables: `{Content}`, `{DiscordChannelID}`, `{DiscordUserID}`
-6. Save the bot
-
-Done. Every incoming DM now triggers the bot and gets a reply.
-
-## Telegram
-
-Chat with your bots from Telegram. Hylo long-polls the Telegram Bot API, so it works behind NAT with no public URL.
-
-#### Step 1: Pair a Telegram bot
-
-1. In Telegram, message [@BotFather](https://t.me/BotFather), send `/newbot` and copy the token it gives you
-2. Open **Settings → Server → Config → Telegram**. If `api.telegram.org` is blocked where you are, set **Proxy URL** first (e.g. `http://127.0.0.1:7890`)
-3. Paste the token and click **Connect**; a QR code and a link to your bot appear
-4. Scan it with your phone (or open the link) and tap **Start** in Telegram
-5. Once the badge shows **Connected**, the bridge is enabled; restart the server to start it
-
-Telegram bots are public: anyone can find and message them. Pairing binds the bot to the account that tapped Start, and the bridge ignores messages from anyone else. The pairing link is single-use and expires after 10 minutes. To move the bot to another account, **Disconnect** and pair again.
-
-#### Step 2: Create a Bot with a `telegram_message` trigger
-
-The Hylo bot made during setup already has one. For your own bot, add a trigger with the **Event** `telegram_message`. Available variables: `{Content}`, `{TelegramUserID}`. Send `/new` in Telegram to start a fresh conversation.
+One contact belongs to one Hylo bot. Only the account that completed the connection is answered. No server restart.
 
 ## LLM-Wiki Compiler
 
@@ -414,7 +346,7 @@ Every layer of AI output in Hylo is customizable:
 In **Settings → Bots**, each bot exposes two customization points:
 
 - **System Prompt** — agent-bot-specific instructions. Appended to the global system prompt (joined with `---`).
-- **Trigger Prompt template**: the user message sent to the agent when a trigger fires. Supports variables: `{Path}`, `{Name}`, `{Content}` for vault events; `{Now}`, `{Date}`, `{Time}` for scheduled triggers; `{Content}`, `{WechatUserID}` for WeChat triggers; `{Content}`, `{DiscordChannelID}`, `{DiscordUserID}` for Discord triggers; `{Content}`, `{TelegramUserID}` for Telegram triggers.
+- **Trigger Prompt template**: the user message sent to the agent when a trigger fires. Supports variables: `{Path}`, `{Name}`, `{Content}` for vault events; `{Now}`, `{Date}`, `{Time}` for scheduled triggers.
 
 #### 3. Rewrite the LLM-Wiki Compile Skill
 

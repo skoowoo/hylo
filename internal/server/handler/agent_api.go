@@ -16,7 +16,6 @@ import (
 	"github.com/hardhacker/hylo/internal/config"
 	"github.com/hardhacker/hylo/internal/editorbus"
 	"github.com/hardhacker/hylo/internal/mate"
-	"github.com/hardhacker/hylo/internal/plugin"
 	"github.com/hardhacker/hylo/internal/prompt"
 	"github.com/hardhacker/hylo/internal/storage"
 	"github.com/hardhacker/hylo/internal/util"
@@ -36,6 +35,8 @@ type AgentAPI struct {
 	runner     *mate.Runner   // optional; set via SetMateRunner once the mate runner exists, so TriggerRetryPOST can re-fire through its onDone pipeline
 	editorBus  *editorbus.Bus // optional; cancelled alongside a run so the editor stops typing
 	setupMu    sync.Mutex     // one first-bot setup at a time, so two can't both find no bots
+	chatSlots  sync.Map       // mateID -> chan struct{} (cap 1); one chat run at a time, desktop and channels together
+	queued     sync.Map       // runID -> context.CancelFunc; a run still waiting for its bot's chat
 }
 
 // NewAgentAPI constructs the agent HTTP surface.
@@ -77,14 +78,13 @@ type chatBody struct {
 	UserMessageID      string            `json:"userMessageId"`      // pre-allocated by client (optional)
 	AssistantMessageID string            `json:"assistantMessageId"` // pre-allocated by client (optional)
 	TriggerRun         bool              `json:"triggerRun"`         // when true, skip persisting the user prompt message
-	TriggerReply       bool              `json:"triggerReply"`       // when true, trigger run with reply callback — uses persistent agent session like chat
 	TriggerEvent       string            `json:"triggerEvent"`       // mate event type label stored on assistant message
 	TriggerID          string            `json:"triggerId"`          // trigger that fired the run, stored on assistant message
 	RetryOf            string            `json:"retryOf"`            // failed/stopped assistant message this run replaces
 	Intro              bool              `json:"intro"`              // first chat after onboarding; see prompt.Intro
 	IntroLang          string            `json:"introLang"`          // language the onboarding hello picked
-	eventReply         plugin.ReplyFunc  // optional; invoked when trigger run completes
 	oneShot            bool              // self-contained internal ask; see prompt.OneShot
+	app                string            // wechat, discord or telegram; the stored message stays the raw text
 }
 
 // AgentsGET handles GET /api/agents.
@@ -221,6 +221,9 @@ func (a *AgentAPI) RunCancelPOST(w http.ResponseWriter, r *http.Request) {
 	// (a.canceled.LoadAndDelete) can tell a user-initiated stop apart from a
 	// genuine crash and report "canceled" instead of "failed".
 	a.canceled.Store(id, true)
+	if stop, ok := a.queued.Load(id); ok {
+		stop.(context.CancelFunc)()
+	}
 	if v, ok := a.active.Load(id); ok {
 		if cp, ok := v.(*agent.ChatProcess); ok && cp.Cmd != nil && cp.Cmd.Process != nil {
 			_ = cp.Cmd.Process.Kill()
@@ -322,7 +325,6 @@ func (a *AgentAPI) dropRetried(convID, retryOf, prompt string) {
 
 // FireTriggerRun is called by the mate runner to launch a background agent run.
 // Messages are appended to the mate's active chat conversation; each run uses a fresh agent session.
-// When ev.Reply is set it is invoked once after the run reaches a terminal state.
 // onDone is called exactly once when the run reaches a terminal state.
 func (a *AgentAPI) FireTriggerRun(ctx context.Context, m *mate.Mate, convID, prompt string, ev mate.MateEvent, onDone func(mate.RunResult)) {
 	meta := map[string]string{
@@ -341,10 +343,8 @@ func (a *AgentAPI) FireTriggerRun(ctx context.Context, m *mate.Mate, convID, pro
 		Model:          m.Model,
 		ConversationID: convID,
 		TriggerRun:     true,
-		TriggerReply:   ev.Reply != nil,
 		TriggerEvent:   string(ev.Type),
 		TriggerID:      ev.TriggerID,
-		eventReply:     ev.Reply,
 	}
 	go func() {
 		result := a.executeChat(ctx, run, body)
@@ -358,9 +358,7 @@ func (a *AgentAPI) FireTriggerRun(ctx context.Context, m *mate.Mate, convID, pro
 // it re-fires a trigger run the UI is retrying. It mirrors FireTriggerRun
 // (same fresh-session, TriggerRun execution path) except the message IDs
 // come from the caller instead of being generated fresh, so the UI's
-// optimistic placeholders land on the exact rows this run persists. A retry
-// is always a manual UI action, so unlike FireTriggerRun there is no
-// ev.Reply to wire up.
+// optimistic placeholders land on the exact rows this run persists.
 func (a *AgentAPI) FireTriggerRetry(ctx context.Context, m *mate.Mate, convID, prompt, userMsgID, assistantMsgID string, ev mate.MateEvent, onDone func(mate.RunResult)) string {
 	meta := map[string]string{
 		"mateId": m.ID, "conversationId": convID,
@@ -389,7 +387,94 @@ func (a *AgentAPI) FireTriggerRetry(ctx context.Context, m *mate.Mate, convID, p
 	return run.ID
 }
 
+// queueChat waits until the bot's chat is free. A cancel, or the caller
+// going away, ends the wait before the run writes anything.
+func (a *AgentAPI) queueChat(ctx context.Context, runID, mateID string) (release func(), ok bool) {
+	slot := a.chatSlot(mateID)
+	ctx, stop := context.WithCancel(ctx)
+	defer stop()
+	a.queued.Store(runID, stop)
+	defer a.queued.Delete(runID)
+	if _, c := a.canceled.Load(runID); c {
+		return nil, false
+	}
+	select {
+	case slot <- struct{}{}:
+	case <-ctx.Done():
+		return nil, false
+	}
+	if _, c := a.canceled.Load(runID); c {
+		<-slot
+		return nil, false
+	}
+	return func() { <-slot }, true
+}
+
+func (a *AgentAPI) chatSlot(mateID string) chan struct{} {
+	v, _ := a.chatSlots.LoadOrStore(mateID, make(chan struct{}, 1))
+	return v.(chan struct{})
+}
+
+// Deliver runs one user turn in the bot's current chat — the same conversation
+// the desktop composer writes to — and returns the reply and run status.
+func (a *AgentAPI) Deliver(ctx context.Context, mateID, app, text string) (string, string) {
+	if a.store == nil || a.hub == nil {
+		return "", "failed"
+	}
+	m, err := a.store.GetMate(mateID)
+	if err != nil || m == nil || !m.Enabled {
+		return "", "failed"
+	}
+	// Pick the chat only once it is free, so a /new or a desktop new chat made
+	// while this turn waited is the one it lands in.
+	slot := a.chatSlot(mateID)
+	select {
+	case slot <- struct{}{}:
+	case <-ctx.Done():
+		return "", "canceled"
+	}
+	defer func() { <-slot }()
+	convID, err := a.store.GetOrCreateActiveChatConvID(mateID)
+	if err != nil {
+		a.logger.Warn("channel chat: conversation", slog.String("err", err.Error()))
+		return "", "failed"
+	}
+	run := a.hub.CreateRun(map[string]string{"conversationId": convID})
+	result := a.executeChat(ctx, run, chatBody{MateID: mateID, Message: text, ConversationID: convID, app: app})
+	status, _ := run.StatusJSON()["status"].(string)
+	return result.LastMessage, status
+}
+
+// channelRequest is what the agent sees for a channel turn; the saved message
+// stays the raw text, so the desktop shows the user's own words.
+func channelRequest(app, text string) string {
+	var name string
+	switch app {
+	case mate.ChannelWechat:
+		name = "WeChat"
+	case mate.ChannelDiscord:
+		name = "Discord"
+	case mate.ChannelTelegram:
+		name = "Telegram"
+	default:
+		return text
+	}
+	return "Sent from " + name + ", usually on a phone. Reply in plain text, a few sentences, no markdown.\n\n" + text
+}
+
 func (a *AgentAPI) executeChat(ctx context.Context, run *agent.Run, body chatBody) mate.RunResult {
+	// Desktop chat and a connected app share this bot's chat session, so only
+	// one of them runs at a time. Trigger runs keep their own session; a
+	// channel turn already holds the slot (Deliver).
+	if body.MateID != "" && !body.TriggerRun && body.app == "" {
+		release, ok := a.queueChat(ctx, run.ID, body.MateID)
+		if !ok {
+			a.canceled.Delete(run.ID)
+			a.hub.Finish(run, "canceled", map[string]any{})
+			return mate.RunResult{}
+		}
+		defer release()
+	}
 	// When mateId is provided, mate config in DB is authoritative for agent/model/cwd.
 	// systemPrompt can still be overridden by the caller.
 	dir := "/"
@@ -469,7 +554,6 @@ func (a *AgentAPI) executeChat(ctx context.Context, run *agent.Run, body chatBod
 			slog.String("reason", "unknown_agent"))
 		a.hub.Emit(run, "error", map[string]any{"code": "AGENT_UNAVAILABLE", "message": "unknown agent"})
 		a.hub.Finish(run, "failed", map[string]any{})
-		a.invokeEventReply(ctx, body, "", "failed")
 		if assistantMsgID != "" && a.store != nil {
 			_ = a.store.UpdateMessageDone(assistantMsgID, "", "", "failed")
 		}
@@ -485,7 +569,6 @@ func (a *AgentAPI) executeChat(ctx context.Context, run *agent.Run, body chatBod
 			slog.String("err", err.Error()))
 		a.hub.Emit(run, "error", map[string]any{"code": "BAD_REQUEST", "message": err.Error()})
 		a.hub.Finish(run, "failed", map[string]any{})
-		a.invokeEventReply(ctx, body, "", "failed")
 		if assistantMsgID != "" && a.store != nil {
 			_ = a.store.UpdateMessageDone(assistantMsgID, "", "", "failed")
 		}
@@ -494,12 +577,12 @@ func (a *AgentAPI) executeChat(ctx context.Context, run *agent.Run, body chatBod
 
 	var sessionID string
 	var firstSession, resumeTurn bool
-	if body.TriggerRun && !body.TriggerReply {
+	if body.TriggerRun {
 		sessionID, firstSession = resolveTriggerSession(def)
 	} else {
 		sessionID, firstSession, resumeTurn = a.resolveAgentSession(body.ConversationID, def, cwd)
 	}
-	composed := prompt.Message(prompt.System(pr), body.Message, cwd, dir, resumeTurn)
+	composed := prompt.Message(prompt.System(pr), channelRequest(body.app, body.Message), cwd, dir, resumeTurn)
 	if e := agent.CheckPromptArgvBudget(def, composed); e != nil {
 		a.logger.Warn("agent aborted",
 			slog.String("runId", run.ID),
@@ -507,7 +590,6 @@ func (a *AgentAPI) executeChat(ctx context.Context, run *agent.Run, body chatBod
 			slog.String("reason", e.Code))
 		a.hub.Emit(run, "error", map[string]any{"code": e.Code, "message": e.Message})
 		a.hub.Finish(run, "failed", map[string]any{})
-		a.invokeEventReply(ctx, body, "", "failed")
 		if assistantMsgID != "" && a.store != nil {
 			_ = a.store.UpdateMessageDone(assistantMsgID, "", "", "failed")
 		}
@@ -520,7 +602,6 @@ func (a *AgentAPI) executeChat(ctx context.Context, run *agent.Run, body chatBod
 			slog.String("reason", "message_required"))
 		a.hub.Emit(run, "error", map[string]any{"code": "BAD_REQUEST", "message": "message required"})
 		a.hub.Finish(run, "failed", map[string]any{})
-		a.invokeEventReply(ctx, body, "", "failed")
 		if assistantMsgID != "" && a.store != nil {
 			_ = a.store.UpdateMessageDone(assistantMsgID, "", "", "failed")
 		}
@@ -545,7 +626,6 @@ func (a *AgentAPI) executeChat(ctx context.Context, run *agent.Run, body chatBod
 			"message": def.Name + " binary not found on PATH",
 		})
 		a.hub.Finish(run, "failed", map[string]any{})
-		a.invokeEventReply(ctx, body, "", "failed")
 		if assistantMsgID != "" && a.store != nil {
 			_ = a.store.UpdateMessageDone(assistantMsgID, "", "", "failed")
 		}
@@ -575,7 +655,6 @@ func (a *AgentAPI) executeChat(ctx context.Context, run *agent.Run, body chatBod
 			slog.String("reason", e.Code))
 		a.hub.Emit(run, "error", map[string]any{"code": e.Code, "message": e.Message})
 		a.hub.Finish(run, "failed", map[string]any{})
-		a.invokeEventReply(ctx, body, "", "failed")
 		if assistantMsgID != "" && a.store != nil {
 			_ = a.store.UpdateMessageDone(assistantMsgID, "", "", "failed")
 		}
@@ -588,7 +667,6 @@ func (a *AgentAPI) executeChat(ctx context.Context, run *agent.Run, body chatBod
 			slog.String("reason", e.Code))
 		a.hub.Emit(run, "error", map[string]any{"code": e.Code, "message": e.Message})
 		a.hub.Finish(run, "failed", map[string]any{})
-		a.invokeEventReply(ctx, body, "", "failed")
 		if assistantMsgID != "" && a.store != nil {
 			_ = a.store.UpdateMessageDone(assistantMsgID, "", "", "failed")
 		}
@@ -659,7 +737,6 @@ func (a *AgentAPI) executeChat(ctx context.Context, run *agent.Run, body chatBod
 				_ = a.store.InsertMessageNoteAccess(assistantMsgID, toMateNoteAccess(noteTracker.Entries()))
 			}
 			a.hub.Finish(run, "failed", map[string]any{})
-			a.invokeEventReply(ctx, body, turn.Answer(), "failed")
 			return mate.RunResult{Success: false, LastMessage: turn.Answer()}
 		}
 	}
@@ -679,7 +756,7 @@ func (a *AgentAPI) executeChat(ctx context.Context, run *agent.Run, body chatBod
 			a.logger.Warn("chat: persist note access", slog.String("err", err.Error()))
 		}
 	}
-	if (!body.TriggerRun || body.TriggerReply) && st == "succeeded" && cp.SessionID != "" && body.ConversationID != "" && def.SupportsNativeSession && a.store != nil {
+	if !body.TriggerRun && st == "succeeded" && cp.SessionID != "" && body.ConversationID != "" && def.SupportsNativeSession && a.store != nil {
 		if err := a.store.SetConversationAgentSession(body.ConversationID, def.ID, cwd, cp.SessionID); err != nil {
 			a.logger.Warn("chat: persist agent session", slog.String("err", err.Error()))
 		}
@@ -690,7 +767,6 @@ func (a *AgentAPI) executeChat(ctx context.Context, run *agent.Run, body chatBod
 		slog.String("status", st),
 		slog.Int("exitCode", code))
 	a.hub.Finish(run, st, map[string]any{"exitCode": code})
-	a.invokeEventReply(ctx, body, turn.Answer(), st)
 	return mate.RunResult{Success: st == "succeeded", LastMessage: turn.Answer()}
 }
 
@@ -851,13 +927,4 @@ func mergeEnvKey(env []string, k, v string) []string {
 		out = append(out, key+"="+val)
 	}
 	return out
-}
-
-func (a *AgentAPI) invokeEventReply(ctx context.Context, body chatBody, text, status string) {
-	if body.eventReply == nil {
-		return
-	}
-	if err := body.eventReply(ctx, plugin.ReplyResult{Text: text, Status: status}); err != nil {
-		a.logger.Warn("mate event reply failed", slog.String("err", err.Error()))
-	}
 }

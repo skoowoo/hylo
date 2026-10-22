@@ -19,7 +19,7 @@ func NewConversationAPI(store *mate.Store) *ConversationAPI {
 	return &ConversationAPI{store: store}
 }
 
-// ConversationsGET handles GET /api/conversations?mateId=xxx[&type=chat|trigger|trigger_reply].
+// ConversationsGET handles GET /api/conversations?mateId=xxx[&type=chat|trigger].
 // Returns conversations of the requested type for the given mate, ordered by most recent first.
 // Defaults to type=chat when the parameter is absent or empty.
 func (c *ConversationAPI) ConversationsGET(w http.ResponseWriter, r *http.Request) {
@@ -50,7 +50,7 @@ func (c *ConversationAPI) ConversationsPOST(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	mateID := strings.TrimSpace(body.MateID)
-	conv, err := c.store.EnsureNewConv(mateID, mate.ConvTypeChat, "", strings.TrimSpace(body.Title), 10)
+	conv, err := c.store.EnsureNewConv(mateID, mate.ConvTypeChat, strings.TrimSpace(body.Title), 10)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

@@ -79,10 +79,9 @@ func applySecretMask(m map[string]any, reveal bool) map[string]bool {
 	return sec
 }
 
-// secretKeys are config values hidden unless revealed: the sensitive form
-// fields plus credentials that pairing or login saves.
+// secretKeys are the sensitive config fields, hidden unless revealed.
 var secretKeys = func() []string {
-	keys := []string{"plugins.wechat.token", "plugins.telegram.bot_token"}
+	var keys []string
 	for _, f := range staticConfigSchemaFields {
 		if f.Sensitive {
 			keys = append(keys, f.Key)

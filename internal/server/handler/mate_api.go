@@ -35,6 +35,15 @@ func (h *MateAPI) MatesGET(w http.ResponseWriter, r *http.Request) {
 	if list == nil {
 		list = []mate.Mate{}
 	}
+	if chans, err := h.store.ListChannels(); err == nil {
+		by := map[string][]string{}
+		for _, c := range chans {
+			by[c.MateID] = append(by[c.MateID], c.Kind)
+		}
+		for i := range list {
+			list[i].Channels = by[list[i].ID]
+		}
+	}
 	respondJSON(w, http.StatusOK, map[string]any{"mates": list})
 }
 

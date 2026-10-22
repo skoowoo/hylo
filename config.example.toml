@@ -60,9 +60,3 @@ exclude_prefixes = ["/_assets", "/_knowledge/_indexes"]
 # When true, new markdown notes trigger download of remote http(s) image URLs
 # into the vault assets tree (browser-like User-Agent). Failures are logged only.
 enabled = false
-
-[plugins.wechat]
-# Poll WeChat iLink direct messages and emit wechat_message events for mate triggers.
-# Log in via Settings → Config → WeChat; token is saved here after QR login.
-enabled = false
-# token, account_id, user_id, saved_at, base_url are written automatically on login.

@@ -1,7 +1,6 @@
 package mate
 
 import (
-	"encoding/json"
 	"time"
 
 	"github.com/hardhacker/hylo/internal/plugin"
@@ -17,30 +16,9 @@ const (
 	MateEventNoteDeleted       MateEventType = "note_deleted"
 	MateEventShortNoteCreated  MateEventType = "short_note_created"
 	MateEventScheduled         MateEventType = "scheduled"
-	MateEventWechatMessage     MateEventType = "wechat_message"
-	MateEventDiscordMessage    MateEventType = "discord_message"
-	MateEventTelegramMessage   MateEventType = "telegram_message"
 	MateEventCompileRequested  MateEventType = "compile_requested"
 	MateEventAgentRunCompleted MateEventType = "agent_run_completed"
 )
-
-// chatEvents maps each chat bridge's Channel to the event its messages fire.
-var chatEvents = map[string]MateEventType{
-	"wechat":   MateEventWechatMessage,
-	"discord":  MateEventDiscordMessage,
-	"telegram": MateEventTelegramMessage,
-}
-
-// IsChatEvent reports whether t is a chat app message, which carries no path
-// and is answered back in that app.
-func IsChatEvent(t MateEventType) bool {
-	for _, c := range chatEvents {
-		if c == t {
-			return true
-		}
-	}
-	return false
-}
 
 // EventDef describes a built-in mate event for display in the UI.
 type EventDef struct {
@@ -69,18 +47,6 @@ var BuiltinEvents = []EventDef{
 	{MateEventScheduled, "Scheduled", "Fires on a configured interval, daily time, or weekly time", []prompt.Var{
 		varNow, {Token: "{Date}", Desc: "Date YYYY-MM-DD"}, {Token: "{Time}", Desc: "Time HH:MM"},
 	}},
-	{MateEventWechatMessage, "WeChat Message", "Fires when a WeChat direct message is received", []prompt.Var{
-		{Token: "{Content}", Desc: "Incoming WeChat DM text"}, {Token: "{WechatUserID}", Desc: "Sender WeChat user ID"},
-	}},
-	{MateEventDiscordMessage, "Discord Message", "Fires when a Discord DM is received", []prompt.Var{
-		{Token: "{Content}", Desc: "Incoming Discord DM text"},
-		{Token: "{DiscordChannelID}", Desc: "DM channel ID"},
-		{Token: "{DiscordUserID}", Desc: "Sender Discord user ID"},
-	}},
-	{MateEventTelegramMessage, "Telegram Message", "Fires when a Telegram private message is received", []prompt.Var{
-		{Token: "{Content}", Desc: "Incoming Telegram message text"},
-		{Token: "{TelegramUserID}", Desc: "Sender Telegram user ID"},
-	}},
 	{MateEventCompileRequested, "Compile Requested", "Fires when the user manually triggers knowledge compilation for a note — path carries the note to compile", []prompt.Var{
 		{Token: "{Path}", Desc: "Vault path of the note to compile"}, varName,
 	}},
@@ -89,15 +55,6 @@ var BuiltinEvents = []EventDef{
 		{Token: "{Content}", Desc: "Last assistant message from the completed run"},
 		varNow,
 	}},
-}
-
-// MarshalJSON adds "chat" so clients needn't keep their own list of chat events.
-func (d EventDef) MarshalJSON() ([]byte, error) {
-	type plain EventDef
-	return json.Marshal(struct {
-		plain
-		Chat bool `json:"chat,omitempty"`
-	}{plain(d), IsChatEvent(d.Type)})
 }
 
 // EventLabel returns the display label for a mate event type.
@@ -116,15 +73,8 @@ type MateEvent struct {
 	// Path holds the vault path for note/compile events.
 	// For agent_run_completed it carries the source mate name; PathPrefixes then filters by mate name.
 	Path    string
-	Content string    // populated for short_note_created and chat messages
+	Content string    // populated for short_note_created
 	FiredAt time.Time // populated for scheduled: when the trigger fired
-
-	// UserID and ChatID are the sender and chat of a chat message.
-	UserID string
-	ChatID string
-
-	// Reply is propagated from plugin.Event; invoked after the trigger agent run finishes.
-	Reply plugin.ReplyFunc
 
 	// SourceMateID is set for agent_run_completed to prevent the source mate from triggering itself.
 	SourceMateID string
@@ -151,22 +101,10 @@ func Translate(e plugin.Event) []MateEvent {
 		out = append(out, MateEvent{Type: MateEventNoteDeleted, Path: e.Path})
 	case plugin.EventVaultShortAppend:
 		out = append(out, MateEvent{Type: MateEventShortNoteCreated, Path: e.Path, Content: e.Content})
-	case plugin.EventChatMessage:
-		if t, ok := chatEvents[e.Channel]; ok {
-			out = append(out, MateEvent{
-				Type:    t,
-				Path:    e.Path,
-				Content: e.Content,
-				UserID:  e.UserID,
-				ChatID:  e.ChatID,
-				Reply:   e.Reply,
-			})
-		}
 	case plugin.EventCompileRequested:
 		out = append(out, MateEvent{
-			Type:  MateEventCompileRequested,
-			Path:  e.Path,
-			Reply: e.Reply,
+			Type: MateEventCompileRequested,
+			Path: e.Path,
 		})
 	}
 	return out

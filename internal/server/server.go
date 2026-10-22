@@ -15,18 +15,16 @@ import (
 	"time"
 
 	"github.com/hardhacker/hylo/internal/agent"
+	"github.com/hardhacker/hylo/internal/channels"
 	"github.com/hardhacker/hylo/internal/config"
 	"github.com/hardhacker/hylo/internal/live"
 	"github.com/hardhacker/hylo/internal/mate"
 	"github.com/hardhacker/hylo/internal/plugin"
 	"github.com/hardhacker/hylo/internal/plugins/assets"
 	"github.com/hardhacker/hylo/internal/plugins/compile"
-	discordplugin "github.com/hardhacker/hylo/internal/plugins/discord"
 	"github.com/hardhacker/hylo/internal/plugins/gitsync"
 	"github.com/hardhacker/hylo/internal/plugins/renamesync"
 	"github.com/hardhacker/hylo/internal/plugins/search"
-	telegramplugin "github.com/hardhacker/hylo/internal/plugins/telegram"
-	wechatplugin "github.com/hardhacker/hylo/internal/plugins/wechat"
 	"github.com/hardhacker/hylo/internal/prompt"
 	"github.com/hardhacker/hylo/internal/skills"
 	"github.com/hardhacker/hylo/internal/storage"
@@ -94,6 +92,7 @@ func New(cfg *config.Config, cfgFileLoaded string, logger *slog.Logger, vault *s
 	// Mate runner: fires agent runs on vault events matching trigger configs.
 	var mateStore *mate.Store
 	var mateRunner *mate.Runner
+	var channelHub *channels.Hub
 	if ms, err := mate.Open(vault.Root()); err != nil {
 		logger.Warn("mate store unavailable", "err", err)
 	} else {
@@ -111,34 +110,18 @@ func New(cfg *config.Config, cfgFileLoaded string, logger *slog.Logger, vault *s
 				logger.Warn("mate: rename skill in prompts", "from", old, "to", repl, "err", err)
 			}
 		}
-		ms.SetOnChange(feed.Notify(live.TopicBots))
+		channelHub = channels.NewHub(ms, vault.Root(), logger)
+		ms.SetOnChange(func() {
+			feed.Notify(live.TopicBots)()
+			channelHub.Reload()
+		})
 		if err := ms.MarkStalledRunMessagesAsFailed(); err != nil {
 			logger.Warn("mate: mark stalled messages failed", "err", err)
 		}
 		mateRunner = mate.NewRunner(ms, logger)
 		mgr.Register(mateRunner)
+		mgr.Register(channelHub)
 		logger.Info("mate_runner plugin registered")
-	}
-
-	if cfg.Plugins.Wechat.Enabled {
-		wp := wechatplugin.New(cfg.Plugins.Wechat, logger)
-		wp.SetDispatch(mgr.Dispatch)
-		mgr.Register(wp)
-		logger.Info("wechat plugin registered")
-	}
-
-	if cfg.Plugins.Discord.Enabled {
-		dp := discordplugin.New(cfg.Plugins.Discord, logger)
-		dp.SetDispatch(mgr.Dispatch)
-		mgr.Register(dp)
-		logger.Info("discord plugin registered")
-	}
-
-	if cfg.Plugins.Telegram.Enabled {
-		tp := telegramplugin.New(cfg.Plugins.Telegram, logger)
-		tp.SetDispatch(mgr.Dispatch)
-		mgr.Register(tp)
-		logger.Info("telegram plugin registered")
 	}
 
 	vault.SetShortsDir(cfg.Vault.ShortsDir)
@@ -149,7 +132,7 @@ func New(cfg *config.Config, cfgFileLoaded string, logger *slog.Logger, vault *s
 	})
 
 	return &Server{
-		handler:   newRouter(logger, cfg, vault, cfgFileLoaded, gitPlugin, searchPlugin, compilePlugin, mateStore, mateRunner, skillsMgr, feed, cfg.Server.APIKey),
+		handler:   newRouter(logger, cfg, vault, cfgFileLoaded, gitPlugin, searchPlugin, compilePlugin, mateStore, mateRunner, skillsMgr, feed, cfg.Server.APIKey, channelHub),
 		logger:    logger,
 		cfg:       cfg,
 		vault:     vault,

@@ -1,14 +1,14 @@
-package chatbridge
+package channels
 
 import (
 	"unicode/utf16"
 	"unicode/utf8"
 )
 
-// SplitText splits text into segments of at most limit UTF-16 units, breaking
+// splitText splits text into segments of at most limit UTF-16 units, breaking
 // at the last newline that fits. UTF-16 is the strictest count the apps use
 // (Telegram's), so a segment fits every app, and no rune is ever cut.
-func SplitText(text string, limit int) []string {
+func splitText(text string, limit int) []string {
 	if limit <= 0 {
 		return []string{text}
 	}

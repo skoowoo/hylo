@@ -53,9 +53,7 @@ const settingsServerCSS = `
        Bots uses) instead of expanding in place, so opening one section
        never pushes the others further down the page. */
     .cfg-detail { max-width: 640px; }
-    .cfg-detail-header { margin-bottom: 1.1rem; }
-    .cfg-detail-title { font-size: var(--text-base); font-weight: 600; color: var(--fg); }
-    .cfg-detail-desc { font-size: var(--text-sm); color: var(--muted); line-height: 1.5; margin: -0.6rem 0 1.25rem; }
+    .cfg-detail-desc { font-size: var(--text-sm); color: var(--muted); line-height: 1.5; margin: 0 0 1.25rem; }
     .cfg-field {
       display: grid;
       grid-template-columns: 1fr 220px;
@@ -159,10 +157,6 @@ func settingsServerTabHTML() string {
                      pushes the others further down the page. -->
                 <template x-if="!cfgLoading && !cfgError && openSection">
                   <div class="cfg-detail">
-                    <div class="settings-detail-header cfg-detail-header">
-` + agentBotBackBtnHTML("openSection = ''", "Configuration") + `
-                      <span class="cfg-detail-title" x-text="sectionLabel(openSection)"></span>
-                    </div>
                     <p class="cfg-detail-desc" x-show="sectionIntro(openSection)" x-text="sectionIntro(openSection)"></p>
 
                     <div class="cfg-fields">
@@ -246,7 +240,6 @@ func settingsServerTabHTML() string {
                       </template>
                     </div>
 
-` + settingsWechatHTML() + settingsTelegramHTML() + `
                   </div>
                 </template>
 
@@ -322,9 +315,6 @@ const settingsServerJS = `
         const m = {
           'vault': 'Vault', 'agent': 'Agent',
           'plugins.search': 'Search', 'plugins.git_sync': 'Git Sync',
-          'plugins.wechat': 'WeChat',
-          'plugins.discord': 'Discord',
-          'plugins.telegram': 'Telegram',
         };
         return m[s] || s;
       },
@@ -335,9 +325,6 @@ const settingsServerJS = `
           'agent': 'Agent CLI integration and global prompt settings.',
           'plugins.search': 'Indexing and search quality.',
           'plugins.git_sync': 'Automatic git push/pull for the vault.',
-          'plugins.wechat': 'WeChat iLink bridge — poll DMs and emit wechat_message bot events.',
-          'plugins.discord': 'Discord Bot bridge — receive DMs and emit discord_message bot events. Only DMs from the owner user ID are answered; restart the server after changing the token.',
-          'plugins.telegram': 'Telegram Bot bridge — receive private messages and emit telegram_message bot events. Only the account that paired the bot is answered.',
         };
         return m[s] || '';
       },
@@ -346,8 +333,6 @@ const settingsServerJS = `
 
       openSectionDetail(s) {
         this.openSection = s;
-        if (s === 'plugins.wechat') this.loadWechatStatus();
-        if (s === 'plugins.telegram') this.loadTelegramStatus();
       },
 
       sectionHasDirty(s) { return this.fieldsForSection(s).some(f => this.isDirty(f.key)); },

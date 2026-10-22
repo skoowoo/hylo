@@ -398,6 +398,13 @@
     .seg-btn:hover { color: var(--fg); background: var(--btn-bg); }
     .seg-btn.active { background: var(--seg-thumb); color: var(--control-active-fg); }
     .seg-btn svg { width: 13px; height: 13px; flex-shrink: 0; }
+    .seg-btn:disabled { opacity: 0.4; cursor: default; background: transparent; color: var(--muted); }
+    /* A count after a tab label, e.g. "Triggers 3". */
+    .seg-count {
+      min-width: 1.1em; font-size: var(--text-2xs); font-variant-numeric: tabular-nums;
+      color: var(--muted); opacity: 0.75;
+    }
+    .seg-btn.active .seg-count { color: inherit; opacity: 0.55; }
 
     /* ── Shared visible scrollbar — most panes hide the bar via a blanket
        `*::-webkit-scrollbar { display: none; }`, but a handful of primary

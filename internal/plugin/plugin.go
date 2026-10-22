@@ -52,10 +52,6 @@ const (
 	// removed outside the Vault API.
 	EventFSImage EventType = "fs_image"
 
-	// EventChatMessage is emitted when a chat app bridge (WeChat, Discord,
-	// Telegram) receives a direct message from its owner; Channel names the app.
-	EventChatMessage EventType = "chat_message"
-
 	// EventCompileRequested is emitted when the user manually requests compilation
 	// of a vault note via the compile API. Path carries the vault-absolute note
 	// path. Handled by a mate agent.
@@ -65,10 +61,10 @@ const (
 // Event carries information about a single vault mutation.
 type Event struct {
 	Type    EventType
-	Path    string // vault-relative slash path, or /{channel}/{chatId} for chat messages
+	Path    string // vault-relative slash path
 	Time    time.Time
 	IsDir   bool   // true when Path is a directory (only meaningful for delete events)
-	Content string // note content, short note body, or chat message text
+	Content string // note content or short note body
 
 	// Moved marks an fs_create for a note that arrived with its directory
 	// (folder rename, move or sync pull) rather than being written.
@@ -77,15 +73,6 @@ type Event struct {
 	// OldPath is the vault-absolute path the note had before the mutation.
 	// Only set for EventVaultRename, where Path is the new path.
 	OldPath string
-
-	// Channel, UserID and ChatID are set for EventChatMessage: the app's
-	// plugin name, the sender, and the chat the reply goes back to.
-	Channel string
-	UserID  string
-	ChatID  string
-
-	// Reply is an optional callback invoked after a matched mate trigger run completes.
-	Reply ReplyFunc
 }
 
 // Plugin is the interface every Hylo plugin must implement.

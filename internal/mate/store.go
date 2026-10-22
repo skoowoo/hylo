@@ -45,7 +45,6 @@ CREATE TABLE IF NOT EXISTS conversations (
     mate_id                TEXT    NOT NULL DEFAULT '',
     title                  TEXT    NOT NULL DEFAULT '',
     type                   TEXT    NOT NULL DEFAULT 'chat',
-    user_key               TEXT    NOT NULL DEFAULT '',
     agent_session_id       TEXT    NOT NULL DEFAULT '',
     agent_session_agent_id TEXT    NOT NULL DEFAULT '',
     agent_session_cwd      TEXT    NOT NULL DEFAULT '',
@@ -82,10 +81,25 @@ CREATE INDEX IF NOT EXISTS mate_triggers_mate_idx  ON mate_triggers(mate_id);
 CREATE UNIQUE INDEX IF NOT EXISTS mates_cwd_idx ON mates(cwd) WHERE cwd NOT IN ('', '/');
 CREATE INDEX IF NOT EXISTS conversations_type_idx  ON conversations(type, updated_at);
 CREATE INDEX IF NOT EXISTS conversations_mate_idx  ON conversations(mate_id, updated_at);
-CREATE INDEX IF NOT EXISTS conversations_reply_idx ON conversations(type, mate_id, user_key);
 CREATE INDEX IF NOT EXISTS chat_messages_conv_idx  ON chat_messages(conversation_id, created_at);
 CREATE INDEX IF NOT EXISTS chat_message_note_access_msg_idx  ON chat_message_note_access(message_id);
 CREATE INDEX IF NOT EXISTS chat_message_note_access_path_idx ON chat_message_note_access(path);
+
+CREATE TABLE IF NOT EXISTS bot_channels (
+    id            TEXT    PRIMARY KEY,
+    mate_id       TEXT    NOT NULL REFERENCES mates(id) ON DELETE CASCADE,
+    kind          TEXT    NOT NULL,
+    token         TEXT    NOT NULL,
+    owner_user_id TEXT    NOT NULL DEFAULT '',
+    external_id   TEXT    NOT NULL DEFAULT '',
+    display       TEXT    NOT NULL DEFAULT '',
+    proxy_url     TEXT    NOT NULL DEFAULT '',
+    base_url      TEXT    NOT NULL DEFAULT '',
+    created_at    INTEGER NOT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS bot_channels_mate_kind ON bot_channels(mate_id, kind);
+CREATE UNIQUE INDEX IF NOT EXISTS bot_channels_identity ON bot_channels(kind, external_id) WHERE external_id != '';
 `
 
 // Store is the single data access point for both mate config and chat history.

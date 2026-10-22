@@ -19,11 +19,8 @@ type Config struct {
 
 // PluginsConfig groups all optional plugin configurations.
 type PluginsConfig struct {
-	Search   SearchConfig   `mapstructure:"search" json:"search" toml:"search"`
-	GitSync  GitSyncConfig  `mapstructure:"git_sync" json:"git_sync" toml:"git_sync"`
-	Wechat   WechatConfig   `mapstructure:"wechat" json:"wechat" toml:"wechat"`
-	Discord  DiscordConfig  `mapstructure:"discord" json:"discord" toml:"discord"`
-	Telegram TelegramConfig `mapstructure:"telegram" json:"telegram" toml:"telegram"`
+	Search  SearchConfig  `mapstructure:"search" json:"search" toml:"search"`
+	GitSync GitSyncConfig `mapstructure:"git_sync" json:"git_sync" toml:"git_sync"`
 }
 
 // SearchConfig holds settings for the full-text search plugin.
@@ -42,46 +39,6 @@ type SearchConfig struct {
 	// Prefixes without a leading "/" are accepted and normalised automatically.
 	// An empty list (default) indexes everything.
 	ExcludePrefixes []string `mapstructure:"exclude_prefixes" json:"exclude_prefixes" toml:"exclude_prefixes"`
-}
-
-// DiscordConfig configures the Discord Bot bridge plugin.
-type DiscordConfig struct {
-	// Enabled must be true for the plugin to start (opt-in).
-	Enabled bool `mapstructure:"enabled" json:"enabled" toml:"enabled"`
-
-	// BotToken is the Discord Bot token from the Developer Portal (sensitive).
-	BotToken string `mapstructure:"bot_token" json:"bot_token" toml:"bot_token"`
-
-	// UserID is the owner's Discord user ID; DMs from anyone else are ignored.
-	// Obtain by enabling Developer Mode in Discord → right-click your avatar → Copy User ID.
-	UserID string `mapstructure:"user_id" json:"user_id" toml:"user_id"`
-
-	// ProxyURL is an optional HTTP/SOCKS5 proxy for routing Discord API and
-	// WebSocket traffic. Useful in regions where discord.com is not directly
-	// reachable. Example: "socks5://127.0.0.1:1080" or "http://127.0.0.1:7890".
-	ProxyURL string `mapstructure:"proxy_url" json:"proxy_url" toml:"proxy_url"`
-}
-
-// DiscordConnected reports whether a bot token is configured.
-func (c *Config) DiscordConnected() bool {
-	return c != nil && c.Plugins.Discord.BotToken != ""
-}
-
-// WechatConfig configures the WeChat iLink bridge plugin.
-type WechatConfig struct {
-	// Enabled must be true for the plugin to start (opt-in).
-	Enabled bool `mapstructure:"enabled" json:"enabled" toml:"enabled"`
-
-	// Token is the iLink bot token obtained via QR login (sensitive).
-	Token string `mapstructure:"token" json:"token" toml:"token"`
-
-	// AccountID and UserID are set automatically after login (read-only in UI).
-	AccountID string `mapstructure:"account_id" json:"account_id" toml:"account_id"`
-	UserID    string `mapstructure:"user_id" json:"user_id" toml:"user_id"`
-	SavedAt   string `mapstructure:"saved_at" json:"saved_at" toml:"saved_at"`
-
-	// BaseURL is assigned on login when the API returns a host override.
-	BaseURL string `mapstructure:"base_url" json:"base_url" toml:"base_url"`
 }
 
 // GitSyncConfig holds settings for the git-based vault sync plugin.
@@ -333,10 +290,4 @@ func setDefaults(v *viper.Viper) {
 	// search plugin defaults (always active; configure behaviour here)
 	v.SetDefault("plugins.search.use_jieba", true)
 	v.SetDefault("plugins.search.exclude_prefixes", []string{"/_assets", "/_knowledge/_indexes"})
-
-	v.SetDefault("plugins.wechat.enabled", false)
-
-	v.SetDefault("plugins.discord.enabled", false)
-
-	v.SetDefault("plugins.telegram.enabled", false)
 }

@@ -23,6 +23,8 @@ type Mate struct {
 	UpdatedAt    time.Time     `json:"updatedAt"`
 	Triggers     []MateTrigger `json:"triggers,omitempty"`
 	TriggerCount int           `json:"triggerCount,omitempty"` // populated in list views
+	// Channels lists connected app kinds. Filled for the bots list, not stored on the row.
+	Channels []string `json:"channels,omitempty"`
 }
 
 // MateTrigger fires a run when a matching mate event occurs.
@@ -43,9 +45,8 @@ type MateTrigger struct {
 
 // Conversation type constants.
 const (
-	ConvTypeChat         = "chat"          // user-initiated, multi-turn
-	ConvTypeTrigger      = "trigger"       // background trigger runs, no reply, ephemeral session
-	ConvTypeTriggerReply = "trigger_reply" // trigger with reply callback (e.g. wechat), multi-turn
+	ConvTypeChat    = "chat"    // user-initiated, multi-turn
+	ConvTypeTrigger = "trigger" // background trigger runs, no reply, ephemeral session
 )
 
 // Conversation is one chat session bound to a specific mate.
@@ -53,8 +54,7 @@ type Conversation struct {
 	ID                  string    `json:"id"`
 	MateID              string    `json:"mateId"`
 	Title               string    `json:"title"`
-	Type                string    `json:"type"`              // ConvTypeChat | ConvTypeTrigger | ConvTypeTriggerReply
-	UserKey             string    `json:"userKey,omitempty"` // external user id for trigger_reply (e.g. wechat user id)
+	Type                string    `json:"type"` // ConvTypeChat | ConvTypeTrigger
 	AgentSessionID      string    `json:"agentSessionId,omitempty"`
 	AgentSessionAgentID string    `json:"agentSessionAgentId,omitempty"`
 	AgentSessionCwd     string    `json:"agentSessionCwd,omitempty"`

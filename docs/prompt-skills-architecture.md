@@ -17,8 +17,8 @@ Hylo 交给 agent 的指令分三层，各管一件事：
 ```mermaid
 flowchart LR
     subgraph 入口
-        C[Chat<br/>Hylo 聊天]
-        T[Trigger<br/>事件 / 定时 / 微信 / Discord / Telegram]
+        C[Chat<br/>Hylo 聊天 / 微信 / Discord / Telegram]
+        T[Trigger<br/>事件 / 定时]
         O[OneShot<br/>内部单次请求，如 setup hello]
     end
     C & T & O --> R["prompt.Run<br/>{Kind, Bot, Main, MCP, Intro, Overrides}"]
@@ -81,12 +81,12 @@ agent CLI 没有独立的 system prompt 参数，所以指令只随第一轮发�
 | 主 bot 聊天 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
 | 其他 bot 聊天 | ✅ | ✅ | ✅ | ✅ | ✅ | | |
 | setup 首聊（主 bot） | ✅ | ✅ | ✅ | ✅ | ✅ | | ✅ |
-| Trigger（含微信 / Discord / Telegram 回复） | ✅ | ✅ | ✅ | ✅ | | | |
+| Trigger | ✅ | ✅ | ✅ | ✅ | | | |
 | OneShot | | | 有则 ✅ | | | | |
 
 由此推出两点：
 
-- **Trigger 运行没有 `choices`**：卡片只在 Hylo 聊天里渲染。所以 skill 里凡是要出卡片的地方，都要写明“在微信 / Discord / Telegram 里改用纯文本”（hylo-bots `references/cards.md` 已经这样写）。
+- **Trigger 运行没有 `choices`**。微信 / Discord / Telegram 的消息是 bot 聊天里的一轮，有 `choices`，但 app 里画不出卡片：这一轮的请求开头会注明来源并要求纯文本，skill 里凡是要出卡片的地方也要写明“在微信 / Discord / Telegram 里改用纯文本”（hylo-bots `references/cards.md` 已经这样写）。
 - **只有主 bot 会主动提议升级**：主 bot 是用户唯一的总入口，其他 bot 专职做一件事，不需要路由能力。
 
 ---
@@ -113,11 +113,10 @@ flowchart TB
 
 主 bot 的内置 triggers：每条 trigger prompt 就是这次运行的“用户请求”。
 
+微信、Discord、Telegram 不是 trigger。每个 bot 在自己的 Channels 里接一个联系人，消息进入该 bot 当前的 chat，和桌面是同一场对话。微信和 Telegram 的回复在发出时转成纯文本。
+
 | Trigger | 事件 | Prompt | 走哪个 skill |
 | --- | --- | --- | --- |
-| WeChat | `wechat_message` | `[Message via WeChat]\n{Content}` | 无，由 `bot_hylo.md` 规定纯文本回复 |
-| Discord | `discord_message` | `[Message via Discord]\n{Content}` | 同上 |
-| Telegram | `telegram_message` | `[Message via Telegram]\n{Content}` | 同上 |
 | Compiler | `compile_requested` | `trigger_compile.md` | 点名 hylo-compile-note → hylo-index-knowledge → humanizer（有就用） |
 | Compiler | `note_created`，限 `/Web Clips/` | 同上 | 同上 |
 | Memory | `scheduled`，daily 09:00 | `trigger_memory.md` | 不点名，靠 description 匹配到 hylo-memory |
@@ -221,7 +220,7 @@ flowchart LR
 | `proposal` | hylo-bots `references/cards.md` | 自动化计划，接受即授权执行 | 摘要 + 可展开的细节 + 内嵌 choices |
 | `receipt` | hylo-bots `references/cards.md` | 执行回执；`ids` 记下做了哪些改动 | 撤销按钮发送撤销文本，由 hylo-bots `workflows/undo.md` 按 `ids` 从后往前回滚 |
 
-卡片只在 Chat 里渲染。Trigger 运行没有 `choices` section，在微信 / Discord / Telegram 里一律用纯文本。
+卡片只在 Hylo 聊天里渲染。Trigger 运行没有 `choices` section；从微信 / Discord / Telegram 来的一轮虽然是聊天，也一律用纯文本。
 
 ---
 

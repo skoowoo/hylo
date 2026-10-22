@@ -15,15 +15,15 @@ import (
 
 // CreateConversation creates a user-facing chat conversation bound to a mate (type='chat').
 func (s *Store) CreateConversation(mateID, title string) (Conversation, error) {
-	return s.createConversation(mateID, title, ConvTypeChat, "")
+	return s.createConversation(mateID, title, ConvTypeChat)
 }
 
-func (s *Store) createConversation(mateID, title, convType, userKey string) (Conversation, error) {
+func (s *Store) createConversation(mateID, title, convType string) (Conversation, error) {
 	now := time.Now().UnixMilli()
 	id := uuid.NewString()
 	_, err := s.db.Exec(
-		`INSERT INTO conversations(id, mate_id, title, type, user_key, agent_session_id, agent_session_agent_id, agent_session_cwd, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?)`,
-		id, mateID, title, convType, userKey, "", "", "", now, now,
+		`INSERT INTO conversations(id, mate_id, title, type, agent_session_id, agent_session_agent_id, agent_session_cwd, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?)`,
+		id, mateID, title, convType, "", "", "", now, now,
 	)
 	if err != nil {
 		return Conversation{}, fmt.Errorf("mate: create conversation: %w", err)
@@ -33,7 +33,6 @@ func (s *Store) createConversation(mateID, title, convType, userKey string) (Con
 		MateID:    mateID,
 		Title:     title,
 		Type:      convType,
-		UserKey:   userKey,
 		CreatedAt: time.UnixMilli(now),
 		UpdatedAt: time.UnixMilli(now),
 	}, nil
@@ -43,8 +42,8 @@ func (s *Store) GetConversation(id string) (Conversation, error) {
 	var c Conversation
 	var createdMs, updatedMs int64
 	err := s.db.QueryRow(
-		`SELECT id, mate_id, title, type, user_key, agent_session_id, agent_session_agent_id, agent_session_cwd, created_at, updated_at FROM conversations WHERE id = ?`, id,
-	).Scan(&c.ID, &c.MateID, &c.Title, &c.Type, &c.UserKey, &c.AgentSessionID, &c.AgentSessionAgentID, &c.AgentSessionCwd, &createdMs, &updatedMs)
+		`SELECT id, mate_id, title, type, agent_session_id, agent_session_agent_id, agent_session_cwd, created_at, updated_at FROM conversations WHERE id = ?`, id,
+	).Scan(&c.ID, &c.MateID, &c.Title, &c.Type, &c.AgentSessionID, &c.AgentSessionAgentID, &c.AgentSessionCwd, &createdMs, &updatedMs)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Conversation{}, fmt.Errorf("mate: conversation not found: %s", id)
 	}
@@ -88,66 +87,46 @@ func (s *Store) GetOrCreateDefaultTriggerConv(mateID string) (string, error) {
 	if !errors.Is(err, sql.ErrNoRows) {
 		return "", fmt.Errorf("mate: get default trigger conv: %w", err)
 	}
-	conv, err := s.createConversation(mateID, "Auto runs", ConvTypeTrigger, "")
+	conv, err := s.createConversation(mateID, "Auto runs", ConvTypeTrigger)
 	if err != nil {
 		return "", err
 	}
 	return conv.ID, nil
 }
 
-// EnsureNewConv returns a fresh empty conversation for the given (mateID, convType, userKey).
+// EnsureNewConv returns a fresh empty conversation for the given (mateID, convType).
 // If the most recent conversation of that type is already empty (no messages), it is returned as-is.
 // Otherwise a new conversation is created with the given title.
 // When keep > 0, conversations older than the most recent keep are pruned before creation.
-func (s *Store) EnsureNewConv(mateID, convType, userKey, title string, keep int) (Conversation, error) {
+func (s *Store) EnsureNewConv(mateID, convType, title string, keep int) (Conversation, error) {
 	var latestID string
 	err := s.db.QueryRow(
-		`SELECT id FROM conversations WHERE type=? AND mate_id=? AND user_key=? ORDER BY created_at DESC LIMIT 1`,
-		convType, mateID, userKey,
+		`SELECT id FROM conversations WHERE type=? AND mate_id=? ORDER BY created_at DESC LIMIT 1`,
+		convType, mateID,
 	).Scan(&latestID)
 	if err == nil {
 		var msgCount int
 		_ = s.db.QueryRow(`SELECT COUNT(*) FROM chat_messages WHERE conversation_id=?`, latestID).Scan(&msgCount)
 		if msgCount == 0 {
+			// Reused, it must also become the current chat (most recently updated).
+			_, _ = s.db.Exec(`UPDATE conversations SET updated_at = ? WHERE id = ?`, time.Now().UnixMilli(), latestID)
 			return s.GetConversation(latestID)
 		}
 	}
 	if keep > 0 {
 		_, _ = s.db.Exec(
 			`DELETE FROM conversations
-			 WHERE type=? AND mate_id=? AND user_key=?
+			 WHERE type=? AND mate_id=?
 			   AND id NOT IN (
 			     SELECT id FROM conversations
-			     WHERE type=? AND mate_id=? AND user_key=?
+			     WHERE type=? AND mate_id=?
 			     ORDER BY created_at DESC LIMIT ?
 			   )`,
-			convType, mateID, userKey,
-			convType, mateID, userKey, keep,
+			convType, mateID,
+			convType, mateID, keep,
 		)
 	}
-	return s.createConversation(mateID, title, convType, userKey)
-}
-
-// GetOrCreateTriggerReplyConv returns the persistent trigger_reply conversation for a
-// (mateID, userKey) pair. userKey is an external user identifier (e.g. wechat user id).
-// The conversation persists agent session state for multi-turn replies.
-func (s *Store) GetOrCreateTriggerReplyConv(mateID, userKey string) (string, error) {
-	var id string
-	err := s.db.QueryRow(
-		`SELECT id FROM conversations WHERE type = ? AND mate_id = ? AND user_key = ? ORDER BY created_at ASC LIMIT 1`,
-		ConvTypeTriggerReply, mateID, userKey,
-	).Scan(&id)
-	if err == nil {
-		return id, nil
-	}
-	if !errors.Is(err, sql.ErrNoRows) {
-		return "", fmt.Errorf("mate: get trigger reply conv: %w", err)
-	}
-	conv, err := s.createConversation(mateID, "", ConvTypeTriggerReply, userKey)
-	if err != nil {
-		return "", err
-	}
-	return conv.ID, nil
+	return s.createConversation(mateID, title, convType)
 }
 
 // ListConversations returns chat-type conversations for a specific mate, ordered by most recent first.
@@ -158,7 +137,7 @@ func (s *Store) ListConversations(mateID string) ([]Conversation, error) {
 // ListConversationsByType returns conversations of a given type for a specific mate, ordered by most recent first.
 func (s *Store) ListConversationsByType(mateID, convType string) ([]Conversation, error) {
 	rows, err := s.db.Query(
-		`SELECT id, mate_id, title, type, user_key, agent_session_id, agent_session_agent_id, agent_session_cwd, created_at, updated_at FROM conversations WHERE type = ? AND mate_id = ? ORDER BY updated_at DESC`,
+		`SELECT id, mate_id, title, type, agent_session_id, agent_session_agent_id, agent_session_cwd, created_at, updated_at FROM conversations WHERE type = ? AND mate_id = ? ORDER BY updated_at DESC`,
 		convType, mateID,
 	)
 	if err != nil {
@@ -491,7 +470,7 @@ func scanConversations(rows *sql.Rows) ([]Conversation, error) {
 	for rows.Next() {
 		var c Conversation
 		var createdMs, updatedMs int64
-		if err := rows.Scan(&c.ID, &c.MateID, &c.Title, &c.Type, &c.UserKey, &c.AgentSessionID, &c.AgentSessionAgentID, &c.AgentSessionCwd, &createdMs, &updatedMs); err != nil {
+		if err := rows.Scan(&c.ID, &c.MateID, &c.Title, &c.Type, &c.AgentSessionID, &c.AgentSessionAgentID, &c.AgentSessionCwd, &createdMs, &updatedMs); err != nil {
 			return nil, err
 		}
 		c.CreatedAt = time.UnixMilli(createdMs)

@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/hardhacker/hylo/internal/agent"
+	"github.com/hardhacker/hylo/internal/channels"
 	"github.com/hardhacker/hylo/internal/client"
 	"github.com/hardhacker/hylo/internal/config"
 	"github.com/hardhacker/hylo/internal/editorbus"
@@ -38,7 +39,8 @@ func newRouter(
 	mateRunner *mate.Runner,
 	skillsMgr *skills.Manager,
 	feed *live.Feed,
-	apiKey string) http.Handler {
+	apiKey string,
+	channelHub *channels.Hub) http.Handler {
 	mux := http.NewServeMux()
 
 	h := handler.New(logger, cfg)
@@ -53,6 +55,9 @@ func newRouter(
 	ah := handler.NewAgentAPI(logger, cfg, vault, agentHub, mateStore, agentCache)
 	editorBus := editorbus.New()
 	ah.SetEditorBus(editorBus)
+	if channelHub != nil {
+		channelHub.SetChatter(ah)
+	}
 
 	// Inbox: notifications for finished bot trigger runs. Shares mate.db's
 	// connection rather than opening its own file.
@@ -79,9 +84,6 @@ func newRouter(
 		mateRunner.SetRunFunc(ah.FireTriggerRun)
 		mateRunner.SetRetryFunc(ah.FireTriggerRetry)
 		mateRunner.SetRunDoneHook(func(m *mate.Mate, result mate.RunResult) {
-			if mate.IsChatEvent(result.EventType) {
-				return
-			}
 			if inboxStore == nil {
 				return
 			}
@@ -143,6 +145,15 @@ func newRouter(
 		mux.HandleFunc("PUT /api/mates/{id}", mh.MatePUT)
 		mux.HandleFunc("DELETE /api/mates/{id}", mh.MateDELETE)
 		mux.HandleFunc("POST /api/mates/{id}/triggers/{tid}/run", ah.TriggerRunPOST)
+
+		chHTTP := handler.NewChannelHTTP(logger, mateStore)
+		mux.HandleFunc("GET /api/mates/{id}/channels", chHTTP.List)
+		mux.HandleFunc("DELETE /api/mates/{id}/channels/{kind}", chHTTP.Delete)
+		mux.HandleFunc("POST /api/mates/{id}/channels/discord", chHTTP.DiscordConnect)
+		mux.HandleFunc("POST /api/mates/{id}/channels/telegram/pair/start", chHTTP.TelegramStart)
+		mux.HandleFunc("GET /api/mates/{id}/channels/telegram/pair/status", chHTTP.TelegramStatus)
+		mux.HandleFunc("POST /api/mates/{id}/channels/wechat/login/start", chHTTP.WechatStart)
+		mux.HandleFunc("GET /api/mates/{id}/channels/wechat/login/status", chHTTP.WechatStatus)
 	}
 
 	skh := handler.NewSkillsHTTP(skillsMgr, mateStore)
@@ -161,18 +172,6 @@ func newRouter(
 	mux.HandleFunc("GET /api/config", cfgHTTP.Get)
 	mux.HandleFunc("GET /api/config/schema", cfgHTTP.Schema)
 	mux.HandleFunc("PATCH /api/config", cfgHTTP.Patch)
-
-	wxHTTP := handler.NewWechatHTTP(logger, cfg, cfgFileLoaded)
-	mux.HandleFunc("GET /api/wechat/status", wxHTTP.Status)
-	mux.HandleFunc("POST /api/wechat/login/start", wxHTTP.LoginStart)
-	mux.HandleFunc("GET /api/wechat/login/status", wxHTTP.LoginStatus)
-	mux.HandleFunc("POST /api/wechat/logout", wxHTTP.Logout)
-
-	tgHTTP := handler.NewTelegramHTTP(logger, cfg, cfgFileLoaded)
-	mux.HandleFunc("GET /api/telegram/status", tgHTTP.Status)
-	mux.HandleFunc("POST /api/telegram/pair/start", tgHTTP.PairStart)
-	mux.HandleFunc("GET /api/telegram/pair/status", tgHTTP.PairStatus)
-	mux.HandleFunc("POST /api/telegram/unpair", tgHTTP.Unpair)
 
 	// MCP endpoint; tools call back into mux in-process, so auth is enforced once at the edge.
 	mux.HandleFunc("GET /api/editor/agent", editorBus.StreamSSE)

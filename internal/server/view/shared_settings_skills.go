@@ -3,16 +3,10 @@ package view
 // Skills tab: every skill added to ~/.hylo/skills, and the catalog Hylo curates.
 const settingsSkillsCSS = `
     .skills-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; margin-bottom: 0.75rem; }
-    .skills-tabs .seg-btn { gap: 0.4rem; }
     .skills-toolbar-actions { display: flex; align-items: center; gap: 0.5rem; }
     .skills-repo-form { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; flex-wrap: wrap; }
     .skills-repo-form .field-input { flex: 2 1 14rem; min-width: 0; }
     .skills-repo-form .skills-repo-name { flex: 1 1 9rem; }
-    .skills-tab-count {
-      min-width: 1.1em; font-size: var(--text-2xs); font-variant-numeric: tabular-nums;
-      color: var(--muted); opacity: 0.75;
-    }
-    .skills-tabs .seg-btn.active .skills-tab-count { color: inherit; opacity: 0.55; }
     .skills-hint { font-size: var(--text-xs); color: var(--muted); line-height: 1.5; margin: 0 0 1rem; min-height: 1.5em; }
     .skills-hint code {
       font-family: var(--font-mono); font-size: var(--text-2xs);
@@ -149,14 +143,14 @@ func settingsSkillsTabHTML() string {
           <!-- Skills tab -->
           <div class="settings-scroll-pane" x-show="tab === 'skills'">
             <div class="skills-toolbar">
-              <div class="seg skills-tabs" role="tablist">
+              <div class="seg" role="tablist">
                 <button type="button" class="seg-btn" role="tab" :class="{active: skillsTab === 'added'}"
                         :aria-selected="skillsTab === 'added'" @click="skillsTab = 'added'">
-                  Added <span class="skills-tab-count" x-show="!skillsLoading" x-text="skillsList.length"></span>
+                  Added <span class="seg-count" x-show="!skillsLoading" x-text="skillsList.length"></span>
                 </button>
                 <button type="button" class="seg-btn" role="tab" :class="{active: skillsTab === 'catalog'}"
                         :aria-selected="skillsTab === 'catalog'" @click="skillsTab = 'catalog'">
-                  Catalog <span class="skills-tab-count" x-show="!skillsLoading" x-text="catalogSkills.length"></span>
+                  Catalog <span class="seg-count" x-show="!skillsLoading" x-text="catalogSkills.length"></span>
                 </button>
               </div>
               <div class="skills-toolbar-actions">

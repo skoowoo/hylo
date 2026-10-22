@@ -183,9 +183,6 @@ Bot 最有意思的地方是事件驱动：配好触发器，你什么都不用�
 | `note_deleted`       | 有笔记被删了                 |
 | `short_note_created` | 加了一条速记                 |
 | `scheduled`          | 按你设定的时间或间隔定时触发 |
-| `wechat_message`     | 收到微信私信                 |
-| `discord_message`    | 收到 Discord 私信            |
-| `telegram_message`   | 收到 Telegram 私信           |
 | `compile_requested`  | 手动触发了 LLM Wiki 编译     |
 
 #### 🧩 Hylo bot
@@ -194,7 +191,6 @@ Bot 最有意思的地方是事件驱动：配好触发器，你什么都不用�
 
 | 触发器                              | 作用                                     |
 | ----------------------------------- | ---------------------------------------- |
-| `wechat_message`、`discord_message`、`telegram_message` | 连上微信、Discord、Telegram 后在那边回复你 |
 | `compile_requested`                 | 手动发起编译时，把笔记编译成知识单元     |
 | `note_created`（`/Web Clips/`）     | 剪藏的网页自动编译                       |
 | `scheduled` 每天 09:00              | 更新个人记忆                             |
@@ -214,80 +210,17 @@ Bot 最有意思的地方是事件驱动：配好触发器，你什么都不用�
 - GitHub Copilot CLI
 - Pi
 
-## 微信
+## 微信、Discord、Telegram
 
-想在微信里和 agent 聊？配两步就行。
+每个 bot 可以接自己的一个联系人。那边发来的消息写进这个 bot 当前的对话，和在桌面上聊天是同一场。发 `/new` 会新开一场，桌面也会跟着换到这场。
 
-#### 第一步：连上微信
+在 **Settings → Bots** 里打开这个 bot，找到 **Channels**。
 
-1. **Settings → Server → Config → WeChat**
-2. 点 **Scan QR to log in**，扫码
-3. 手机微信确认登录
-4. 状态变成 **Connected** 后点 **Save all**
+- **微信**：点 Connect，扫码。一个微信号只能留在一个 bot 上，再次扫码会把之前那个断开。
+- **Discord**：在 [Developer Portal](https://discord.com/developers/applications) 建一个 Bot，打开 **Message Content Intent**，填 Bot token 和你的用户 ID（开发者模式 → 右键头像 → 复制用户 ID）。访问不通时可以填代理，例如 `http://127.0.0.1:7890`。
+- **Telegram**：给 [@BotFather](https://t.me/BotFather) 发 `/newbot`，粘贴 token，用手机打开链接并点 Start。访问不了 `api.telegram.org` 时先填代理。
 
-搞定，微信桥接服务开始监听新消息。
-
-#### 第二步：创建一个 `wechat_message` 触发的 Bot
-
-1. **Settings → Bots** → **New Bot**
-2. 起个名字，选 agent 和模型
-3. **Triggers** 下点 **+ Add trigger**
-4. **Event** 选 `wechat_message`
-5. Prompt 模板写：
-
-   ```
-   {Content}
-   ```
-
-6. 保存
-
-之后每条微信私信都会触发这个 bot，自动帮你回复。
-
-## Discord
-
-想在 Discord 私信里和 agent 聊，配两步就行。
-
-#### 第一步：配置 Discord
-
-1. 在 [Discord Developer Portal](https://discord.com/developers/applications) 创建一个 Bot
-2. **Bot → Privileged Gateway Intents** 里开启 **Message Content Intent**
-3. 复制 Bot token
-4. 打开 **Settings → Server → Config → Discord**
-5. 填入 **Bot token** 和你的 **Owner user ID**（开启开发者模式 → 右键头像 → 复制用户 ID），把 **enabled** 打开
-6. **Save all** 后重启服务，Bot 头像变绿说明连上了
-
-任何人都能私信 Discord Bot，所以桥接只回复 **Owner user ID** 本人，其他人的消息一律忽略。不填的话谁都不回。
-
-访问不通时，在 **Proxy URL** 填本地代理地址（如 `http://127.0.0.1:7890`）。
-
-#### 第二步：创建一个 `discord_message` 触发的 Bot
-
-1. **Settings → Bots** → **New Bot**
-2. 起名，选 agent 和模型
-3. **Triggers** 下点 **+ Add trigger**
-4. **Event** 选 `discord_message`
-5. Prompt 模板可用变量：`{Content}`、`{DiscordChannelID}`、`{DiscordUserID}`
-6. 保存
-
-搞定，Discord Bot 收到私信就会触发对应的 bot 并回复。
-
-## Telegram
-
-在 Telegram 里和 bot 聊。Hylo 通过长轮询拉取 Telegram 消息，在内网、没有公网地址也能用。
-
-#### 第一步：配对 Telegram Bot
-
-1. 在 Telegram 里给 [@BotFather](https://t.me/BotFather) 发 `/newbot`，复制它给你的 token
-2. 打开 **Settings → Server → Config → Telegram**。如果访问不了 `api.telegram.org`，先填 **Proxy URL**（如 `http://127.0.0.1:7890`）
-3. 粘贴 token，点 **Connect**，会出现二维码和 bot 的链接
-4. 用手机扫码（或打开链接），在 Telegram 里点 **Start**
-5. 状态变成 **Connected** 后桥接已自动启用，重启服务即可生效
-
-Telegram Bot 是公开的，谁都能搜到、给它发消息。配对会把 bot 绑定到点了 Start 的那个账号，其他人的消息一律忽略。配对链接只能用一次，10 分钟后失效。要换账号，先 **Disconnect** 再重新配对。
-
-#### 第二步：创建一个 `telegram_message` 触发的 Bot
-
-设置时创建的 Hylo bot 已经带了这个触发器。自己建的 bot 加一个 **Event** 为 `telegram_message` 的触发器即可，可用变量：`{Content}`、`{TelegramUserID}`。在 Telegram 里发 `/new` 开始新对话。
+一个联系人只能绑一个 Hylo bot。只有完成连接的那个账号能跟它说话，其他人的消息会被丢掉。连上之后不用重启。
 
 ## LLM-Wiki 编译器
 
@@ -413,7 +346,7 @@ Hylo 的每一层 AI 输出都可以自定义：
 在**设置 → Bots** 中，每个 Bot 有两个自定义点：
 
 - **System Prompt**：Bot 专属指令，附加在全局 system prompt 之后（用 `---` 分隔）。
-- **Trigger Prompt 模板**：Trigger 触发时发送给 agent 的用户消息，支持变量：vault 事件用 `{Path}`、`{Name}`、`{Content}`；定时触发用 `{Now}`、`{Date}`、`{Time}`；微信消息用 `{Content}`、`{WechatUserID}`；Discord 消息用 `{Content}`、`{DiscordChannelID}`、`{DiscordUserID}`；Telegram 消息用 `{Content}`、`{TelegramUserID}`。
+- **Trigger Prompt 模板**：Trigger 触发时发送给 agent 的用户消息，支持变量：vault 事件用 `{Path}`、`{Name}`、`{Content}`；定时触发用 `{Now}`、`{Date}`、`{Time}`。
 
 #### 3. 重写 LLM-Wiki 编译 Skill
 

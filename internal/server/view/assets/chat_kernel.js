@@ -82,11 +82,6 @@
       return d ? d.label : type;
     }
 
-    function isChatEvent(type) {
-      var d = eventDef(type);
-      return !!(d && d.chat);
-    }
-
     function findMsg(id) {
       for (var i = 0; i < messages.length; i++) if (messages[i].id === id) return messages[i];
       return null;
@@ -168,7 +163,6 @@
         triggersLoaded: triggersFor === mateId,
         triggerFilter: triggerFilter,
         triggerLabel: triggerLabel,
-        isChatEvent: isChatEvent,
         mateName: mateName,
       };
     }
@@ -796,13 +790,9 @@
       if (drop && messages.indexOf(prompt) !== -1) messages.splice(messages.indexOf(prompt), 1);
       var userMsgId = R.genId();
       messages.push({ id: userMsgId, role: 'user', content: text, createdAt: Date.now(), rev: 1 });
-      // Chat app runs reply externally and resume a persistent agent session
-      // (resolveAgentSession) in the same conv a human types into — only a
-      // non-reply trigger (vault/schedule/agent_run_completed, confined to
-      // the mate's separate "Auto runs" conv) is retried through the trigger
-      // pipeline, so its completion still reaches the inbox the way the
-      // original fire did.
-      if (triggerEvent && !isChatEvent(triggerEvent)) {
+      // A trigger run is retried through the trigger pipeline, so its
+      // completion still reaches the inbox the way the original fire did.
+      if (triggerEvent) {
         await retryTriggerRun(text, userMsgId, triggerEvent, msg.triggerId || '', mate, msg.id);
       } else {
         await runTurn(text, userMsgId, mate, { retryOf: msg.id });

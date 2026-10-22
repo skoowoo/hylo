@@ -3,11 +3,15 @@ package wechat
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"time"
 )
+
+// ErrSessionExpired means WeChat unbound this bot. The token will not work again.
+var ErrSessionExpired = errors.New("wechat: session expired")
 
 const (
 	defaultLongPollTimeout = 35 * time.Second
@@ -105,12 +109,8 @@ func RunMonitor(ctx context.Context, opts MonitorOpts) error {
 		isAPIError := (resp.Ret != 0) || (resp.ErrCode != 0)
 		if isAPIError {
 			if resp.ErrCode == sessionExpiredErrCode || resp.Ret == sessionExpiredErrCode {
-				log(fmt.Sprintf("Session expired (errcode %d), pausing 1 hour...", sessionExpiredErrCode))
-				consecutiveFailures = 0
-				if err := sleep(ctx, time.Hour); err != nil {
-					return nil
-				}
-				continue
+				log(fmt.Sprintf("Session expired (errcode %d)", sessionExpiredErrCode))
+				return ErrSessionExpired
 			}
 			consecutiveFailures++
 			log(fmt.Sprintf("getUpdates failed: ret=%d errcode=%d errmsg=%s (%d/%d)",

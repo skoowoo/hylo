@@ -30,8 +30,8 @@ func TestNoteChangesFromVaultEvents(t *testing.T) {
 			t.Errorf("%s: got %+v", c.e.Type, got)
 		}
 	}
-	if _, ok := noteChange(plugin.Event{Type: plugin.EventChatMessage}); ok {
-		t.Error("a chat message is not a note change")
+	if _, ok := noteChange(plugin.Event{Type: plugin.EventCompileRequested}); ok {
+		t.Error("compile is not a note change")
 	}
 }
 

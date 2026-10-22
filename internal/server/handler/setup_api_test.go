@@ -43,7 +43,7 @@ func TestSetupBotOnlyForAnEmptyVault(t *testing.T) {
 	for _, tr := range triggers {
 		names = append(names, tr.Name)
 	}
-	if got := strings.Join(names, ","); got != "WeChat,Discord,Telegram,Compiler,Compiler,Memory" {
+	if got := strings.Join(names, ","); got != "Compiler,Compiler,Memory" {
 		t.Fatalf("trigger names in order: %s", got)
 	}
 	convs, _ := store.ListConversationsByType(id, mate.ConvTypeChat)
@@ -73,7 +73,6 @@ func TestHyloBotTriggersAreValid(t *testing.T) {
 		}
 	}
 }
-
 
 func TestRecallBotStepQuotesTriggerPrompts(t *testing.T) {
 	b, err := builtin.FS.ReadFile("hylo-setup/steps/recall-bot.md")

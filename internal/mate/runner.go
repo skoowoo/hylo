@@ -107,12 +107,8 @@ func (r *Runner) dispatchMateEvents(mateEvents []MateEvent) {
 	triggers, err := r.store.ListAllEnabledTriggers()
 	if err != nil {
 		r.logger.Warn("mate_runner: list triggers", "err", err)
-		for _, me := range mateEvents {
-			me.answer(plugin.ReplyResult{Status: "failed"})
-		}
 		return
 	}
-	fired := false
 	for _, t := range triggers {
 		if TriggerHasScheduled(t) {
 			continue
@@ -128,20 +124,6 @@ func (r *Runner) dispatchMateEvents(mateEvents []MateEvent) {
 			continue
 		}
 		r.fireTrigger(t, matched)
-		fired = true
-	}
-	if !fired {
-		for _, me := range mateEvents {
-			me.answer(plugin.ReplyResult{Status: "unhandled"})
-		}
-	}
-}
-
-// answer ends an event that no run will answer: whoever waits on its reply
-// (a chat app showing "typing…") must hear back once, whatever happened.
-func (me MateEvent) answer(res plugin.ReplyResult) {
-	if me.Reply != nil {
-		me.Reply(context.Background(), res) //nolint:errcheck
 	}
 }
 
@@ -188,29 +170,9 @@ func (r *Runner) tickScheduled() {
 	}
 }
 
-func isSessionCommand(text string) bool {
-	t := strings.ToLower(strings.TrimSpace(text))
-	return t == "/new" || t == "/clear"
-}
-
-func (r *Runner) handleSessionReset(mateID string, ev MateEvent) {
-	if _, err := r.store.CreateConversation(mateID, ""); err != nil {
-		r.logger.Warn("mate_runner: reset chat session", "err", err)
-		ev.answer(plugin.ReplyResult{Text: "对话重置失败，请稍后再试", Status: "failed"})
-		return
-	}
-	ev.answer(plugin.ReplyResult{Text: "新对话已开启", Status: "succeeded"})
-}
-
 func (r *Runner) fireTrigger(t MateTrigger, me MateEvent) {
-	if IsChatEvent(me.Type) && isSessionCommand(me.Content) {
-		go r.handleSessionReset(t.MateID, me)
-		return
-	}
-
 	fn, _ := r.runFn.Load().(RunFunc)
 	if fn == nil {
-		me.answer(plugin.ReplyResult{Status: "failed"})
 		return
 	}
 	go func(tr MateTrigger, ev MateEvent) {
@@ -218,33 +180,24 @@ func (r *Runner) fireTrigger(t MateTrigger, me MateEvent) {
 		case r.sem <- struct{}{}:
 		default:
 			r.logger.Warn("mate_runner: semaphore full, skipping trigger", "triggerID", tr.ID)
-			ev.answer(plugin.ReplyResult{Status: "failed"})
 			return
 		}
 		defer func() { <-r.sem }()
-		if !r.runTrigger(fn, tr, ev) {
-			ev.answer(plugin.ReplyResult{Status: "failed"})
-		}
+		r.runTrigger(fn, tr, ev)
 	}(t, me)
 }
 
-// runTrigger runs tr with r.sem already held by the caller. It reports
-// whether the run started; a started run answers ev.Reply itself.
-func (r *Runner) runTrigger(fn RunFunc, tr MateTrigger, ev MateEvent) bool {
+// runTrigger runs tr with r.sem already held by the caller.
+func (r *Runner) runTrigger(fn RunFunc, tr MateTrigger, ev MateEvent) {
 	m, err := r.store.GetMate(tr.MateID)
 	if err != nil || m == nil {
-		return false
+		return
 	}
 
-	var convID string
-	if ev.Reply != nil {
-		convID, err = r.store.GetOrCreateActiveChatConvID(m.ID)
-	} else {
-		convID, err = r.store.GetOrCreateDefaultTriggerConv(m.ID)
-	}
+	convID, err := r.store.GetOrCreateDefaultTriggerConv(m.ID)
 	if err != nil {
 		r.logger.Warn("mate_runner: get trigger conv", "err", err)
-		return false
+		return
 	}
 
 	ev.TriggerID = tr.ID
@@ -256,7 +209,6 @@ func (r *Runner) runTrigger(fn RunFunc, tr MateTrigger, ev MateEvent) bool {
 	r.logger.Info("mate_runner: trigger fired", fields...)
 
 	fn(context.Background(), m, convID, prompt, ev, r.buildOnDone(m, ev, prompt))
-	return true
 }
 
 var (
@@ -398,15 +350,11 @@ func renderPrompt(tmpl string, me MateEvent) string {
 		return fired.Format(time.RFC3339)
 	}
 	return prompt.Fill(tmpl, map[string]string{
-		"Path":             me.Path,
-		"Name":             strings.TrimSuffix(path.Base(me.Path), ".md"),
-		"Content":          me.Content,
-		"WechatUserID":     me.UserID,
-		"DiscordChannelID": me.ChatID,
-		"DiscordUserID":    me.UserID,
-		"TelegramUserID":   me.UserID,
-		"Now":              fired.Format(time.RFC3339),
-		"Date":             fired.Format("2006-01-02"),
-		"Time":             fired.Format("15:04"),
+		"Path":    me.Path,
+		"Name":    strings.TrimSuffix(path.Base(me.Path), ".md"),
+		"Content": me.Content,
+		"Now":     fired.Format(time.RFC3339),
+		"Date":    fired.Format("2006-01-02"),
+		"Time":    fired.Format("15:04"),
 	})
 }

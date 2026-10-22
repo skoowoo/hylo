@@ -12,6 +12,22 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+// Identify checks a bot token and returns the bot's user id and username.
+func Identify(token, proxyURL string) (id, username string, err error) {
+	s, err := NewSession(token, proxyURL)
+	if err != nil {
+		return "", "", err
+	}
+	u, err := s.User("@me")
+	if err != nil {
+		return "", "", err
+	}
+	if u == nil || u.ID == "" {
+		return "", "", fmt.Errorf("discord: empty bot user")
+	}
+	return u.ID, u.Username, nil
+}
+
 // NewSession creates a discordgo session configured with the required Gateway intents.
 // proxyURL is optional (e.g. "socks5://127.0.0.1:1080"); pass "" to use direct connection.
 // The caller is responsible for calling session.Open() via RunMonitor.
@@ -50,7 +66,8 @@ type MonitorOpts struct {
 }
 
 // RunMonitor registers message handlers, opens the Gateway connection, and blocks
-// until ctx is cancelled. discordgo handles reconnection automatically.
+// until ctx is cancelled. A failed first connect is retried with backoff;
+// after that discordgo handles reconnection.
 func RunMonitor(ctx context.Context, opts MonitorOpts) error {
 	log := opts.Log
 	if log == nil {
@@ -85,8 +102,19 @@ func RunMonitor(ctx context.Context, opts MonitorOpts) error {
 		log(fmt.Sprintf("Connected as %s#%s", r.User.Username, r.User.Discriminator))
 	})
 
-	if err := opts.Session.Open(); err != nil {
-		return fmt.Errorf("discord: open gateway: %w", err)
+	backoff := time.Second
+	for {
+		err := opts.Session.Open()
+		if err == nil {
+			break
+		}
+		log("open gateway failed: " + err.Error())
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-time.After(backoff):
+		}
+		backoff = min(backoff*2, time.Minute)
 	}
 	log("Discord bridge started")
 

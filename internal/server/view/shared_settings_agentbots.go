@@ -98,30 +98,10 @@ const settingsAgentBotsCSS = `
       .bot-setup-thinking { color: var(--muted); }
     }
     .bot-setup-actions { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
-    /* Layout (display/align/gap) shared with .cfg-detail-header via
-       .settings-detail-header; only the margin below it differs per
-       caller, so that part stays local. */
-    .agent-bot-form-header { margin-bottom: 2rem; }
-    .agent-bot-back-btn {
-      display: inline-flex; align-items: center; gap: 0.3rem;
-      background: none; border: none; color: var(--muted); font-size: var(--text-sm);
-      cursor: pointer; padding: 0;
-    }
-    .agent-bot-back-btn:hover { color: var(--fg); }
-    .agent-bot-back-btn svg { width: 14px; height: 14px; }
+    .agent-bot-tabs { margin-bottom: 1.5rem; }
     .agent-bot-form { display: flex; flex-direction: column; }
-    .agent-bot-form-section {
-      padding: 1.65rem 0 1.5rem;
-      display: flex; flex-direction: column; gap: 1.25rem;
-    }
-    .agent-bot-form-section:first-child { padding-top: 0; }
+    .agent-bot-form-section { display: flex; flex-direction: column; gap: 1.25rem; padding-bottom: 1.5rem; }
     .agent-bot-form-section-triggers { gap: 1rem; }
-    .agent-bot-form-section-title {
-      font-size: var(--text-xs); font-weight: var(--fw-medium); letter-spacing: 0.05em;
-      text-transform: uppercase; color: var(--fg); margin: 0;
-      display: flex; align-items: center; gap: 0.6rem; white-space: nowrap;
-    }
-    .agent-bot-trigger-section-top { display: flex; flex-direction: column; gap: 0.4rem; }
     .agent-bot-cwd { display: flex; align-items: baseline; gap: 0.5rem; min-width: 0; }
     .agent-bot-cwd .agent-bot-form-label { margin: 0; flex-shrink: 0; }
     .agent-bot-cwd-value {
@@ -325,6 +305,9 @@ func settingsAgentBotsTabHTML() string {
                             <span class="badge badge--ok agent-bot-badge"
                                   x-text="m.triggerCount + (m.triggerCount === 1 ? ' trigger' : ' triggers')"></span>
                           </template>
+                          <template x-for="k in (m.channels || [])" :key="m.id + k">
+                            <span class="badge badge--ok agent-bot-badge" x-text="channelLabel(k)"></span>
+                          </template>
                         </div>
                       </div>
                     </div>
@@ -335,11 +318,16 @@ func settingsAgentBotsTabHTML() string {
 
             <template x-if="agentBotFormMode">
               <div class="agent-bot-form-wrap">
-                <div class="settings-detail-header agent-bot-form-header">
-` + agentBotBackBtnHTML("closeAgentBotForm()", "Bots") + `
+                <div class="seg agent-bot-tabs" role="tablist">
+                  <template x-for="t in agentBotFormTabs()" :key="t.id">
+                    <button type="button" class="seg-btn" role="tab" :class="{active: botFormTab === t.id}" :aria-selected="botFormTab === t.id"
+                            :disabled="!!t.disabled" :title="t.disabled ? 'Save the bot first' : ''" @click="botFormTab = t.id">
+                      <span x-text="t.label"></span><span class="seg-count" x-show="t.count" x-text="t.count"></span>
+                    </button>
+                  </template>
                 </div>
                 <div class="agent-bot-form">
-                  <section class="agent-bot-form-section">
+                  <section class="agent-bot-form-section" role="tabpanel" x-show="botFormTab === 'general'">
                     <div class="agent-bot-form-row">
                       <div>
                         <label class="agent-bot-form-label">Name</label>
@@ -387,13 +375,10 @@ func settingsAgentBotsTabHTML() string {
                     </div>
                   </section>
 
-                  <section class="agent-bot-form-section">
-                    <div class="agent-bot-trigger-section-top">
-                      <h3 class="agent-bot-form-section-title">Skills</h3>
-                      <p class="agent-bot-section-desc">Pick the skills this bot can use; hover one to see what it does.
-                        <span x-show="agentBotDraft.main">Built-in skills are always on for the main bot.</span>
-                        Add more under <button type="button" class="skills-empty-link" @click="skillsTab = 'catalog'; tab = 'skills'">Skills</button>.</p>
-                    </div>
+                  <section class="agent-bot-form-section" role="tabpanel" x-show="botFormTab === 'skills'">
+                    <p class="agent-bot-section-desc">Pick the skills this bot can use; hover one to see what it does.
+                      <span x-show="agentBotDraft.main">Built-in skills are always on for the main bot.</span>
+                      Add more under <button type="button" class="skills-empty-link" @click="skillsTab = 'catalog'; tab = 'skills'">Skills</button>.</p>
                     <div class="agent-bot-skill-chips" x-show="extraSkills.length">
                       <template x-for="s in extraSkills" :key="s.name">
                         <button type="button" class="btn-outline btn--xs" :class="{active: agentBotSkills[s.name]}" :aria-pressed="!!agentBotSkills[s.name]"
@@ -413,11 +398,8 @@ func settingsAgentBotsTabHTML() string {
                     </template>
                   </section>
 
-                  <section class="agent-bot-form-section agent-bot-form-section-triggers">
-                    <div class="agent-bot-trigger-section-top">
-                      <h3 class="agent-bot-form-section-title">Triggers</h3>
-                      <p class="agent-bot-section-desc">Automatically run this bot on vault events or on a schedule. Each trigger sends a prompt template to the agent.</p>
-                    </div>
+                  <section class="agent-bot-form-section agent-bot-form-section-triggers" role="tabpanel" x-show="botFormTab === 'triggers'">
+                    <p class="agent-bot-section-desc">Run this bot on vault events or on a schedule. Each trigger sends a prompt template to the agent.</p>
                     <div class="agent-bot-trigger-list">
                       <template x-for="(t, ti) in agentBotTriggers" :key="ti">
                         <div class="agent-bot-trigger-card" :class="{'is-open': t._open, 'is-off': !t.enabled}">
@@ -553,6 +535,99 @@ func settingsAgentBotsTabHTML() string {
                     </div>
                     <button class="agent-bot-trigger-add" type="button" @click="addAgentBotTrigger()" style="margin-top:0.25rem;">+ Add trigger</button>
                   </section>
+
+                  <section class="agent-bot-form-section" role="tabpanel" x-show="botFormTab === 'channels'">
+                    <p class="agent-bot-section-desc">Connect an app to this bot. Messages there continue its current chat, the same conversation as on the desktop; send /new in the app to start a new one. One contact belongs to one bot. Connecting or disconnecting applies right away, without Save.</p>
+
+                    <div class="cfg-link hairline">
+                      <div class="cfg-link-head">
+                        <span class="cfg-link-title">WeChat</span>
+                        <span class="badge" :class="{ 'badge--ok': botChannels.wechat }" x-text="botChannels.wechat ? 'Connected' : 'Not connected'"></span>
+                      </div>
+                      <template x-if="botChannels.wechat">
+                        <div>
+                          <p class="cfg-link-meta">Connected as <code x-text="botChannels.wechat.display"></code>. Only the account that scanned can talk to it.</p>
+                          <div class="cfg-link-actions">
+                            <button type="button" class="btn-solid btn-solid--danger" @click="disconnectChannel('wechat')" :disabled="!!channelBusy" x-text="channelBusy === 'wechat' ? 'Disconnecting…' : 'Disconnect'"></button>
+                          </div>
+                        </div>
+                      </template>
+                      <template x-if="!botChannels.wechat">
+                        <div>
+                          <p class="cfg-link-meta">Scan with WeChat. One account stays on one bot. Scanning again disconnects the previous bot.</p>
+                          <div class="cfg-link-qr" x-show="wxImage">
+                            <img :src="wxImage" alt="WeChat login QR code">
+                          </div>
+                          <div class="cfg-link-actions">
+                            <button type="button" class="btn-solid" x-show="!wxImage" @click="startWechat()" :disabled="!!channelBusy" x-text="channelBusy === 'wechat' ? 'Starting…' : 'Connect'"></button>
+                            <button type="button" class="btn-outline" x-show="wxImage" @click="cancelWechat()">Cancel</button>
+                          </div>
+                        </div>
+                      </template>
+                    </div>
+
+                    <div class="cfg-link hairline">
+                      <div class="cfg-link-head">
+                        <span class="cfg-link-title">Discord</span>
+                        <span class="badge" :class="{ 'badge--ok': botChannels.discord }" x-text="botChannels.discord ? 'Connected' : 'Not connected'"></span>
+                      </div>
+                      <template x-if="botChannels.discord">
+                        <div>
+                          <p class="cfg-link-meta">Connected as <code x-text="botChannels.discord.display"></code>. Only your user ID can talk to it.</p>
+                          <div class="cfg-link-actions">
+                            <button type="button" class="btn-solid btn-solid--danger" @click="disconnectChannel('discord')" :disabled="!!channelBusy" x-text="channelBusy === 'discord' ? 'Disconnecting…' : 'Disconnect'"></button>
+                          </div>
+                        </div>
+                      </template>
+                      <template x-if="!botChannels.discord">
+                        <div>
+                          <p class="cfg-link-meta">Create a bot in the Discord Developer Portal, turn on Message Content Intent, and paste its token plus your user ID (Developer Mode, right-click your avatar).</p>
+                          <div class="cfg-link-actions">
+                            <input type="password" class="field-input cfg-input" autocomplete="off" spellcheck="false" placeholder="Bot token" x-model="dcToken">
+                            <input type="text" class="field-input cfg-input" autocomplete="off" spellcheck="false" placeholder="Your user ID" x-model="dcOwner">
+                            <input type="text" class="field-input cfg-input" autocomplete="off" spellcheck="false" placeholder="Proxy URL (optional)" x-model="dcProxy">
+                            <button type="button" class="btn-solid" @click="connectDiscord()" :disabled="!!channelBusy || !dcToken.trim() || !dcOwner.trim()" x-text="channelBusy === 'discord' ? 'Connecting…' : 'Connect'"></button>
+                          </div>
+                        </div>
+                      </template>
+                    </div>
+
+                    <div class="cfg-link hairline">
+                      <div class="cfg-link-head">
+                        <span class="cfg-link-title">Telegram</span>
+                        <span class="badge" :class="{ 'badge--ok': botChannels.telegram }" x-text="botChannels.telegram ? 'Connected' : 'Not connected'"></span>
+                      </div>
+                      <template x-if="botChannels.telegram">
+                        <div>
+                          <p class="cfg-link-meta">Paired with <code x-text="botChannels.telegram.display"></code>. Only the account that tapped Start can talk to it.</p>
+                          <div class="cfg-link-actions">
+                            <button type="button" class="btn-solid btn-solid--danger" @click="disconnectChannel('telegram')" :disabled="!!channelBusy" x-text="channelBusy === 'telegram' ? 'Disconnecting…' : 'Disconnect'"></button>
+                          </div>
+                        </div>
+                      </template>
+                      <template x-if="!botChannels.telegram">
+                        <div>
+                          <p class="cfg-link-meta">Create a bot with <a href="https://t.me/BotFather" target="_blank" rel="noopener noreferrer">@BotFather</a>, paste its token, then open the link on your phone and tap Start.</p>
+                          <div class="cfg-link-actions" x-show="!tgCode">
+                            <input type="password" class="field-input cfg-input" autocomplete="off" spellcheck="false" placeholder="123456:ABC-DEF…" x-model="tgToken" @keydown.enter.prevent="startTelegram()">
+                            <input type="text" class="field-input cfg-input" autocomplete="off" spellcheck="false" placeholder="Proxy URL (optional)" x-model="tgProxy">
+                            <button type="button" class="btn-solid" @click="startTelegram()" :disabled="!!channelBusy || !tgToken.trim()" x-text="channelBusy === 'telegram' ? 'Checking…' : 'Connect'"></button>
+                          </div>
+                          <div x-show="tgCode">
+                            <div class="cfg-link-qr">
+                              <img :src="tgImage" alt="Telegram bot link QR code" x-show="tgImage">
+                              <p class="cfg-link-status">Scan with your phone, or open <a :href="tgLink" target="_blank" rel="noopener noreferrer" x-text="tgUsername ? '@' + tgUsername : tgLink"></a> and tap Start.</p>
+                            </div>
+                            <div class="cfg-link-actions">
+                              <button type="button" class="btn-outline" @click="cancelTelegram()">Cancel</button>
+                            </div>
+                          </div>
+                        </div>
+                      </template>
+                    </div>
+                    <p class="cfg-link-err" x-show="channelError" x-text="channelError"></p>
+                  </section>
+
                 </div>
               </div>
             </template>
@@ -588,6 +663,24 @@ const settingsAgentBotsJS = `
       agentBotSaving: false,
       agentBotSaveError: '',
       agentBotEventDefs: [],
+      botFormTab: 'general',
+      botChannels: { wechat: null, discord: null, telegram: null },
+      channelBusy: '',
+      channelError: '',
+      wxImage: '',
+      wxCode: '',
+      wxTimer: null,
+      wxPolling: false,
+      dcToken: '',
+      dcOwner: '',
+      dcProxy: '',
+      tgToken: '',
+      tgProxy: '',
+      tgCode: '',
+      tgLink: '',
+      tgUsername: '',
+      tgImage: '',
+      tgTimer: null,
       // One table instead of the same "which kind of trigger is this" branch
       // repeated across agentBotPromptPlaceholder and the Event block's hint
       // text. Prompt vars come from the server's event defs.
@@ -595,18 +688,6 @@ const settingsAgentBotsJS = `
         scheduled: {
           placeholder: 'Review my vault and write a daily digest. Time: {Now}',
           hint: 'Scheduled triggers run on a timer — choose one schedule below',
-        },
-        wechat_message: {
-          placeholder: 'Reply to this WeChat message:\n\n{Content}',
-          hint: 'WeChat DM trigger — use Content and WechatUserID in the prompt',
-        },
-        discord_message: {
-          placeholder: 'Reply to this Discord message:\n\n{Content}',
-          hint: 'Discord DM trigger — use Content, DiscordChannelID and DiscordUserID in the prompt',
-        },
-        telegram_message: {
-          placeholder: 'Reply to this Telegram message:\n\n{Content}',
-          hint: 'Telegram DM trigger — use Content and TelegramUserID in the prompt',
         },
         compile_requested: {
           placeholder: 'Compile {Path} into knowledge units.',
@@ -823,6 +904,8 @@ const settingsAgentBotsJS = `
         this.agentBotSkills = {};
         this.agentBotEditId = '';
         this.agentBotSaveError = '';
+        this.cancelChannelFlows();
+        this.botFormTab = 'general';
         this.agentBotFormMode = 'create';
         this._agentBotSaved = this.agentBotSnapshot();
         await this.loadAgentBotSkills('');
@@ -884,9 +967,11 @@ const settingsAgentBotsJS = `
           this.agentBotSkills = {};
           this.agentBotEditId = m.id;
           this.agentBotSaveError = '';
+          this.botFormTab = 'general';
           this.agentBotFormMode = 'edit';
           this._agentBotSaved = this.agentBotSnapshot();
           await this.loadAgentBotSkills(m.id);
+          await this.loadBotChannels(m.id);
         } catch(e) { window.showError('Load failed: ' + e.message, 'Load failed'); }
       },
 
@@ -914,8 +999,200 @@ const settingsAgentBotsJS = `
           const ok = await window.showConfirm({ title: 'Discard changes?', message: 'This bot has unsaved changes.', confirmLabel: 'Discard', danger: true });
           if (!ok) return false;
         }
+        this.cancelChannelFlows();
         this.agentBotFormMode = null;
         return true;
+      },
+
+      // Channels connect to a saved bot, so a new one has to be saved first.
+      agentBotFormTabs() {
+        const on = (s) => this.agentBotSkills[s.name];
+        const skills = this.extraSkills.filter(on).length +
+          (this.agentBotDraft.main ? this.builtinSkills.length : this.builtinSkills.filter(on).length);
+        return [
+          { id: 'general', label: 'General', count: 0 },
+          { id: 'skills', label: 'Skills', count: skills },
+          { id: 'triggers', label: 'Triggers', count: this.agentBotTriggers.length },
+          { id: 'channels', label: 'Channels', count: Object.values(this.botChannels).filter(Boolean).length, disabled: this.agentBotFormMode !== 'edit' },
+        ];
+      },
+
+      channelLabel(kind) {
+        return { wechat: 'WeChat', discord: 'Discord', telegram: 'Telegram' }[kind] || kind;
+      },
+
+      cancelChannelFlows() {
+        if (this.wxTimer) { clearInterval(this.wxTimer); this.wxTimer = null; }
+        if (this.tgTimer) { clearInterval(this.tgTimer); this.tgTimer = null; }
+        this.wxImage = '';
+        this.wxCode = '';
+        this.tgCode = '';
+        this.tgLink = '';
+        this.tgImage = '';
+        this.tgUsername = '';
+        this.channelBusy = '';
+      },
+
+      async fetchBotChannels(id) {
+        const r = await fetch('/api/mates/' + id + '/channels');
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        const d = await r.json();
+        const next = { wechat: null, discord: null, telegram: null };
+        (d.channels || []).forEach(function(c) { next[c.kind] = c; });
+        return next;
+      },
+
+      // Refresh an open bot's channels without cancelling a scan in progress.
+      async syncOpenBotChannels() {
+        if (this.agentBotFormMode !== 'edit' || !this.agentBotEditId || this.wxCode || this.tgCode || this.channelBusy) return;
+        const id = this.agentBotEditId;
+        try {
+          const next = await this.fetchBotChannels(id);
+          if (id === this.agentBotEditId) this.botChannels = next;
+        } catch (e) {}
+      },
+
+      async loadBotChannels(id) {
+        this.cancelChannelFlows();
+        this.channelError = '';
+        this.botChannels = { wechat: null, discord: null, telegram: null };
+        if (!id) return;
+        try {
+          this.botChannels = await this.fetchBotChannels(id);
+        } catch (e) { this.channelError = e.message; }
+      },
+
+      async channelFail(r) {
+        const d = await r.json().catch(function() { return {}; });
+        throw new Error(d.error || ('HTTP ' + r.status));
+      },
+
+      async disconnectChannel(kind) {
+        if (this.channelBusy || !this.agentBotEditId) return;
+        this.channelError = '';
+        this.channelBusy = kind;
+        try {
+          const r = await fetch('/api/mates/' + this.agentBotEditId + '/channels/' + kind, { method: 'DELETE' });
+          if (!r.ok) await this.channelFail(r);
+          await this.loadBotChannels(this.agentBotEditId);
+          await this.loadAgentBots();
+        } catch (e) { this.channelError = e.message; this.channelBusy = ''; }
+      },
+
+      async startWechat() {
+        if (this.channelBusy || !this.agentBotEditId) return;
+        this.channelError = '';
+        this.channelBusy = 'wechat';
+        try {
+          const r = await fetch('/api/mates/' + this.agentBotEditId + '/channels/wechat/login/start', { method: 'POST' });
+          if (!r.ok) await this.channelFail(r);
+          const d = await r.json();
+          this.wxCode = d.qrcode;
+          this.wxImage = d.qrcode_image || '';
+          if (this.wxTimer) clearInterval(this.wxTimer);
+          this.wxTimer = setInterval(() => this.pollWechat(), 2000);
+        } catch (e) { this.channelError = e.message; }
+        finally { if (this.channelBusy === 'wechat') this.channelBusy = ''; }
+      },
+
+      cancelWechat() {
+        if (this.wxTimer) { clearInterval(this.wxTimer); this.wxTimer = null; }
+        this.wxImage = '';
+        this.wxCode = '';
+      },
+
+      // The status call can be held open by WeChat, so polls never overlap.
+      async pollWechat() {
+        const code = this.wxCode;
+        if (!code || !this.agentBotEditId || this.wxPolling) return;
+        this.wxPolling = true;
+        try {
+          const r = await fetch('/api/mates/' + this.agentBotEditId + '/channels/wechat/login/status?qrcode=' + encodeURIComponent(code));
+          if (!r.ok) await this.channelFail(r);
+          const d = await r.json();
+          if (code !== this.wxCode) return;
+          if (d.qrcode && d.qrcode !== code) {
+            this.wxCode = d.qrcode;
+            if (d.qrcode_image) this.wxImage = d.qrcode_image;
+          }
+          if (d.status === 'confirmed' || d.connected) {
+            this.cancelWechat();
+            await this.loadBotChannels(this.agentBotEditId);
+            await this.loadAgentBots();
+          }
+        } catch (e) { this.channelError = e.message; this.cancelWechat(); }
+        finally { this.wxPolling = false; }
+      },
+
+      async connectDiscord() {
+        if (this.channelBusy || !this.agentBotEditId || !this.dcToken.trim() || !this.dcOwner.trim()) return;
+        this.channelError = '';
+        this.channelBusy = 'discord';
+        try {
+          const r = await fetch('/api/mates/' + this.agentBotEditId + '/channels/discord', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ bot_token: this.dcToken.trim(), user_id: this.dcOwner.trim(), proxy_url: this.dcProxy.trim() }),
+          });
+          if (!r.ok) await this.channelFail(r);
+          this.dcToken = '';
+          this.dcOwner = '';
+          this.dcProxy = '';
+          await this.loadBotChannels(this.agentBotEditId);
+          await this.loadAgentBots();
+        } catch (e) { this.channelError = e.message; }
+        finally { if (this.channelBusy === 'discord') this.channelBusy = ''; }
+      },
+
+      async startTelegram() {
+        if (this.channelBusy || !this.agentBotEditId || !this.tgToken.trim()) return;
+        this.channelError = '';
+        this.channelBusy = 'telegram';
+        try {
+          const r = await fetch('/api/mates/' + this.agentBotEditId + '/channels/telegram/pair/start', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ bot_token: this.tgToken.trim(), proxy_url: this.tgProxy.trim() }),
+          });
+          if (!r.ok) await this.channelFail(r);
+          const d = await r.json();
+          this.tgCode = d.code;
+          this.tgLink = d.link;
+          this.tgUsername = d.username;
+          this.tgImage = d.qrcode_image || '';
+          if (this.tgTimer) clearInterval(this.tgTimer);
+          this.tgTimer = setInterval(() => this.pollTelegram(), 2000);
+        } catch (e) { this.channelError = e.message; }
+        finally { if (this.channelBusy === 'telegram') this.channelBusy = ''; }
+      },
+
+      cancelTelegram() {
+        if (this.tgTimer) { clearInterval(this.tgTimer); this.tgTimer = null; }
+        this.tgCode = '';
+        this.tgLink = '';
+        this.tgImage = '';
+        this.tgUsername = '';
+      },
+
+      async pollTelegram() {
+        const code = this.tgCode;
+        if (!code || !this.agentBotEditId) return;
+        try {
+          const r = await fetch('/api/mates/' + this.agentBotEditId + '/channels/telegram/pair/status?code=' + encodeURIComponent(code));
+          if (!r.ok) await this.channelFail(r);
+          const d = await r.json();
+          if (code !== this.tgCode) return;
+          if (d.status === 'confirmed') {
+            this.tgToken = '';
+            this.tgProxy = '';
+            this.cancelTelegram();
+            await this.loadBotChannels(this.agentBotEditId);
+            await this.loadAgentBots();
+          } else if (d.status === 'expired') {
+            this.cancelTelegram();
+            this.channelError = 'Pairing expired. Try again.';
+          }
+        } catch (e) { this.channelError = e.message; this.cancelTelegram(); }
       },
 
       agentBotModelsForAgent(agentId) {
@@ -1007,12 +1284,10 @@ const settingsAgentBotsJS = `
       eventOf(t) { return (t.eventTypes || [])[0] || ''; },
       agentBotEventKind(t) { return this.AGENT_BOT_EVENT_KINDS[this.eventOf(t)] || null; },
 
-      // Schedule and chat app triggers carry no path; the rest filter by path
-      // prefix (or, for agent_run_completed, by source bot name — same field).
+      // Scheduled triggers carry no path; the rest filter by path prefix
+      // (or, for agent_run_completed, by source bot name — same field).
       filterKindOf(et) {
         if (et === 'scheduled') return 'none';
-        const def = this.agentBotEventDefs.find(function(d){ return d.type === et; });
-        if (def && def.chat) return 'none';
         return et === 'agent_run_completed' ? 'bots' : 'path';
       },
       hasPathFilter(t) { return this.filterKindOf(this.eventOf(t)) !== 'none'; },

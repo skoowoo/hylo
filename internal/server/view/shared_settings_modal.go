@@ -89,14 +89,13 @@ const settingsModalCSS = `
        chrome matches every other section's header row instead of
        inventing its own; just a title here since the pane below already
        carries whatever controls it needs. */
-    .settings-content-title { font-size: var(--text-base); font-weight: 600; color: var(--fg); }
-
-    /* Shared "back button (+ optional title)" row at the top of a detail
-       view — Server's config-section detail and the Bots form both
-       push into one via the same back-button pattern
-       (agentBotBackBtnHTML). Only the margin below it varies per caller
-       (.cfg-detail-header / .agent-bot-form-header). */
-    .settings-detail-header { display: flex; align-items: center; gap: 0.75rem; }
+    .settings-content-title {
+      min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      font-size: var(--text-base); font-weight: 600; color: var(--fg);
+    }
+    /* A tab's detail view (a config section, a bot) leaves through here. The
+       negative margins line the chevron up with the pane's left edge. */
+    .settings-back { margin: 0 -4px 0 -10px; }
 
     /* ── Pane ─────────────────────────────────────────────────── */
     /* Shared by every tab that's just "a scrollable column of fields"
@@ -127,7 +126,11 @@ func settingsModalHTML() string {
         <div class="settings-content">
 
           <div class="home-list-head">
-            <span class="settings-content-title" x-text="` + settingsTabTitlesJS() + `[tab] || ''"></span>
+            <button type="button" class="icon-btn-ghost settings-back" x-show="detailView()" @click="detailView().back()"
+                    :title="detailView() ? 'Back to ' + detailView().parent : ''" :aria-label="detailView() ? 'Back to ' + detailView().parent : ''">
+              <svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+            </button>
+            <span class="settings-content-title" x-text="detailView() ? detailView().title : (` + settingsTabTitlesJS() + `[tab] || '')"></span>
           </div>
 
 ` +
@@ -171,6 +174,19 @@ const settingsCtrlJS = `
       agentsLoaded: false,
       agentsFromCache: false,
       agentsCachedAt: 0,
+      // The open detail view of the current tab, which titles the pane header and
+      // gets its back button; null on a tab's own list.
+      detailView() {
+        if (this.tab === 'server' && this.openSection) {
+          return { title: this.sectionLabel(this.openSection), parent: 'Configuration', back: () => { this.openSection = ''; } };
+        }
+        if (this.tab === 'agent-bots' && this.agentBotFormMode) {
+          const name = this.agentBotDraft.name.trim();
+          return { title: name || (this.agentBotFormMode === 'create' ? 'New bot' : 'Untitled bot'), parent: 'Bots', back: () => this.closeAgentBotForm() };
+        }
+        return null;
+      },
+
       async init() {
         // Another same-origin view can change the accent; keep the picker's ring in step.
         window.addEventListener('hylo:accent', () => {
@@ -188,7 +204,9 @@ const settingsCtrlJS = `
         // Bots and skills change from anywhere (an agent, another window): keep an open tab current.
         if (window.__hyloLive) {
           __hyloLive.on('bots', () => {
-            if (Alpine.store('settingsModal').open && this.tab === 'agent-bots' && this.botSetup.phase === 'idle') this.loadAgentBots();
+            if (!(Alpine.store('settingsModal').open && this.tab === 'agent-bots' && this.botSetup.phase === 'idle')) return;
+            this.loadAgentBots();
+            this.syncOpenBotChannels();
           });
           __hyloLive.on('skills', () => {
             if (Alpine.store('settingsModal').open && this.tab === 'skills') this.loadSkills();
@@ -264,7 +282,7 @@ const settingsCtrlJS = `
       },
 
 ` +
-	settingsAppearanceJS + settingsServerJS + settingsWechatJS + settingsTelegramJS + settingsAgentCLIJS + settingsNotificationsJS + settingsShortcutsJS + settingsAgentBotsJS + settingsSkillsJS +
+	settingsAppearanceJS + settingsServerJS + settingsAgentCLIJS + settingsNotificationsJS + settingsShortcutsJS + settingsAgentBotsJS + settingsSkillsJS +
 	`    };
   }
 `
@@ -314,12 +332,6 @@ func cselectHTML(labelExpr, body string) string {
 		`<span class="cselect-btn-text" x-text="` + labelExpr + `"></span>` +
 		`<svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>` +
 		`</button><div class="cselect-dropdown" x-show="csOpen">` + body + `</div></div>`
-}
-
-func agentBotBackBtnHTML(onclick, label string) string {
-	return `<button class="agent-bot-back-btn" type="button" @click="` + onclick + `">` +
-		`<svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>` +
-		label + `</button>`
 }
 
 func toolbarRefreshBtnHTML(loadingExpr, onclick, busyLabel string) string {

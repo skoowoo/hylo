@@ -1015,16 +1015,14 @@
     clock: '<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 7v5l3 2"/></svg>',
     note: '<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" d="M14 3v6h6"/></svg>',
     layers: '<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3 3 8l9 5 9-5z"/><path stroke-linecap="round" stroke-linejoin="round" d="m3 13 9 5 9-5"/></svg>',
-    message: '<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg>',
     bolt: '<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg>',
   };
   var READ_SVG = '<svg fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';
   var WRITE_SVG = '<svg fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 20h9"/><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 3.5a2.1 2.1 0 1 1 3 3L7 19l-4 1 1-4z"/></svg>';
 
-  function triggerIcon(et, snap) {
+  function triggerIcon(et) {
     if (et === 'scheduled') return TRIG_ICONS.clock;
     if (et === 'compile_requested') return TRIG_ICONS.layers;
-    if (snap.isChatEvent(et)) return TRIG_ICONS.message;
     if (/note/.test(et)) return TRIG_ICONS.note;
     return TRIG_ICONS.bolt;
   }
@@ -1523,7 +1521,7 @@
         card.setAttribute('aria-pressed', snap.triggerFilter === t.id ? 'true' : 'false');
         var head = el('div', 'trig-card-head');
         var icon = el('span', 'trig-card-icon');
-        icon.appendChild(svg(triggerIcon(et, snap)));
+        icon.appendChild(svg(triggerIcon(et)));
         head.appendChild(icon);
         var name = el('span', 'trig-card-name');
         name.textContent = triggerName(t, i);
