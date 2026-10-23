@@ -7,37 +7,25 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"sync"
 	"time"
+
+	"github.com/hardhacker/hylo/internal/config"
 )
 
 var errBlocked = errors.New("url not allowed")
 
 // safeClient reaches only public addresses. A direct dial pins the IP it
 // checked, so a name cannot resolve public at the check and private at
-// connect. Through the user's proxy the proxy resolves the name, so the host
-// is checked just before handing off; that leaves the window open in exchange
-// for working where sites are only reachable through a proxy.
-func safeClient(env func() []string) *http.Client {
-	var once sync.Once
-	var proxy proxySettings
-	load := func() proxySettings {
-		once.Do(func() {
-			if env != nil {
-				proxy = proxyFromEnv(env())
-			}
-		})
-		return proxy
-	}
+// connect. Through the configured proxy the proxy resolves the name, so the
+// host is checked just before handing off; that leaves the window open in
+// exchange for working where sites are only reachable through a proxy.
+func safeClient(proxy config.Proxy) *http.Client {
 	dialer := &net.Dialer{Timeout: 5 * time.Second}
 	direct := publicDial(dialer)
+	allow := proxy.Addr()
 	transport := &http.Transport{
 		Proxy: func(req *http.Request) (*url.URL, error) {
-			p := load()
-			if p.fn == nil {
-				return nil, nil
-			}
-			pu, err := p.fn(req.URL)
+			pu, err := proxy.Func()(req)
 			if pu == nil || err != nil {
 				return pu, err
 			}
@@ -47,7 +35,7 @@ func safeClient(env func() []string) *http.Client {
 			return pu, nil
 		},
 		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-			if load().addrs[addr] {
+			if allow != "" && addr == allow {
 				return dialer.DialContext(ctx, network, addr)
 			}
 			return direct(ctx, network, addr)
@@ -87,6 +75,27 @@ func validateURL(u *url.URL) error {
 	}
 	if ip := net.ParseIP(host); ip != nil && !publicIP(ip) {
 		return errBlocked
+	}
+	return nil
+}
+
+// checkHost refuses a name that resolves to a non-public address. A failed
+// lookup passes: the proxy may resolve what local DNS cannot.
+func checkHost(ctx context.Context, host string) error {
+	if ip := net.ParseIP(host); ip != nil {
+		if !publicIP(ip) {
+			return errBlocked
+		}
+		return nil
+	}
+	ips, err := net.DefaultResolver.LookupIPAddr(ctx, host)
+	if err != nil {
+		return nil
+	}
+	for _, ip := range ips {
+		if !publicIP(ip.IP) {
+			return errBlocked
+		}
 	}
 	return nil
 }

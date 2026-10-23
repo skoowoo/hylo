@@ -17,6 +17,7 @@ import (
 	"golang.org/x/net/html/charset"
 	"golang.org/x/net/idna"
 
+	"github.com/hardhacker/hylo/internal/config"
 	"github.com/hardhacker/hylo/internal/storage"
 )
 
@@ -76,11 +77,11 @@ type flight struct {
 }
 
 // NewResolver resolves URLs for vault, refusing private and loopback targets.
-// env supplies the proxy settings; nil fetches directly.
-func NewResolver(v *storage.Vault, env func() []string) *Resolver {
+// A zero proxy fetches directly.
+func NewResolver(v *storage.Vault, proxy config.Proxy) *Resolver {
 	return &Resolver{
 		vault:    v,
-		client:   safeClient(env),
+		client:   safeClient(proxy),
 		now:      time.Now,
 		inflight: map[string]*flight{},
 	}

@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/hardhacker/hylo/internal/config"
 	"github.com/hardhacker/hylo/internal/discord"
 	"github.com/hardhacker/hylo/internal/mate"
 	"github.com/hardhacker/hylo/internal/plugin"
@@ -43,6 +44,7 @@ type Hub struct {
 	root   string
 	upload string
 	log    *slog.Logger
+	proxy  config.Proxy
 	chat   Chatter
 	kick   chan struct{}
 
@@ -71,13 +73,14 @@ type live struct {
 	done   chan struct{}
 }
 
-func NewHub(store *mate.Store, vaultRoot, uploadDir string, logger *slog.Logger) *Hub {
+func NewHub(store *mate.Store, vaultRoot, uploadDir string, logger *slog.Logger, proxy config.Proxy) *Hub {
 	if logger == nil {
 		logger = slog.Default()
 	}
 	return &Hub{
 		store:   store,
 		root:    vaultRoot,
+		proxy:   proxy,
 		upload:  uploadDir,
 		log:     logger,
 		kick:    make(chan struct{}, 1),
@@ -192,11 +195,11 @@ func (h *Hub) spawn(parent context.Context, ch mate.Channel) {
 	}
 	switch ch.Kind {
 	case mate.ChannelTelegram:
-		link, err = openTelegram(ch, h.log, on)
+		link, err = openTelegram(ch, h.proxy, h.log, on)
 	case mate.ChannelDiscord:
-		link, err = openDiscord(ch, h.log, on)
+		link, err = openDiscord(ch, h.proxy, h.log, on)
 	case mate.ChannelWechat:
-		link, err = openWechat(ch, h.stateDir(ch.ID), h.log, on)
+		link, err = openWechat(ch, h.stateDir(ch.ID), h.proxy, h.log, on)
 	default:
 		cancel()
 		return
@@ -239,7 +242,7 @@ func (l *live) stop() {
 }
 
 func fingerprint(c mate.Channel) string {
-	return strings.Join([]string{c.Token, c.OwnerUserID, c.ExternalID, c.ProxyURL, c.BaseURL}, "\x00")
+	return strings.Join([]string{c.Token, c.OwnerUserID, c.ExternalID, c.BaseURL}, "\x00")
 }
 
 // plan decides which live connections to drop and which bindings to start.

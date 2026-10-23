@@ -8,6 +8,10 @@ port = 54321
 # with `hylo auth show`. HYLO_API_KEY overrides this file.
 # api_key = ""
 
+# Outbound proxy for Discord, Telegram, link previews, remote images, WeChat, and git.
+# http and https are accepted. Leave unset to connect directly.
+# proxy = "http://127.0.0.1:7890"
+
 [vault]
 # Root directory of the Vault (Hylo's personal data store).
 # Supports ~ for the home directory.

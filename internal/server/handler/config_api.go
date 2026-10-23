@@ -149,9 +149,9 @@ func (c *ConfigHTTP) Patch(w http.ResponseWriter, r *http.Request) {
 	}
 	config.NormalizeJSONDecodedMap(body.Patch)
 
-	// Listen address, API key, and TLS paths are process settings. Nothing in the
-	// UI edits them; change the config file or run `hylo auth rotate`, then restart.
-	if patchTouchesServer(body.Patch) {
+	// Listen address, API key, and TLS paths stay out of this API. server.proxy
+	// is the one server field the settings UI writes.
+	if patchTouchesLockedServer(body.Patch) {
 		respondJSON(w, http.StatusForbidden, map[string]any{
 			"error": "server settings cannot be changed through the API; edit the config file directly",
 		})
@@ -196,13 +196,21 @@ func (c *ConfigHTTP) Patch(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func patchTouchesServer(patch map[string]any) bool {
+func patchTouchesLockedServer(patch map[string]any) bool {
 	v, ok := patch["server"]
 	if !ok {
 		return false
 	}
 	m, isMap := v.(map[string]any)
-	return !isMap || len(m) > 0
+	if !isMap {
+		return true
+	}
+	for k := range m {
+		if k != "proxy" {
+			return true
+		}
+	}
+	return false
 }
 
 func methodNotAllowed(w http.ResponseWriter, allowed []string) {

@@ -27,7 +27,6 @@ type Channel struct {
 	OwnerUserID string
 	ExternalID  string // ilink_bot_id, Discord bot user id, or Telegram bot user id
 	Display     string
-	ProxyURL    string
 	BaseURL     string
 	CreatedAt   time.Time
 }
@@ -47,7 +46,7 @@ func ValidChannelKind(kind string) bool {
 	}
 }
 
-const channelCols = `c.id, c.mate_id, c.kind, c.token, c.owner_user_id, c.external_id, c.display, c.proxy_url, c.base_url, c.created_at`
+const channelCols = `c.id, c.mate_id, c.kind, c.token, c.owner_user_id, c.external_id, c.display, c.base_url, c.created_at`
 
 // ListChannels returns every binding.
 func (s *Store) ListChannels() ([]Channel, error) {
@@ -74,7 +73,7 @@ func (s *Store) queryChannels(q string, args ...any) ([]Channel, error) {
 	for rows.Next() {
 		var c Channel
 		var created int64
-		if err := rows.Scan(&c.ID, &c.MateID, &c.Kind, &c.Token, &c.OwnerUserID, &c.ExternalID, &c.Display, &c.ProxyURL, &c.BaseURL, &created); err != nil {
+		if err := rows.Scan(&c.ID, &c.MateID, &c.Kind, &c.Token, &c.OwnerUserID, &c.ExternalID, &c.Display, &c.BaseURL, &created); err != nil {
 			return nil, fmt.Errorf("mate: scan channel: %w", err)
 		}
 		c.CreatedAt = time.UnixMilli(created)
@@ -90,7 +89,6 @@ func (s *Store) SaveChannel(c Channel) (Channel, error) {
 	c.ExternalID = strings.TrimSpace(c.ExternalID)
 	c.OwnerUserID = strings.TrimSpace(c.OwnerUserID)
 	c.Display = strings.TrimSpace(c.Display)
-	c.ProxyURL = strings.TrimSpace(c.ProxyURL)
 	c.BaseURL = strings.TrimSpace(c.BaseURL)
 	if !ValidChannelKind(c.Kind) || c.MateID == "" || c.Token == "" || c.ExternalID == "" || c.OwnerUserID == "" {
 		return Channel{}, ErrChannelIncomplete
@@ -122,9 +120,9 @@ func (s *Store) SaveChannel(c Channel) (Channel, error) {
 	now := time.Now().UnixMilli()
 	c.ID = uuid.NewString()
 	if _, err := tx.Exec(
-		`INSERT INTO bot_channels(id, mate_id, kind, token, owner_user_id, external_id, display, proxy_url, base_url, created_at)
-		 VALUES (?,?,?,?,?,?,?,?,?,?)`,
-		c.ID, c.MateID, c.Kind, c.Token, c.OwnerUserID, c.ExternalID, c.Display, c.ProxyURL, c.BaseURL, now,
+		`INSERT INTO bot_channels(id, mate_id, kind, token, owner_user_id, external_id, display, base_url, created_at)
+		 VALUES (?,?,?,?,?,?,?,?,?)`,
+		c.ID, c.MateID, c.Kind, c.Token, c.OwnerUserID, c.ExternalID, c.Display, c.BaseURL, now,
 	); err != nil {
 		return Channel{}, fmt.Errorf("mate: save channel: %w", err)
 	}

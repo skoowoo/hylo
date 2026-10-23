@@ -313,6 +313,7 @@ const settingsServerJS = `
 
       sectionLabel(s) {
         const m = {
+          'proxy': 'Proxy',
           'vault': 'Vault', 'agent': 'Agent',
           'plugins.search': 'Search', 'plugins.git_sync': 'Git Sync',
         };
@@ -321,6 +322,7 @@ const settingsServerJS = `
 
       sectionIntro(s) {
         const m = {
+          'proxy': 'One proxy for Discord, Telegram, link previews, remote images, WeChat, and git.',
           'vault': 'Paths, layout, and core vault behavior.',
           'agent': 'Agent CLI integration and global prompt settings.',
           'plugins.search': 'Indexing and search quality.',

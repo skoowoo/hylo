@@ -102,6 +102,11 @@ type ServerConfig struct {
 
 	ReadTimeout  int `mapstructure:"read_timeout" json:"read_timeout" toml:"read_timeout"`    // seconds
 	WriteTimeout int `mapstructure:"write_timeout" json:"write_timeout" toml:"write_timeout"` // seconds
+
+	// Proxy is the outbound proxy for Discord, Telegram, link previews,
+	// remote images, WeChat, and git. Empty connects directly.
+	// Example: "http://127.0.0.1:7890".
+	Proxy string `mapstructure:"proxy" json:"proxy" toml:"proxy"`
 }
 
 type LogConfig struct {
@@ -286,6 +291,7 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("server.port", 54321)
 	v.SetDefault("server.read_timeout", 1800)
 	v.SetDefault("server.write_timeout", 1800)
+	v.SetDefault("server.proxy", "")
 
 	v.SetDefault("log.level", "info")
 	v.SetDefault("log.format", "text")

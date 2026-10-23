@@ -8,6 +8,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/hardhacker/hylo/internal/config"
 	"github.com/hardhacker/hylo/internal/mate"
 )
 
@@ -78,7 +79,7 @@ func TestHandleJoinsTheCurrentChat(t *testing.T) {
 	}
 
 	chat := &fakeChat{}
-	h := NewHub(store, t.TempDir(), "", nil)
+	h := NewHub(store, t.TempDir(), "", nil, config.Proxy{})
 	h.SetChatter(chat)
 	ch := mate.Channel{MateID: m.ID, Kind: mate.ChannelWechat, OwnerUserID: "owner"}
 	out := &fakeOut{}
@@ -128,7 +129,7 @@ func TestSweepKeepsOnlyBoundState(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	h := NewHub(store, root, "", nil)
+	h := NewHub(store, root, "", nil, config.Proxy{})
 	for _, id := range []string{ch.ID, "gone"} {
 		if err := os.MkdirAll(h.stateDir(id), 0o755); err != nil {
 			t.Fatal(err)

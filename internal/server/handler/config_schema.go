@@ -41,6 +41,9 @@ func buildConfigSchema() []SchemaField {
 		{Key: "server.write_timeout", Type: "int", Section: "server", Label: "Write timeout (s)",
 			Description: "HTTP server write deadline in seconds.",
 			Default:     60, Constraints: map[string]int{"min": 0}},
+		{Key: "server.proxy", Type: "string", Section: "proxy", Label: "Proxy",
+			Description: "HTTP or HTTPS proxy for Discord, Telegram, link previews, remote images, WeChat, and git. Example: http://127.0.0.1:7890. Leave empty to connect directly. Restart to apply.",
+			Default:     ""},
 
 		{Key: "vault.path", Type: "string", Section: "vault", Label: "Vault root",
 			Description: "Filesystem root directory for markdown notes (~ allowed).",

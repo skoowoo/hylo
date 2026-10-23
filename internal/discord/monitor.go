@@ -4,17 +4,18 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"net/url"
 	"strings"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/gorilla/websocket"
+
+	"github.com/hardhacker/hylo/internal/config"
 )
 
 // Identify checks a bot token and returns the bot's user id and username.
-func Identify(token, proxyURL string) (id, username string, err error) {
-	s, err := NewSession(token, proxyURL)
+func Identify(token string, proxy config.Proxy) (id, username string, err error) {
+	s, err := NewSession(token, proxy)
 	if err != nil {
 		return "", "", err
 	}
@@ -29,9 +30,8 @@ func Identify(token, proxyURL string) (id, username string, err error) {
 }
 
 // NewSession creates a discordgo session configured with the required Gateway intents.
-// proxyURL is optional (e.g. "socks5://127.0.0.1:1080"); pass "" to use direct connection.
-// The caller is responsible for calling session.Open() via RunMonitor.
-func NewSession(token, proxyURL string) (*discordgo.Session, error) {
+// HTTP and the gateway websocket both use proxy. The caller opens the session via RunMonitor.
+func NewSession(token string, proxy config.Proxy) (*discordgo.Session, error) {
 	s, err := discordgo.New("Bot " + token)
 	if err != nil {
 		return nil, fmt.Errorf("discord: create session: %w", err)
@@ -41,18 +41,10 @@ func NewSession(token, proxyURL string) (*discordgo.Session, error) {
 	s.Identify.Intents = discordgo.IntentsDirectMessages | discordgo.IntentsMessageContent
 	s.Identify.Presence = discordgo.GatewayStatusUpdate{Status: "online"}
 
-	if proxyURL != "" {
-		pu, err := url.Parse(proxyURL)
-		if err != nil {
-			return nil, fmt.Errorf("discord: invalid proxy_url %q: %w", proxyURL, err)
-		}
-		transport := &http.Transport{Proxy: http.ProxyURL(pu)}
-		s.Client = &http.Client{Transport: transport}
-		// WebSocket gateway also needs to go through the proxy.
-		s.Dialer = &websocket.Dialer{
-			Proxy:            http.ProxyURL(pu),
-			HandshakeTimeout: 45 * time.Second,
-		}
+	s.Client = &http.Client{Transport: proxy.Transport()}
+	s.Dialer = &websocket.Dialer{
+		Proxy:            proxy.Func(),
+		HandshakeTimeout: 45 * time.Second,
 	}
 
 	return s, nil

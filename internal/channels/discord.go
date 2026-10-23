@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/hardhacker/hylo/internal/config"
 	"github.com/hardhacker/hylo/internal/discord"
 	"github.com/hardhacker/hylo/internal/mate"
 
@@ -21,8 +22,8 @@ type discordLink struct {
 	on      func(chatID, userID, text string, fetch imageFetch)
 }
 
-func openDiscord(ch mate.Channel, log *slog.Logger, on func(chatID, userID, text string, fetch imageFetch)) (runner, error) {
-	s, err := discord.NewSession(ch.Token, ch.ProxyURL)
+func openDiscord(ch mate.Channel, proxy config.Proxy, log *slog.Logger, on func(chatID, userID, text string, fetch imageFetch)) (runner, error) {
+	s, err := discord.NewSession(ch.Token, proxy)
 	if err != nil {
 		return nil, err
 	}

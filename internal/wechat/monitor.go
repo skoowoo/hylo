@@ -8,6 +8,8 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/hardhacker/hylo/internal/config"
 )
 
 // ErrSessionExpired means WeChat unbound this bot. The token will not work again.
@@ -65,7 +67,7 @@ type MonitorOpts struct {
 func RunMonitor(ctx context.Context, opts MonitorOpts) error {
 	client := opts.Client
 	if client == nil {
-		client = NewClient()
+		client = NewClient(config.Proxy{})
 	}
 	log := opts.Log
 	if log == nil {

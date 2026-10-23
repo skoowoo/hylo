@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/hardhacker/hylo/internal/config"
 	"github.com/hardhacker/hylo/internal/mate"
 	"github.com/hardhacker/hylo/internal/wechat"
 )
@@ -36,7 +37,7 @@ type wechatLink struct {
 	tickets  map[string]typingTicket
 }
 
-func openWechat(ch mate.Channel, dir string, log *slog.Logger, on func(chatID, userID, text string, fetch imageFetch)) (runner, error) {
+func openWechat(ch mate.Channel, dir string, proxy config.Proxy, log *slog.Logger, on func(chatID, userID, text string, fetch imageFetch)) (runner, error) {
 	base := ch.BaseURL
 	if base == "" {
 		base = wechat.DefaultBaseURL
@@ -45,7 +46,7 @@ func openWechat(ch mate.Channel, dir string, log *slog.Logger, on func(chatID, u
 		baseURL: base,
 		token:   ch.Token,
 		owner:   ch.OwnerUserID,
-		client:  wechat.NewClient(),
+		client:  wechat.NewClient(proxy),
 		dir:     dir,
 		log:     log,
 		on:      on,

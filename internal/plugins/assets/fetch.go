@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"net/netip"
 	"time"
+
+	"github.com/hardhacker/hylo/internal/config"
 )
 
 const (
@@ -39,7 +41,7 @@ func blockedIP(ip netip.Addr) bool {
 
 // rejectInternalHost fails when host is, or resolves to, an internal address.
 // Resolution is separate from the dial (a rebinding race is possible), but
-// checking here keeps it working behind an env proxy, where a dial-time check
+// checking the target keeps a configured proxy working: a dial-time check
 // would only ever see the proxy's address.
 func rejectInternalHost(host string) error {
 	if ip, err := netip.ParseAddr(host); err == nil {
@@ -78,9 +80,9 @@ func (t guardTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	return t.base.RoundTrip(req)
 }
 
-func newFetchClient() *http.Client {
+func newFetchClient(proxy config.Proxy) *http.Client {
 	return &http.Client{
 		Timeout:   fetchTimeout,
-		Transport: guardTransport{base: http.DefaultTransport, check: rejectInternalHost},
+		Transport: guardTransport{base: proxy.Transport(), check: rejectInternalHost},
 	}
 }

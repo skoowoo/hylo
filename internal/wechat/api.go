@@ -13,6 +13,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/hardhacker/hylo/internal/config"
 )
 
 // Client talks to the WeChat iLink Bot HTTP API.
@@ -22,9 +24,10 @@ type Client struct {
 	CDNBase string
 }
 
-// NewClient returns a client with sensible defaults.
-func NewClient() *Client {
-	return &Client{HTTP: &http.Client{Timeout: 0}} // per-request timeouts
+// NewClient talks to iLink through proxy. A zero proxy connects directly.
+// Timeout stays 0; callers set a deadline on each request.
+func NewClient(proxy config.Proxy) *Client {
+	return &Client{HTTP: &http.Client{Timeout: 0, Transport: proxy.Transport()}}
 }
 
 func randomWechatUin() string {

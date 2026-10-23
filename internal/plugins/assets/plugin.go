@@ -9,6 +9,7 @@ import (
 	"path"
 	"strings"
 
+	"github.com/hardhacker/hylo/internal/config"
 	"github.com/hardhacker/hylo/internal/plugin"
 	"github.com/hardhacker/hylo/internal/storage"
 	"github.com/hardhacker/hylo/internal/util"
@@ -27,12 +28,12 @@ type Plugin struct {
 	client  *http.Client
 }
 
-func New(vault *storage.Vault, logger *slog.Logger) *Plugin {
+func New(vault *storage.Vault, logger *slog.Logger, proxy config.Proxy) *Plugin {
 	p := &Plugin{
 		vault:   vault,
 		logger:  logger,
 		eventCh: make(chan plugin.Event, 256),
-		client:  newFetchClient(),
+		client:  newFetchClient(proxy),
 	}
 	p.settle = plugin.NewCoalescer(plugin.IndexWindow, p.enqueue)
 	return p

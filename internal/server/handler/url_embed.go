@@ -5,14 +5,15 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/hardhacker/hylo/internal/config"
 	"github.com/hardhacker/hylo/internal/storage"
 	"github.com/hardhacker/hylo/internal/urlembed"
 )
 
 // NewEmbedHandlers returns POST /api/embeds (NDJSON) and POST /api/embeds/progress.
 // One resolver so a URL has a single in-flight fetch and one HTTP client.
-func NewEmbedHandlers(v *storage.Vault, env func() []string) (list, progress http.Handler) {
-	r := urlembed.NewResolver(v, env)
+func NewEmbedHandlers(v *storage.Vault, proxy config.Proxy) (list, progress http.Handler) {
+	r := urlembed.NewResolver(v, proxy)
 	return &embedHandler{resolver: r}, &embedProgress{resolver: r}
 }
 

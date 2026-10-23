@@ -1,6 +1,7 @@
 package mate
 
 import (
+	"database/sql"
 	"errors"
 	"path/filepath"
 	"testing"
@@ -99,6 +100,61 @@ func TestChannelBelongsToOneBot(t *testing.T) {
 		if c.MateID != a.ID {
 			t.Fatalf("channel left on deleted bot: %+v", c)
 		}
+	}
+}
+
+func TestLegacyProxyURLColumnIsDropped(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "vault")
+	store, err := Open(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := &Mate{Name: "A", AgentID: "pi", Enabled: true}
+	if err := store.CreateMate(m); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.DB().Exec(`ALTER TABLE bot_channels ADD COLUMN proxy_url TEXT NOT NULL DEFAULT ''`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.DB().Exec(
+		`INSERT INTO bot_channels(id, mate_id, kind, token, owner_user_id, external_id, display, proxy_url, base_url, created_at)
+		 VALUES (?,?,?,?,?,?,?,?,?,?)`,
+		"ch1", m.ID, ChannelTelegram, "tok", "9", "bot-1", "@a", "http://127.0.0.1:7890", "", 1,
+	); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	store, err = Open(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+
+	rows, err := store.DB().Query(`PRAGMA table_info(bot_channels)`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var cid, name, typ string
+		var notnull, pk int
+		var dflt sql.NullString
+		if err := rows.Scan(&cid, &name, &typ, &notnull, &dflt, &pk); err != nil {
+			t.Fatal(err)
+		}
+		if name == "proxy_url" {
+			t.Fatal("proxy_url column remains")
+		}
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+	got, err := store.ListMateChannels(m.ID)
+	if err != nil || len(got) != 1 || got[0].Token != "tok" || got[0].Display != "@a" {
+		t.Fatalf("channel after drop: %+v %v", got, err)
 	}
 }
 

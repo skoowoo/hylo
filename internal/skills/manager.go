@@ -9,8 +9,6 @@ import (
 	"io"
 	"io/fs"
 	"log/slog"
-	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
 	"slices"
@@ -20,18 +18,12 @@ import (
 
 	git "github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
-	gogitclient "github.com/go-git/go-git/v5/plumbing/transport/client"
-	githttp "github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/hardhacker/hylo/internal/util"
 	builtin "github.com/hardhacker/hylo/skills"
 )
 
 //go:embed catalog.json
 var catalogJSON []byte
-
-// proxyOnce ensures the go-git HTTP transport is configured with proxy settings
-// exactly once per process, using the first Add call's shell environment.
-var proxyOnce sync.Once
 
 // DefaultSkills are the built-in skills shipped in the binary: always on at the
 // vault root, and neither removable nor editable for good (see SyncBuiltins).
@@ -95,14 +87,13 @@ var catalog = func() []CatalogEntry {
 
 // Manager tracks which skills are enabled and manages their vault symlinks.
 type Manager struct {
-	mu         sync.Mutex
-	sourceDir  string
-	vaultRoot  string
-	stateFile  string
-	st         state
-	shellEnvFn func() []string // returns login-shell env for git operations
-	descs      map[string]cachedDesc
-	onChange   func()
+	mu        sync.Mutex
+	sourceDir string
+	vaultRoot string
+	stateFile string
+	st        state
+	descs     map[string]cachedDesc
+	onChange  func()
 }
 
 // SetOnChange registers fn to run after a skill is added, turned on or off,
@@ -123,20 +114,14 @@ type cachedDesc struct {
 	text string
 }
 
-// Open creates a Manager rooted at vaultRoot. shellEnvFn is called when
-// adding skills to obtain the user's login-shell environment (proxy vars,
-// etc.); pass nil to fall back to os.Environ.
+// Open creates a Manager rooted at vaultRoot.
 // State is loaded from disk; errors are silently ignored.
-func Open(vaultRoot string, shellEnvFn func() []string) *Manager {
+func Open(vaultRoot string) *Manager {
 	home, _ := os.UserHomeDir()
-	if shellEnvFn == nil {
-		shellEnvFn = os.Environ
-	}
 	m := &Manager{
-		sourceDir:  filepath.Join(home, ".hylo", "skills"),
-		vaultRoot:  vaultRoot,
-		stateFile:  filepath.Join(vaultRoot, ".hylo", "skills_state.json"),
-		shellEnvFn: shellEnvFn,
+		sourceDir: filepath.Join(home, ".hylo", "skills"),
+		vaultRoot: vaultRoot,
+		stateFile: filepath.Join(vaultRoot, ".hylo", "skills_state.json"),
 	}
 	_ = m.loadState()
 	return m
@@ -382,9 +367,6 @@ func (m *Manager) Add(repo, name string, force bool) (string, error) {
 	}
 	repoURL := normalizeRepoURL(repo)
 
-	// Register proxy transport once, using the captured shell environment.
-	proxyOnce.Do(func() { setupProxyTransport(m.shellEnvFn()) })
-
 	tmp, err := os.MkdirTemp("", "hylo-skill-*")
 	if err != nil {
 		return "", fmt.Errorf("create temp dir: %w", err)
@@ -421,46 +403,6 @@ func (m *Manager) Add(repo, name string, force bool) (string, error) {
 // ValidName reports whether name is safe as a directory under ~/.hylo/skills.
 func ValidName(name string) bool {
 	return name != "" && !strings.ContainsAny(name, `/\`) && !strings.Contains(name, "..") && !strings.HasPrefix(name, ".")
-}
-
-// setupProxyTransport installs a custom go-git HTTP/HTTPS transport that routes
-// through the proxy found in env (http_proxy, https_proxy, all_proxy).
-// When no proxy is configured, Go's default ProxyFromEnvironment is preserved.
-func setupProxyTransport(env []string) {
-	proxyURL := pickProxyFromEnv(env)
-	var proxyFn func(*http.Request) (*url.URL, error)
-	if proxyURL != "" {
-		if u, err := url.Parse(proxyURL); err == nil && u.Host != "" {
-			proxyFn = http.ProxyURL(u)
-		}
-	}
-	if proxyFn == nil {
-		return // no proxy configured; go-git default is fine
-	}
-	customClient := &http.Client{
-		Transport: &http.Transport{Proxy: proxyFn},
-	}
-	transport := githttp.NewClient(customClient)
-	gogitclient.InstallProtocol("http", transport)
-	gogitclient.InstallProtocol("https", transport)
-}
-
-// pickProxyFromEnv returns the first non-empty proxy value found in env,
-// checking https_proxy, HTTPS_PROXY, http_proxy, HTTP_PROXY, all_proxy, ALL_PROXY
-// in that order.
-func pickProxyFromEnv(env []string) string {
-	m := make(map[string]string, len(env))
-	for _, kv := range env {
-		if i := strings.IndexByte(kv, '='); i > 0 {
-			m[kv[:i]] = kv[i+1:]
-		}
-	}
-	for _, key := range []string{"https_proxy", "HTTPS_PROXY", "http_proxy", "HTTP_PROXY", "all_proxy", "ALL_PROXY"} {
-		if v := m[key]; v != "" {
-			return v
-		}
-	}
-	return ""
 }
 
 // normalizeRepoURL converts "owner/repo" shorthand to a GitHub HTTPS URL.

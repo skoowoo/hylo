@@ -9,6 +9,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/hardhacker/hylo/internal/config"
 )
 
 func TestStartParam(t *testing.T) {
@@ -53,7 +55,7 @@ func fakeBotAPI(t *testing.T, ups []Update) (*Client, *[]string) {
 		_ = json.NewEncoder(w).Encode(map[string]any{"ok": true, "result": result})
 	}))
 	t.Cleanup(srv.Close)
-	c, _ := NewClient("tok", "")
+	c := NewClient("tok", config.Proxy{})
 	c.base = srv.URL
 	return c, &calls
 }
@@ -105,7 +107,7 @@ func TestDownloadErrorOmitsToken(t *testing.T) {
 		http.Error(w, "nope", http.StatusBadGateway)
 	}))
 	t.Cleanup(srv.Close)
-	c, _ := NewClient("secret-token", "")
+	c := NewClient("secret-token", config.Proxy{})
 	c.SetBase(srv.URL)
 	_, err := c.DownloadFile(context.Background(), "photos/a.png")
 	if err == nil || strings.Contains(err.Error(), "secret-token") {
@@ -118,7 +120,7 @@ func TestAPIErrors(t *testing.T) {
 		_ = json.NewEncoder(w).Encode(map[string]any{"ok": false, "error_code": 409, "description": "Conflict"})
 	}))
 	t.Cleanup(srv.Close)
-	c, _ := NewClient("tok", "")
+	c := NewClient("tok", config.Proxy{})
 	c.base = srv.URL
 	_, err := c.GetUpdates(context.Background(), 0, 0)
 	if !IsConflict(err) || IsUnauthorized(err) {

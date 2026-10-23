@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hardhacker/hylo/internal/config"
 	"github.com/hardhacker/hylo/internal/plugin"
 	"github.com/hardhacker/hylo/internal/storage"
 )
@@ -47,7 +48,7 @@ func TestFetchClientBlocksLoopback(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	if _, err := newFetchClient().Get(srv.URL); err == nil {
+	if _, err := newFetchClient(config.Proxy{}).Get(srv.URL); err == nil {
 		t.Fatal("expected loopback fetch to be rejected")
 	}
 }
@@ -81,7 +82,7 @@ func newTestPlugin(t *testing.T) *Plugin {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = vault.Close() })
-	p := New(vault, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	p := New(vault, slog.New(slog.NewTextHandler(io.Discard, nil)), config.Proxy{})
 	p.client = &http.Client{Timeout: 5 * time.Second}
 	return p
 }

@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/hardhacker/hylo/internal/config"
 	"github.com/hardhacker/hylo/internal/discord"
 	"github.com/hardhacker/hylo/internal/mate"
 	"github.com/hardhacker/hylo/internal/qrpng"
@@ -27,6 +28,7 @@ const telegramPairingTTL = 10 * time.Minute
 type ChannelHTTP struct {
 	logger *slog.Logger
 	store  *mate.Store
+	proxy  config.Proxy
 
 	mu      sync.Mutex
 	pairing map[string]*telegramPairing // mate id → in-progress Telegram pairing
@@ -41,17 +43,17 @@ type telegramPairing struct {
 	token    string
 	username string
 	botID    string
-	proxy    string
 	code     string
 	expires  time.Time
 	offset   int64
 	polling  bool
 }
 
-func NewChannelHTTP(logger *slog.Logger, store *mate.Store) *ChannelHTTP {
+func NewChannelHTTP(logger *slog.Logger, store *mate.Store, proxy config.Proxy) *ChannelHTTP {
 	return &ChannelHTTP{
 		logger:       logger,
 		store:        store,
+		proxy:        proxy,
 		pairing:      map[string]*telegramPairing{},
 		loginRefresh: map[string]int{},
 	}
@@ -131,7 +133,6 @@ func (h *ChannelHTTP) DiscordConnect(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		BotToken string `json:"bot_token"`
 		UserID   string `json:"user_id"`
-		ProxyURL string `json:"proxy_url"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		respondJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid json"})
@@ -139,19 +140,18 @@ func (h *ChannelHTTP) DiscordConnect(w http.ResponseWriter, r *http.Request) {
 	}
 	token := strings.TrimSpace(body.BotToken)
 	owner := strings.TrimSpace(body.UserID)
-	proxy := strings.TrimSpace(body.ProxyURL)
 	if token == "" || owner == "" {
 		respondJSON(w, http.StatusBadRequest, map[string]any{"error": "Bot token and your Discord user ID are required"})
 		return
 	}
-	botID, username, err := discord.Identify(token, proxy)
+	botID, username, err := discord.Identify(token, h.proxy)
 	if err != nil {
 		respondJSON(w, http.StatusBadRequest, map[string]any{"error": "Discord rejected this bot token"})
 		return
 	}
 	if _, err := h.store.SaveChannel(mate.Channel{
 		MateID: id, Kind: mate.ChannelDiscord, Token: token, OwnerUserID: owner,
-		ExternalID: botID, Display: username, ProxyURL: proxy,
+		ExternalID: botID, Display: username,
 	}); err != nil {
 		h.saveError(w, err)
 		return
@@ -168,18 +168,13 @@ func (h *ChannelHTTP) TelegramStart(w http.ResponseWriter, r *http.Request) {
 	id := m.ID
 	var body struct {
 		BotToken string `json:"bot_token"`
-		ProxyURL string `json:"proxy_url"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || strings.TrimSpace(body.BotToken) == "" {
 		respondJSON(w, http.StatusBadRequest, map[string]any{"error": "Paste the bot token from @BotFather"})
 		return
 	}
-	token, proxy := strings.TrimSpace(body.BotToken), strings.TrimSpace(body.ProxyURL)
-	client, err := telegram.NewClient(token, proxy)
-	if err != nil {
-		respondJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
-		return
-	}
+	token := strings.TrimSpace(body.BotToken)
+	client := telegram.NewClient(token, h.proxy)
 	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
 	defer cancel()
 	me, err := client.GetMe(ctx)
@@ -188,7 +183,7 @@ func (h *ChannelHTTP) TelegramStart(w http.ResponseWriter, r *http.Request) {
 			respondJSON(w, http.StatusBadRequest, map[string]any{"error": "Telegram rejected this bot token"})
 			return
 		}
-		respondJSON(w, http.StatusBadGateway, map[string]any{"error": "Can't reach Telegram: " + err.Error() + ". Set a proxy if api.telegram.org is blocked."})
+		respondJSON(w, http.StatusBadGateway, map[string]any{"error": "Can't reach Telegram: " + err.Error() + ". If api.telegram.org is blocked, set the proxy under Settings → Server → Config → Proxy and restart."})
 		return
 	}
 	if h.taken(id, mate.ChannelTelegram, token, strconv.FormatInt(me.ID, 10)) {
@@ -211,7 +206,7 @@ func (h *ChannelHTTP) TelegramStart(w http.ResponseWriter, r *http.Request) {
 	h.mu.Lock()
 	h.pairing[id] = &telegramPairing{
 		client: client, mateID: id, token: token, username: me.Username,
-		botID: strconv.FormatInt(me.ID, 10), proxy: proxy, code: code,
+		botID: strconv.FormatInt(me.ID, 10), code: code,
 		expires: time.Now().Add(telegramPairingTTL),
 	}
 	h.mu.Unlock()
@@ -296,7 +291,7 @@ func (h *ChannelHTTP) TelegramStatus(w http.ResponseWriter, r *http.Request) {
 	}
 	if _, err := h.store.SaveChannel(mate.Channel{
 		MateID: id, Kind: mate.ChannelTelegram, Token: p.token, OwnerUserID: ownerID,
-		ExternalID: p.botID, Display: "@" + p.username, ProxyURL: p.proxy,
+		ExternalID: p.botID, Display: "@" + p.username,
 	}); err != nil {
 		h.saveError(w, err)
 		return
@@ -313,7 +308,7 @@ func (h *ChannelHTTP) WechatStart(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	qr, err := wechat.StartQrcodeLogin(r.Context(), nil, wechat.DefaultBaseURL, wechat.DefaultBotType)
+	qr, err := wechat.StartQrcodeLogin(r.Context(), wechat.NewClient(h.proxy), wechat.DefaultBaseURL, wechat.DefaultBotType)
 	if err != nil {
 		h.logger.Warn("wechat login start failed", "err", err)
 		respondJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
@@ -348,7 +343,7 @@ func (h *ChannelHTTP) WechatStatus(w http.ResponseWriter, r *http.Request) {
 	refreshCount := h.loginRefresh[qrcode]
 	h.loginMu.Unlock()
 
-	result, newRefresh, err := wechat.PollQrcodeLogin(r.Context(), nil, wechat.DefaultBaseURL, qrcode, refreshCount, 3)
+	result, newRefresh, err := wechat.PollQrcodeLogin(r.Context(), wechat.NewClient(h.proxy), wechat.DefaultBaseURL, qrcode, refreshCount, 3)
 	if err != nil {
 		h.loginMu.Lock()
 		delete(h.loginRefresh, qrcode)

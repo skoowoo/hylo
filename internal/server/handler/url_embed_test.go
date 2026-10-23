@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hardhacker/hylo/internal/config"
 	"github.com/hardhacker/hylo/internal/storage"
 )
 
@@ -27,7 +28,7 @@ func TestEmbedsCachedAndRejected(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	h, _ := NewEmbedHandlers(v, nil)
+	h, _ := NewEmbedHandlers(v, config.Proxy{})
 	body := []byte(`{"urls":["https://Example.com/a#frag"]}`)
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/embeds", bytes.NewReader(body)))
@@ -90,7 +91,7 @@ func TestEmbedProgressSurvivesRefresh(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	list, progress := NewEmbedHandlers(v, nil)
+	list, progress := NewEmbedHandlers(v, config.Proxy{})
 	rec := httptest.NewRecorder()
 	body := []byte(`{"url":"https://CDN.example.com/ep.mp3","position_ms":12500}`)
 	progress.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/embeds/progress", bytes.NewReader(body)))

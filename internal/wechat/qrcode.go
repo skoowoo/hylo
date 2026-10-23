@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"time"
+
+	"github.com/hardhacker/hylo/internal/config"
 )
 
 // QrcodePollResult is one poll of QR login status.
@@ -17,7 +19,7 @@ type QrcodePollResult struct {
 // StartQrcodeLogin requests a new WeChat login QR code.
 func StartQrcodeLogin(ctx context.Context, client *Client, baseURL, botType string) (*QrcodeResp, error) {
 	if client == nil {
-		client = NewClient()
+		client = NewClient(config.Proxy{})
 	}
 	if baseURL == "" {
 		baseURL = DefaultBaseURL
@@ -29,7 +31,7 @@ func StartQrcodeLogin(ctx context.Context, client *Client, baseURL, botType stri
 // is below maxRefresh, a new QR code is fetched and returned.
 func PollQrcodeLogin(ctx context.Context, client *Client, baseURL, qrcode string, refreshCount, maxRefresh int) (QrcodePollResult, int, error) {
 	if client == nil {
-		client = NewClient()
+		client = NewClient(config.Proxy{})
 	}
 	if baseURL == "" {
 		baseURL = DefaultBaseURL

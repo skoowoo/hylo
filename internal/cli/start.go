@@ -67,6 +67,9 @@ func runServe(_ *cobra.Command, _ []string) error {
 	if err != nil {
 		return fmt.Errorf("load config: %w", err)
 	}
+	if _, err := config.ParseProxy(cfg.Server.Proxy); err != nil {
+		return fmt.Errorf("server.proxy: %w", err)
+	}
 	if cfgFileUsed != "" {
 		if abs, aerr := filepath.Abs(cfgFileUsed); aerr == nil {
 			cfgFileUsed = abs

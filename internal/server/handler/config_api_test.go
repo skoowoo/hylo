@@ -71,6 +71,19 @@ func TestRemotePatchCannotChangeServerSettings(t *testing.T) {
 		t.Fatalf("server settings were written:\n%s", raw)
 	}
 
+	rec = patchConfig(h, "127.0.0.1:9", "", `{"patch":{"server":{"proxy":"http://127.0.0.1:7890","host":"0.0.0.0"}}}`)
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("proxy mixed with host: %d %s", rec.Code, rec.Body.String())
+	}
+	rec = patchConfig(h, "10.1.2.3:443", "", `{"patch":{"server":{"proxy":"http://127.0.0.1:7890"}}}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("proxy patch: %d %s", rec.Code, rec.Body.String())
+	}
+	raw, err = os.ReadFile(path)
+	if err != nil || !strings.Contains(string(raw), "http://127.0.0.1:7890") || strings.Contains(string(raw), "0.0.0.0") {
+		t.Fatalf("proxy not saved cleanly: %v\n%s", err, raw)
+	}
+
 	rec = patchConfig(h, "10.1.2.3:443", "", `{"patch":{"vault":{"path":"/tmp/remote-vault"}}}`)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("vault patch: %d %s", rec.Code, rec.Body.String())

@@ -93,7 +93,6 @@ CREATE TABLE IF NOT EXISTS bot_channels (
     owner_user_id TEXT    NOT NULL DEFAULT '',
     external_id   TEXT    NOT NULL DEFAULT '',
     display       TEXT    NOT NULL DEFAULT '',
-    proxy_url     TEXT    NOT NULL DEFAULT '',
     base_url      TEXT    NOT NULL DEFAULT '',
     created_at    INTEGER NOT NULL
 );
@@ -143,6 +142,11 @@ func Open(vaultRoot string) (*Store, error) {
 	if _, err := db.Exec(schemaSQL); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("mate: schema: %w", err)
+	}
+	// proxy_url was a per-channel proxy. Outbound proxy is server.proxy now.
+	if _, err := db.Exec(`ALTER TABLE bot_channels DROP COLUMN proxy_url`); err != nil && !strings.Contains(err.Error(), "no such column") {
+		db.Close()
+		return nil, fmt.Errorf("mate: drop proxy_url: %w", err)
 	}
 	for _, col := range []string{"path_prefixes", "name"} {
 		if _, err := db.Exec(`ALTER TABLE mate_triggers ADD COLUMN ` + col + ` TEXT NOT NULL DEFAULT ''`); err != nil {

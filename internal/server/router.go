@@ -40,7 +40,8 @@ func newRouter(
 	skillsMgr *skills.Manager,
 	feed *live.Feed,
 	apiKey string,
-	channelHub *channels.Hub) http.Handler {
+	channelHub *channels.Hub,
+	proxy config.Proxy) http.Handler {
 	mux := http.NewServeMux()
 
 	h := handler.New(logger, cfg)
@@ -148,7 +149,7 @@ func newRouter(
 		mux.HandleFunc("DELETE /api/mates/{id}", mh.MateDELETE)
 		mux.HandleFunc("POST /api/mates/{id}/triggers/{tid}/run", ah.TriggerRunPOST)
 
-		chHTTP := handler.NewChannelHTTP(logger, mateStore)
+		chHTTP := handler.NewChannelHTTP(logger, mateStore, proxy)
 		mux.HandleFunc("GET /api/mates/{id}/channels", chHTTP.List)
 		mux.HandleFunc("DELETE /api/mates/{id}/channels/{kind}", chHTTP.Delete)
 		mux.HandleFunc("POST /api/mates/{id}/channels/discord", chHTTP.DiscordConnect)
@@ -197,7 +198,7 @@ func newRouter(
 	mux.Handle("POST /api/notes/exist", handler.NewNoteExist(vault))
 	mux.Handle("POST /api/notes/info", handler.NewNoteInfo(vault))
 	mux.Handle("POST /api/notes/meta", handler.NewNoteMeta(vault))
-	embeds, embedProgress := handler.NewEmbedHandlers(vault, agent.ShellEnv)
+	embeds, embedProgress := handler.NewEmbedHandlers(vault, proxy)
 	mux.Handle("POST /api/embeds", embeds)
 	mux.Handle("POST /api/embeds/progress", embedProgress)
 

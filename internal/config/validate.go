@@ -34,6 +34,9 @@ func Validate(cfg *Config) error {
 	if cfg.Server.WriteTimeout < 0 {
 		add("server.write_timeout", "must be >= 0")
 	}
+	if _, err := ParseProxy(cfg.Server.Proxy); err != nil {
+		add("server.proxy", err.Error())
+	}
 
 	tlsWant := cfg.Server.CertFile != "" || cfg.Server.KeyFile != ""
 	if tlsWant && (cfg.Server.CertFile == "" || cfg.Server.KeyFile == "") {

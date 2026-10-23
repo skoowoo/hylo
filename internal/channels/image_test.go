@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/bwmarrin/discordgo"
+
+	"github.com/hardhacker/hylo/internal/config"
 	"github.com/hardhacker/hylo/internal/discord"
 	"github.com/hardhacker/hylo/internal/mate"
 	"github.com/hardhacker/hylo/internal/telegram"
@@ -54,7 +56,7 @@ func TestHandleImageTurn(t *testing.T) {
 	}
 	chat := &fakeChat{}
 	dir := t.TempDir()
-	h := NewHub(store, t.TempDir(), dir, nil)
+	h := NewHub(store, t.TempDir(), dir, nil, config.Proxy{})
 	h.SetChatter(chat)
 	ch := mate.Channel{MateID: m.ID, Kind: mate.ChannelDiscord, OwnerUserID: "owner"}
 	out := &fakeOut{}
@@ -92,7 +94,7 @@ func TestCaptionlessImageWaitsForText(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = store.Close() })
 	chat := &fakeChat{}
-	h := NewHub(store, t.TempDir(), t.TempDir(), nil)
+	h := NewHub(store, t.TempDir(), t.TempDir(), nil, config.Proxy{})
 	h.SetChatter(chat)
 	ch := mate.Channel{MateID: "m", Kind: mate.ChannelWechat, OwnerUserID: "owner"}
 	out := &fakeOut{}
@@ -135,7 +137,7 @@ func TestStaleCaptionTimerLeavesTheNextBatch(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = store.Close() })
 	chat := &fakeChat{}
-	h := NewHub(store, t.TempDir(), t.TempDir(), nil)
+	h := NewHub(store, t.TempDir(), t.TempDir(), nil, config.Proxy{})
 	h.SetChatter(chat)
 	ch := mate.Channel{MateID: "m", Kind: mate.ChannelWechat, OwnerUserID: "owner"}
 	out := &fakeOut{}
@@ -186,10 +188,7 @@ func TestTelegramAlbumAndDownload(t *testing.T) {
 		_, _ = w.Write(tinyPNG)
 	}))
 	t.Cleanup(srv.Close)
-	client, err := telegram.NewClient("secret-token", "")
-	if err != nil {
-		t.Fatal(err)
-	}
+	client := telegram.NewClient("secret-token", config.Proxy{})
 	client.SetBase(srv.URL)
 
 	prev := albumWait

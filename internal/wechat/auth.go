@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/hardhacker/hylo/internal/config"
 )
 
 func tokenPath(storageDir string) string {
@@ -80,7 +82,7 @@ type LoginOpts struct {
 func Login(ctx context.Context, opts LoginOpts) (*TokenData, error) {
 	client := opts.Client
 	if client == nil {
-		client = NewClient()
+		client = NewClient(config.Proxy{})
 	}
 	log := opts.Log
 	if log == nil {

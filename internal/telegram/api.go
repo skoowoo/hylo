@@ -13,6 +13,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/hardhacker/hylo/internal/config"
 )
 
 // TextChunkLimit is the longest message Telegram accepts, in UTF-16 units.
@@ -105,17 +107,9 @@ type Client struct {
 	http  *http.Client
 }
 
-// NewClient creates a client; proxyURL is optional (e.g. "http://127.0.0.1:7890").
-func NewClient(token, proxyURL string) (*Client, error) {
-	tr := http.DefaultTransport.(*http.Transport).Clone()
-	if proxyURL != "" {
-		pu, err := url.Parse(proxyURL)
-		if err != nil {
-			return nil, fmt.Errorf("telegram: invalid proxy_url %q: %w", proxyURL, err)
-		}
-		tr.Proxy = http.ProxyURL(pu)
-	}
-	return &Client{token: token, base: apiBase, http: &http.Client{Transport: tr}}, nil
+// NewClient calls the Bot API through proxy. A zero proxy connects directly.
+func NewClient(token string, proxy config.Proxy) *Client {
+	return &Client{token: token, base: apiBase, http: &http.Client{Transport: proxy.Transport()}}
 }
 
 // SetBase points the client at another Bot API root. Tests use a local server.

@@ -13,6 +13,7 @@ import (
 
 	"golang.org/x/text/encoding/simplifiedchinese"
 
+	"github.com/hardhacker/hylo/internal/config"
 	"github.com/hardhacker/hylo/internal/storage"
 )
 
@@ -119,7 +120,7 @@ func TestResolveClassifiesAndCaches(t *testing.T) {
 	defer srv.Close()
 
 	v := newVault(t)
-	r := NewResolver(v, nil)
+	r := NewResolver(v, config.Proxy{})
 	r.allowPrivate = true
 	r.client = srv.Client()
 	clock := time.Now()
@@ -198,7 +199,7 @@ func TestResolveSingleflight(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	r := NewResolver(newVault(t), nil)
+	r := NewResolver(newVault(t), config.Proxy{})
 	r.allowPrivate = true
 	r.client = srv.Client()
 	ctx := context.Background()
@@ -227,7 +228,7 @@ func TestResolveDecodesCharset(t *testing.T) {
 		_, _ = w.Write([]byte(`<html><head><meta charset="gbk"><title>` + title + `</title></head></html>`))
 	}))
 	defer srv.Close()
-	r := NewResolver(newVault(t), nil)
+	r := NewResolver(newVault(t), config.Proxy{})
 	r.allowPrivate = true
 	r.client = srv.Client()
 	if got := r.Resolve(context.Background(), srv.URL+"/"); got.Title != "今日新闻" {
@@ -247,7 +248,7 @@ func TestResolveStopsAtHead(t *testing.T) {
 	}))
 	defer srv.Close()
 	defer close(release)
-	r := NewResolver(newVault(t), nil)
+	r := NewResolver(newVault(t), config.Proxy{})
 	r.allowPrivate = true
 	r.client = srv.Client()
 	done := make(chan Result, 1)
@@ -273,7 +274,7 @@ func TestResolveKeepsGoodRowThroughOutage(t *testing.T) {
 		_, _ = w.Write([]byte(`<html><head><title>Kept</title></head></html>`))
 	}))
 	defer srv.Close()
-	r := NewResolver(newVault(t), nil)
+	r := NewResolver(newVault(t), config.Proxy{})
 	r.allowPrivate = true
 	r.client = srv.Client()
 	clock := time.Now()
@@ -308,7 +309,7 @@ func TestResolveEachEmitsCachedFirst(t *testing.T) {
 		_, _ = w.Write([]byte(`<html><head><title>Slow</title></head></html>`))
 	}))
 	defer srv.Close()
-	r := NewResolver(newVault(t), nil)
+	r := NewResolver(newVault(t), config.Proxy{})
 	r.allowPrivate = true
 	r.client = srv.Client()
 	now := time.Now().UnixMilli()
@@ -334,25 +335,6 @@ func TestResolveEachEmitsCachedFirst(t *testing.T) {
 	}
 }
 
-func TestProxyFromEnv(t *testing.T) {
-	p := proxyFromEnv([]string{"https_proxy=127.0.0.1:7890", "ALL_PROXY=socks5://127.0.0.1:7891", "no_proxy=intranet.example"})
-	if !p.addrs["127.0.0.1:7890"] || !p.addrs["127.0.0.1:7891"] {
-		t.Fatalf("addrs = %v", p.addrs)
-	}
-	if u, _ := p.fn(mustURL("https://example.com/")); u == nil || u.Host != "127.0.0.1:7890" {
-		t.Fatalf("https proxy = %v", u)
-	}
-	if u, _ := p.fn(mustURL("http://example.com/")); u == nil || u.Scheme != "socks5" {
-		t.Fatalf("http falls back to all_proxy = %v", u)
-	}
-	if u, _ := p.fn(mustURL("https://intranet.example/")); u != nil {
-		t.Fatalf("no_proxy ignored: %v", u)
-	}
-	if p := proxyFromEnv([]string{"PATH=/bin"}); p.fn != nil {
-		t.Fatal("proxy without env")
-	}
-}
-
 // The proxy itself is on loopback; reaching it must not count as a private dial.
 func TestResolveThroughProxy(t *testing.T) {
 	var asked atomic.Value
@@ -362,7 +344,11 @@ func TestResolveThroughProxy(t *testing.T) {
 		_, _ = w.Write([]byte(`<html><head><title>Via proxy</title></head></html>`))
 	}))
 	defer proxy.Close()
-	r := NewResolver(newVault(t), func() []string { return []string{"http_proxy=" + proxy.URL} })
+	parsed, err := config.ParseProxy(proxy.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := NewResolver(newVault(t), parsed)
 	got := r.Resolve(context.Background(), "http://1.1.1.1/page")
 	if got.Title != "Via proxy" || asked.Load() != "http://1.1.1.1/page" {
 		t.Fatalf("got %+v, proxy asked %v", got, asked.Load())
@@ -374,7 +360,7 @@ func TestResolveThroughProxy(t *testing.T) {
 
 func TestResolveBlocksPrivateURLs(t *testing.T) {
 	v := newVault(t)
-	r := NewResolver(v, nil)
+	r := NewResolver(v, config.Proxy{})
 	for _, raw := range []string{"http://127.0.0.1/", "http://localhost/x", "http://10.1.2.3/a", "http://169.254.169.254/"} {
 		got := r.Resolve(context.Background(), raw)
 		if got.Status != "error" || got.Error != "blocked" {

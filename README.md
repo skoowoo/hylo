@@ -219,10 +219,12 @@ Each bot can connect its own contact. A message from that contact is a turn in t
 Open the bot under **Settings → Bots** and use **Channels**.
 
 - **WeChat:** click Connect and scan. One WeChat account stays on one bot. Scanning again disconnects the previous bot.
-- **Discord:** create a bot in the [Developer Portal](https://discord.com/developers/applications), enable **Message Content Intent**, and paste the bot token plus your user ID (Developer Mode → right-click your avatar → Copy User ID). If `discord.com` is blocked, set a proxy such as `http://127.0.0.1:7890`.
-- **Telegram:** message [@BotFather](https://t.me/BotFather), send `/newbot`, paste the token, then open the link on your phone and tap Start. Set a proxy first if `api.telegram.org` is blocked.
+- **Discord:** create a bot in the [Developer Portal](https://discord.com/developers/applications), enable **Message Content Intent**, and paste the bot token plus your user ID (Developer Mode → right-click your avatar → Copy User ID).
+- **Telegram:** message [@BotFather](https://t.me/BotFather), send `/newbot`, paste the token, then open the link on your phone and tap Start.
 
 One contact belongs to one Hylo bot. Only the account that completed the connection is answered. No server restart.
+
+If Discord, Telegram, WeChat, git, or link previews cannot reach the network, set a proxy under **Settings → Server → Config → Proxy** (for example `http://127.0.0.1:7890`) and restart.
 
 ## LLM-Wiki Compiler
 

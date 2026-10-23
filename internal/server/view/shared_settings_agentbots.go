@@ -585,7 +585,6 @@ func settingsAgentBotsTabHTML() string {
                           <div class="cfg-link-actions">
                             <input type="password" class="field-input cfg-input" autocomplete="off" spellcheck="false" placeholder="Bot token" x-model="dcToken">
                             <input type="text" class="field-input cfg-input" autocomplete="off" spellcheck="false" placeholder="Your user ID" x-model="dcOwner">
-                            <input type="text" class="field-input cfg-input" autocomplete="off" spellcheck="false" placeholder="Proxy URL (optional)" x-model="dcProxy">
                             <button type="button" class="btn-solid" @click="connectDiscord()" :disabled="!!channelBusy || !dcToken.trim() || !dcOwner.trim()" x-text="channelBusy === 'discord' ? 'Connecting…' : 'Connect'"></button>
                           </div>
                         </div>
@@ -610,7 +609,6 @@ func settingsAgentBotsTabHTML() string {
                           <p class="cfg-link-meta">Create a bot with <a href="https://t.me/BotFather" target="_blank" rel="noopener noreferrer">@BotFather</a>, paste its token, then open the link on your phone and tap Start.</p>
                           <div class="cfg-link-actions" x-show="!tgCode">
                             <input type="password" class="field-input cfg-input" autocomplete="off" spellcheck="false" placeholder="123456:ABC-DEF…" x-model="tgToken" @keydown.enter.prevent="startTelegram()">
-                            <input type="text" class="field-input cfg-input" autocomplete="off" spellcheck="false" placeholder="Proxy URL (optional)" x-model="tgProxy">
                             <button type="button" class="btn-solid" @click="startTelegram()" :disabled="!!channelBusy || !tgToken.trim()" x-text="channelBusy === 'telegram' ? 'Checking…' : 'Connect'"></button>
                           </div>
                           <div x-show="tgCode">
@@ -673,9 +671,7 @@ const settingsAgentBotsJS = `
       wxPolling: false,
       dcToken: '',
       dcOwner: '',
-      dcProxy: '',
       tgToken: '',
-      tgProxy: '',
       tgCode: '',
       tgLink: '',
       tgUsername: '',
@@ -1132,12 +1128,11 @@ const settingsAgentBotsJS = `
           const r = await fetch('/api/mates/' + this.agentBotEditId + '/channels/discord', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ bot_token: this.dcToken.trim(), user_id: this.dcOwner.trim(), proxy_url: this.dcProxy.trim() }),
+            body: JSON.stringify({ bot_token: this.dcToken.trim(), user_id: this.dcOwner.trim() }),
           });
           if (!r.ok) await this.channelFail(r);
           this.dcToken = '';
           this.dcOwner = '';
-          this.dcProxy = '';
           await this.loadBotChannels(this.agentBotEditId);
           await this.loadAgentBots();
         } catch (e) { this.channelError = e.message; }
@@ -1152,7 +1147,7 @@ const settingsAgentBotsJS = `
           const r = await fetch('/api/mates/' + this.agentBotEditId + '/channels/telegram/pair/start', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ bot_token: this.tgToken.trim(), proxy_url: this.tgProxy.trim() }),
+            body: JSON.stringify({ bot_token: this.tgToken.trim() }),
           });
           if (!r.ok) await this.channelFail(r);
           const d = await r.json();
@@ -1184,7 +1179,6 @@ const settingsAgentBotsJS = `
           if (code !== this.tgCode) return;
           if (d.status === 'confirmed') {
             this.tgToken = '';
-            this.tgProxy = '';
             this.cancelTelegram();
             await this.loadBotChannels(this.agentBotEditId);
             await this.loadAgentBots();

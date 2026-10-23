@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/hardhacker/hylo/internal/config"
 	"github.com/hardhacker/hylo/internal/mate"
 	"github.com/hardhacker/hylo/internal/telegram"
 )
@@ -39,11 +40,8 @@ type telegramAlbum struct {
 	timer  *time.Timer
 }
 
-func openTelegram(ch mate.Channel, log *slog.Logger, on func(chatID, userID, text string, fetch imageFetch)) (runner, error) {
-	c, err := telegram.NewClient(ch.Token, ch.ProxyURL)
-	if err != nil {
-		return nil, err
-	}
+func openTelegram(ch mate.Channel, proxy config.Proxy, log *slog.Logger, on func(chatID, userID, text string, fetch imageFetch)) (runner, error) {
+	c := telegram.NewClient(ch.Token, proxy)
 	return &telegramLink{client: c, log: log, on: on, albums: map[string]*telegramAlbum{}}, nil
 }
 

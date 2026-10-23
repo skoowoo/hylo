@@ -217,10 +217,12 @@ Bot 最有意思的地方是事件驱动：配好触发器，你什么都不用�
 在 **Settings → Bots** 里打开这个 bot，找到 **Channels**。
 
 - **微信**：点 Connect，扫码。一个微信号只能留在一个 bot 上，再次扫码会把之前那个断开。
-- **Discord**：在 [Developer Portal](https://discord.com/developers/applications) 建一个 Bot，打开 **Message Content Intent**，填 Bot token 和你的用户 ID（开发者模式 → 右键头像 → 复制用户 ID）。访问不通时可以填代理，例如 `http://127.0.0.1:7890`。
-- **Telegram**：给 [@BotFather](https://t.me/BotFather) 发 `/newbot`，粘贴 token，用手机打开链接并点 Start。访问不了 `api.telegram.org` 时先填代理。
+- **Discord**：在 [Developer Portal](https://discord.com/developers/applications) 建一个 Bot，打开 **Message Content Intent**，填 Bot token 和你的用户 ID（开发者模式 → 右键头像 → 复制用户 ID）。
+- **Telegram**：给 [@BotFather](https://t.me/BotFather) 发 `/newbot`，粘贴 token，用手机打开链接并点 Start。
 
 一个联系人只能绑一个 Hylo bot。只有完成连接的那个账号能跟它说话，其他人的消息会被丢掉。连上之后不用重启。
+
+Discord、Telegram、微信、git 或链接预览访问不了网络时，在 **设置 → Server → Config → Proxy** 填代理（例如 `http://127.0.0.1:7890`），然后重启。
 
 ## LLM-Wiki 编译器
 

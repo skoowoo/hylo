@@ -14,7 +14,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/hardhacker/hylo/internal/agent"
 	"github.com/hardhacker/hylo/internal/channels"
 	"github.com/hardhacker/hylo/internal/config"
 	"github.com/hardhacker/hylo/internal/live"
@@ -44,8 +43,14 @@ type Server struct {
 // New creates a Server from the given config, logger, and Vault.
 // It initialises any enabled plugins and wires the vault event hook.
 func New(cfg *config.Config, cfgFileLoaded string, logger *slog.Logger, vault *storage.Vault) *Server {
+	proxy, err := config.ParseProxy(cfg.Server.Proxy)
+	if err != nil {
+		logger.Error("server.proxy", "err", err)
+	}
+	skills.InstallGitHTTP(proxy)
+
 	feed := live.NewFeed()
-	skillsMgr := skills.Open(vault.Root(), agent.ShellEnv)
+	skillsMgr := skills.Open(vault.Root())
 	skillsMgr.SyncBuiltins(logger)
 	skillsMgr.LinkEnabled(logger)
 	skillsMgr.SetOnChange(feed.Notify(live.TopicSkills))
@@ -58,7 +63,7 @@ func New(cfg *config.Config, cfgFileLoaded string, logger *slog.Logger, vault *s
 	searchPlugin := search.New(cfg.Plugins.Search, vault, logger)
 	mgr.Register(searchPlugin)
 
-	mgr.Register(assets.New(vault, logger))
+	mgr.Register(assets.New(vault, logger, proxy))
 	logger.Info("assets plugin registered")
 
 	// rename_sync is always active: it finishes the vault-wide wikilink/
@@ -110,7 +115,7 @@ func New(cfg *config.Config, cfgFileLoaded string, logger *slog.Logger, vault *s
 				logger.Warn("mate: rename skill in prompts", "from", old, "to", repl, "err", err)
 			}
 		}
-		channelHub = channels.NewHub(ms, vault.Root(), filepath.Join(vault.Root(), cfg.Agent.ResolvedUploadDir()), logger)
+		channelHub = channels.NewHub(ms, vault.Root(), filepath.Join(vault.Root(), cfg.Agent.ResolvedUploadDir()), logger, proxy)
 		ms.SetOnChange(func() {
 			feed.Notify(live.TopicBots)()
 			channelHub.Reload()
@@ -132,7 +137,7 @@ func New(cfg *config.Config, cfgFileLoaded string, logger *slog.Logger, vault *s
 	})
 
 	return &Server{
-		handler:   newRouter(logger, cfg, vault, cfgFileLoaded, gitPlugin, searchPlugin, compilePlugin, mateStore, mateRunner, skillsMgr, feed, cfg.Server.APIKey, channelHub),
+		handler:   newRouter(logger, cfg, vault, cfgFileLoaded, gitPlugin, searchPlugin, compilePlugin, mateStore, mateRunner, skillsMgr, feed, cfg.Server.APIKey, channelHub, proxy),
 		logger:    logger,
 		cfg:       cfg,
 		vault:     vault,

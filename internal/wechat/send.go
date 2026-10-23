@@ -5,6 +5,8 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+
+	"github.com/hardhacker/hylo/internal/config"
 )
 
 // TextChunkLimit is the longest message iLink accepts.
@@ -25,7 +27,7 @@ func SendTextMessage(ctx context.Context, to, text string, opts SendOpts) (strin
 	}
 	client := opts.Client
 	if client == nil {
-		client = NewClient()
+		client = NewClient(config.Proxy{})
 	}
 	clientID := "hylo-wechat-" + uuid.NewString()
 	req := SendMessageReq{
