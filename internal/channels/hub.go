@@ -21,8 +21,9 @@ import (
 )
 
 // Chatter runs one user turn in a bot's current chat and returns the reply.
+// images are absolute paths under the upload directory; the caption stays text.
 type Chatter interface {
-	Deliver(ctx context.Context, mateID, app, text string) (reply, status string)
+	Deliver(ctx context.Context, mateID, app, text string, images []string) (reply, status string)
 }
 
 // outbound is one live app contact.
@@ -38,14 +39,30 @@ type runner interface {
 
 // Hub starts and stops one connection per binding.
 type Hub struct {
-	store *mate.Store
-	root  string
-	log   *slog.Logger
-	chat  Chatter
-	kick  chan struct{}
+	store  *mate.Store
+	root   string
+	upload string
+	log    *slog.Logger
+	chat   Chatter
+	kick   chan struct{}
 
 	mu      sync.Mutex
 	running map[string]*live
+	held    map[string]*heldImages
+}
+
+// imageCaptionWait holds a picture that arrived by itself. On a channel the
+// caption is often the next message, so the picture waits to go out with that
+// text. A message that already has text is submitted at once.
+var imageCaptionWait = 2 * time.Second
+
+type heldImages struct {
+	ctx    context.Context
+	ch     mate.Channel
+	chatID string
+	out    outbound
+	paths  []string
+	timer  *time.Timer
 }
 
 type live struct {
@@ -54,16 +71,18 @@ type live struct {
 	done   chan struct{}
 }
 
-func NewHub(store *mate.Store, vaultRoot string, logger *slog.Logger) *Hub {
+func NewHub(store *mate.Store, vaultRoot, uploadDir string, logger *slog.Logger) *Hub {
 	if logger == nil {
 		logger = slog.Default()
 	}
 	return &Hub{
 		store:   store,
 		root:    vaultRoot,
+		upload:  uploadDir,
 		log:     logger,
 		kick:    make(chan struct{}, 1),
 		running: map[string]*live{},
+		held:    map[string]*heldImages{},
 	}
 }
 
@@ -168,8 +187,8 @@ func (h *Hub) spawn(parent context.Context, ch mate.Channel) {
 	ctx, cancel := context.WithCancel(parent)
 	var link runner
 	var err error
-	on := func(chatID, userID, text string) {
-		h.handle(ctx, ch, chatID, userID, text, link)
+	on := func(chatID, userID, text string, fetch imageFetch) {
+		h.handle(ctx, ch, chatID, userID, text, fetch, link)
 	}
 	switch ch.Kind {
 	case mate.ChannelTelegram:
@@ -244,9 +263,9 @@ func plan(have map[string]string, want []mate.Channel) (stop []string, start []m
 	return stop, start
 }
 
-func (h *Hub) handle(ctx context.Context, ch mate.Channel, chatID, userID, text string, out outbound) {
+func (h *Hub) handle(ctx context.Context, ch mate.Channel, chatID, userID, text string, fetch imageFetch, out outbound) {
 	text = strings.TrimSpace(text)
-	if text == "" {
+	if text == "" && fetch == nil {
 		return
 	}
 	if ch.OwnerUserID == "" || userID != ch.OwnerUserID {
@@ -254,6 +273,7 @@ func (h *Hub) handle(ctx context.Context, ch mate.Channel, chatID, userID, text 
 		return
 	}
 	if isNewChat(text) {
+		h.takeImages(ch, chatID)
 		h.reset(ctx, ch, chatID, out)
 		return
 	}
@@ -261,10 +281,47 @@ func (h *Hub) handle(ctx context.Context, ch mate.Channel, chatID, userID, text 
 		h.log.Warn("channels: chat runtime not wired", "kind", ch.Kind)
 		return
 	}
-	h.log.Info("channels: message", "kind", ch.Kind, "mate", ch.MateID, "preview", preview(text))
+	var paths []string
+	if fetch != nil {
+		var notice string
+		var err error
+		paths, notice, err = fetch(ctx, h.upload)
+		if err != nil {
+			h.log.Warn("channels: image", "kind", ch.Kind, "err", err)
+			_ = h.send(ctx, out, ch.Kind, chatID, imageProblem(err))
+			return
+		}
+		if notice != "" {
+			_ = h.send(ctx, out, ch.Kind, chatID, notice)
+		}
+	}
+	if text == "" && len(paths) == 0 {
+		return
+	}
+	var notice string
+	if text == "" {
+		notice = h.holdImages(ctx, ch, chatID, paths, out)
+	} else {
+		paths, notice = capImages(append(h.takeImages(ch, chatID), paths...))
+	}
+	if notice != "" {
+		_ = h.send(ctx, out, ch.Kind, chatID, notice)
+	}
+	if text == "" {
+		return
+	}
+	h.finish(ctx, ch, chatID, text, paths, out)
+}
+
+func (h *Hub) finish(ctx context.Context, ch mate.Channel, chatID, text string, paths []string, out outbound) {
+	shown := text
+	if shown == "" {
+		shown = "(image)"
+	}
+	h.log.Info("channels: message", "kind", ch.Kind, "mate", ch.MateID, "preview", preview(shown))
 	typingCtx, stop := context.WithCancel(ctx)
 	go out.Typing(typingCtx, chatID)
-	reply, status := h.chat.Deliver(ctx, ch.MateID, ch.Kind, text)
+	reply, status := h.chat.Deliver(ctx, ch.MateID, ch.Kind, text, paths)
 	stop()
 	switch status {
 	case "succeeded":
@@ -281,6 +338,60 @@ func (h *Hub) handle(ctx context.Context, ch mate.Channel, chatID, userID, text 
 	if err := h.send(ctx, out, ch.Kind, chatID, reply); err != nil {
 		h.log.Warn("channels: send", "kind", ch.Kind, "err", err)
 	}
+}
+
+func pendingKey(ch mate.Channel, chatID string) string {
+	return ch.MateID + "\x00" + ch.Kind + "\x00" + chatID
+}
+
+// holdImages keeps a captionless picture until a text message arrives or the
+// wait ends. The notice is set once the chat is past the image cap.
+func (h *Hub) holdImages(ctx context.Context, ch mate.Channel, chatID string, paths []string, out outbound) string {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	key := pendingKey(ch, chatID)
+	p := h.held[key]
+	if p == nil {
+		p = &heldImages{}
+		h.held[key] = p
+	}
+	p.ctx, p.ch, p.chatID, p.out = ctx, ch, chatID, out
+	var notice string
+	p.paths, notice = capImages(append(p.paths, paths...))
+	if p.timer != nil {
+		p.timer.Stop()
+	}
+	p.timer = time.AfterFunc(imageCaptionWait, func() { h.flushImages(key, p) })
+	return notice
+}
+
+func (h *Hub) takeImages(ch mate.Channel, chatID string) []string {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	key := pendingKey(ch, chatID)
+	p := h.held[key]
+	if p == nil {
+		return nil
+	}
+	p.timer.Stop()
+	delete(h.held, key)
+	return p.paths
+}
+
+// flushImages sends p unless a text took it first. Identity, not a counter:
+// a batch held after p was taken reuses the key.
+func (h *Hub) flushImages(key string, p *heldImages) {
+	h.mu.Lock()
+	if h.held[key] != p {
+		h.mu.Unlock()
+		return
+	}
+	delete(h.held, key)
+	h.mu.Unlock()
+	if p.ctx.Err() != nil {
+		return
+	}
+	h.finish(p.ctx, p.ch, p.chatID, "", p.paths, p.out)
 }
 
 func (h *Hub) reset(ctx context.Context, ch mate.Channel, chatID string, out outbound) {

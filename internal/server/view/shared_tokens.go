@@ -92,6 +92,7 @@ const appTokensShared = `
       --lightbox-overlay-bg:rgba(0,0,0,0.4); --lightbox-viewer-bg:#0c0c0c;
       --img-chip-bg:rgba(17,17,17,0.72);
       --img-select-border:rgba(255,255,255,0.72); --img-select-bg:rgba(0,0,0,0.28);
+      --img-busy-bg:rgba(0,0,0,0.25); --img-control-bg:rgba(0,0,0,0.55); --img-control-fg:#fff;
 
       --font-ui:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
       --font-sans:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;

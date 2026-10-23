@@ -59,15 +59,31 @@ func RunMonitor(ctx context.Context, opts MonitorOpts) error {
 		backoff = time.Second
 		for _, u := range ups {
 			offset = u.UpdateID + 1
-			if m := u.Message; isPrivateText(m) {
+			if m := u.Message; isPrivateTurn(m) {
 				opts.OnMessage(m)
 			}
 		}
 	}
 }
 
+func isPrivatePerson(m *Message) bool {
+	return m != nil && m.From != nil && !m.From.IsBot && m.Chat.Type == "private"
+}
+
 func isPrivateText(m *Message) bool {
-	return m != nil && m.From != nil && !m.From.IsBot && m.Chat.Type == "private" && strings.TrimSpace(m.Text) != ""
+	return isPrivatePerson(m) && strings.TrimSpace(m.Text) != ""
+}
+
+// isPrivateTurn is a DM that carries text, a caption, a photo, or a file; the
+// bot decides which files are pictures.
+func isPrivateTurn(m *Message) bool {
+	if !isPrivatePerson(m) {
+		return false
+	}
+	if strings.TrimSpace(m.Text) != "" || strings.TrimSpace(m.Caption) != "" {
+		return true
+	}
+	return len(m.Photo) > 0 || (m.Document != nil && m.Document.FileID != "")
 }
 
 // StartParam returns the payload of a "/start <payload>" deep-link message.

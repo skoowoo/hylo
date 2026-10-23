@@ -764,7 +764,10 @@
   }
 
   function rowSig(msg, snap) {
-    if (msg.role === 'user') return 'u\0' + (msg.content || '');
+    if (msg.role === 'user') {
+      var ids = (msg.attachments || []).map(function (a) { return a.id; }).join(',');
+      return 'u\0' + (msg.content || '') + '\0' + ids;
+    }
     var ctx = segCtx(msg);
     var stopping = snap.stoppingId === msg.id ? 1 : 0;
     var bits = [msg.status || '', stopping, msg.triggerEvent || '', snap.mateName(msg), answerText(msg) ? 1 : 0];
@@ -925,9 +928,33 @@
   function buildUser(msg) {
     var row = el('div', 'msg-row msg-row-user');
     var wrap = el('div', 'msg-user-wrap');
-    var bubble = el('div', 'msg-user-bubble prose');
-    setProse(bubble, msg.content || '', false);
-    wrap.appendChild(bubble);
+    var atts = msg.attachments || [];
+    if (atts.length) {
+      var grid = el('div', 'msg-user-images');
+      atts.forEach(function (a) {
+        var src = '/api/chat/uploads/' + encodeURIComponent(a.id);
+        var open = el('button', 'msg-user-image');
+        open.type = 'button';
+        open.title = a.name || 'image';
+        open.dataset.imgSrc = src;
+        open.dataset.imgName = a.name || a.id;
+        open.dataset.imgExt = (a.id.match(/\.[a-z]+$/i) || [''])[0];
+        open.addEventListener('click', function () {
+          if (root.openImageLightbox) root.openImageLightbox(open);
+        });
+        var img = el('img');
+        img.src = src;
+        img.alt = a.name || 'image';
+        open.appendChild(img);
+        grid.appendChild(open);
+      });
+      wrap.appendChild(grid);
+    }
+    if ((msg.content || '').trim()) {
+      var bubble = el('div', 'msg-user-bubble prose');
+      setProse(bubble, msg.content || '', false);
+      wrap.appendChild(bubble);
+    }
     row.appendChild(wrap);
     return row;
   }
@@ -1079,6 +1106,13 @@
     var hintName = rootEl.querySelector('#chat-hint-name');
     var ctxRow = rootEl.querySelector('#chat-context');
     var sendBtn = rootEl.querySelector('#chat-send');
+    var attachBtn = rootEl.querySelector('#chat-add');
+    var attachMenu = rootEl.querySelector('#chat-add-menu');
+    var attachImage = rootEl.querySelector('#chat-add-image');
+    var fileInput = rootEl.querySelector('#chat-file-input');
+    var pendingImages = rootEl.querySelector('#chat-pending-images');
+    var inputCard = rootEl.querySelector('#chat-input-card');
+    var imageSig = '';
     var stopBtn = rootEl.querySelector('#chat-stop');
     var newBtn = rootEl.querySelector('#chat-new-btn');
     var jumpBtn = rootEl.querySelector('#chat-jump');
@@ -1354,6 +1388,35 @@
       syncComposerBox();
     }
 
+    function paintImages(snap) {
+      if (!pendingImages) return;
+      var imgs = snap.images || [];
+      var sig = imgs.map(function (i) {
+        return [i.localId, i.uploading ? 1 : 0, i.failed ? 1 : 0, i.id || ''].join(':');
+      }).join('|');
+      if (inputCard) inputCard.classList.toggle('has-images', imgs.length > 0);
+      if (sig === imageSig) return;
+      imageSig = sig;
+      pendingImages.replaceChildren();
+      pendingImages.hidden = imgs.length === 0;
+      imgs.forEach(function (item) {
+        var box = el('div', 'compose-thumb' + (item.uploading ? ' is-uploading' : '') + (item.failed ? ' is-failed' : ''));
+        var img = el('img');
+        img.src = item.previewUrl;
+        img.alt = item.name || 'image';
+        box.appendChild(img);
+        if (item.uploading) box.appendChild(el('div', 'compose-thumb-spin'));
+        var rm = el('button', 'compose-thumb-remove');
+        rm.type = 'button';
+        rm.title = 'Remove image';
+        rm.setAttribute('aria-label', 'Remove image');
+        rm.innerHTML = '<svg fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" viewBox="0 0 24 24"><path d="M18 6L6 18"/><path d="M6 6l12 12"/></svg>';
+        rm.addEventListener('click', function () { api.removeImage(item.localId); });
+        box.appendChild(rm);
+        pendingImages.appendChild(box);
+      });
+    }
+
     function renderChrome(snap) {
       var mate = snap.mate;
       var busy = !!snap.busy;
@@ -1396,9 +1459,14 @@
         show(hint, !ta.value);
         if (ctxStale) refreshContext();
       }
+      if (attachBtn) {
+        attachBtn.disabled = !snap.mateId;
+        if (attachBtn.disabled) setAttachOpen(false);
+      }
+      paintImages(snap);
       if (sendBtn) {
         show(sendBtn, !live);
-        sendBtn.disabled = busy || !(ta && ta.value.trim()) || !snap.mateId;
+        sendBtn.disabled = !snap.canSend;
       }
       if (stopBtn) {
         show(stopBtn, live);
@@ -1852,8 +1920,7 @@
         ac.refresh();
         show(hint, !ta.value);
         refreshContext();
-        var snap = api.state();
-        if (sendBtn) sendBtn.disabled = snap.busy || !ta.value.trim() || !snap.mateId;
+        if (sendBtn) sendBtn.disabled = !api.state().canSend;
       });
       on(ta, 'click', function () { ac.refresh(); });
       on(ta, 'keyup', function (ev) {
@@ -2016,7 +2083,37 @@
       if (focusIdle()) focusComposer();
     }
 
+    function setAttachOpen(open) {
+      if (!attachMenu || !attachBtn || open === !attachMenu.hidden) return;
+      attachMenu.hidden = !open;
+      attachBtn.classList.toggle('is-open', open);
+      attachBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      if (open) { if (root.__hyloEscPush) root.__hyloEscPush('chat-add-menu', function () { setAttachOpen(false); }); }
+      else if (root.__hyloEscPop) root.__hyloEscPop('chat-add-menu');
+    }
     on(sendBtn, 'click', function () { void api.send(); });
+    on(attachBtn, 'click', function () { setAttachOpen(attachMenu.hidden); });
+    on(attachImage, 'click', function () {
+      setAttachOpen(false);
+      if (fileInput) fileInput.click();
+    });
+    on(document, 'pointerdown', function (e) {
+      if (!attachMenu || attachMenu.hidden) return;
+      if (attachBtn && (attachBtn === e.target || attachBtn.contains(e.target))) return;
+      if (attachMenu.contains(e.target)) return;
+      setAttachOpen(false);
+    });
+    on(fileInput, 'change', function () {
+      var files = Array.prototype.slice.call(fileInput.files || []);
+      fileInput.value = '';
+      if (files.length) api.addImages(files);
+    });
+    on(ta, 'paste', function (e) {
+      var files = (root.__hyloImageFilesFromClipboard && root.__hyloImageFilesFromClipboard(e.clipboardData)) || [];
+      if (!files.length) return;
+      e.preventDefault();
+      api.addImages(files);
+    });
     on(stopBtn, 'click', function () { void api.cancel(); });
     on(newBtn, 'click', function () { void api.newChat(); });
     on(triggersBtn, 'click', openTriggerSettings);
@@ -2051,6 +2148,7 @@
       insertWikilink: insertWikilink,
       destroy: function () {
         detaching = true;
+        setAttachOpen(false);
         endGlide();
         root.__hyloReleaseFenceCards(thread);
         shelf.forEach(function (row) { root.__hyloReleaseFenceCards(row); });

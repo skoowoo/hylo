@@ -110,6 +110,42 @@ func TestInsertMessageTriggerEvent(t *testing.T) {
 	}
 }
 
+func TestMessageAttachmentsRoundTrip(t *testing.T) {
+	store, err := Open(filepath.Join(t.TempDir(), "vault"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+
+	conv, err := store.CreateConversation("mate-1", "Test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = store.InsertMessage(Message{
+		ConversationID: conv.ID,
+		Role:           "user",
+		Content:        "look",
+		Attachments:    []Attachment{{ID: "11111111-1111-1111-1111-111111111111.png", MIME: "image/png", Name: "shot.png"}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	msgs, err := store.ListMessages(conv.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(msgs) != 1 || len(msgs[0].Attachments) != 1 || msgs[0].Attachments[0].Name != "shot.png" {
+		t.Fatalf("got %+v", msgs)
+	}
+	page, _, err := store.ListMessagesPage(conv.ID, "", 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(page) != 1 || page[0].Attachments[0].ID != msgs[0].Attachments[0].ID {
+		t.Fatalf("page %+v", page)
+	}
+}
+
 func TestListMessagesPage(t *testing.T) {
 	store, err := Open(filepath.Join(t.TempDir(), "vault"))
 	if err != nil {

@@ -27,7 +27,7 @@ type wechatLink struct {
 	client  *wechat.Client
 	dir     string
 	log     *slog.Logger
-	on      func(chatID, userID, text string)
+	on      func(chatID, userID, text string, fetch imageFetch)
 
 	mu           sync.Mutex
 	contextToken string
@@ -36,7 +36,7 @@ type wechatLink struct {
 	tickets  map[string]typingTicket
 }
 
-func openWechat(ch mate.Channel, dir string, log *slog.Logger, on func(chatID, userID, text string)) (runner, error) {
+func openWechat(ch mate.Channel, dir string, log *slog.Logger, on func(chatID, userID, text string, fetch imageFetch)) (runner, error) {
 	base := ch.BaseURL
 	if base == "" {
 		base = wechat.DefaultBaseURL
@@ -74,13 +74,45 @@ func (w *wechatLink) receive(msg wechat.Message) {
 		return
 	}
 	text := wechat.ExtractText(msg)
-	if text == "" {
+	images := wechat.Images(msg)
+	if text == "" && len(images) == 0 {
 		return
 	}
 	if msg.FromUserID == w.owner {
 		w.remember(msg.ContextToken)
 	}
-	w.on(msg.FromUserID, msg.FromUserID, text)
+	var fetch imageFetch
+	if len(images) > 0 {
+		fetch = func(ctx context.Context, dir string) ([]string, string, error) {
+			return w.fetchImages(ctx, dir, images)
+		}
+	}
+	w.on(msg.FromUserID, msg.FromUserID, text, fetch)
+}
+
+func (w *wechatLink) fetchImages(ctx context.Context, dir string, items []wechat.ImageItem) ([]string, string, error) {
+	items, notice := capImages(items)
+	var paths []string
+	for _, item := range items {
+		query := ""
+		if item.Media != nil {
+			query = item.Media.EncryptQueryParam
+		}
+		body, err := w.client.DownloadCDN(ctx, query)
+		if err != nil {
+			return nil, "", errImageFetch
+		}
+		plain, err := wechat.DecodeImage(item, body)
+		if err != nil {
+			return nil, "", errImageFetch
+		}
+		abs, err := saveChannelImage(dir, plain, "", "")
+		if err != nil {
+			return nil, "", err
+		}
+		paths = append(paths, abs)
+	}
+	return paths, notice, nil
 }
 
 func (w *wechatLink) remember(ct string) {

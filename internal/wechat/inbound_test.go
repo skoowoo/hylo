@@ -17,7 +17,7 @@ func TestExtractTextPlain(t *testing.T) {
 
 func TestExtractTextQuote(t *testing.T) {
 	msg := Message{ItemList: []MessageItem{{
-		Type: MessageItemTypeText,
+		Type:     MessageItemTypeText,
 		TextItem: &TextItem{Text: "reply"},
 		RefMsg: &RefMessage{
 			Title: "title",

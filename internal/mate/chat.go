@@ -202,9 +202,9 @@ func (s *Store) InsertMessage(m Message) (Message, error) {
 	m.CreatedAt = time.UnixMilli(now)
 	m.UpdatedAt = time.UnixMilli(now)
 	_, err := s.db.Exec(
-		`INSERT INTO chat_messages(id, conversation_id, role, content, agent_id, mate_id, model_id, run_id, status, trigger_event, trigger_id, created_at, updated_at)
-		 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-		m.ID, m.ConversationID, m.Role, m.Content,
+		`INSERT INTO chat_messages(id, conversation_id, role, content, attachments, agent_id, mate_id, model_id, run_id, status, trigger_event, trigger_id, created_at, updated_at)
+		 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+		m.ID, m.ConversationID, m.Role, m.Content, encodeAttachments(m.Attachments),
 		m.AgentID, m.MateID, m.ModelID, m.RunID, m.Status, m.TriggerEvent, m.TriggerID, now, now,
 	)
 	if err != nil {
@@ -276,10 +276,11 @@ func (s *Store) UpdateMessageDone(id, content, trace, status string) error {
 	return err
 }
 
+const messageCols = `id, conversation_id, role, content, agent_id, mate_id, model_id, run_id, status, trigger_event, trigger_id, trace, attachments, created_at, updated_at`
+
 func (s *Store) ListMessages(conversationID string) ([]Message, error) {
 	rows, err := s.db.Query(
-		`SELECT id, conversation_id, role, content, agent_id, mate_id, model_id, run_id, status, trigger_event, trigger_id, trace, created_at, updated_at
-		 FROM chat_messages WHERE conversation_id = ? ORDER BY created_at ASC`,
+		`SELECT `+messageCols+` FROM chat_messages WHERE conversation_id = ? ORDER BY created_at ASC`,
 		conversationID,
 	)
 	if err != nil {
@@ -300,8 +301,7 @@ func (s *Store) ListMessages(conversationID string) ([]Message, error) {
 // ones when beforeID is empty), oldest first, plus whether older ones remain.
 // rowid breaks created_at ties so the cursor never skips or repeats a row.
 func (s *Store) ListMessagesPage(conversationID, beforeID string, limit int) ([]Message, bool, error) {
-	q := `SELECT id, conversation_id, role, content, agent_id, mate_id, model_id, run_id, status, trigger_event, trigger_id, trace, created_at, updated_at
-		 FROM chat_messages WHERE conversation_id = ?`
+	q := `SELECT ` + messageCols + ` FROM chat_messages WHERE conversation_id = ?`
 	args := []any{conversationID}
 	if beforeID != "" {
 		q += ` AND (created_at, rowid) < (SELECT created_at, rowid FROM chat_messages WHERE id = ?)`
@@ -336,8 +336,7 @@ func (s *Store) ListMessagesPage(conversationID, beforeID string, limit int) ([]
 // are re-returned after UpdateMessageDone advances their updated_at on completion.
 func (s *Store) ListMessagesSince(conversationID string, sinceMs int64) ([]Message, error) {
 	rows, err := s.db.Query(
-		`SELECT id, conversation_id, role, content, agent_id, mate_id, model_id, run_id, status, trigger_event, trigger_id, trace, created_at, updated_at
-		 FROM chat_messages WHERE conversation_id = ? AND updated_at > ? ORDER BY created_at ASC`,
+		`SELECT `+messageCols+` FROM chat_messages WHERE conversation_id = ? AND updated_at > ? ORDER BY created_at ASC`,
 		conversationID, sinceMs,
 	)
 	if err != nil {
@@ -480,22 +479,45 @@ func scanConversations(rows *sql.Rows) ([]Conversation, error) {
 	return out, rows.Err()
 }
 
+func encodeAttachments(atts []Attachment) string {
+	if len(atts) == 0 {
+		return ""
+	}
+	b, err := json.Marshal(atts)
+	if err != nil {
+		return ""
+	}
+	return string(b)
+}
+
+func decodeAttachments(raw string) []Attachment {
+	if raw == "" {
+		return nil
+	}
+	var atts []Attachment
+	if err := json.Unmarshal([]byte(raw), &atts); err != nil {
+		return nil
+	}
+	return atts
+}
+
 func scanMessages(rows *sql.Rows) ([]Message, error) {
 	var out []Message
 	for rows.Next() {
 		var m Message
 		var createdMs, updatedMs int64
-		var trace string
+		var trace, attachments string
 		if err := rows.Scan(
 			&m.ID, &m.ConversationID, &m.Role, &m.Content,
 			&m.AgentID, &m.MateID, &m.ModelID, &m.RunID, &m.Status, &m.TriggerEvent, &m.TriggerID,
-			&trace, &createdMs, &updatedMs,
+			&trace, &attachments, &createdMs, &updatedMs,
 		); err != nil {
 			return nil, err
 		}
 		if trace != "" {
 			m.Trace = json.RawMessage(trace)
 		}
+		m.Attachments = decodeAttachments(attachments)
 		m.CreatedAt = time.UnixMilli(createdMs)
 		m.UpdatedAt = time.UnixMilli(updatedMs)
 		out = append(out, m)

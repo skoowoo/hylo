@@ -401,6 +401,31 @@
     }
     .msg-user-bubble.prose > :last-child { margin-bottom: 0; }
 
+    .msg-user-images {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: var(--space-xs);
+      max-width: 100%;
+    }
+    .msg-user-image {
+      display: block;
+      width: 7.5rem;
+      height: 7.5rem;
+      padding: 0;
+      border: none;
+      border-radius: var(--r-md);
+      overflow: hidden;
+      background: var(--surface-soft);
+      cursor: zoom-in;
+    }
+    .msg-user-images img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
     /* Full row width, not shrink-to-fit: cards size themselves from it, and a
        width that followed their own layout let choices flip between row and column. */
     .msg-assistant-wrap {
@@ -1195,31 +1220,96 @@
       position: relative;
       width: 100%;
       display: flex;
-      align-items: center;
-      gap: 0.5rem;
+      flex-direction: column;
+      align-items: stretch;
       background: var(--btn-bg);
       border: var(--bd-w) solid transparent;
       border-radius: var(--r-full);
-      padding: 0.3rem 0.3rem 0.3rem 1.1rem;
-      overflow: hidden;
+      padding: 0.3rem;
+      /* The attachment menu opens above the card. */
+      overflow: visible;
     }
 
-    .chat-input-card.is-multiline {
-      border-radius: var(--r-xl);
-      align-items: flex-end;
-      padding: 0.5rem 0.5rem 0.5rem 1.1rem;
+    .chat-input-row {
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      width: 100%;
     }
+
+    .chat-input-card.is-multiline,
+    .chat-input-card.has-images {
+      border-radius: var(--r-xl);
+    }
+    .chat-input-card.is-multiline { padding: 0.5rem; }
+    .chat-input-card.is-multiline .chat-add-menu { left: 0.5rem; }
     /* Textarea/hint pin to center in the single-row pill (original
        behavior); once the row switches to flex-end for the multiline
        shape, the textarea should grow from the top instead, with the
        shortcut hint and send button anchored to the bottom beside it. */
+    .chat-input-card.is-multiline .chat-input-row { align-items: flex-end; }
     .chat-input-card.is-multiline .chat-textarea { align-self: flex-start; }
+
+    .chat-pending-images { padding: 0.2rem 0.35rem 0.4rem; }
+
+    .chat-file-input { display: none; }
+    .chat-add {
+      width: var(--btn-h);
+      height: var(--btn-h);
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: none;
+      border-radius: var(--r-full);
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      transition: background-color var(--motion-fast), color var(--motion-fast);
+    }
+    .chat-add svg { width: 16px; height: 16px; }
+    .chat-add:hover:not(:disabled),
+    .chat-add.is-open { background: var(--icon-hov); color: var(--fg); }
+    .chat-add:disabled { opacity: 0.35; cursor: not-allowed; }
+
+    .chat-add-menu {
+      position: absolute;
+      left: 0.3rem;
+      bottom: calc(100% + 6px);
+      z-index: 30;
+      min-width: 9.5rem;
+      padding: 0.25rem;
+      background: var(--surface-soft);
+      border: var(--bd-w) solid var(--line-edge);
+      border-radius: var(--r-md);
+      box-shadow: var(--shadow-sm) var(--shadow-color);
+    }
+    .chat-add-menu[hidden] { display: none; }
+    .chat-add-item {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      width: 100%;
+      padding: 0.4rem 0.55rem;
+      border: none;
+      border-radius: var(--r-sm);
+      background: transparent;
+      font-size: var(--text-sm);
+      font-family: inherit;
+      color: var(--fg);
+      cursor: pointer;
+      text-align: left;
+      white-space: nowrap;
+    }
+    .chat-add-item svg { width: 14px; height: 14px; flex-shrink: 0; color: var(--muted); }
+    .chat-add-item:hover { background: var(--icon-hov); }
 
     .chat-input-hint {
       position: absolute;
       top: 50%;
-      left: 1.1rem;
-      right: 4.5rem;
+      left: calc(var(--btn-h) + 0.5rem);
+      right: calc(var(--btn-h) + 0.5rem);
       transform: translateY(-50%);
       pointer-events: none;
       user-select: none;

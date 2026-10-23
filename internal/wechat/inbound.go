@@ -6,12 +6,23 @@ import (
 )
 
 // ExtractText returns the user-visible text from a message (text + voice transcription + quotes).
-// Non-text media returns a placeholder notice (phase 1: no CDN download).
+// An image is not text; Images reports those separately. Other media stays a placeholder.
 func ExtractText(msg Message) string {
 	if text := extractTextItems(msg.ItemList); text != "" {
 		return text
 	}
 	return mediaPlaceholder(msg.ItemList)
+}
+
+// Images returns the image blocks on a message, in order.
+func Images(msg Message) []ImageItem {
+	var out []ImageItem
+	for _, item := range msg.ItemList {
+		if item.Type == MessageItemTypeImage && item.ImageItem != nil {
+			out = append(out, *item.ImageItem)
+		}
+	}
+	return out
 }
 
 func extractTextItems(items []MessageItem) string {
@@ -48,8 +59,6 @@ func extractTextItems(items []MessageItem) string {
 func mediaPlaceholder(items []MessageItem) string {
 	for _, item := range items {
 		switch item.Type {
-		case MessageItemTypeImage:
-			return "[image]"
 		case MessageItemTypeVoice:
 			return "[voice]"
 		case MessageItemTypeFile:

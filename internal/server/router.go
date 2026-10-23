@@ -117,6 +117,8 @@ func newRouter(
 	mux.Handle("GET /api/live", feed)
 	mux.HandleFunc("GET /api/agents", ah.AgentsGET)
 	mux.HandleFunc("POST /api/chat", ah.ChatPOST)
+	mux.HandleFunc("POST /api/chat/uploads", ah.ChatUploadPOST)
+	mux.HandleFunc("GET /api/chat/uploads/{id}", ah.ChatUploadGET)
 	mux.HandleFunc("POST /api/runs", ah.RunsPOST)
 	mux.HandleFunc("GET /api/runs/active", ah.RunsActiveGET)
 	mux.HandleFunc("GET /api/runs/by-ref", ah.RunByRefGET)

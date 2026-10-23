@@ -2,7 +2,9 @@ package channels
 
 import (
 	"context"
+	"io"
 	"log/slog"
+	"net/http"
 	"time"
 
 	"github.com/hardhacker/hylo/internal/discord"
@@ -16,10 +18,10 @@ const discordTypingEvery = 8 * time.Second
 type discordLink struct {
 	session *discordgo.Session
 	log     *slog.Logger
-	on      func(chatID, userID, text string)
+	on      func(chatID, userID, text string, fetch imageFetch)
 }
 
-func openDiscord(ch mate.Channel, log *slog.Logger, on func(chatID, userID, text string)) (runner, error) {
+func openDiscord(ch mate.Channel, log *slog.Logger, on func(chatID, userID, text string, fetch imageFetch)) (runner, error) {
 	s, err := discord.NewSession(ch.Token, ch.ProxyURL)
 	if err != nil {
 		return nil, err
@@ -38,7 +40,7 @@ func (d *discordLink) Run(ctx context.Context) error {
 			case <-ctx.Done():
 				return
 			case m := <-queue:
-				d.on(m.ChannelID, m.AuthorID, m.Content)
+				d.deliver(m)
 			}
 		}
 	}()
@@ -52,6 +54,65 @@ func (d *discordLink) Run(ctx context.Context) error {
 			}
 		},
 	})
+}
+
+func (d *discordLink) deliver(m discord.Message) {
+	var atts []discord.Attachment
+	for _, a := range m.Attachments {
+		if maybeImage(a.ContentType, a.Name) {
+			atts = append(atts, a)
+		}
+	}
+	var fetch imageFetch
+	if len(atts) > 0 {
+		fetch = func(ctx context.Context, dir string) ([]string, string, error) {
+			return d.fetchAttachments(ctx, dir, atts)
+		}
+	}
+	d.on(m.ChannelID, m.AuthorID, m.Content, fetch)
+}
+
+func (d *discordLink) fetchAttachments(ctx context.Context, dir string, atts []discord.Attachment) ([]string, string, error) {
+	atts, notice := capImages(atts)
+	var paths []string
+	for _, a := range atts {
+		if rejectedImage(a.ContentType, a.Name) {
+			return nil, "", errImageType
+		}
+		if a.Size > maxChannelImageBytes {
+			return nil, "", errImageTooBig
+		}
+		body, err := d.download(ctx, a.URL)
+		if err != nil {
+			return nil, "", errImageFetch
+		}
+		abs, err := saveChannelImage(dir, body, a.ContentType, a.Name)
+		if err != nil {
+			return nil, "", err
+		}
+		paths = append(paths, abs)
+	}
+	return paths, notice, nil
+}
+
+func (d *discordLink) download(ctx context.Context, rawURL string) ([]byte, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	client := http.DefaultClient
+	if d.session != nil && d.session.Client != nil {
+		client = d.session.Client
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, errImageFetch
+	}
+	return io.ReadAll(io.LimitReader(resp.Body, maxChannelImageBytes+1))
 }
 
 func (d *discordLink) SendText(_ context.Context, channelID, text string) error {

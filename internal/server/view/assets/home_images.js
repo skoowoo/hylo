@@ -4,8 +4,10 @@ var _lbOpen = null; // set by homeCtrl.init; receives the lightbox data object
 window._imgSelectMode = false;
 window._imgUpdateSelected = null;
 
+// An element without data-img-dir is not a gallery image (e.g. a chat upload):
+// the lightbox shows it without the vault-only actions and fields.
 window.openImageLightbox = function (el) {
-  if (window._imgSelectMode) {
+  if (window._imgSelectMode && el.classList.contains('img-card')) {
     el.classList.toggle('is-selected');
     if (window._imgUpdateSelected) window._imgUpdateSelected();
     return;

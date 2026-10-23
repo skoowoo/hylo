@@ -117,6 +117,19 @@ func ExecChat(
 	if streamFormat == "" {
 		streamFormat = StreamPlain
 	}
+	// Claude reads its stream-json frame only while stdin is open, and exits once it closes.
+	holdStdin := streamFormat == StreamClaudeJSON
+	var closeStdin sync.Once
+	closeIn := func() { closeStdin.Do(func() { _ = stdin.Close() }) }
+	if holdStdin {
+		inner := relay
+		relay = func(m map[string]any) {
+			inner(m)
+			if typ, _ := m["type"].(string); typ == "usage" {
+				closeIn()
+			}
+		}
+	}
 
 	switch streamFormat {
 	case StreamPiRPC:
@@ -157,10 +170,17 @@ func ExecChat(
 			}
 		}()
 		if def.PromptViaStdin {
-			_, _ = io.WriteString(stdin, composed)
+			if holdStdin {
+				_, _ = stdin.Write(claudeUserLine(composed, safeImagePaths))
+			} else {
+				_, _ = io.WriteString(stdin, composed)
+			}
 		}
-		_ = stdin.Close()
+		if !holdStdin {
+			closeIn()
+		}
 		pumpWg.Wait()
+		closeIn()
 	}
 
 	err = cmd.Wait()

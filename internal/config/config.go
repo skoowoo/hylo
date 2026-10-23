@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/spf13/viper"
 )
@@ -123,6 +124,14 @@ type VaultConfig struct {
 	// Default: "_knowledge".
 	KnowledgeDir string `mapstructure:"knowledge_dir" json:"knowledge_dir" toml:"knowledge_dir"`
 }
+
+// DefaultUploadDir is the vault-relative directory chat image paths must live under.
+// It sits inside .hylo so the watcher, search index and git sync leave it alone.
+const DefaultUploadDir = ".hylo/uploads"
+
+// legacyUploadDir is the previous default, at the vault root. A config that
+// still names it is read as DefaultUploadDir.
+const legacyUploadDir = "_agent_uploads"
 
 // AgentConfig configures Open Design–compatible local agent CLI integration.
 type AgentConfig struct {
@@ -245,6 +254,16 @@ func MergedFromOptionalFile(absPath string) (*Config, error) {
 	return cfg, nil
 }
 
+// ResolvedUploadDir returns the vault-relative upload directory, mapping the
+// old default and an empty value onto DefaultUploadDir.
+func (a AgentConfig) ResolvedUploadDir() string {
+	dir := strings.Trim(strings.TrimSpace(a.UploadDir), "/")
+	if dir == "" || dir == legacyUploadDir {
+		return DefaultUploadDir
+	}
+	return dir
+}
+
 // DefaultVaultPath is where a new install keeps its notes: visible in Finder,
 // unlike the legacy ~/.hylo/root.
 const DefaultVaultPath = "~/Documents/Hylo Vault"
@@ -275,7 +294,7 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("vault.shorts_dir", "_shorts")
 	v.SetDefault("vault.knowledge_dir", "_knowledge")
 
-	v.SetDefault("agent.upload_dir", "_agent_uploads")
+	v.SetDefault("agent.upload_dir", DefaultUploadDir)
 	v.SetDefault("agent.system_prompt", "")
 
 	// git_sync plugin defaults (disabled by default; user must opt in)

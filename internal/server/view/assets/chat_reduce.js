@@ -18,7 +18,7 @@
 
   // What the DB row looked like, so a reload can tell an unchanged message apart.
   function storedSig(m) {
-    return JSON.stringify([m.content || '', m.status || '', m.updatedAt || '', m.noteAccess || null]);
+    return JSON.stringify([m.content || '', m.status || '', m.updatedAt || '', m.noteAccess || null, m.attachments || null]);
   }
 
   function formatStoredMessages(msgs) {
@@ -29,6 +29,7 @@
         out.push({
           id: m.id,
           role: 'user', content: m.content,
+          attachments: m.attachments || [],
           createdAt: m.createdAt ? new Date(m.createdAt).getTime() : 0,
           stored: storedSig(m),
           rev: 1,
@@ -277,6 +278,7 @@
     }
     ex.completedAt = nm.completedAt;
     ex.stored = nm.stored;
+    if (nm.attachments) ex.attachments = nm.attachments;
     if (nm.triggerEvent) ex.triggerEvent = nm.triggerEvent;
     if (nm.triggerId) ex.triggerId = nm.triggerId;
     touch(ex);

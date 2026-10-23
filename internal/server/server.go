@@ -110,7 +110,7 @@ func New(cfg *config.Config, cfgFileLoaded string, logger *slog.Logger, vault *s
 				logger.Warn("mate: rename skill in prompts", "from", old, "to", repl, "err", err)
 			}
 		}
-		channelHub = channels.NewHub(ms, vault.Root(), logger)
+		channelHub = channels.NewHub(ms, vault.Root(), filepath.Join(vault.Root(), cfg.Agent.ResolvedUploadDir()), logger)
 		ms.SetOnChange(func() {
 			feed.Notify(live.TopicBots)()
 			channelHub.Reload()

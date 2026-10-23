@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/hardhacker/hylo/internal/mate"
@@ -26,14 +27,25 @@ func TestPlanRestartsWhenTheTokenChanges(t *testing.T) {
 }
 
 type fakeChat struct {
-	calls int
-	text  string
+	mu     sync.Mutex
+	calls  int
+	text   string
+	images []string
 }
 
-func (f *fakeChat) Deliver(_ context.Context, _, _, text string) (string, string) {
+func (f *fakeChat) Deliver(_ context.Context, _, _, text string, images []string) (string, string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	f.calls++
 	f.text = text
+	f.images = append([]string(nil), images...)
 	return "Hello **there**", "succeeded"
+}
+
+func (f *fakeChat) state() (calls int, text string, images []string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.calls, f.text, append([]string(nil), f.images...)
 }
 
 type fakeOut struct {
@@ -66,17 +78,17 @@ func TestHandleJoinsTheCurrentChat(t *testing.T) {
 	}
 
 	chat := &fakeChat{}
-	h := NewHub(store, t.TempDir(), nil)
+	h := NewHub(store, t.TempDir(), "", nil)
 	h.SetChatter(chat)
 	ch := mate.Channel{MateID: m.ID, Kind: mate.ChannelWechat, OwnerUserID: "owner"}
 	out := &fakeOut{}
 
-	h.handle(context.Background(), ch, "stranger", "stranger", "nope", out)
+	h.handle(context.Background(), ch, "stranger", "stranger", "nope", nil, out)
 	if chat.calls != 0 || len(out.sent) != 0 {
 		t.Fatal("stranger was answered")
 	}
 
-	h.handle(context.Background(), ch, "owner", "owner", "ping", out)
+	h.handle(context.Background(), ch, "owner", "owner", "ping", nil, out)
 	if chat.calls != 1 || chat.text != "ping" {
 		t.Fatalf("deliver %+v", chat)
 	}
@@ -88,7 +100,7 @@ func TestHandleJoinsTheCurrentChat(t *testing.T) {
 		t.Fatalf("conversation %s, want %s (%v)", id, conv.ID, err)
 	}
 
-	h.handle(context.Background(), ch, "owner", "owner", "/new", out)
+	h.handle(context.Background(), ch, "owner", "owner", "/new", nil, out)
 	if chat.calls != 1 {
 		t.Fatal("/new ran the agent")
 	}
@@ -116,7 +128,7 @@ func TestSweepKeepsOnlyBoundState(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	h := NewHub(store, root, nil)
+	h := NewHub(store, root, "", nil)
 	for _, id := range []string{ch.ID, "gone"} {
 		if err := os.MkdirAll(h.stateDir(id), 0o755); err != nil {
 			t.Fatal(err)

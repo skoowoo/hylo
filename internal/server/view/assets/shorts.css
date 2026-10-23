@@ -105,57 +105,10 @@
     .shorts-compose-attach:hover:not(:disabled) { background: var(--icon-hov); color: var(--fg); }
     .shorts-compose-attach:disabled { opacity: 0.35; cursor: not-allowed; }
 
-    /* ── Composer image attachments — thumbnail strip between the text
-       field and the footer. Pasted/picked images upload immediately
-       (shortComposeImages in home.js); order here never affects the saved
-       note, since they're appended as trailing wikilinks regardless. ── */
-    .shorts-compose-images {
-      display: flex;
-      flex-wrap: wrap;
-      gap: var(--space-xs);
-      padding: 0 var(--space-md) var(--space-xs);
-    }
-    .shorts-compose-img {
-      position: relative;
-      width: 56px; height: 56px;
-      border-radius: var(--r-md);
-      overflow: hidden;
-      background: var(--surface-soft);
-      flex-shrink: 0;
-    }
-    .shorts-compose-img img {
-      width: 100%; height: 100%; object-fit: cover; display: block;
-      transition: opacity var(--motion-fast);
-    }
-    .shorts-compose-img.is-uploading img { opacity: 0.45; }
-    .shorts-compose-img.is-failed { outline: var(--bd-w) solid var(--s-err-bd); }
-    .shorts-compose-img.is-failed img { opacity: 0.45; }
-
-    .shorts-compose-img-spin {
-      position: absolute; inset: 0;
-      display: flex; align-items: center; justify-content: center;
-      background: rgba(0,0,0,0.25);
-    }
-    .shorts-compose-img-spin::after {
-      content: ''; width: 16px; height: 16px;
-      border: 2px solid #fff; border-top-color: transparent;
-      border-radius: var(--r-full);
-      animation: shorts-img-spin 0.7s linear infinite;
-    }
-    @keyframes shorts-img-spin { to { transform: rotate(360deg); } }
-
-    .shorts-compose-img-remove {
-      position: absolute; top: 2px; right: 2px;
-      width: 16px; height: 16px;
-      display: flex; align-items: center; justify-content: center;
-      background: rgba(0,0,0,0.55); color: #fff;
-      border: none; border-radius: var(--r-full);
-      cursor: pointer; padding: 0;
-      opacity: 0.85;
-      transition: opacity var(--motion-fast);
-    }
-    .shorts-compose-img-remove:hover { opacity: 1; }
-    .shorts-compose-img-remove svg { width: 9px; height: 9px; flex-shrink: 0; }
+    /* Thumbnail strip between the text field and the footer (.compose-thumbs,
+       base.css). Order never affects the saved note: images are appended as
+       trailing wikilinks regardless. */
+    .shorts-compose-images { padding: 0 var(--space-md) var(--space-xs); }
 
     .shorts-compose-send {
       height: var(--btn-h-xs);

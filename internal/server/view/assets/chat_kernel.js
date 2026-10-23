@@ -40,6 +40,8 @@
     var loadingOlder = false;
     var lastMsgMs = 0;
     var draft = '';
+    // Images staged in the composer, kept like the draft across bot and chat switches. Each: {localId, id, mime, name, previewUrl, uploading, failed}.
+    var images = [];
     var stick = true;
     // The reader's place while not stuck to the bottom, kept across remounts.
     var anchor = null;
@@ -153,6 +155,8 @@
         loaded: loaded,
         catalogEpoch: catalogEpoch,
         draft: draft,
+        images: images,
+        canSend: canSend(),
         phase: phase,
         busy: busy(),
         runId: run ? run.id : null,
@@ -470,6 +474,7 @@
           body: JSON.stringify({
             mateId: mate.id,
             message: text,
+            attachments: (extra && extra.attachments) || [],
             conversationId: conversationId,
             userMessageId: userMsgId,
             assistantMessageId: assistant.id,
@@ -574,6 +579,8 @@
       anchor: function () { return anchor; },
       setAnchor: function (a) { anchor = a; },
       setDraft: function (v) { draft = v || ''; },
+      addImages: function (files) { return addImageFiles(files); },
+      removeImage: function (id) { removeImage(id); },
       send: function () { return send(); },
       sendChoice: function (text) { return send(null, text); },
       cancel: function () { return cancel(); },
@@ -731,12 +738,79 @@
       }
     }
 
+    function readyImages() {
+      return images.filter(function (i) { return i.id && !i.uploading && !i.failed; });
+    }
+
+    // A send waits for every upload, so no picture is left out of the turn.
+    function canSend() {
+      if (busy() || !mateId || images.some(function (i) { return i.uploading; })) return false;
+      return !!draft.trim() || readyImages().length > 0;
+    }
+
+    function dropImages(gone) {
+      images = images.filter(function (i) {
+        if (gone.indexOf(i) === -1) return true;
+        if (i.previewUrl) URL.revokeObjectURL(i.previewUrl);
+        return false;
+      });
+      requestRender();
+    }
+
+    function removeImage(localId) {
+      dropImages(images.filter(function (i) { return i.localId === localId; }));
+    }
+
+    function addImageFiles(files) {
+      var room = Math.max(0, 5 - images.length);
+      if (files.length > room) notify('Up to 5 images per message');
+      files.slice(0, room).forEach(function (file) {
+        var item = {
+          localId: R.genId(),
+          name: file.name || 'image',
+          previewUrl: URL.createObjectURL(file),
+          uploading: true,
+          failed: false,
+          id: '',
+          mime: '',
+        };
+        images.push(item);
+        uploadImage(item, file);
+      });
+      requestRender();
+    }
+
+    async function uploadImage(item, file) {
+      try {
+        var fd = new FormData();
+        fd.append('file', file, file.name || 'image');
+        var resp = await fetch('/api/chat/uploads', { method: 'POST', body: fd });
+        if (!resp.ok) throw new Error((await resp.text()) || 'Upload failed');
+        var data = await resp.json();
+        item.id = data.id;
+        item.mime = data.mime;
+        item.name = data.name || item.name;
+        item.uploading = false;
+      } catch (e) {
+        item.uploading = false;
+        item.failed = true;
+        notify((e && e.message) || 'Image upload failed');
+      }
+      requestRender();
+    }
+
+    function publicImages(list) {
+      return list.map(function (i) { return { id: i.id, mime: i.mime, name: i.name }; });
+    }
+
     // A choice is sent as is, leaving whatever the user was typing in the composer.
     async function send(extra, choice) {
-      var text = (choice != null ? choice : draft || '').trim();
-      if (!text || busy() || !mateId) return;
+      var text = (choice != null ? choice : draft).trim();
+      if (choice != null ? (!text || busy() || !mateId) : !canSend()) return;
+      var pics = choice == null ? readyImages() : [];
       var mate = mateById(mateId);
       if (!mate) return;
+      var sent = publicImages(pics);
       phase = 'sending';
       requestRender();
       try {
@@ -759,9 +833,11 @@
         }
         var userMsgId = R.genId();
         messages.push({
-          id: userMsgId, role: 'user', content: text, createdAt: Date.now(), rev: 1,
+          id: userMsgId, role: 'user', content: text, attachments: sent,
+          createdAt: Date.now(), rev: 1,
         });
-        await runTurn(text, userMsgId, mate, extra);
+        dropImages(pics);
+        await runTurn(text, userMsgId, mate, Object.assign({}, extra, { attachments: sent }));
       } finally {
         if (phase === 'sending') phase = 'idle';
         requestRender();
@@ -781,21 +857,22 @@
       for (var j = idx - 2; !drop && j >= 0; j--) {
         if (messages[j].role === 'user') { prompt = messages[j]; break; }
       }
-      if (!prompt || prompt.role !== 'user' || !prompt.content || messages.indexOf(msg) === -1 || busy()) return;
-      var text = prompt.content;
+      var atts = (prompt && prompt.attachments) || [];
+      if (!prompt || prompt.role !== 'user' || (!prompt.content && !atts.length) || messages.indexOf(msg) === -1 || busy()) return;
+      var text = prompt.content || '';
       var triggerEvent = msg.triggerEvent || '';
       var mate = mateById(mateId);
       // The server drops the same rows once the retry starts.
       messages.splice(messages.indexOf(msg), 1);
       if (drop && messages.indexOf(prompt) !== -1) messages.splice(messages.indexOf(prompt), 1);
       var userMsgId = R.genId();
-      messages.push({ id: userMsgId, role: 'user', content: text, createdAt: Date.now(), rev: 1 });
+      messages.push({ id: userMsgId, role: 'user', content: text, attachments: atts, createdAt: Date.now(), rev: 1 });
       // A trigger run is retried through the trigger pipeline, so its
       // completion still reaches the inbox the way the original fire did.
       if (triggerEvent) {
         await retryTriggerRun(text, userMsgId, triggerEvent, msg.triggerId || '', mate, msg.id);
       } else {
-        await runTurn(text, userMsgId, mate, { retryOf: msg.id });
+        await runTurn(text, userMsgId, mate, { retryOf: msg.id, attachments: atts });
       }
     }
 

@@ -8,8 +8,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 )
 
@@ -32,12 +34,40 @@ type Chat struct {
 	Type string `json:"type"`
 }
 
-// Message is an inbound message; Text is empty for media.
+// PhotoSize is one rendition of a photo. Telegram lists them smallest first.
+type PhotoSize struct {
+	FileID   string `json:"file_id"`
+	Width    int    `json:"width"`
+	Height   int    `json:"height"`
+	FileSize int64  `json:"file_size"`
+}
+
+// Document is a file sent as a document. Images sometimes arrive this way.
+type Document struct {
+	FileID   string `json:"file_id"`
+	FileName string `json:"file_name"`
+	MIMEType string `json:"mime_type"`
+	FileSize int64  `json:"file_size"`
+}
+
+// Message is an inbound message. Text is empty for media; the caption is then
+// the user's words. Photos in one album share a MediaGroupID.
 type Message struct {
-	MessageID int64  `json:"message_id"`
-	From      *User  `json:"from"`
-	Chat      Chat   `json:"chat"`
-	Text      string `json:"text"`
+	MessageID    int64       `json:"message_id"`
+	From         *User       `json:"from"`
+	Chat         Chat        `json:"chat"`
+	Text         string      `json:"text"`
+	Caption      string      `json:"caption"`
+	Photo        []PhotoSize `json:"photo"`
+	Document     *Document   `json:"document"`
+	MediaGroupID string      `json:"media_group_id"`
+}
+
+// File is the result of getFile. FilePath is relative to the bot's file URL.
+type File struct {
+	FileID   string `json:"file_id"`
+	FilePath string `json:"file_path"`
+	FileSize int64  `json:"file_size"`
 }
 
 // Update is one item of getUpdates; only messages are requested.
@@ -86,6 +116,11 @@ func NewClient(token, proxyURL string) (*Client, error) {
 		tr.Proxy = http.ProxyURL(pu)
 	}
 	return &Client{token: token, base: apiBase, http: &http.Client{Transport: tr}}, nil
+}
+
+// SetBase points the client at another Bot API root. Tests use a local server.
+func (c *Client) SetBase(base string) {
+	c.base = strings.TrimRight(base, "/")
 }
 
 func (c *Client) call(ctx context.Context, method string, params, out any) error {
@@ -159,6 +194,38 @@ func (c *Client) SendMessage(ctx context.Context, chatID int64, text string) err
 		"text":                 text,
 		"link_preview_options": map[string]any{"is_disabled": true},
 	}, nil)
+}
+
+// GetFile resolves a file id to a path the bot can download.
+func (c *Client) GetFile(ctx context.Context, fileID string) (File, error) {
+	var f File
+	err := c.call(ctx, "getFile", map[string]any{"file_id": fileID}, &f)
+	return f, err
+}
+
+// DownloadFile reads a file returned by GetFile. The URL contains the bot
+// token, so it is never part of the error.
+func (c *Client) DownloadFile(ctx context.Context, filePath string) ([]byte, error) {
+	if filePath == "" || strings.Contains(filePath, "..") || strings.Contains(filePath, "://") {
+		return nil, fmt.Errorf("telegram: bad file path")
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.base+"/file/bot"+c.token+"/"+filePath, nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := c.http.Do(req)
+	if err != nil {
+		var ue *url.Error
+		if errors.As(err, &ue) {
+			err = ue.Err
+		}
+		return nil, fmt.Errorf("telegram: download: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("telegram: download HTTP %d", resp.StatusCode)
+	}
+	return io.ReadAll(io.LimitReader(resp.Body, 8<<20+1))
 }
 
 // SendTyping shows "typing…" in a chat for about five seconds.

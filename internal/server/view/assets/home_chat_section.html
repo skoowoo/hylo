@@ -40,20 +40,35 @@
         <div class="chat-path-ac-hint hairline" id="chat-path-ac-hint" hidden></div>
       </div>
       <div class="chat-input-card" id="chat-input-card">
-        <div class="chat-input-hint" id="chat-input-hint" aria-hidden="true">
-          <span class="chat-hint-name" id="chat-hint-name"></span>
+        <div class="chat-add-menu" id="chat-add-menu" role="menu" hidden>
+          <button type="button" class="chat-add-item" id="chat-add-image" role="menuitem">
+            <!-- lucide "image" -->
+            <svg fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+            <span>Image</span>
+          </button>
         </div>
-        <textarea class="chat-textarea" id="chat-textarea" rows="1" placeholder="" spellcheck="false" autocorrect="off" autocapitalize="off"></textarea>
-        <button type="button" class="chat-send-circle" id="chat-send" disabled>
-          <svg fill="none" stroke="currentColor" stroke-width="2.6" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M12 19V5M5 12l7-7 7 7" />
-          </svg>
-        </button>
-        <button type="button" class="chat-stop-circle" id="chat-stop" style="display:none">
-          <svg fill="currentColor" viewBox="0 0 24 24">
-            <rect x="5" y="5" width="14" height="14" rx="2" />
-          </svg>
-        </button>
+        <div class="compose-thumbs chat-pending-images" id="chat-pending-images" hidden></div>
+        <div class="chat-input-row">
+          <button type="button" class="chat-add" id="chat-add" title="Add" aria-label="Add attachment" aria-haspopup="menu" aria-expanded="false" aria-controls="chat-add-menu" disabled>
+            <!-- lucide "plus" -->
+            <svg fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+          </button>
+          <div class="chat-input-hint" id="chat-input-hint" aria-hidden="true">
+            <span class="chat-hint-name" id="chat-hint-name"></span>
+          </div>
+          <textarea class="chat-textarea" id="chat-textarea" rows="1" placeholder="" spellcheck="false" autocorrect="off" autocapitalize="off"></textarea>
+          <input type="file" id="chat-file-input" class="chat-file-input" accept="image/jpeg,image/png,image/gif,image/webp" multiple>
+          <button type="button" class="chat-send-circle" id="chat-send" disabled>
+            <svg fill="none" stroke="currentColor" stroke-width="2.6" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 19V5M5 12l7-7 7 7" />
+            </svg>
+          </button>
+          <button type="button" class="chat-stop-circle" id="chat-stop" style="display:none">
+            <svg fill="currentColor" viewBox="0 0 24 24">
+              <rect x="5" y="5" width="14" height="14" rx="2" />
+            </svg>
+          </button>
+        </div>
       </div>
     </div>
   </div>

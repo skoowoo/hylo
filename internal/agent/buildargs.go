@@ -58,7 +58,8 @@ func filterAbsDirs(dirs []string) []string {
 
 func buildClaude(def *AgentDef, c BuildArgsContext) []string {
 	caps := c.Caps
-	args := []string{"-p", "--output-format", "stream-json", "--verbose"}
+	// Stdin is one stream-json user frame on every turn, images or not.
+	args := []string{"-p", "--output-format", "stream-json", "--verbose", "--input-format", "stream-json"}
 	if c.SessionID != "" {
 		if c.FirstSession {
 			args = append(args, "--session-id", c.SessionID)
@@ -108,7 +109,8 @@ func buildCodex(_ *AgentDef, c BuildArgsContext) []string {
 		eff := ClampCodexReasoning(c.Model, c.Reasoning)
 		args = append(args, "-c", `model_reasoning_effort="`+eff+`"`)
 	}
-	return args
+	// A path typed into the prompt is text. -i is what attaches the file as an image.
+	return appendImageArgs(args, "-i", c.ImagePaths)
 }
 
 func buildOpenCode(_ *AgentDef, c BuildArgsContext) []string {
@@ -122,6 +124,9 @@ func buildOpenCode(_ *AgentDef, c BuildArgsContext) []string {
 	if c.SessionID != "" {
 		args = append(args, "-s", c.SessionID)
 	}
+	// -f/--file labels every attachment text/plain, so a picture arrives as
+	// garbage text. The path goes in the prompt and the read tool sniffs it.
+	// --dangerously-skip-permissions already approves that external-directory read.
 	return args
 }
 
@@ -139,6 +144,19 @@ func buildCursorAgent(_ *AgentDef, c BuildArgsContext) []string {
 	if c.Model != "" && c.Model != "default" {
 		args = append(args, "--model", c.Model)
 	}
+	// The read tool only sees workspace roots. Uploads sit outside the bot's cwd.
+	return appendUploadDirs(args, c.ImagePaths)
+}
+
+// appendUploadDirs grants each image's directory as an extra workspace root.
+func appendUploadDirs(args []string, paths []string) []string {
+	seen := map[string]bool{}
+	for _, p := range paths {
+		if dir := filepath.Dir(p); !seen[dir] {
+			seen[dir] = true
+			args = append(args, "--add-dir", dir)
+		}
+	}
 	return args
 }
 
@@ -153,7 +171,49 @@ func buildCopilot(_ *AgentDef, c BuildArgsContext) []string {
 	for _, d := range filterDirs(c.ExtraAllowedDirs) {
 		args = append(args, "--add-dir", d)
 	}
+	// --attachment is the non-interactive way to hand Copilot a file.
+	return appendImageArgs(args, "--attachment", c.ImagePaths)
+}
+
+// appendImageArgs repeats flag once per path. Both CLIs attach one file per occurrence.
+func appendImageArgs(args []string, flag string, paths []string) []string {
+	for _, p := range paths {
+		args = append(args, flag, p)
+	}
 	return args
+}
+
+// UserText is the caption a CLI receives. Agents that cannot send a captionless
+// image get a stand-in sentence. That sentence is not the message saved in the
+// conversation.
+func UserText(agentID, message string, images int) string {
+	if strings.TrimSpace(message) != "" || images == 0 {
+		return message
+	}
+	switch agentID {
+	case "codex", "copilot", "cursor-agent", "opencode":
+		if images == 1 {
+			return "Look at the attached image."
+		}
+		return "Look at the attached images."
+	default:
+		return message
+	}
+}
+
+// TurnText is the user text written to the CLI. Cursor and OpenCode have no
+// image attachment flag, so the absolute paths are part of this text and their
+// read tool opens the files. The stored chat message stays the user's caption.
+func TurnText(agentID, message string, paths []string) string {
+	text := UserText(agentID, message, len(paths))
+	if agentID != "cursor-agent" && agentID != "opencode" {
+		return text
+	}
+	var lines []string
+	if strings.TrimSpace(text) != "" {
+		lines = append(lines, text)
+	}
+	return strings.Join(append(lines, paths...), "\n")
 }
 
 func buildPi(_ *AgentDef, c BuildArgsContext) []string {
@@ -215,6 +275,9 @@ func CLIExample(def *AgentDef) string {
 	parts = append(parts, def.Bin)
 	parts = append(parts, argv...)
 	cmd := shellJoin(parts)
+	if def.StreamFormat == StreamClaudeJSON {
+		return `echo '{"type":"user","message":{"role":"user","content":"Hello"}}' | ` + cmd
+	}
 	if def.PromptViaStdin {
 		return `echo "Hello" | ` + cmd
 	}

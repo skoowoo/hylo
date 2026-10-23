@@ -88,13 +88,15 @@ func RunMonitor(ctx context.Context, opts MonitorOpts) error {
 			return
 		}
 		content := strings.TrimSpace(m.Content)
-		if content == "" {
+		atts := attachments(m.Attachments)
+		if content == "" && len(atts) == 0 {
 			return
 		}
 		opts.OnMessage(Message{
-			ChannelID: m.ChannelID,
-			AuthorID:  m.Author.ID,
-			Content:   content,
+			ChannelID:   m.ChannelID,
+			AuthorID:    m.Author.ID,
+			Content:     content,
+			Attachments: atts,
 		})
 	})
 
@@ -122,4 +124,18 @@ func RunMonitor(ctx context.Context, opts MonitorOpts) error {
 
 	log("Discord bridge stopping")
 	return opts.Session.Close()
+}
+
+// attachments passes every file on; the bot decides which ones are pictures.
+func attachments(in []*discordgo.MessageAttachment) []Attachment {
+	var out []Attachment
+	for _, a := range in {
+		if a == nil || a.URL == "" {
+			continue
+		}
+		out = append(out, Attachment{
+			URL: a.URL, Name: a.Filename, ContentType: a.ContentType, Size: a.Size,
+		})
+	}
+	return out
 }

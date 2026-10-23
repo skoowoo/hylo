@@ -28,12 +28,12 @@
                   :disabled="shortComposeSaving"
                   @paste="handleShortComposePaste($event)"
                   @input="__hyloAutoResize($event.target)"></textarea>
-        <div class="shorts-compose-images" x-show="shortComposeImages.length" x-cloak>
+        <div class="compose-thumbs shorts-compose-images" x-show="shortComposeImages.length" x-cloak>
           <template x-for="img in shortComposeImages" :key="img.id">
-            <div class="shorts-compose-img" :class="{'is-uploading': img.uploading, 'is-failed': img.failed}">
+            <div class="compose-thumb" :class="{'is-uploading': img.uploading, 'is-failed': img.failed}">
               <img :src="img.previewUrl || img.src" :alt="img.name">
-              <div class="shorts-compose-img-spin" x-show="img.uploading"></div>
-              <button type="button" class="shorts-compose-img-remove" title="Remove image" aria-label="Remove image"
+              <div class="compose-thumb-spin" x-show="img.uploading"></div>
+              <button type="button" class="compose-thumb-remove" title="Remove image" aria-label="Remove image"
                       @click="removeShortComposeImage(img.id)">
                 <svg fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" viewBox="0 0 24 24"><path d="M18 6L6 18"/><path d="M6 6l12 12"/></svg>
               </button>

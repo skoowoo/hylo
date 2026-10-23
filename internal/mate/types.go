@@ -62,21 +62,30 @@ type Conversation struct {
 	UpdatedAt           time.Time `json:"updatedAt"`
 }
 
+// Attachment is one image on a user message. The file lives in the vault's
+// upload directory; ID is its filename there.
+type Attachment struct {
+	ID   string `json:"id"`
+	MIME string `json:"mime"`
+	Name string `json:"name"`
+}
+
 // Message is one turn inside a conversation.
 type Message struct {
-	ID             string    `json:"id"`
-	ConversationID string    `json:"conversationId"`
-	Role           string    `json:"role"`    // "user" | "assistant"
-	Content        string    `json:"content"` // the reply: the run's last text, without narration
-	AgentID        string    `json:"agentId"`
-	MateID         string    `json:"mateId"`
-	ModelID        string    `json:"modelId"`
-	RunID          string    `json:"runId"`
-	Status         string    `json:"status"`                 // "running" | "succeeded" | "failed" | "canceled" | ""
-	TriggerEvent   string    `json:"triggerEvent,omitempty"` // mate event type when fired by trigger (assistant only)
-	TriggerID      string    `json:"triggerId,omitempty"`    // the MateTrigger that fired this run (assistant only)
-	CreatedAt      time.Time `json:"createdAt"`
-	UpdatedAt      time.Time `json:"updatedAt"`
+	ID             string       `json:"id"`
+	ConversationID string       `json:"conversationId"`
+	Role           string       `json:"role"`    // "user" | "assistant"
+	Content        string       `json:"content"` // the reply: the run's last text, without narration
+	Attachments    []Attachment `json:"attachments,omitempty"`
+	AgentID        string       `json:"agentId"`
+	MateID         string       `json:"mateId"`
+	ModelID        string       `json:"modelId"`
+	RunID          string       `json:"runId"`
+	Status         string       `json:"status"`                 // "running" | "succeeded" | "failed" | "canceled" | ""
+	TriggerEvent   string       `json:"triggerEvent,omitempty"` // mate event type when fired by trigger (assistant only)
+	TriggerID      string       `json:"triggerId,omitempty"`    // the MateTrigger that fired this run (assistant only)
+	CreatedAt      time.Time    `json:"createdAt"`
+	UpdatedAt      time.Time    `json:"updatedAt"`
 
 	// NoteAccess lists the vault notes this run touched (assistant messages only).
 	// Populated on read via a join; not part of the chat_messages row itself.

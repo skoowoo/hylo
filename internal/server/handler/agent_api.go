@@ -55,12 +55,7 @@ func (a *AgentAPI) SetMateRunner(r *mate.Runner) {
 func (a *AgentAPI) SetEditorBus(b *editorbus.Bus) { a.editorBus = b }
 
 func (a *AgentAPI) uploadRoot() string {
-	sub := strings.TrimSpace(a.cfg.Agent.UploadDir)
-	if sub == "" {
-		sub = "_agent_uploads"
-	}
-	clean := strings.TrimLeft(sub, "/")
-	return filepath.Join(a.vault.Root(), clean)
+	return filepath.Join(a.vault.Root(), a.cfg.Agent.ResolvedUploadDir())
 }
 
 type chatBody struct {
@@ -71,6 +66,7 @@ type chatBody struct {
 	Model              string            `json:"model"`
 	Reasoning          string            `json:"reasoning"`
 	ImagePaths         []string          `json:"imagePaths"`
+	Attachments        []mate.Attachment `json:"attachments"`
 	ExtraAllowedDirs   []string          `json:"extraAllowedDirs"`
 	AgentCliEnv        map[string]string `json:"agentCliEnv"`
 	ProjectID          string            `json:"projectId"`
@@ -417,7 +413,7 @@ func (a *AgentAPI) chatSlot(mateID string) chan struct{} {
 
 // Deliver runs one user turn in the bot's current chat — the same conversation
 // the desktop composer writes to — and returns the reply and run status.
-func (a *AgentAPI) Deliver(ctx context.Context, mateID, app, text string) (string, string) {
+func (a *AgentAPI) Deliver(ctx context.Context, mateID, app, text string, images []string) (string, string) {
 	if a.store == nil || a.hub == nil {
 		return "", "failed"
 	}
@@ -440,7 +436,7 @@ func (a *AgentAPI) Deliver(ctx context.Context, mateID, app, text string) (strin
 		return "", "failed"
 	}
 	run := a.hub.CreateRun(map[string]string{"conversationId": convID})
-	result := a.executeChat(ctx, run, chatBody{MateID: mateID, Message: text, ConversationID: convID, app: app})
+	result := a.executeChat(ctx, run, chatBody{MateID: mateID, Message: text, ConversationID: convID, app: app, ImagePaths: images})
 	status, _ := run.StatusJSON()["status"].(string)
 	return result.LastMessage, status
 }
@@ -511,17 +507,29 @@ func (a *AgentAPI) executeChat(ctx context.Context, run *agent.Run, body chatBod
 		pr.Intro = &prompt.Intro{Greeting: a.openingWords(body.ConversationID), Overview: vaultOverview(a.vault), Lang: body.IntroLang}
 	}
 
+	// Images are checked before a retry drops the failed turn, so a bad image never loses it.
+	atts, paths, imgErr := a.prepareChatImages(body.Attachments, body.ImagePaths)
+	if imgErr != nil {
+		a.hub.Emit(run, "error", map[string]any{"code": "BAD_REQUEST", "message": imgErr.Error()})
+		a.hub.Finish(run, "failed", map[string]any{})
+		return mate.RunResult{Success: false}
+	}
+	body.Attachments = atts
+	body.ImagePaths = paths
+
 	a.dropRetried(body.ConversationID, body.RetryOf, body.Message)
 
 	// Persist user message and create assistant placeholder when a conversation
 	// is active. assistantMsgID is carried through to the completion handler.
+	// An image with no caption is still a turn; the caption stays the raw text.
 	var assistantMsgID string
-	if a.store != nil && body.ConversationID != "" && body.Message != "" {
+	if a.store != nil && body.ConversationID != "" && (body.Message != "" || len(body.ImagePaths) > 0) {
 		if _, err := a.store.InsertMessage(mate.Message{
 			ID:             body.UserMessageID,
 			ConversationID: body.ConversationID,
 			Role:           "user",
 			Content:        body.Message,
+			Attachments:    body.Attachments,
 			AgentID:        body.AgentID,
 			MateID:         body.MateID,
 			ModelID:        body.Model,
@@ -582,7 +590,10 @@ func (a *AgentAPI) executeChat(ctx context.Context, run *agent.Run, body chatBod
 	} else {
 		sessionID, firstSession, resumeTurn = a.resolveAgentSession(body.ConversationID, def, cwd)
 	}
-	composed := prompt.Message(prompt.System(pr), channelRequest(body.app, body.Message), cwd, dir, resumeTurn)
+	up := a.uploadRoot()
+	safeImages := filterImagePaths(body.ImagePaths, up)
+	request := channelRequest(body.app, agent.TurnText(def.ID, body.Message, safeImages))
+	composed := prompt.Message(prompt.System(pr), request, cwd, dir, resumeTurn)
 	if e := agent.CheckPromptArgvBudget(def, composed); e != nil {
 		a.logger.Warn("agent aborted",
 			slog.String("runId", run.ID),
@@ -642,7 +653,7 @@ func (a *AgentAPI) executeChat(ctx context.Context, run *agent.Run, body chatBod
 	env = mergeEnvKey(env, "PWD", cwd)
 
 	argCtx := agent.BuildArgsContext{
-		Prompt: composed, ImagePaths: body.ImagePaths, ExtraAllowedDirs: body.ExtraAllowedDirs,
+		Prompt: composed, ImagePaths: safeImages, ExtraAllowedDirs: body.ExtraAllowedDirs,
 		Model: safeModel, Reasoning: safeReasoning, Cwd: cwd,
 		SessionID: sessionID, FirstSession: firstSession,
 	}
@@ -672,9 +683,6 @@ func (a *AgentAPI) executeChat(ctx context.Context, run *agent.Run, body chatBod
 		}
 		return mate.RunResult{Success: false}
 	}
-
-	up := a.uploadRoot()
-	safeImages := filterImagePaths(body.ImagePaths, up)
 
 	run.Start()
 	a.hub.Emit(run, "start", map[string]any{

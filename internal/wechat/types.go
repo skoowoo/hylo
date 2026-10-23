@@ -46,10 +46,23 @@ type RefMessage struct {
 	Title       string       `json:"title,omitempty"`
 }
 
+// CDNMedia is the encrypted blob behind a WeChat image.
+type CDNMedia struct {
+	EncryptQueryParam string `json:"encrypt_query_param,omitempty"`
+	AESKey            string `json:"aes_key,omitempty"`
+}
+
+// ImageItem is a type-2 image. AESKey, when set, is 32 hex characters.
+type ImageItem struct {
+	Media  *CDNMedia `json:"media,omitempty"`
+	AESKey string    `json:"aeskey,omitempty"`
+}
+
 // MessageItem is one content block inside a WeChat message.
 type MessageItem struct {
 	Type      int         `json:"type,omitempty"`
 	TextItem  *TextItem   `json:"text_item,omitempty"`
+	ImageItem *ImageItem  `json:"image_item,omitempty"`
 	VoiceItem *VoiceItem  `json:"voice_item,omitempty"`
 	RefMsg    *RefMessage `json:"ref_msg,omitempty"`
 }
@@ -61,14 +74,14 @@ type VoiceItem struct {
 
 // Message is one WeChat iLink message envelope.
 type Message struct {
-	FromUserID    string        `json:"from_user_id,omitempty"`
-	ToUserID      string        `json:"to_user_id,omitempty"`
-	ClientID      string        `json:"client_id,omitempty"`
-	GroupID       string        `json:"group_id,omitempty"`
-	MessageType   int           `json:"message_type,omitempty"`
-	MessageState  int           `json:"message_state,omitempty"`
-	ItemList      []MessageItem `json:"item_list,omitempty"`
-	ContextToken  string        `json:"context_token,omitempty"`
+	FromUserID   string        `json:"from_user_id,omitempty"`
+	ToUserID     string        `json:"to_user_id,omitempty"`
+	ClientID     string        `json:"client_id,omitempty"`
+	GroupID      string        `json:"group_id,omitempty"`
+	MessageType  int           `json:"message_type,omitempty"`
+	MessageState int           `json:"message_state,omitempty"`
+	ItemList     []MessageItem `json:"item_list,omitempty"`
+	ContextToken string        `json:"context_token,omitempty"`
 }
 
 // GetUpdatesResp is the long-poll response.
@@ -100,7 +113,7 @@ type GetConfigResp struct {
 
 // QrcodeResp is returned by get_bot_qrcode.
 type QrcodeResp struct {
-	Qrcode          string `json:"qrcode"`
+	Qrcode           string `json:"qrcode"`
 	QrcodeImgContent string `json:"qrcode_img_content"`
 }
 

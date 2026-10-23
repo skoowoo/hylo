@@ -65,11 +65,18 @@ func TestRunMonitorDeliversPrivateTextOnly(t *testing.T) {
 		{UpdateID: 2, Message: &Message{From: person, Chat: Chat{ID: -5, Type: "group"}, Text: "group"}},
 		{UpdateID: 3, Message: &Message{From: &User{ID: 9, IsBot: true}, Chat: Chat{ID: 9, Type: "private"}, Text: "bot"}},
 		{UpdateID: 4, Message: &Message{From: person, Chat: Chat{ID: 7, Type: "private"}}},
+		{UpdateID: 5, Message: &Message{From: person, Chat: Chat{ID: 7, Type: "private"}, Photo: []PhotoSize{{FileID: "p"}}}},
 	})
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	got := make(chan string, 4)
-	go RunMonitor(ctx, MonitorOpts{Client: c, OnMessage: func(m *Message) { got <- m.Text }}) //nolint:errcheck
+	go RunMonitor(ctx, MonitorOpts{Client: c, OnMessage: func(m *Message) {
+		if len(m.Photo) > 0 {
+			got <- "photo:" + m.Photo[0].FileID
+			return
+		}
+		got <- m.Text
+	}}) //nolint:errcheck
 	select {
 	case text := <-got:
 		if text != "hi" {
@@ -80,8 +87,29 @@ func TestRunMonitorDeliversPrivateTextOnly(t *testing.T) {
 	}
 	select {
 	case text := <-got:
+		if text != "photo:p" {
+			t.Fatalf("got %q", text)
+		}
+	case <-ctx.Done():
+		t.Fatal("photo was dropped")
+	}
+	select {
+	case text := <-got:
 		t.Fatalf("unexpected %q", text)
 	case <-time.After(100 * time.Millisecond):
+	}
+}
+
+func TestDownloadErrorOmitsToken(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "nope", http.StatusBadGateway)
+	}))
+	t.Cleanup(srv.Close)
+	c, _ := NewClient("secret-token", "")
+	c.SetBase(srv.URL)
+	_, err := c.DownloadFile(context.Background(), "photos/a.png")
+	if err == nil || strings.Contains(err.Error(), "secret-token") {
+		t.Fatalf("err = %v", err)
 	}
 }
 

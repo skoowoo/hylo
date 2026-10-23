@@ -18,6 +18,8 @@ import (
 // Client talks to the WeChat iLink Bot HTTP API.
 type Client struct {
 	HTTP *http.Client
+	// CDNBase overrides the image host. Empty means the public WeChat CDN.
+	CDNBase string
 }
 
 // NewClient returns a client with sensible defaults.

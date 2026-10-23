@@ -276,3 +276,13 @@ test('merge after a live run only settles the reply text', function () {
   assert.equal(segs[0].content, 'On it.');
   assert.equal(segs[2].content, 'Done.');
 });
+
+test('a stored user message keeps its image attachments', function () {
+  var msgs = R.formatStoredMessages([{
+    id: 'u', role: 'user', content: 'look',
+    attachments: [{ id: 'a.png', mime: 'image/png', name: 'shot.png' }],
+  }]);
+  assert.equal(msgs[0].content, 'look');
+  assert.equal(msgs[0].attachments[0].id, 'a.png');
+  assert.equal(msgs[0].attachments[0].name, 'shot.png');
+});

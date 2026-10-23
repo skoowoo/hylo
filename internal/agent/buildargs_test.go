@@ -31,6 +31,90 @@ func TestBuildCodexSessionArgs(t *testing.T) {
 	}
 }
 
+func TestBuildImageAttachmentArgs(t *testing.T) {
+	paths := []string{"/vault/.hylo/uploads/a.png", "/vault/.hylo/uploads/b.png"}
+	codex := BuildInvocationArgs(GetAgentDef("codex"), BuildArgsContext{SessionID: "thread-1", ImagePaths: paths})
+	if !containsSeq(codex, "exec", "resume", "thread-1") ||
+		!containsSeq(codex, "-i", paths[0]) || !containsSeq(codex, "-i", paths[1]) {
+		t.Fatalf("codex args = %v", codex)
+	}
+	copilot := BuildInvocationArgs(GetAgentDef("copilot"), BuildArgsContext{ImagePaths: paths})
+	if !containsSeq(copilot, "--attachment", paths[0]) || !containsSeq(copilot, "--attachment", paths[1]) {
+		t.Fatalf("copilot args = %v", copilot)
+	}
+	for _, id := range []string{"claude", "pi", "opencode", "cursor-agent"} {
+		argv := BuildInvocationArgs(GetAgentDef(id), BuildArgsContext{ImagePaths: paths})
+		for _, a := range argv {
+			if a == "-i" || a == "--attachment" || a == paths[0] {
+				t.Fatalf("%s should not receive image flags: %v", id, argv)
+			}
+		}
+	}
+}
+
+func TestUserTextImageCaption(t *testing.T) {
+	if got := UserText("codex", "", 1); got != "Look at the attached image." {
+		t.Fatalf("codex caption = %q", got)
+	}
+	if got := UserText("copilot", "  ", 2); got != "Look at the attached images." {
+		t.Fatalf("copilot caption = %q", got)
+	}
+	if got := UserText("codex", "look", 1); got != "look" {
+		t.Fatalf("caption replaced user text: %q", got)
+	}
+	if got := UserText("pi", "", 1); got != "" {
+		t.Fatalf("pi caption = %q", got)
+	}
+	if got := UserText("claude", "", 2); got != "" {
+		t.Fatalf("claude caption = %q", got)
+	}
+	if got := UserText("cursor-agent", "", 1); got != "Look at the attached image." {
+		t.Fatalf("cursor caption = %q", got)
+	}
+	if got := UserText("opencode", "  ", 2); got != "Look at the attached images." {
+		t.Fatalf("opencode caption = %q", got)
+	}
+}
+
+func TestTurnTextImagePaths(t *testing.T) {
+	paths := []string{"/vault/.hylo/uploads/a.png", "/vault/.hylo/uploads/b.png"}
+	got := TurnText("cursor-agent", "look", paths)
+	if got != "look\n"+paths[0]+"\n"+paths[1] {
+		t.Fatalf("cursor text = %q", got)
+	}
+	got = TurnText("opencode", "", paths[:1])
+	if got != "Look at the attached image.\n"+paths[0] {
+		t.Fatalf("opencode text = %q", got)
+	}
+	for _, id := range []string{"claude", "codex", "pi", "copilot"} {
+		if strings.Contains(TurnText(id, "look", paths), paths[0]) {
+			t.Fatalf("%s prompt should not contain the path", id)
+		}
+	}
+}
+
+func TestBuildPathImageAccess(t *testing.T) {
+	paths := []string{"/vault/.hylo/uploads/a.png", "/vault/.hylo/uploads/b.png"}
+	cursor := BuildInvocationArgs(GetAgentDef("cursor-agent"), BuildArgsContext{SessionID: "chat-1", ImagePaths: paths})
+	if !containsSeq(cursor, "--resume", "chat-1") || !containsSeq(cursor, "--add-dir", "/vault/.hylo/uploads") {
+		t.Fatalf("cursor args = %v", cursor)
+	}
+	if strings.Count(strings.Join(cursor, "\n"), "--add-dir") != 1 {
+		t.Fatalf("cursor add-dir count = %v", cursor)
+	}
+	for _, a := range cursor {
+		if a == "--image" || a == "-f" || a == "--file" || a == paths[0] {
+			t.Fatalf("cursor args = %v", cursor)
+		}
+	}
+	opencode := BuildInvocationArgs(GetAgentDef("opencode"), BuildArgsContext{ImagePaths: paths})
+	for _, a := range opencode {
+		if a == "-f" || a == "--file" || a == "--add-dir" || a == paths[0] {
+			t.Fatalf("opencode args = %v", opencode)
+		}
+	}
+}
+
 func TestBuildPiSessionArgs(t *testing.T) {
 	def := GetAgentDef("pi")
 	if def == nil {
