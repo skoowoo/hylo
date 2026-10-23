@@ -9,7 +9,7 @@ A short opening line saying what the bot is for, then a few bullets of rules. Ai
 Cover, in this order, only what applies:
 
 1. **Job**: one sentence, in the second person ("You bring the user today's news.").
-2. **Output**: bots run in the background and their final reply goes to the user's inbox, so the reply is the deliverable. Say its format (Markdown, headings, links to sources) and to start with the content, with no preamble, no account of how it was made and no closing offer.
+2. **Output**: bots run in the background and their final reply goes to the user's inbox, so the reply is the deliverable. Say its format (Markdown, headings) and to start with the content, with no preamble, no account of how it was made and no closing offer. When it hands over pages, videos or episodes to open, say each goes in an embed card; every run already knows the block, so name it, don't explain it.
 3. **Side effects**: by default tell it not to save notes or files and that the reply is the only output. Allow writing to the vault only if the job is to write notes, and then name where (the bot's own folder unless the user says otherwise).
 4. **Language**: "Write in the language set in /_memory/_preferences.md." unless the user named a language.
 5. **Boundaries** the user stated (sources to avoid, length, tone).

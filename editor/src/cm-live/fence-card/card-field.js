@@ -1,6 +1,6 @@
 // Block widgets for registered fence cards. A StateField because CM6 refuses block decorations
 // from a ViewPlugin (see live-preview.js). While the caret is inside, the source stays plain
-// and the preview lives in the floating pip.js panel instead of the document flow.
+// and a large card's preview lives in the floating pip.js panel instead of the document flow.
 import { StateField } from '@codemirror/state';
 import { Decoration, EditorView, ViewPlugin, WidgetType } from '@codemirror/view';
 import { syntaxTree } from '@codemirror/language';
@@ -41,8 +41,7 @@ class CardWidget extends WidgetType {
     wrap.addEventListener('mousedown', (e) => e.preventDefault(), true);
     const h = mountCard(this.info, this.source, {
       onEdit: () => {
-        const pos = view.posAtDOM(wrap);
-        view.dispatch({ selection: { anchor: pos }, scrollIntoView: true });
+        view.dispatch({ selection: { anchor: editPos(view.state.doc, view.posAtDOM(wrap)) }, scrollIntoView: true });
         view.focus();
       },
     });
@@ -64,6 +63,14 @@ class CardWidget extends WidgetType {
   ignoreEvent() {
     return true;
   }
+}
+
+// The end of the body's first line, where the content starts; the opener line when the body is empty.
+function editPos(doc, fenceStart) {
+  const open = doc.lineAt(fenceStart);
+  if (open.number >= doc.lines) return open.to;
+  const next = doc.line(open.number + 1);
+  return /^\s*(`{3,}|~{3,})\s*$/.test(next.text) ? open.to : next.to;
 }
 
 // Holds the card's height under the source while it's being edited, so the

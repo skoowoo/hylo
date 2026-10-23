@@ -34,6 +34,7 @@ const CSS = `
 .hy-btn:focus-visible{outline:2px solid rgba(var(--accent-rgb,94,106,210),.5);outline-offset:1px}
 .hy-card-bar .hy-btn:not(:hover){background:var(--btn-bg,rgba(24,24,27,.06))}
 .hy-card-inline{background:none;overflow:visible;contain:inline-size}
+.hy-card-inline .hy-card-bar .hy-btn{background:var(--bg,#fff);box-shadow:0 0 0 1px var(--line-edge,rgba(24,24,27,.16))}
 .hy-card-error{padding:12px;font-size:var(--text-xs,.75rem);color:var(--s-err,#dc2626)}
 .hy-card-full{position:fixed;inset:0;z-index:800;display:flex;align-items:center;justify-content:center;padding:2rem;background:var(--lightbox-overlay-bg,rgba(0,0,0,.4));backdrop-filter:var(--glass-scrim-filter,blur(3px));-webkit-backdrop-filter:var(--glass-scrim-filter,blur(3px));-webkit-app-region:no-drag;transition:opacity var(--motion-base,160ms) ease}
 .hy-card-full.hy-card-full-hidden{opacity:0}
@@ -204,19 +205,25 @@ export function mountShell({ into, lang, source, renderer, minHeight, onEdit, mo
   };
 }
 
-// Chrome for inline cards: none, the body just grows with the content.
+// Chrome for inline cards: only the Edit button, the body just grows with the content.
 // Attached before the renderer mounts, so it lays out at its final size right away.
-export function mountInline({ into, lang, source, renderer }) {
+export function mountInline({ into, lang, source, renderer, onEdit, mode = 'card', partial = false }) {
   ensureStyle();
   const root = document.createElement('div');
   root.className = `hy-card hy-card-inline hy-card-${lang}`;
   const body = document.createElement('div');
   body.className = 'hy-card-body';
   root.appendChild(body);
+  if (onEdit) {
+    const bar = document.createElement('div');
+    bar.className = 'hy-card-bar';
+    bar.append(iconButton('code-xml', 'Edit source', () => onEdit()));
+    root.appendChild(bar);
+  }
   into.replaceChildren(root);
   let inst = null;
   try {
-    inst = renderer.mount(body, source, { mode: 'card' });
+    inst = renderer.mount(body, source, { mode, partial });
   } catch (e) {
     const msg = document.createElement('div');
     msg.className = 'hy-card-error';
@@ -224,8 +231,8 @@ export function mountInline({ into, lang, source, renderer }) {
     body.replaceChildren(msg);
   }
   return {
-    update(next) {
-      if (inst) inst.update(next);
+    update(next, opts) {
+      if (inst) inst.update(next, opts);
     },
     destroy() {
       if (inst) inst.destroy();

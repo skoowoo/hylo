@@ -9,7 +9,7 @@
   }
 
   // Mirrors the registry in editor/src/cm-live/fence-card/registry.js; only these load the chunk.
-  var FENCE_CARD_SEL = ['mindmap', 'choices', 'proposal', 'receipt', 'sources'].map(function (l) {
+  var FENCE_CARD_SEL = ['mindmap', 'choices', 'proposal', 'receipt', 'sources', 'embed'].map(function (l) {
     return 'pre > code.language-' + l;
   }).join(', ');
   var fenceLoad = null;
@@ -39,17 +39,17 @@
   // the microtask until its host has inserted it, so cards measure on mount.
   // Hydrating also releases the previous render. Card fences stay hidden while the
   // chunk loads, so they never paint as code.
-  root.__hyloHydrateFenceCards = function (node) {
+  root.__hyloHydrateFenceCards = function (node, opts) {
     if (!node) return;
     var gen = node._fenceGen = (node._fenceGen || 0) + 1;
-    if (fenceMod && node.isConnected) { fenceMod.hydrateFenceCards(node); return; }
+    if (fenceMod && node.isConnected) { fenceMod.hydrateFenceCards(node, opts); return; }
     var pending = node.querySelectorAll(FENCE_CARD_SEL);
     if (!fenceLoad && !pending.length) return;
     var shown = function (on) {
       pending.forEach(function (code) { code.parentElement.style.display = on ? '' : 'none'; });
     };
     shown(false);
-    fenceModule().then(function (m) { if (node._fenceGen === gen) m.hydrateFenceCards(node); })
+    fenceModule().then(function (m) { if (node._fenceGen === gen) m.hydrateFenceCards(node, opts); })
       .catch(function () { shown(true); });
   };
 

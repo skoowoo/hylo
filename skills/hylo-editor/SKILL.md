@@ -95,4 +95,4 @@ The editor tools never touch frontmatter: `editor_read` leaves it out, inserts l
 
 ## Markdown dialect
 
-Hylo renders GFM plus wiki syntax live. `references/formats.md` covers wikilinks, wiki images, mindmap blocks, tasks, tables, code languages, quotes and what to avoid. Load it when the content goes beyond paragraphs, headings and lists, and **always** before typing a mindmap.
+Hylo renders GFM plus wiki syntax live. `references/formats.md` covers wikilinks, wiki images, mindmap blocks, embed cards, tasks, tables, code languages, quotes and what to avoid. Load it when the content goes beyond paragraphs, headings and lists, and **always** before typing a mindmap or an embed card.

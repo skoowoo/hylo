@@ -113,3 +113,21 @@ Tips:
 - Two to four levels read best. Balance branches. Root children each get their own color.
 - Indent consistently (2 spaces per level).
 - To build a map from existing content, `editor_read` the note, then type the mindmap as a new block or `editor_rewrite` an existing outline into one. A fence lands as a single block, so a later revision is one `editor_rewrite` on that block id.
+
+## Embed cards
+
+A fenced block with info string `embed` renders each URL in its body as a card. One URL is a full-width card. Several URLs, one per line, share a grid of equal cards, at most three across; further URLs wrap onto the next row. Two URLs fill the row. A web page shows its title, description and image. An audio or video file plays in the card. An image shows the image. Anything else is a file row.
+
+````markdown
+```embed
+https://example.com/story
+```
+```embed
+https://example.com/one
+https://example.com/two
+```
+````
+
+- Every non-empty line is one `http` or `https` URL. A sentence about it stays outside the fence, as a normal paragraph.
+- Use it where the link is what the reader opens: a reading list, resources, a clip's original. A source cited inside a sentence stays a normal link, and a note is always a [[wiki link]].
+- The cards are filled in when the note is open; the URLs are all that's stored.

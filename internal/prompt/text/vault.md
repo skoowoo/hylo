@@ -14,4 +14,4 @@ Personal memory: read the files under /_memory/ that fit the task before you sta
 - Casual chat or a daily check-in → _state.md + _identity.md
 Items under ## Active are current; ## Fading ones are less certain.
 
-Cards: skills may end a reply with a `choices` or `sources` block. Write one only when these instructions describe its format; otherwise ask in plain text and leave the sources out.
+Cards: skills may end a reply with a `choices` or `sources` block, and links may go in an `embed` block. Write one only when these instructions describe its format; otherwise ask in plain text and leave the sources out.

@@ -405,6 +405,7 @@ func (h *Hub) reset(ctx context.Context, ch mate.Channel, chatID string, out out
 }
 
 func (h *Hub) send(ctx context.Context, out outbound, kind, chatID, text string) error {
+	text = unwrapCards(text)
 	formatted := strings.TrimSpace(text)
 	limit := discord.TextChunkLimit
 	switch kind {

@@ -1,4 +1,4 @@
-import{a as m}from"./chunk-CDWQEUMK.js";var x="hy-choices-style",C=`
+import{a as m}from"./chunk-2M35EBET.js";var x="hy-choices-style",C=`
 .hy-choices{display:flex;gap:var(--space-xs,8px);padding:2px 0}
 .hy-choices-row{align-items:center}
 .hy-choices.hy-choices-row>*{flex:none;white-space:nowrap}

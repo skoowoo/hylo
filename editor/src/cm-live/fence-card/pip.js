@@ -4,6 +4,7 @@
 import { ViewPlugin } from '@codemirror/view';
 import { selectionTouchesRange } from '../selection.js';
 import { mountCard } from './host.js';
+import { cardEntry } from './registry.js';
 import { ensureStyle, iconButton } from './shell.js';
 import { icon } from './icons.js';
 
@@ -172,7 +173,7 @@ export function cardPip(cardState) {
 
     active(view) {
       const { found } = view.state.field(cardState);
-      return found.find((f) => selectionTouchesRange(view.state, f.from, f.to));
+      return found.find((f) => !cardEntry(f.info).inline && selectionTouchesRange(view.state, f.from, f.to));
     }
 
     sync(view) {

@@ -1,6 +1,6 @@
 // Fenced-block renderers keyed by info string. A renderer's module is fetched on first use:
 //   mount(el, source, { mode: 'card' | 'pip' | 'full', onError }) → { update(source), fit?(), destroy() }
-// An inline card sizes to its content and gets no zoom or fullscreen. `editor: false`
+// An inline card sizes to its content and gets no zoom, fullscreen or floating preview while edited. `editor: false`
 // keeps a card out of notes: it only renders where marked HTML is hydrated (chat).
 const entries = new Map();
 
@@ -21,6 +21,7 @@ registerFenceCard({ lang: 'choices', load: () => import('./choices.js'), minHeig
 registerFenceCard({ lang: 'proposal', load: () => import('./proposal.js'), minHeight: 120, inline: true, editor: false });
 registerFenceCard({ lang: 'receipt', load: () => import('./receipt.js'), minHeight: 48, inline: true, editor: false });
 registerFenceCard({ lang: 'sources', load: () => import('./sources.js'), minHeight: 20, inline: true, editor: false });
+registerFenceCard({ lang: 'embed', load: () => import('./embed.js'), minHeight: 84, inline: true });
 
 // Loads the chat's inline renderers ahead of the first reply that uses one.
 export function preloadInlineCards() {

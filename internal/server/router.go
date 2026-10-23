@@ -197,6 +197,9 @@ func newRouter(
 	mux.Handle("POST /api/notes/exist", handler.NewNoteExist(vault))
 	mux.Handle("POST /api/notes/info", handler.NewNoteInfo(vault))
 	mux.Handle("POST /api/notes/meta", handler.NewNoteMeta(vault))
+	embeds, embedProgress := handler.NewEmbedHandlers(vault, agent.ShellEnv)
+	mux.Handle("POST /api/embeds", embeds)
+	mux.Handle("POST /api/embeds/progress", embedProgress)
 
 	// Vault REST
 	mux.HandleFunc("POST /api/vault/read", gh.Read)

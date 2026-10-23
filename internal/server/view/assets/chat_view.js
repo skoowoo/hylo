@@ -294,12 +294,28 @@
   // its info string is whole and the block can become its card.
   var PARTIAL_FENCE = /(^|\n)[ \t]*(`{1,3}|~{1,3})[^`\n]*$/;
 
+  var FENCE_LINE = /^[ \t]*(`{3,}|~{3,})(.*)$/;
+
+  // A fence still open at the end of a streaming reply has a half-written body.
+  function endsInOpenFence(text) {
+    var open = '';
+    text.split('\n').forEach(function (line) {
+      var m = FENCE_LINE.exec(line);
+      if (!m) return;
+      if (!open) open = m[1];
+      else if (m[1][0] === open[0] && m[1].length >= open.length && !m[2].trim()) open = '';
+    });
+    return !!open;
+  }
+
   function setProse(node, text, streaming) {
     if (streaming) text = text.replace(PARTIAL_FENCE, '$1');
-    if (node._raw === text) return;
+    var openTail = !!streaming && endsInOpenFence(text);
+    if (node._raw === text && node._openTail === openTail) return;
     node._raw = text;
+    node._openTail = openTail;
     node.innerHTML = root.__hyloRenderMarkdown(text, { cache: !streaming });
-    root.__hyloHydrateFenceCards(node);
+    root.__hyloHydrateFenceCards(node, { openTail: openTail });
   }
 
   function setText(node, text) {

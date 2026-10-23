@@ -9,6 +9,7 @@ const (
 	SectionBot          = "bot"
 	SectionMCP          = "mcp"
 	SectionChoices      = "choices"
+	SectionEmbed        = "embed"
 	SectionCapabilities = "capabilities"
 	SectionIntro        = "intro"
 )
@@ -21,6 +22,7 @@ var (
 	vaultText        = load("vault")
 	mcpText          = load("mcp")
 	choicesText      = load("choices")
+	embedText        = load("embed")
 	capabilitiesText = load("capabilities")
 	introTmpl        = parse("intro")
 )
@@ -36,6 +38,8 @@ var sections = []Section{
 	{ID: SectionMCP, Applies: func(r Run) bool { return r.MCP && r.Kind != OneShot }, Text: func(Run) string { return mcpText }},
 	// Only Hylo's chat turns a choices block into buttons; elsewhere it shows as raw text.
 	{ID: SectionChoices, Applies: func(r Run) bool { return r.Kind == Chat }, Text: func(Run) string { return choicesText }},
+	// Chat and the inbox, where trigger output lands, both draw embed blocks as cards.
+	{ID: SectionEmbed, Applies: notOneShot, Text: func(Run) string { return embedText }},
 	// Routing requests up to skills and automations needs the bot tools and the choices buttons.
 	{ID: SectionCapabilities, Applies: func(r Run) bool { return r.Kind == Chat && r.Main && r.MCP && r.Intro == nil }, Text: func(Run) string { return capabilitiesText }},
 	{ID: SectionIntro, Applies: func(r Run) bool { return r.Intro != nil }, Text: func(r Run) string { return r.Intro.text() }},

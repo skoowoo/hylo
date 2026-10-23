@@ -37,3 +37,9 @@ test('unregistered, unclosed and bullet-line fences are not cards', () => {
 test('chat-only cards are not cards in the editor', () => {
   assert.deepEqual(fences('```choices\n- a\n- b\n```'), [null]);
 });
+
+test('an embed fence is a card', () => {
+  const [f] = fences('```embed\nhttps://example.com/a\n```');
+  assert.equal(f.info, 'embed');
+  assert.equal(f.body, 'https://example.com/a');
+});

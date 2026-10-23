@@ -90,6 +90,9 @@
     .prose pre:has(> code.language-mindmap) {
       box-sizing: border-box; min-height: 360px;
     }
+    .prose pre:has(> code.language-embed) {
+      box-sizing: border-box; min-height: 84px;
+    }
     .prose .hy-card { margin: 1.5em 0; }
     .prose pre code {
       font-family: var(--font-mono);

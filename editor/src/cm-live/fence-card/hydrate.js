@@ -16,26 +16,31 @@ export function releaseFenceCards(root) {
   }
 }
 
-export function hydrateFenceCards(root) {
+// openTail: the last fence in root is still being streamed, so its card gets a partial source.
+export function hydrateFenceCards(root, { openTail = false } = {}) {
   const prev = live.get(root) || [];
   live.delete(root);
   releaseFenceCards(root);
   const handles = [];
-  for (const code of root.querySelectorAll('pre > code[class*="language-"]')) {
+  const codes = root.querySelectorAll('pre > code[class*="language-"]');
+  const tail = openTail ? codes[codes.length - 1] : null;
+  for (const code of codes) {
     const lang = (/language-(\S+)/.exec(code.className) || [])[1];
     if (!lang || !cardEntry(lang)) continue;
     const source = code.textContent;
+    const partial = code === tail;
     let h = prev[handles.length];
     if (h && h.lang === cardEntry(lang).lang && !root.contains(h.el)) {
       prev[handles.length] = null;
       // Back in the page first, so the card measures its new layout before paint.
       code.parentElement.replaceWith(h.el);
-      if (h.source !== source) h.update(source);
+      if (h.source !== source || h.partial !== partial) h.update(source, { partial });
     } else {
-      h = mountCard(lang, source, { replace: code.parentElement });
+      h = mountCard(lang, source, { replace: code.parentElement, partial });
       h.lang = cardEntry(lang).lang;
     }
     h.source = source;
+    h.partial = partial;
     handles.push(h);
   }
   prev.forEach((h) => { if (h) h.destroy(); });

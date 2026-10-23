@@ -132,6 +132,28 @@ CREATE TABLE IF NOT EXISTS images (
 );
 `
 
+// urlEmbedsSchema caches what a remote URL resolves to (page, audio, video,
+// image, file). url is canonical; fetched_at and expires_at are Unix milliseconds.
+// position_ms is how far audio or video playback got, and a metadata refresh
+// leaves it alone.
+const urlEmbedsSchema = `
+CREATE TABLE IF NOT EXISTS url_embeds (
+    url          TEXT PRIMARY KEY,
+    final_url    TEXT NOT NULL DEFAULT '',
+    kind         TEXT NOT NULL DEFAULT '',
+    content_type TEXT NOT NULL DEFAULT '',
+    title        TEXT NOT NULL DEFAULT '',
+    description  TEXT NOT NULL DEFAULT '',
+    site_name    TEXT NOT NULL DEFAULT '',
+    image_url    TEXT NOT NULL DEFAULT '',
+    status       TEXT NOT NULL DEFAULT '',
+    error        TEXT NOT NULL DEFAULT '',
+    fetched_at   INTEGER NOT NULL,
+    expires_at   INTEGER NOT NULL,
+    position_ms  INTEGER NOT NULL DEFAULT 0
+);
+`
+
 // renameJobsSchema creates the rename_jobs table: one row per Vault.RenameNote
 // call, tracking the async vault-wide wikilink/back-reference sweep that
 // follows the (fast, synchronous) filename change itself. See
@@ -260,7 +282,9 @@ func openDB(vaultRoot string) (*sql.DB, error) {
 		{indexDepsSchema, "create index_deps table"},
 		{knowledgeLinksSchema, "create knowledge_links table"},
 		{renameJobsSchema, "create rename_jobs table"},
+		{urlEmbedsSchema, "create url_embeds table"},
 		{`CREATE INDEX IF NOT EXISTS idx_rename_jobs_status ON rename_jobs(status)`, "create idx_rename_jobs_status"},
+		{`CREATE INDEX IF NOT EXISTS idx_url_embeds_expires ON url_embeds(expires_at)`, "create idx_url_embeds_expires"},
 		{`CREATE INDEX IF NOT EXISTS idx_kl_source ON knowledge_links(source_dir, source_name)`, "create idx_kl_source"},
 		{`CREATE INDEX IF NOT EXISTS idx_kl_target ON knowledge_links(target_dir, target_name)`, "create idx_kl_target"},
 		{`CREATE INDEX IF NOT EXISTS idx_kd_knowledge ON knowledge_deps(knowledge_dir, knowledge_name)`, "create idx_kd_knowledge"},

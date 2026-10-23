@@ -18,15 +18,15 @@ func TestSectionsApplyByRun(t *testing.T) {
 		run  Run
 		want string
 	}{
-		{Run{}, "global,vault,choices"},
-		{Run{Kind: Trigger}, "global,vault"},
-		{Run{Kind: Trigger, Bot: " ", MCP: true}, "global,vault,mcp"},
-		{Run{Bot: "be brief", MCP: true, Intro: &Intro{}}, "global,vault,bot,mcp,choices,intro"},
+		{Run{}, "global,vault,choices,embed"},
+		{Run{Kind: Trigger}, "global,vault,embed"},
+		{Run{Kind: Trigger, Bot: " ", MCP: true}, "global,vault,mcp,embed"},
+		{Run{Bot: "be brief", MCP: true, Intro: &Intro{}}, "global,vault,bot,mcp,choices,embed,intro"},
 		{Run{Kind: OneShot, MCP: true}, ""},
-		{Run{Main: true, MCP: true}, "global,vault,mcp,choices,capabilities"},
-		{Run{Main: true}, "global,vault,choices"},
-		{Run{Kind: Trigger, Main: true, MCP: true}, "global,vault,mcp"},
-		{Run{Main: true, MCP: true, Intro: &Intro{}}, "global,vault,mcp,choices,intro"},
+		{Run{Main: true, MCP: true}, "global,vault,mcp,choices,embed,capabilities"},
+		{Run{Main: true}, "global,vault,choices,embed"},
+		{Run{Kind: Trigger, Main: true, MCP: true}, "global,vault,mcp,embed"},
+		{Run{Main: true, MCP: true, Intro: &Intro{}}, "global,vault,mcp,choices,embed,intro"},
 	}
 	for _, c := range cases {
 		if got := ids(c.run); got != c.want {
@@ -37,7 +37,7 @@ func TestSectionsApplyByRun(t *testing.T) {
 
 func TestOverrideReplacesGlobal(t *testing.T) {
 	got := System(Run{Kind: Trigger, Bot: "bot", Overrides: map[string]string{SectionGlobal: " mine "}})
-	if got != "mine\n\n---\n\n"+vaultText+"\n\n---\n\nbot" {
+	if got != "mine\n\n---\n\n"+vaultText+"\n\n---\n\nbot\n\n---\n\n"+strings.TrimSpace(embedText) {
 		t.Fatalf("%q", got)
 	}
 	if got := System(Run{Kind: Trigger, Overrides: map[string]string{SectionGlobal: "  "}}); !strings.HasPrefix(got, GlobalDefault+"\n") {
@@ -62,6 +62,12 @@ func TestMessageResumeSendsOnlyTheRequest(t *testing.T) {
 func TestChoicesShowsAWorkingBlock(t *testing.T) {
 	if !strings.Contains(choicesText, "```choices\n- ") || !strings.Contains(choicesText, "- [ ] option") {
 		t.Fatal(choicesText)
+	}
+}
+
+func TestEmbedShowsAWorkingBlock(t *testing.T) {
+	if !strings.Contains(embedText, "```embed\nhttps://") {
+		t.Fatal(embedText)
 	}
 }
 

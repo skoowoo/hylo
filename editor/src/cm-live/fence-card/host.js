@@ -4,7 +4,8 @@ import { mountShell, mountInline, ensureStyle } from './shell.js';
 // Synchronous handle; the renderer chunk lands later and fills the placeholder.
 // With `replace`, the card takes that node's place first and, when its renderer is
 // already loaded, mounts there at once, at its final size.
-export function mountCard(info, source, { onEdit, mode, replace } = {}) {
+// `partial` marks a source still being typed or streamed; update can change it.
+export function mountCard(info, source, { onEdit, mode, replace, partial = false } = {}) {
   const entry = cardEntry(info);
   ensureStyle();
   const el = document.createElement('div');
@@ -18,7 +19,7 @@ export function mountCard(info, source, { onEdit, mode, replace } = {}) {
     if (destroyed) return;
     el.style.minHeight = '';
     shell = entry.inline
-      ? mountInline({ into: el, lang: entry.lang, source: latest, renderer })
+      ? mountInline({ into: el, lang: entry.lang, source: latest, renderer, onEdit, mode, partial })
       : mountShell({ into: el, lang: entry.lang, source: latest, renderer, minHeight: entry.minHeight, onEdit, mode });
   };
   if (replace) replace.replaceWith(el);
@@ -33,9 +34,10 @@ export function mountCard(info, source, { onEdit, mode, replace } = {}) {
 
   return {
     el,
-    update(next) {
+    update(next, opts) {
       latest = next;
-      if (shell) shell.update(next);
+      if (opts) partial = !!opts.partial;
+      if (shell) shell.update(next, { partial });
     },
     destroy() {
       destroyed = true;

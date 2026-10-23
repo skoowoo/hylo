@@ -1,4 +1,4 @@
-import{a as d,b as h,c as m,e as f}from"./chunk-JVA7RCZ3.js";import{a as p}from"./chunk-CDWQEUMK.js";var x=`
+import{a as d,b as h,c as m,e as f}from"./chunk-JVA7RCZ3.js";import{a as p}from"./chunk-2M35EBET.js";var x=`
 .hy-sources{display:flex;flex-wrap:wrap;align-items:center;gap:2px var(--space-xs,8px);font:var(--text-xs,.75rem)/1.6 var(--font-ui,system-ui,sans-serif);color:var(--muted,#6d7080)}
 .hy-sources-group{display:inline-flex;flex-wrap:wrap;align-items:center;gap:0 6px}
 .hy-sources svg{width:12px;height:12px;flex:none;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
