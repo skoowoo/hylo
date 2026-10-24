@@ -21,7 +21,7 @@ started: <YYYY-MM-DD>
 language: <BCP 47 tag, once confirmed>
 completed: <YYYY-MM-DD, once wrap-up is done>
 ---
-- [x] intro — [[Getting started with Hylo]]
+- [x] intro — [[Meet Hylo]]
 - [x] language — zh-Hans
 - [x] about-you — product designer, into AI tools
 - [ ] recall-bot
