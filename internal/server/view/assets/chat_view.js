@@ -1921,11 +1921,13 @@
         getDefaultItems: chatMentionDefaultItems,
         onApply: function (input, newVal, caretPos) {
           if (detaching) return;
-          input.value = newVal;
-          api.setDraft(newVal);
-          input.dispatchEvent(new Event('input', { bubbles: true }));
-          if (input.setSelectionRange) input.setSelectionRange(caretPos, caretPos);
-          input.focus();
+          var cur = input.value;
+          var p = 0;
+          while (p < cur.length && p < newVal.length && cur[p] === newVal[p]) p++;
+          var s = 0;
+          while (s < cur.length - p && s < newVal.length - p && cur[cur.length - 1 - s] === newVal[newVal.length - 1 - s]) s++;
+          root.__hyloTextareaInsert(input, p, cur.length - s, newVal.slice(p, newVal.length - s));
+          input.setSelectionRange(caretPos, caretPos);
         },
         escKey: 'chat-ac',
       });
@@ -1958,10 +1960,11 @@
         if (combo !== 'Enter' && !/\+Enter$/.test(combo || '')) return;
         var custom = hk.custom || {};
         if (combo === (custom['chat-send'] || 'Enter')) { e.preventDefault(); void api.send(); }
-        else if (combo === (custom['chat-newline'] || 'Shift+Enter')) {
+        // Enter/Shift+Enter already insert a newline natively; only that path
+        // reveals a new trailing line in WebKit.
+        else if (combo === (custom['chat-newline'] || 'Shift+Enter') && !/^(Shift\+)?Enter$/.test(combo)) {
           e.preventDefault();
-          ta.setRangeText('\n', ta.selectionStart, ta.selectionEnd, 'end');
-          ta.dispatchEvent(new Event('input', { bubbles: true }));
+          root.__hyloTextareaInsert(ta, ta.selectionStart, ta.selectionEnd, '\n');
         }
       });
     }
@@ -1977,16 +1980,11 @@
         if (before.length > 0 && !/\s$/.test(before)) insert = ' ' + insert;
         if (after.length > 0 && !/^\s/.test(after)) insert += ' ';
       }
-      var next = before + insert + after;
-      api.setDraft(next);
       if (ta) {
-        ta.value = next;
-        var pos = start + insert.length;
-        ta.selectionStart = ta.selectionEnd = pos;
-        ta.focus();
-        root.__hyloAutoResize(ta);
-        show(hint, !next);
+        root.__hyloTextareaInsert(ta, start, end, insert);
+        return;
       }
+      api.setDraft(before + insert + after);
       refreshContext();
     }
     function insertWikilink(stem) {

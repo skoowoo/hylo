@@ -99,14 +99,31 @@
     return html;
   };
 
+  // Through the editing path, not a value write, so undo survives and WebKit
+  // reveals the caret. Fires `input` either way.
+  root.__hyloTextareaInsert = function (el, start, end, text) {
+    if (!el.disabled) {
+      el.focus();
+      el.setSelectionRange(start, end);
+      if (document.execCommand('insertText', false, text)) return;
+    }
+    el.setRangeText(text, start, end, 'end');
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  };
+
   root.__hyloAutoResize = function (el) {
     if (!el) return;
+    var card = el.closest('.chat-input-card, .shorts-compose-card');
+    if (card) {
+      // Judge against the single-row shape: multiline widens the textarea, so
+      // measuring in it would unwrap the text and flip back.
+      card.classList.remove('is-multiline');
+      el.style.height = 'auto';
+      var cs = getComputedStyle(el);
+      var singleLineH = (parseFloat(cs.lineHeight) || 20) + parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
+      card.classList.toggle('is-multiline', el.scrollHeight > singleLineH + 1);
+    }
     el.style.height = 'auto';
     el.style.height = Math.min(el.scrollHeight, 140) + 'px';
-    var card = el.closest('.chat-input-card, .shorts-compose-card');
-    if (!card) return;
-    var cs = getComputedStyle(el);
-    var singleLineH = (parseFloat(cs.lineHeight) || 20) + parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
-    card.classList.toggle('is-multiline', el.scrollHeight > singleLineH + 1);
   };
 })(typeof window !== 'undefined' ? window : global);

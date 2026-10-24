@@ -1168,19 +1168,6 @@
       border-top: var(--bd-w) solid var(--line-hair);
     }
 
-    /* Single-row capsule composer — was textarea-on-top + a separate fixed
-       bar underneath (shortcut hint + send button on their own strip),
-       which cost a whole extra line of vertical space even at rest. Now
-       the textarea, hint, and button all share one flex row, pill-shaped
-       at rest. A stadium shape reads badly once the textarea wraps to
-       multiple lines (border-radius: var(--r-full) would auto-clamp to a
-       full-height stadium, not a rounded rectangle), so home.js's
-       autoResize() toggles .is-multiline the moment the textarea grows
-       past one line, switching the shape to a standard panel radius. No
-       transition on border-radius: the height jump is instant (set
-       imperatively in JS), so an animated radius alone would visibly
-       "melt" the corners against an already-resized box instead of
-       reading as one clean shape change. */
     /* One-click context above the composer: the open note, or its selection. */
     .chat-context {
       display: flex;
@@ -1211,7 +1198,10 @@
     .chat-context-plus { flex: none; font-weight: var(--fw-medium); }
     .chat-context-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-    /* Same tinted-wash background as the shared .field-input (base.css), but
+    /* A pill while the text fits one row; once it wraps (__hyloAutoResize sets
+       .is-multiline) the text takes the full width and the buttons drop to a
+       row below, so no column beside the text stays empty.
+       Same tinted-wash background as the shared .field-input (base.css), but
        unlike it, stays borderless even on focus — no accent outline here,
        by design. Border is still declared (transparent) rather than
        dropped, purely so the box model never has to change if that ever
@@ -1232,11 +1222,15 @@
 
     .chat-input-row {
       position: relative;
-      display: flex;
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      grid-template-areas: "add text send";
       align-items: center;
-      gap: 0.5rem;
-      width: 100%;
+      column-gap: 0.5rem;
     }
+    .chat-add { grid-area: add; }
+    .chat-textarea { grid-area: text; }
+    .chat-send-circle, .chat-stop-circle { grid-area: send; }
 
     .chat-input-card.is-multiline,
     .chat-input-card.has-images {
@@ -1244,12 +1238,12 @@
     }
     .chat-input-card.is-multiline { padding: 0.5rem; }
     .chat-input-card.is-multiline .chat-add-menu { left: 0.5rem; }
-    /* Textarea/hint pin to center in the single-row pill (original
-       behavior); once the row switches to flex-end for the multiline
-       shape, the textarea should grow from the top instead, with the
-       shortcut hint and send button anchored to the bottom beside it. */
-    .chat-input-card.is-multiline .chat-input-row { align-items: flex-end; }
-    .chat-input-card.is-multiline .chat-textarea { align-self: flex-start; }
+    .chat-input-card.is-multiline .chat-input-row {
+      grid-template-areas: "text text text" "add . send";
+      row-gap: var(--space-xxs);
+    }
+    /* Text starts where the + glyph does. */
+    .chat-input-card.is-multiline .chat-textarea { padding-inline: calc((var(--btn-h) - 16px) / 2); }
 
     .chat-pending-images { padding: 0.2rem 0.35rem 0.4rem; }
 
@@ -1327,9 +1321,7 @@
 
 
     .chat-textarea {
-      flex: 1;
       min-width: 0;
-      align-self: center;
       resize: none;
       border: none;
       outline: none;
