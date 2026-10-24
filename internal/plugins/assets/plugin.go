@@ -135,7 +135,7 @@ func (p *Plugin) load(pathStr string) (sp storage.Path, normalized string, raw [
 	if !strings.HasPrefix(pathStr, "/") {
 		pathStr = "/" + pathStr
 	}
-	if strings.HasPrefix(pathStr, "/_assets/") {
+	if strings.HasPrefix(pathStr, storage.AssetsDir+"/") {
 		return "", "", nil, false, false
 	}
 	sp, ok = storage.ParsePath(pathStr)

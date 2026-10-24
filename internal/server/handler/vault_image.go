@@ -75,17 +75,18 @@ func (gh *VaultHandler) UploadImage(w http.ResponseWriter, r *http.Request) {
 // vault's _assets directory. The .hylo internal directory is always blocked.
 func (gh *VaultHandler) ServeAsset(w http.ResponseWriter, r *http.Request) {
 	// r.URL.Path is like "/_assets/202501/xxx.png"
-	rel := strings.TrimPrefix(r.URL.Path, "/_assets/")
+	rel := strings.TrimPrefix(r.URL.Path, storage.AssetsDir+"/")
 	if rel == "" || strings.Contains(rel, "..") {
 		http.Error(w, "invalid path", http.StatusBadRequest)
 		return
 	}
 
 	root := gh.vault.Root()
-	abs := filepath.Join(root, "_assets", filepath.FromSlash(rel))
+	assetsRoot := filepath.Join(root, filepath.FromSlash(storage.AssetsDir))
+	abs := filepath.Join(assetsRoot, filepath.FromSlash(rel))
 
 	// Verify the resolved path stays inside {root}/_assets/.
-	assetsRoot := filepath.Join(root, "_assets") + string(os.PathSeparator)
+	assetsRoot += string(os.PathSeparator)
 	if !strings.HasPrefix(abs, assetsRoot) {
 		http.Error(w, "invalid path", http.StatusBadRequest)
 		return

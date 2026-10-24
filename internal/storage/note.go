@@ -90,8 +90,16 @@ const (
 	KindKnowledge Kind = "knowledge"
 	KindIndex     Kind = "index"
 
-	// ShortDir is the default vault directory for short notes.
-	ShortDir = "_shorts"
+	// System directories: fixed, since skills and prompts name them literally.
+	ShortDir     = "/_shorts"
+	KnowledgeDir = "/_knowledge"
+	MemoryDir    = "/_memory"
+	AssetsDir    = "/_assets"
+	// BotsDir holds each non-main bot's own folder, /_bots/_<slug>.
+	BotsDir = "/_bots"
+	// UploadDir holds chat images; inside .hylo so the watcher, search index
+	// and git sync leave it alone.
+	UploadDir = "/.hylo/uploads"
 )
 
 // Note is the metadata for a single markdown file inside a Vault.
@@ -232,7 +240,6 @@ type ShortEntry struct {
 
 // ShortListOptions controls filtering for Vault.ListShortEntries.
 type ShortListOptions struct {
-	Dir    string    // defaults to ShortDir when empty
 	After  time.Time // inclusive lower bound on entry created_at; zero = no bound
 	Before time.Time // exclusive upper bound on entry created_at; zero = no bound
 	Limit  int       // 0 = no limit

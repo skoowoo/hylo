@@ -38,11 +38,7 @@ func (vh *ViewHandler) KnowledgeGraphRebuild(w http.ResponseWriter, r *http.Requ
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	knowledgeDir := ""
-	if vh.cfg != nil {
-		knowledgeDir = vh.cfg.Vault.KnowledgeDir
-	}
-	if err := vh.vault.BackfillKnowledgeLinks(knowledgeDir); err != nil {
+	if err := vh.vault.BackfillKnowledgeLinks(); err != nil {
 		http.Error(w, "rebuild: "+err.Error(), http.StatusInternalServerError)
 		return
 	}

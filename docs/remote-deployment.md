@@ -40,7 +40,11 @@ write_timeout = 1800
 
 [vault]
 path = "~/.hylo/root"
+```
 
+git 同步跟 vault 绑定，写在 vault 自己的 `~/.hylo/root/.hylo/config.toml`：
+
+```toml
 [plugins.git_sync]
 enabled = true
 remote = "git@github.com:you/vault.git"

@@ -146,7 +146,7 @@ func TestPathValidation(t *testing.T) {
 	wantErr(t, func() error { _, _, err := Rename(c, "/a.md", "x/y.md"); return err }(), "filename only")
 	wantErr(t, Delete(c, "a.md"), "must be absolute")
 	wantErr(t, DeleteKnowledge(c, "a.md"), "must be absolute")
-	_, err := ShortCreate(c, "", "")
+	_, err := ShortCreate(c, "")
 	wantErr(t, err, "must not be empty")
 }
 

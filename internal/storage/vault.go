@@ -35,7 +35,8 @@ func vaultDBPath(root string) string {
 	return filepath.Join(vaultInternalPath(root), vaultDBFileName)
 }
 
-// IsVaultInitialized reports whether dir contains a .hylo directory.
+// IsVaultInitialized reports whether dir has a metadata DB. .hylo alone is not
+// enough: the vault's config.toml can be written there before the first open.
 // It does not create any paths on disk.
 func IsVaultInitialized(dir string) (bool, error) {
 	expanded, err := expandHome(dir)
@@ -46,17 +47,14 @@ func IsVaultInitialized(dir string) (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("vault: resolve path: %w", err)
 	}
-	st, err := os.Stat(vaultInternalPath(abs))
+	st, err := os.Stat(vaultDBPath(abs))
 	if err != nil {
 		if os.IsNotExist(err) {
 			return false, nil
 		}
-		return false, fmt.Errorf("vault: stat %s: %w", vaultInternalPath(abs), err)
+		return false, fmt.Errorf("vault: stat %s: %w", vaultDBPath(abs), err)
 	}
-	if !st.IsDir() {
-		return false, nil
-	}
-	return true, nil
+	return st.Mode().IsRegular(), nil
 }
 
 // EventHook is an optional callback invoked after every successful vault mutation.
@@ -82,7 +80,6 @@ type Vault struct {
 	mu          sync.RWMutex
 	root        string              // absolute, cleaned OS path
 	db          *sql.DB             // SQLite metadata index; always non-nil after New()
-	shortsDir   string              // configurable; defaults to ShortDir const
 	onEvent     EventHook           // optional; called after each successful mutation
 	ensureWatch func(absDir string) // set by StartWatcher; sync fsnotify watches after MkdirAll
 }
@@ -108,7 +105,7 @@ func New(dir string) (*Vault, error) {
 	if err != nil {
 		return nil, fmt.Errorf("vault: open metadata db: %w", err)
 	}
-	return &Vault{root: abs, db: db, shortsDir: ShortDir}, nil
+	return &Vault{root: abs, db: db}, nil
 }
 
 // Close releases the vault's underlying resources (SQLite DB).
@@ -118,13 +115,6 @@ func (g *Vault) Close() error {
 
 // Root returns the absolute path of the vault root on disk.
 func (g *Vault) Root() string { return g.root }
-
-// SetShortsDir overrides the default shorts directory (used when callers pass an empty dir).
-func (g *Vault) SetShortsDir(dir string) {
-	if dir != "" {
-		g.shortsDir = strings.TrimRight(dir, "/")
-	}
-}
 
 // ── compile plugin hooks ──────────────────────────────────────────────────────
 
@@ -310,14 +300,8 @@ func (g *Vault) GetKnowledgeLinksForIndex(index Path) ([]KnowledgeEdge, error) {
 // notes table, extracts wikilinks from their bodies, resolves targets to other
 // knowledge notes, and replaces the knowledge_links rows.
 // This is safe to call at any time: it only touches knowledge_links.
-func (g *Vault) BackfillKnowledgeLinks(knowledgeOutputDir string) error {
-	if knowledgeOutputDir == "" {
-		knowledgeOutputDir = "/_knowledge"
-	}
-	if !strings.HasPrefix(knowledgeOutputDir, "/") {
-		knowledgeOutputDir = "/" + knowledgeOutputDir
-	}
-	distillPrefix := knowledgeOutputDir + "/"
+func (g *Vault) BackfillKnowledgeLinks() error {
+	distillPrefix := KnowledgeDir + "/"
 
 	g.mu.Lock()
 	defer g.mu.Unlock()
@@ -346,7 +330,7 @@ func (g *Vault) BackfillKnowledgeLinks(knowledgeOutputDir string) error {
 	for _, n := range knowledgeNotes {
 		slashRel := n.PathString()
 		// Only process notes under the knowledge output directory.
-		if slashRel != knowledgeOutputDir && !strings.HasPrefix(slashRel, distillPrefix) {
+		if slashRel != KnowledgeDir && !strings.HasPrefix(slashRel, distillPrefix) {
 			continue
 		}
 		absPath, err := g.osPath(n.Path())
@@ -1032,9 +1016,8 @@ func (g *Vault) FailRenameJob(id int64, errMsg string) error {
 	return dbFailRenameJob(g.db, id, errMsg)
 }
 
-// AppendShort appends content as a new short note entry to today's daily file
-// inside shortsDir (defaults to ShortDir when empty). The file is named
-// YYYY-MM-DD.md and lives at /<shortsDir>/YYYY-MM-DD.md.
+// AppendShort appends content as a new short note entry to today's daily file,
+// /_shorts/YYYY-MM-DD.md.
 //
 // Each entry is prefixed with a sequence heading ("## Short Note N") and a
 // creation timestamp. Entries are separated by "---". Any "---" lines present
@@ -1043,18 +1026,15 @@ func (g *Vault) FailRenameJob(id int64, errMsg string) error {
 //
 // The note is stored with origin "short" so it can be filtered distinctly.
 // Returns the vault path of the daily file and the note's metadata.
-func (g *Vault) AppendShort(content []byte, shortsDir string) (Path, Note, error) {
+func (g *Vault) AppendShort(content []byte) (Path, Note, error) {
 	if !util.IsValidText(content) {
 		return "", Note{}, ErrBinaryContent
-	}
-	if shortsDir == "" {
-		shortsDir = g.shortsDir
 	}
 
 	sanitized := shortSanitize(content)
 
 	now := time.Now()
-	p := Path("/" + shortsDir + "/" + now.Format("2006-01-02") + ".md")
+	p := Path(ShortDir + "/" + now.Format("2006-01-02") + ".md")
 	timestamp := now.Format("2006-01-02 15:04:05")
 
 	g.mu.Lock()
@@ -1172,10 +1152,6 @@ func ParseShortEntries(content []byte, dailyPath string) []ShortEntry {
 // ListShortEntries returns individual short note entries, newest first, by
 // reading and parsing the daily aggregation files in the shorts directory.
 func (g *Vault) ListShortEntries(opts ShortListOptions) ([]ShortEntry, error) {
-	d := strings.Trim(opts.Dir, "/")
-	if d == "" {
-		d = g.shortsDir
-	}
 	listOpts := ListOptions{
 		OnlyKinds:  []Kind{KindShort},
 		SortByTime: true,
@@ -1183,7 +1159,7 @@ func (g *Vault) ListShortEntries(opts ShortListOptions) ([]ShortEntry, error) {
 		Before:     opts.Before,
 	}
 	g.mu.RLock()
-	dailyNotes, err := dbListByDir(g.db, "/"+d, listOpts)
+	dailyNotes, err := dbListByDir(g.db, ShortDir, listOpts)
 	g.mu.RUnlock()
 	if err != nil {
 		return nil, err
@@ -1454,45 +1430,6 @@ func (g *Vault) ListRecentShortNotes(limit int) ([]Note, error) {
 	return dbListRecentByKindByCreatedDesc(g.db, KindShort, limit)
 }
 
-// ErrShortDailyWrongKind means a note exists at the expected short path but
-// metadata kind is not "short".
-var ErrShortDailyWrongKind = errors.New("storage: note at short path does not have short kind")
-
-// ShortDailyVaultPath returns the vault-absolute path for the aggregated short file
-// for local calendar date day under shortsDir (vault-relative without leading slash;
-// empty uses ShortDir).
-func ShortDailyVaultPath(shortsDir string, day time.Time) (Path, error) {
-	d := strings.Trim(shortsDir, "/")
-	if d == "" {
-		d = ShortDir
-	}
-	base := day.Format("2006-01-02") + ".md"
-	sp, ok := ParsePath(JoinPath("/"+d, base))
-	if !ok {
-		return "", fmt.Errorf("storage: invalid shorts path")
-	}
-	return sp, nil
-}
-
-// GetShortDailyNote returns metadata for /{shortsDir}/YYYY-MM-DD.md when the DB row
-// exists and origin is "short".
-func (g *Vault) GetShortDailyNote(shortsDir string, day time.Time) (Note, error) {
-	sp, err := ShortDailyVaultPath(shortsDir, day)
-	if err != nil {
-		return Note{}, err
-	}
-	g.mu.RLock()
-	defer g.mu.RUnlock()
-	n, err := dbGet(g.db, sp)
-	if err != nil {
-		return Note{}, err
-	}
-	if n.Kind != KindShort {
-		return Note{}, ErrShortDailyWrongKind
-	}
-	return n, nil
-}
-
 // ── vault initialisation ──────────────────────────────────────────────────────
 
 // ScanAndRegister walks the vault root recursively and upserts a metadata row
@@ -1547,25 +1484,15 @@ func (g *Vault) ScanAndRegister() (int, error) {
 // It always starts from a clean slate (clears the notes table) and correctly
 // distinguishes raw notes from knowledge notes:
 //
-//   - Notes whose vault path is under knowledgeOutputDir and whose YAML frontmatter
+//   - Notes whose vault path is under KnowledgeDir and whose YAML frontmatter
 //     contains a "compiled:" field are inserted with origin "plugin:compile".
 //
 //   - All other notes are inserted with origin "fs".
-//
-// knowledgeOutputDir is normalised to a vault-absolute slash path (leading "/"
-// is added when absent). An empty string defaults to "/_knowledge".
-func (g *Vault) ScanAndRegisterFull(knowledgeOutputDir string) (int, error) {
+func (g *Vault) ScanAndRegisterFull() (int, error) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
-	// Normalise the knowledge output directory.
-	if knowledgeOutputDir == "" {
-		knowledgeOutputDir = "/_knowledge"
-	}
-	if !strings.HasPrefix(knowledgeOutputDir, "/") {
-		knowledgeOutputDir = "/" + knowledgeOutputDir
-	}
-	distillPrefix := knowledgeOutputDir + "/"
+	distillPrefix := KnowledgeDir + "/"
 
 	// Clear all existing rows so init is always a clean rebuild.
 	if err := dbClearAll(g.db); err != nil {
@@ -1648,7 +1575,7 @@ func (g *Vault) ScanAndRegisterFull(knowledgeOutputDir string) (int, error) {
 
 		// Detect knowledge notes by path prefix and `kind: knowledge` frontmatter,
 		// matching the runtime check in the compile plugin.
-		isUnderKnowledgeDir := slashRel == knowledgeOutputDir ||
+		isUnderKnowledgeDir := slashRel == KnowledgeDir ||
 			strings.HasPrefix(slashRel, distillPrefix)
 		if isUnderKnowledgeDir && readErr == nil {
 			fm, body := util.ParseFrontmatter(data)
@@ -1706,10 +1633,8 @@ func (g *Vault) ScanAndRegisterFull(knowledgeOutputDir string) (int, error) {
 			}
 		}
 
-		// Detect short note daily files by `kind: short` frontmatter under the
-		// configured shorts directory.
-		shortsVaultPrefix := "/" + strings.Trim(g.shortsDir, "/") + "/"
-		if n.Kind == "" && strings.HasPrefix(slashRel, shortsVaultPrefix) {
+		// Detect short note daily files by `kind: short` frontmatter under ShortDir.
+		if n.Kind == "" && strings.HasPrefix(slashRel, ShortDir+"/") {
 			if readErr == nil && util.IsShortNote(data) {
 				n.Kind = KindShort
 			}

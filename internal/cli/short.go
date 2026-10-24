@@ -23,10 +23,7 @@ func newShortCmd() *cobra.Command {
 }
 
 func newShortCreateCmd() *cobra.Command {
-	var (
-		content string
-		dir     string
-	)
+	var content string
 
 	cmd := &cobra.Command{
 		Use:   "create",
@@ -41,17 +38,16 @@ Content sources (in priority order):
 		Args:         cobra.NoArgs,
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runShortCreate(content, dir)
+			return runShortCreate(content)
 		},
 	}
 
 	cmd.Flags().StringVarP(&content, "content", "c", "", "inline content for the short note")
-	cmd.Flags().StringVar(&dir, "dir", "", `shorts directory override (default "_shorts")`)
 
 	return cmd
 }
 
-func runShortCreate(content, dir string) error {
+func runShortCreate(content string) error {
 	data, err := resolveAppendContent(content)
 	if err != nil {
 		return err
@@ -60,7 +56,7 @@ func runShortCreate(content, dir string) error {
 	if err != nil {
 		return err
 	}
-	p, err := notes.ShortCreate(c, string(data), dir)
+	p, err := notes.ShortCreate(c, string(data))
 	if err != nil {
 		return err
 	}
@@ -75,7 +71,6 @@ func newShortListCmd() *cobra.Command {
 		start  string
 		end    string
 		latest int
-		dir    string
 	)
 
 	cmd := &cobra.Command{
@@ -95,7 +90,6 @@ Without date filters all entries are returned (subject to --limit).`,
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runShortList(notes.ShortQuery{
-				Dir:   dir,
 				Limit: limit,
 				Time:  notes.TimeFilter{Start: start, End: end, Latest: latest},
 			}, table)
@@ -107,7 +101,6 @@ Without date filters all entries are returned (subject to --limit).`,
 	cmd.Flags().StringVar(&start, "start", "", "filter entries created on or after this date (YYYY-MM-DD)")
 	cmd.Flags().StringVar(&end, "end", "", "filter entries created before this date (YYYY-MM-DD)")
 	cmd.Flags().IntVar(&latest, "latest", 0, "filter entries created within the last N days")
-	cmd.Flags().StringVar(&dir, "dir", "", `shorts directory (default "_shorts")`)
 
 	return cmd
 }

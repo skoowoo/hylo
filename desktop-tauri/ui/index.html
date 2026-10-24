@@ -88,10 +88,6 @@
           </button>
         </div>
         <p class="ob-note" :class="{ 'is-error': vaultError }" x-text="vaultHint()" aria-live="polite"></p>
-        <label class="ob-toggle ob-toggle--sync" x-show="syncConflict()" x-transition.opacity.duration.200ms>
-          <input type="checkbox" x-model="pauseSync">
-          <span>Pause Git sync to <code x-text="vaults && vaults.gitSync"></code> for now</span>
-        </label>
         <div class="ob-actions">
           <button type="button" class="ob-primary" :class="{ 'is-busy': saving }" :disabled="saving || !selected"
             @click="primary()">

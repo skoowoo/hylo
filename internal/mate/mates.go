@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+
+	"github.com/hardhacker/hylo/internal/storage"
 )
 
 // ── Mates ─────────────────────────────────────────────────────────────────────
@@ -74,9 +76,9 @@ func botDir(tx *sql.Tx, name string) (string, error) {
 		}
 		taken[c] = true
 	}
-	dir := "/_bots/_" + slug
+	dir := storage.BotsDir + "/_" + slug
 	for i := 2; taken[dir]; i++ {
-		dir = fmt.Sprintf("/_bots/_%s-%d", slug, i)
+		dir = fmt.Sprintf("%s/_%s-%d", storage.BotsDir, slug, i)
 	}
 	return dir, rows.Err()
 }

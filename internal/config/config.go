@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/spf13/viper"
+
+	"github.com/hardhacker/hylo/internal/storage"
 )
 
 // Config holds the full application configuration.
@@ -44,16 +45,19 @@ type SearchConfig struct {
 
 // GitSyncConfig holds settings for the git-based vault sync plugin.
 type GitSyncConfig struct {
+	// Enabled, Remote and Branch name one vault's repository, so they live
+	// only in that vault's config (never inherited from the global file).
+
 	// Enabled must be true for the plugin to start (opt-in).
-	Enabled bool `mapstructure:"enabled" json:"enabled" toml:"enabled"`
+	Enabled bool `mapstructure:"enabled" json:"enabled" toml:"-"`
 
 	// Remote is the git remote URL (HTTPS or SSH). Leave empty for local-only
 	// commits without any remote sync.
-	Remote string `mapstructure:"remote" json:"remote" toml:"remote"`
+	Remote string `mapstructure:"remote" json:"remote" toml:"-"`
 
-	// Branch is the branch to commit to and push/pull from.
-	// Defaults to "main".
-	Branch string `mapstructure:"branch" json:"branch" toml:"branch"`
+	// Branch is the branch to commit to and push/pull from. Required when
+	// Enabled: commits never land on a branch the user did not name.
+	Branch string `mapstructure:"branch" json:"branch" toml:"-"`
 
 	// AuthToken is a personal access token used for HTTPS remotes
 	// (GitHub, GitLab, Gitea, etc.). Passed as the HTTP password with
@@ -119,31 +123,10 @@ type VaultConfig struct {
 	// Path is the root directory of the Vault.
 	// Supports ~ for the home directory.
 	Path string `mapstructure:"path" json:"path" toml:"path"`
-
-	// ShortsDir is the vault-relative directory for short notes.
-	// Default: "_shorts".
-	ShortsDir string `mapstructure:"shorts_dir" json:"shorts_dir" toml:"shorts_dir"`
-
-	// KnowledgeDir is the vault-relative directory where generated knowledge notes
-	// are stored. Must start with "_" to signal that it is a system directory.
-	// Default: "_knowledge".
-	KnowledgeDir string `mapstructure:"knowledge_dir" json:"knowledge_dir" toml:"knowledge_dir"`
 }
-
-// DefaultUploadDir is the vault-relative directory chat image paths must live under.
-// It sits inside .hylo so the watcher, search index and git sync leave it alone.
-const DefaultUploadDir = ".hylo/uploads"
-
-// legacyUploadDir is the previous default, at the vault root. A config that
-// still names it is read as DefaultUploadDir.
-const legacyUploadDir = "_agent_uploads"
 
 // AgentConfig configures Open Design–compatible local agent CLI integration.
 type AgentConfig struct {
-	// UploadDir is a vault-relative directory; image paths in chat requests must
-	// resolve under this folder (mirrors UPLOAD_DIR validation in open-design).
-	UploadDir string `mapstructure:"upload_dir" json:"upload_dir" toml:"upload_dir"`
-
 	// SystemPrompt replaces the built-in global layer of the system prompt
 	// (prompt.GlobalDefault) when set; the vault conventions below it stay. See internal/prompt.
 	SystemPrompt string `mapstructure:"system_prompt" json:"system_prompt" toml:"system_prompt"`
@@ -190,6 +173,21 @@ func (c *Config) BrowserBaseURL() (string, error) {
 // The returned configFileUsed path is absolute when viper read a concrete file on disk,
 // otherwise an empty string (defaults-only bootstrap).
 func Load(cfgFile string) (*Config, string, error) {
+	return load(cfgFile, "")
+}
+
+// MustLoadFor is MustLoad with the vault at root in place of vault.path, so
+// that vault's own config applies.
+func MustLoadFor(root string) *Config {
+	cfg, _, err := load("", root)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "fatal: failed to load config: %v\n", err)
+		os.Exit(1)
+	}
+	return cfg
+}
+
+func load(cfgFile, vaultRoot string) (*Config, string, error) {
 	v := viper.New()
 
 	setDefaults(v)
@@ -217,6 +215,15 @@ func Load(cfgFile string) (*Config, string, error) {
 	cfg := &Config{}
 	if err := v.Unmarshal(cfg); err != nil {
 		return nil, configFileUsed, fmt.Errorf("unmarshaling config: %w", err)
+	}
+	migrateFrom := configFileUsed
+	if vaultRoot != "" {
+		cfg.Vault.Path = vaultRoot
+		// Legacy git sync belongs to vault.path's vault, not this one.
+		migrateFrom = ""
+	}
+	if err := applyVaultConfig(cfg, migrateFrom); err != nil {
+		return nil, configFileUsed, err
 	}
 	applyEnv(cfg)
 
@@ -256,17 +263,8 @@ func MergedFromOptionalFile(absPath string) (*Config, error) {
 	if err := v.Unmarshal(cfg); err != nil {
 		return nil, fmt.Errorf("unmarshaling config: %w", err)
 	}
+	clearRepoKeys(cfg)
 	return cfg, nil
-}
-
-// ResolvedUploadDir returns the vault-relative upload directory, mapping the
-// old default and an empty value onto DefaultUploadDir.
-func (a AgentConfig) ResolvedUploadDir() string {
-	dir := strings.Trim(strings.TrimSpace(a.UploadDir), "/")
-	if dir == "" || dir == legacyUploadDir {
-		return DefaultUploadDir
-	}
-	return dir
 }
 
 // DefaultVaultPath is where a new install keeps its notes: visible in Finder,
@@ -297,15 +295,11 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("log.format", "text")
 
 	v.SetDefault("vault.path", defaultVaultPath())
-	v.SetDefault("vault.shorts_dir", "_shorts")
-	v.SetDefault("vault.knowledge_dir", "_knowledge")
 
-	v.SetDefault("agent.upload_dir", DefaultUploadDir)
 	v.SetDefault("agent.system_prompt", "")
 
 	// git_sync plugin defaults (disabled by default; user must opt in)
 	v.SetDefault("plugins.git_sync.enabled", false)
-	v.SetDefault("plugins.git_sync.branch", "main")
 	v.SetDefault("plugins.git_sync.auto_commit", true)
 	v.SetDefault("plugins.git_sync.debounce", "5m")
 	v.SetDefault("plugins.git_sync.sync_interval", "24h")
@@ -314,5 +308,5 @@ func setDefaults(v *viper.Viper) {
 
 	// search plugin defaults (always active; configure behaviour here)
 	v.SetDefault("plugins.search.use_jieba", true)
-	v.SetDefault("plugins.search.exclude_prefixes", []string{"/_assets", "/_knowledge/_indexes"})
+	v.SetDefault("plugins.search.exclude_prefixes", []string{storage.AssetsDir, storage.KnowledgeDir + "/_indexes"})
 }

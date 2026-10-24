@@ -547,7 +547,7 @@ func (g *Vault) saveImage(data []byte, stem, ext string) (Image, error) {
 	name := stem + ext
 
 	g.mu.Lock()
-	img, err := g.saveImageLocked(data, "/_assets/"+month, name)
+	img, err := g.saveImageLocked(data, AssetsDir+"/"+month, name)
 	g.mu.Unlock()
 	if err != nil {
 		return Image{}, err

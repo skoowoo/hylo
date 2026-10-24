@@ -17,6 +17,7 @@ type SchemaField struct {
 	Multiline   bool           `json:"multiline,omitempty"`
 	Enum        []string       `json:"enum,omitempty"`
 	Constraints map[string]int `json:"constraints,omitempty"` // min / max where applicable (e.g. port)
+	Vault       bool           `json:"vault,omitempty"`       // saved in the open vault's .hylo/config.toml
 }
 
 func buildConfigSchema() []SchemaField {
@@ -69,11 +70,11 @@ func buildConfigSchema() []SchemaField {
 			Description: "Vault-absolute path prefixes skipped by the search index.", Default: []string{}},
 
 		{Key: "plugins.git_sync.enabled", Type: "bool", Section: "plugins.git_sync", Label: "Git sync enabled",
-			Description: "When true, vault changes can commit and optionally push to remote.", Default: false},
+			Description: "When true, this vault's changes commit and optionally push to remote.", Default: false},
 		{Key: "plugins.git_sync.remote", Type: "string", Section: "plugins.git_sync", Label: "Remote URL",
-			Description: "HTTPS remote URL; empty keeps local commits only.", Default: ""},
+			Description: "HTTPS remote URL Hylo pushes to and pulls from, as its own remote; the repository's origin is left alone. Empty keeps commits local.", Default: ""},
 		{Key: "plugins.git_sync.branch", Type: "string", Section: "plugins.git_sync", Label: "Branch",
-			Description: "Branch to sync.", Default: "main"},
+			Description: "Branch Hylo commits to, and pushes and pulls when a remote is set. Required when git sync is enabled.", Default: ""},
 		{Key: "plugins.git_sync.auth_token", Type: "string", Section: "plugins.git_sync", Label: "HTTPS token",
 			Description: "Personal access token (PAT) used as the HTTPS password.",
 			Sensitive:   true, Default: ""},
@@ -87,4 +88,10 @@ func buildConfigSchema() []SchemaField {
 	}
 }
 
-var staticConfigSchemaFields = buildConfigSchema()
+var staticConfigSchemaFields = func() []SchemaField {
+	fields := buildConfigSchema()
+	for i := range fields {
+		fields[i].Vault = config.IsVaultKey(fields[i].Key)
+	}
+	return fields
+}()

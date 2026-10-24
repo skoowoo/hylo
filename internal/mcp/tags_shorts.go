@@ -18,7 +18,6 @@ type tagReq struct {
 
 type shortCreateReq struct {
 	Content string `json:"content" jsonschema:"short note text"`
-	Dir     string `json:"dir,omitempty" jsonschema:"shorts directory override, default _shorts"`
 }
 
 type shortListReq struct {
@@ -26,7 +25,6 @@ type shortListReq struct {
 	Start  string `json:"start,omitempty" jsonschema:"only entries created on or after this date (YYYY-MM-DD)"`
 	End    string `json:"end,omitempty" jsonschema:"only entries created before this date (YYYY-MM-DD)"`
 	Latest int    `json:"latest,omitempty" jsonschema:"only entries created within the last N days; cannot combine with start/end"`
-	Dir    string `json:"dir,omitempty" jsonschema:"shorts directory, default _shorts"`
 }
 
 type tagsOut struct {
@@ -54,14 +52,13 @@ func registerTagTools(s *sdk.Server, c *client.Client) {
 func registerShortTools(s *sdk.Server, c *client.Client) {
 	addTool(s, "short_create", "Save a short note into today's shorts file.", additive,
 		func(_ context.Context, in shortCreateReq) (pathOut, error) {
-			p, err := notes.ShortCreate(c, in.Content, in.Dir)
+			p, err := notes.ShortCreate(c, in.Content)
 			return pathOut{Path: p}, err
 		})
 
 	addTool(s, "short_list", "List individual short note entries, newest first.", readOnly,
 		func(_ context.Context, in shortListReq) (shortsOut, error) {
 			entries, err := notes.ShortList(c, notes.ShortQuery{
-				Dir:   in.Dir,
 				Limit: in.Limit,
 				Time:  notes.TimeFilter{Start: in.Start, End: in.End, Latest: in.Latest},
 			})

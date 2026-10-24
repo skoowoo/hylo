@@ -19,20 +19,3 @@ func TestDefaultVaultPathKeepsLegacyRoot(t *testing.T) {
 		t.Fatalf("legacy home: got %q", got)
 	}
 }
-
-func TestResolvedUploadDir(t *testing.T) {
-	cases := []struct {
-		in, want string
-	}{
-		{"", DefaultUploadDir},
-		{"_agent_uploads", DefaultUploadDir},
-		{"/_agent_uploads/", DefaultUploadDir},
-		{".hylo/uploads", DefaultUploadDir},
-		{"attachments", "attachments"},
-	}
-	for _, c := range cases {
-		if got := (AgentConfig{UploadDir: c.in}).ResolvedUploadDir(); got != c.want {
-			t.Fatalf("ResolvedUploadDir(%q) = %q, want %q", c.in, got, c.want)
-		}
-	}
-}

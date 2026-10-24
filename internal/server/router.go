@@ -217,7 +217,7 @@ func newRouter(
 	mux.HandleFunc("POST /api/vault/pin", gh.Pin)
 	mux.HandleFunc("POST /api/vault/shorts", gh.Short)
 	mux.HandleFunc("POST /api/vault/shorts/list", gh.ShortList)
-	mux.HandleFunc("GET /_assets/", gh.ServeAsset)
+	mux.HandleFunc("GET "+storage.AssetsDir+"/", gh.ServeAsset)
 	mux.HandleFunc("GET /api/images/serve", gh.ServeImageByName)
 	mux.HandleFunc("GET /api/images/at", gh.ServeImageAt)
 	mux.HandleFunc("POST /api/images/delete", gh.DeleteGalleryImage)

@@ -115,7 +115,6 @@ document.addEventListener('alpine:init', function () {
       vaults: null,
       custom: null,
       selected: '',
-      pauseSync: true,
       saving: false,
       vaultError: '',
 
@@ -468,12 +467,6 @@ document.addEventListener('alpine:init', function () {
           : 'Opens as it is. Hylo only adds a hidden .hylo folder.';
       },
 
-      // Sync is global: switching folders would back the new one up to the old one's remote.
-      syncConflict() {
-        var o = this.current();
-        return !!(this.vaults && this.vaults.gitSync && o && !o.current);
-      },
-
       choose(path) {
         if (this.saving) return;
         this.selected = path;
@@ -509,7 +502,7 @@ document.addEventListener('alpine:init', function () {
         this.saving = true;
         this.vaultError = '';
         try {
-          var changed = await api().onboarding.setVault(this.selected, this.syncConflict() && this.pauseSync);
+          var changed = await api().onboarding.setVault(this.selected);
           // A hello from before spoke about the old folder's notes; the server restarts on the new one.
           if (changed && this.agentPhase !== 'idle') this.resetAi();
           this.saving = false;

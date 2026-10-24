@@ -152,7 +152,7 @@ func resolveImageLinks(vault *storage.Vault, imgs []storage.Image) (linksByImage
 }
 
 func imageThumbURL(img storage.Image) string {
-	if strings.HasPrefix(img.Dir, "/_assets") {
+	if img.Dir == storage.AssetsDir || strings.HasPrefix(img.Dir, storage.AssetsDir+"/") {
 		return img.Dir + "/" + url.PathEscape(img.Name)
 	}
 	q := url.Values{}

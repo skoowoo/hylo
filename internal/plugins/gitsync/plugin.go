@@ -30,6 +30,9 @@ import (
 	"github.com/hardhacker/hylo/internal/plugin"
 )
 
+// remoteName is Hylo's own remote, so a repository's origin stays the user's.
+const remoteName = "hylo"
+
 // Plugin implements plugin.Plugin for git-based vault sync.
 type Plugin struct {
 	cfg          config.GitSyncConfig
@@ -47,7 +50,7 @@ type Plugin struct {
 // repository setup is deferred to Start.
 func New(cfg config.GitSyncConfig, vaultRoot string, logger *slog.Logger) (*Plugin, error) {
 	if cfg.Branch == "" {
-		cfg.Branch = "main"
+		return nil, errors.New("gitsync: plugins.git_sync.branch is required in the vault's config")
 	}
 	if cfg.Debounce == "" {
 		cfg.Debounce = "15s"
@@ -113,10 +116,7 @@ func (p *Plugin) TriggerSync() {
 func (p *Plugin) Start(ctx context.Context) error {
 	repo, err := p.ensureRepo()
 	if err != nil {
-		p.logger.Warn("gitsync: repository setup failed — plugin will not run",
-			"err", err,
-			"hint", "set plugins.git_sync.init_if_missing = true to auto-initialise",
-		)
+		p.logger.Warn("gitsync: repository setup failed — plugin will not run", "err", err)
 		<-ctx.Done()
 		return nil
 	}
@@ -214,14 +214,8 @@ func (p *Plugin) ensureRepo() (*git.Repository, error) {
 		return nil, fmt.Errorf("git init: %w", err)
 	}
 
-	if p.cfg.Remote != "" {
-		if _, remErr := repo.CreateRemote(&gogitcfg.RemoteConfig{
-			Name: "origin",
-			URLs: []string{p.cfg.Remote},
-		}); remErr != nil {
-			return nil, fmt.Errorf("add remote: %w", remErr)
-		}
-		p.logger.Info("gitsync: remote configured", "url", p.cfg.Remote)
+	if remErr := p.ensureRemote(repo); remErr != nil {
+		return nil, remErr
 	}
 
 	if gitignoreErr := p.ensureGitignore(); gitignoreErr != nil {
@@ -230,28 +224,26 @@ func (p *Plugin) ensureRepo() (*git.Repository, error) {
 	return repo, nil
 }
 
-// ensureRemote adds the "origin" remote when the config specifies a remote URL
-// but the existing repository has none. This handles the case where the remote
-// was added to config after the repo was already initialised.
+// ensureRemote points Hylo's remote at the configured URL, or removes it when
+// none is set. Other remotes, origin included, are never touched.
 func (p *Plugin) ensureRemote(repo *git.Repository) error {
+	existing, err := repo.Remote(remoteName)
+	switch {
+	case err == nil:
+		if urls := existing.Config().URLs; p.cfg.Remote != "" && len(urls) > 0 && urls[0] == p.cfg.Remote {
+			return nil
+		}
+		if delErr := repo.DeleteRemote(remoteName); delErr != nil {
+			return fmt.Errorf("update remote: %w", delErr)
+		}
+	case !errors.Is(err, git.ErrRemoteNotFound):
+		return fmt.Errorf("check remote: %w", err)
+	}
 	if p.cfg.Remote == "" {
 		return nil
 	}
-	existing, err := repo.Remote("origin")
-	if err == nil {
-		if len(existing.Config().URLs) > 0 && existing.Config().URLs[0] == p.cfg.Remote {
-			return nil // already correct
-		}
-		// URL changed (e.g. SSH → HTTPS): delete and recreate.
-		if delErr := repo.DeleteRemote("origin"); delErr != nil {
-			return fmt.Errorf("update remote: %w", delErr)
-		}
-		p.logger.Info("gitsync: remote URL changed, updating", "url", p.cfg.Remote)
-	} else if !errors.Is(err, git.ErrRemoteNotFound) {
-		return fmt.Errorf("check remote: %w", err)
-	}
 	if _, createErr := repo.CreateRemote(&gogitcfg.RemoteConfig{
-		Name: "origin",
+		Name: remoteName,
 		URLs: []string{p.cfg.Remote},
 	}); createErr != nil {
 		return fmt.Errorf("add remote: %w", createErr)
@@ -375,9 +367,9 @@ func (p *Plugin) syncRemote(ctx context.Context) error {
 	// Pull (merge) from remote. Ignore "already up to date" and missing
 	// branch (first push to a new remote).
 	pullErr := wt.PullContext(ctx, &git.PullOptions{
-		RemoteName: "origin",
-		Auth:       auth,
-		Force:      false,
+		RemoteName:    remoteName,
+		ReferenceName: plumbing.NewBranchReferenceName(p.cfg.Branch),
+		Auth:          auth,
 	})
 	switch {
 	case pullErr == nil:
@@ -399,7 +391,7 @@ func (p *Plugin) syncRemote(ctx context.Context) error {
 		"refs/heads/" + branch + ":refs/heads/" + branch,
 	)
 	pushErr := p.repo.PushContext(ctx, &git.PushOptions{
-		RemoteName: "origin",
+		RemoteName: remoteName,
 		RefSpecs:   []gogitcfg.RefSpec{refSpec},
 		Auth:       auth,
 	})
@@ -426,36 +418,31 @@ func (p *Plugin) auth() (transport.AuthMethod, error) {
 	return nil, nil
 }
 
-// ensureBranch checks if we're on the configured branch and creates/switches to it if needed.
+// ensureBranch puts HEAD on the configured branch, creating it from HEAD when
+// missing. Commits never fall back to another branch.
 func (p *Plugin) ensureBranch(wt *git.Worktree) error {
+	target := plumbing.NewBranchReferenceName(p.cfg.Branch)
 	head, err := p.repo.Head()
+	if errors.Is(err, plumbing.ErrReferenceNotFound) {
+		// No commits yet: the first one creates the branch.
+		return p.repo.Storer.SetReference(plumbing.NewSymbolicReference(plumbing.HEAD, target))
+	}
 	if err != nil {
-		// No HEAD yet (empty repo), branch will be created on first commit
+		return err
+	}
+	if head.Name() == target {
 		return nil
 	}
-
-	currentBranch := head.Name().Short()
-	if currentBranch == p.cfg.Branch {
-		return nil // already on the correct branch
+	_, err = p.repo.Reference(target, false)
+	missing := errors.Is(err, plumbing.ErrReferenceNotFound)
+	if err != nil && !missing {
+		return err
 	}
-
-	// Try to checkout the configured branch
-	branchRef := plumbing.ReferenceName("refs/heads/" + p.cfg.Branch)
-	checkoutErr := wt.Checkout(&git.CheckoutOptions{
-		Branch: branchRef,
-		Create: true,
-	})
-	if checkoutErr == nil {
-		p.logger.Info("gitsync: switched to branch", "branch", p.cfg.Branch)
-		return nil
+	// Keep: the vault's files are what gets committed; switching must not rewrite them.
+	if err := wt.Checkout(&git.CheckoutOptions{Branch: target, Create: missing, Keep: true}); err != nil {
+		return fmt.Errorf("switch to branch %q: %w", p.cfg.Branch, err)
 	}
-
-	// If checkout failed, log warning but continue (will use current branch)
-	p.logger.Warn("gitsync: could not switch to configured branch, using current",
-		"configured", p.cfg.Branch,
-		"current", currentBranch,
-		"err", checkoutErr,
-	)
+	p.logger.Info("gitsync: switched to branch", "branch", p.cfg.Branch, "from", head.Name().Short())
 	return nil
 }
 

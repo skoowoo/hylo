@@ -371,7 +371,6 @@ type ShortEntry struct {
 
 // ShortListOptions controls filtering for Client.ListShorts.
 type ShortListOptions struct {
-	Dir    string
 	After  time.Time
 	Before time.Time
 	Limit  int
@@ -380,9 +379,6 @@ type ShortListOptions struct {
 // ListShorts returns individual short note entries matching opts, newest first.
 func (c *Client) ListShorts(opts ShortListOptions) ([]ShortEntry, error) {
 	body := map[string]any{}
-	if opts.Dir != "" {
-		body["dir"] = opts.Dir
-	}
 	if !opts.After.IsZero() {
 		body["start"] = opts.After.Format(time.DateOnly)
 	}
@@ -414,12 +410,8 @@ func (c *Client) ListShorts(opts ShortListOptions) ([]ShortEntry, error) {
 type CreateShortResponse = storage.Note
 
 // CreateShort appends a short note to today's daily file in the shorts directory.
-// dir overrides the default "_shorts" directory when non-empty.
-func (c *Client) CreateShort(content, dir string) (storage.Note, error) {
+func (c *Client) CreateShort(content string) (storage.Note, error) {
 	body := map[string]any{"content": content}
-	if dir != "" {
-		body["dir"] = dir
-	}
 	resp, err := c.postJSON(c.baseURL+"/api/vault/shorts", body)
 	if err != nil {
 		return storage.Note{}, wrapConnErr(err)

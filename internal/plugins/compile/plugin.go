@@ -25,11 +25,10 @@ type DispatchFunc func(plugin.Event)
 
 // Plugin implements plugin.Plugin for note compilation event dispatch.
 type Plugin struct {
-	knowledgeDir string // vault-absolute path, e.g. "/_knowledge"
-	vault        *storage.Vault
-	logger       *slog.Logger
-	dispatchFn   atomicDispatch
-	settle       *plugin.Coalescer
+	vault      *storage.Vault
+	logger     *slog.Logger
+	dispatchFn atomicDispatch
+	settle     *plugin.Coalescer
 }
 
 type atomicDispatch struct {
@@ -49,20 +48,11 @@ func (a *atomicDispatch) Load() DispatchFunc {
 	return a.fn
 }
 
-// New creates a Compile plugin. knowledgeDir is the vault-relative (or absolute)
-// path to the knowledge output directory (e.g. "_knowledge" or "/_knowledge").
-func New(knowledgeDir string, vault *storage.Vault, logger *slog.Logger) (*Plugin, error) {
-	if knowledgeDir == "" {
-		knowledgeDir = "_knowledge"
-	}
-	if !strings.HasPrefix(knowledgeDir, "/") {
-		knowledgeDir = "/" + knowledgeDir
-	}
-
+// New creates a Compile plugin.
+func New(vault *storage.Vault, logger *slog.Logger) (*Plugin, error) {
 	p := &Plugin{
-		knowledgeDir: knowledgeDir,
-		vault:        vault,
-		logger:       logger,
+		vault:  vault,
+		logger: logger,
 	}
 	p.settle = plugin.NewCoalescer(plugin.IndexWindow, func(e plugin.Event) {
 		if e.Type != plugin.EventFSDelete && e.Type != plugin.EventVaultDelete {
@@ -102,7 +92,7 @@ func (p *Plugin) Notify(e plugin.Event) {
 
 // Start implements plugin.Plugin.
 func (p *Plugin) Start(ctx context.Context) error {
-	p.logger.Info("compile: plugin started", "knowledge_dir", p.knowledgeDir)
+	p.logger.Info("compile: plugin started")
 	<-ctx.Done()
 	return nil
 }
@@ -128,7 +118,7 @@ func normalizeVaultPath(p string) string {
 
 // isKnowledgePath reports whether vaultPath is inside the knowledge output dir.
 func (p *Plugin) isKnowledgePath(vaultPath string) bool {
-	return vaultPath == p.knowledgeDir || strings.HasPrefix(vaultPath, p.knowledgeDir+"/")
+	return vaultPath == storage.KnowledgeDir || strings.HasPrefix(vaultPath, storage.KnowledgeDir+"/")
 }
 
 // handleKnowledgeDirNote is the entry point for create/write events on notes

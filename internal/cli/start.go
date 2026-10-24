@@ -141,7 +141,7 @@ func autoInitVault(log *slog.Logger, cfg *config.Config, vault *storage.Vault) e
 
 	log.Info("detected pre-existing notes in new vault; running auto-init", "root", vault.Root())
 
-	registered, err := vault.ScanAndRegisterFull(cfg.Vault.KnowledgeDir)
+	registered, err := vault.ScanAndRegisterFull()
 	if err != nil {
 		return fmt.Errorf("scan and register notes: %w", err)
 	}

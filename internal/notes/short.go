@@ -7,16 +7,15 @@ import (
 )
 
 type ShortQuery struct {
-	Dir   string // default _shorts
 	Limit int
 	Time  TimeFilter
 }
 
-func ShortCreate(c *client.Client, content, dir string) (path string, err error) {
+func ShortCreate(c *client.Client, content string) (path string, err error) {
 	if len([]rune(content)) == 0 {
 		return "", fmt.Errorf("content must not be empty")
 	}
-	note, err := c.CreateShort(content, dir)
+	note, err := c.CreateShort(content)
 	if err != nil {
 		return "", err
 	}
@@ -24,7 +23,7 @@ func ShortCreate(c *client.Client, content, dir string) (path string, err error)
 }
 
 func ShortList(c *client.Client, q ShortQuery) ([]client.ShortEntry, error) {
-	opts := client.ShortListOptions{Dir: q.Dir, Limit: q.Limit}
+	opts := client.ShortListOptions{Limit: q.Limit}
 	var err error
 	if opts.After, opts.Before, err = q.Time.Bounds(); err != nil {
 		return nil, err

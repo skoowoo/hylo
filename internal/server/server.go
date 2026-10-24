@@ -94,13 +94,13 @@ func New(cfg *config.Config, cfgFileLoaded string, logger *slog.Logger, vault *s
 	}
 
 	var compilePlugin *compile.Plugin
-	if dp, err := compile.New(cfg.Vault.KnowledgeDir, vault, logger); err != nil {
+	if dp, err := compile.New(vault, logger); err != nil {
 		logger.Warn("compile plugin could not be created", "err", err)
 	} else {
 		dp.SetDispatch(mgr.Dispatch)
 		mgr.Register(dp)
 		compilePlugin = dp
-		logger.Info("compile plugin registered", "knowledge_dir", cfg.Vault.KnowledgeDir)
+		logger.Info("compile plugin registered")
 	}
 
 	// Mate runner: fires agent runs on vault events matching trigger configs.
@@ -124,7 +124,7 @@ func New(cfg *config.Config, cfgFileLoaded string, logger *slog.Logger, vault *s
 				logger.Warn("mate: rename skill in prompts", "from", old, "to", repl, "err", err)
 			}
 		}
-		channelHub = channels.NewHub(ms, vault.Root(), filepath.Join(vault.Root(), cfg.Agent.ResolvedUploadDir()), logger, proxy)
+		channelHub = channels.NewHub(ms, vault.Root(), filepath.Join(vault.Root(), storage.UploadDir), logger, proxy)
 		ms.SetOnChange(func() {
 			feed.Notify(live.TopicBots)()
 			channelHub.Reload()
@@ -137,8 +137,6 @@ func New(cfg *config.Config, cfgFileLoaded string, logger *slog.Logger, vault *s
 		mgr.Register(channelHub)
 		logger.Info("mate_runner plugin registered")
 	}
-
-	vault.SetShortsDir(cfg.Vault.ShortsDir)
 
 	// Wire vault mutations → plugin event bus.
 	vault.SetEventHook(func(e plugin.Event) {

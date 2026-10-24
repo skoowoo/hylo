@@ -10,14 +10,11 @@ import (
 
 type shortRequest struct {
 	Content string `json:"content"`
-	// Dir overrides the default shorts directory ("_shorts"). Optional.
-	Dir string `json:"dir,omitempty"`
 }
 
 // ShortList handles POST /api/vault/shorts/list: return individual short entries.
 func (gh *VaultHandler) ShortList(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Dir   string `json:"dir"`
 		Start string `json:"start"`
 		End   string `json:"end"`
 		Limit int    `json:"limit"`
@@ -26,7 +23,7 @@ func (gh *VaultHandler) ShortList(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid JSON body: "+err.Error(), http.StatusBadRequest)
 		return
 	}
-	opts := storage.ShortListOptions{Dir: req.Dir, Limit: req.Limit}
+	opts := storage.ShortListOptions{Limit: req.Limit}
 	if req.Start != "" {
 		t, err := time.Parse(time.DateOnly, req.Start)
 		if err != nil {
@@ -67,7 +64,7 @@ func (gh *VaultHandler) Short(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, note, err := gh.vault.AppendShort([]byte(req.Content), req.Dir)
+	_, note, err := gh.vault.AppendShort([]byte(req.Content))
 	if err != nil {
 		writeVaultError(w, err)
 		return

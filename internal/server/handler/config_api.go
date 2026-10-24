@@ -58,6 +58,7 @@ func (c *ConfigHTTP) Get(w http.ResponseWriter, r *http.Request) {
 		"restart_required_after_save": true,
 		"config_write_path":           writePath,
 		"config_loaded_path":          c.configLoadedPath,
+		"vault_config_path":           vaultConfigPath(c.cfg),
 		"started_at":                  processStarted,
 	}
 
@@ -66,6 +67,14 @@ func (c *ConfigHTTP) Get(w http.ResponseWriter, r *http.Request) {
 		"secrets": secrets,
 		"meta":    meta,
 	})
+}
+
+func vaultConfigPath(cfg *config.Config) string {
+	root, err := config.VaultRoot(cfg.Vault.Path)
+	if err != nil {
+		return ""
+	}
+	return config.VaultConfigPath(root)
 }
 
 func applySecretMask(m map[string]any, reveal bool) map[string]bool {
@@ -167,31 +176,31 @@ func (c *ConfigHTTP) Patch(w http.ResponseWriter, r *http.Request) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	baseCfg, err := config.MergedFromOptionalFile(writePath)
-	if err != nil {
-		respondJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
-		return
-	}
-
-	baseMap, err := config.ConfigToMap(baseCfg)
-	if err != nil {
-		respondJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
-		return
-	}
-	config.MergeJSONIntoTomlRoot(baseMap, body.Patch)
-
-	if err := config.WriteConfigToml(writePath, baseMap); err != nil {
-		var ve config.ValidationError
-		if errors.As(err, &ve) {
-			respondJSON(w, http.StatusBadRequest, map[string]any{
-				"error":  "validation failed",
-				"errors": ve.Errors,
-			})
+	// Vault keys go to the vault this server has open, the one the UI showed.
+	// Both parts are validated before either file is written.
+	vaultPatch, globalPatch := config.SplitVaultPatch(body.Patch)
+	var commitVault func() error
+	if len(vaultPatch) > 0 {
+		root, err := config.VaultRoot(c.cfg.Vault.Path)
+		if err == nil {
+			commitVault, err = config.PrepareVaultConfig(root, vaultPatch)
+		}
+		if err != nil {
+			c.respondWriteError(w, "vault config", err)
 			return
 		}
-		c.logger.Warn("config write failed", "path", writePath, "err", err)
-		respondJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
-		return
+	}
+	if len(globalPatch) > 0 {
+		if err := c.writeGlobal(writePath, globalPatch); err != nil {
+			c.respondWriteError(w, writePath, err)
+			return
+		}
+	}
+	if commitVault != nil {
+		if err := commitVault(); err != nil {
+			c.respondWriteError(w, "vault config", err)
+			return
+		}
 	}
 
 	respondJSON(w, http.StatusOK, map[string]any{
@@ -200,6 +209,29 @@ func (c *ConfigHTTP) Patch(w http.ResponseWriter, r *http.Request) {
 		"message":          "configuration written; restart the server to apply changes",
 		"restart_required": true,
 	})
+}
+
+func (c *ConfigHTTP) writeGlobal(writePath string, patch map[string]any) error {
+	baseCfg, err := config.MergedFromOptionalFile(writePath)
+	if err != nil {
+		return err
+	}
+	baseMap, err := config.ConfigToMap(baseCfg)
+	if err != nil {
+		return err
+	}
+	config.MergeJSONIntoTomlRoot(baseMap, patch)
+	return config.WriteConfigToml(writePath, baseMap)
+}
+
+func (c *ConfigHTTP) respondWriteError(w http.ResponseWriter, what string, err error) {
+	var ve config.ValidationError
+	if errors.As(err, &ve) {
+		respondJSON(w, http.StatusBadRequest, map[string]any{"error": "validation failed", "errors": ve.Errors})
+		return
+	}
+	c.logger.Warn("config write failed", "path", what, "err", err)
+	respondJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
 }
 
 func patchTouchesLockedServer(patch map[string]any) bool {

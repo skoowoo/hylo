@@ -74,6 +74,7 @@ const settingsServerCSS = `
     .cfg-field-meta { grid-area: meta; min-width: 0; }
     .cfg-field-ctrl { grid-area: ctrl; display: flex; align-items: center; justify-content: flex-end; }
     .cfg-field-label { font-size: var(--text-sm); font-weight: 500; color: var(--body); display: block; margin-bottom: 0.15rem; }
+    .cfg-vault-badge { margin-left: 0.4rem; vertical-align: 1px; }
     .cfg-field-key {
       font-size: var(--text-xs); color: var(--muted); opacity: 0.65;
       font-family: var(--font-mono);
@@ -163,7 +164,7 @@ func settingsServerTabHTML() string {
                       <template x-for="field in fieldsForSection(openSection)" :key="field.key">
                         <div class="cfg-field hairline" :class="{dirty: isDirty(field.key), multiline: field.multiline}">
                           <div class="cfg-field-meta">
-                            <span class="cfg-field-label" x-text="field.label"></span>
+                            <span class="cfg-field-label"><span x-text="field.label"></span><span class="badge badge--sm cfg-vault-badge" x-show="field.vault" :title="vaultConfigPath ? 'Saved in ' + vaultConfigPath : ''">This vault</span></span>
                             <code class="cfg-field-key" x-text="field.key"></code>
                           </div>
                           <div class="cfg-field-ctrl">
@@ -288,6 +289,7 @@ const settingsServerJS = `
       schema: [],
       values: {},
       secrets: {},
+      vaultConfigPath: '',
       cfgLoading: false,
       cfgError: '',
       cfgSaving: false,
@@ -326,7 +328,7 @@ const settingsServerJS = `
           'vault': 'Paths, layout, and core vault behavior.',
           'agent': 'Agent CLI integration and global prompt settings.',
           'plugins.search': 'Indexing and search quality.',
-          'plugins.git_sync': 'Automatic git push/pull for the vault.',
+          'plugins.git_sync': 'Automatic git push/pull. Whether it runs, and where it pushes, is set per vault.',
         };
         return m[s] || '';
       },
@@ -467,6 +469,7 @@ const settingsServerJS = `
           const vd = await vr.json();
           this.values = vd.values || {};
           this.secrets = vd.secrets || {};
+          this.vaultConfigPath = (vd.meta && vd.meta.vault_config_path) || '';
         } catch (e) { this.cfgError = e.message; }
         finally { this.cfgLoading = false; }
       },

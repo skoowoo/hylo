@@ -79,7 +79,7 @@ func (a *AgentAPI) detach(ctx context.Context, fn func(context.Context)) {
 }
 
 func (a *AgentAPI) uploadRoot() string {
-	return filepath.Join(a.vault.Root(), a.cfg.Agent.ResolvedUploadDir())
+	return filepath.Join(a.vault.Root(), storage.UploadDir)
 }
 
 type chatBody struct {

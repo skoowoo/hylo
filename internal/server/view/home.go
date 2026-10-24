@@ -137,7 +137,7 @@ func (vh *ViewHandler) homeSectionData(r *http.Request, itemsOnly bool) (homeSec
 			data.Count = vh.dirNoteCount(dirPath)
 		}
 	case "memory":
-		dirPath := "/_memory"
+		dirPath := storage.MemoryDir
 		var nextNs int64
 		data.Items, nextNs = vh.listDirNoteItems(dirPath, beforeNs, homeListPageSize)
 		data.Title = "Memory"
@@ -158,7 +158,7 @@ func (vh *ViewHandler) homeSectionData(r *http.Request, itemsOnly bool) (homeSec
 
 		indexParam := strings.TrimSpace(r.URL.Query().Get("index"))
 		if indexParam == "" {
-			dirPath := vh.knowledgeDirPath()
+			dirPath := storage.KnowledgeDir
 			if view != "graph" {
 				var nextNs int64
 				data.Items, nextNs = vh.listDirNoteItems(dirPath, beforeNs, homeListPageSize)
@@ -213,25 +213,11 @@ func (vh *ViewHandler) homeSectionData(r *http.Request, itemsOnly bool) (homeSec
 	return data, nil
 }
 
-// knowledgeDir returns the configured vault-relative knowledge directory
-// (e.g. "_knowledge"), falling back to the documented default when cfg is
-// unset.
-func (vh *ViewHandler) knowledgeDir() string {
-	if vh.cfg != nil && vh.cfg.Vault.KnowledgeDir != "" {
-		return vh.cfg.Vault.KnowledgeDir
-	}
-	return "_knowledge"
-}
-
-func (vh *ViewHandler) knowledgeDirPath() string {
-	return "/" + strings.Trim(vh.knowledgeDir(), "/")
-}
-
 // knowledgeCount returns the total note count under the knowledge dir — the
 // sidebar's "All" child count, and the same number homeSectionData's
 // unfiltered "knowledge" case uses for its list-head pill.
 func (vh *ViewHandler) knowledgeCount() int {
-	return vh.dirNoteCount(vh.knowledgeDirPath())
+	return vh.dirNoteCount(storage.KnowledgeDir)
 }
 
 // dirNoteCount looks up dirPath's note count from the full (unfiltered)

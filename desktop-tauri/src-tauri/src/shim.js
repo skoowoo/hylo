@@ -73,8 +73,8 @@
       vaults: function () {
         return invoke("onboarding_vaults");
       },
-      setVault: function (path, pauseGitSync) {
-        return invoke("onboarding_set_vault", { path: path, pauseGitSync: !!pauseGitSync });
+      setVault: function (path) {
+        return invoke("onboarding_set_vault", { path: path });
       },
       pathNeeded: function () {
         return invoke("onboarding_path_needed");

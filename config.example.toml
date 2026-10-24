@@ -24,20 +24,18 @@ format = "text" # text | json
 # ── Plugins ───────────────────────────────────────────────────────────────────
 # All plugins are opt-in. Remove or set enabled = false to disable.
 
+# Settings that describe one vault live in <vault>/.hylo/config.toml and
+# override this file: plugins.search.exclude_prefixes, and git sync's
+# enabled / remote / branch.
+# Git sync's switch and remote are read only from there, so switching vaults
+# never points a new vault at the old one's repository:
+#
+#   [plugins.git_sync]
+#   enabled = true
+#   branch = "main"                           # required: where commits go
+#   remote = "git@github.com:you/vault.git"   # empty for local-only commits
+
 [plugins.git_sync]
-# Set to true to activate the git sync plugin.
-enabled = true
-
-# Git remote URL. Supports HTTPS and SSH.
-# Leave empty for local-only commits (no remote push/pull).
-# Examples:
-#   remote = "https://github.com/you/vault.git"
-#   remote = "git@github.com:you/vault.git"
-remote = ""
-
-# Branch to commit to and sync with.
-branch = "main"
-
 # Personal access token for HTTPS remotes (GitHub, GitLab, Gitea …).
 # For GitHub: Settings → Developer settings → Personal access tokens → repo scope.
 # Leave empty when using SSH or a public repo.

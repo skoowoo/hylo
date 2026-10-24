@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/go-git/go-git/v5/plumbing"
 )
 
 // Validate checks merged configuration for obvious invalid values.
@@ -44,6 +46,14 @@ func Validate(cfg *Config) error {
 	}
 
 	g := cfg.Plugins.GitSync
+	if g.Enabled && strings.TrimSpace(g.Branch) == "" {
+		add("plugins.git_sync.branch", "required when git sync is enabled")
+	}
+	if g.Branch != "" {
+		if err := plumbing.NewBranchReferenceName(g.Branch).Validate(); err != nil {
+			add("plugins.git_sync.branch", fmt.Sprintf("%q is not a valid branch name", g.Branch))
+		}
+	}
 	if g.Debounce != "" {
 		if _, err := time.ParseDuration(g.Debounce); err != nil {
 			add("plugins.git_sync.debounce", err.Error())

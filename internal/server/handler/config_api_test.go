@@ -109,3 +109,47 @@ func TestAPIKeyIsNeverRevealed(t *testing.T) {
 		t.Fatal("api key was returned")
 	}
 }
+
+func TestPatchWritesVaultKeysToTheOpenVault(t *testing.T) {
+	vault := t.TempDir()
+	cfg := &config.Config{Vault: config.VaultConfig{Path: vault}}
+	h, path := testConfigFile(t, cfg)
+
+	rec := patchConfig(h, "127.0.0.1:9", "", `{"patch":{"plugins":{"git_sync":{"enabled":true,"branch":"main","remote":"https://example.com/v.git","debounce":"2m"}}}}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("patch: %d %s", rec.Code, rec.Body.String())
+	}
+	global, _ := os.ReadFile(path)
+	if strings.Contains(string(global), "example.com") || !strings.Contains(string(global), "2m") {
+		t.Fatalf("global file:\n%s", global)
+	}
+	local, err := os.ReadFile(config.VaultConfigPath(vault))
+	if err != nil || !strings.Contains(string(local), "example.com") || strings.Contains(string(local), "2m") {
+		t.Fatalf("vault file: %v\n%s", err, local)
+	}
+}
+
+func TestPatchRejectsBadVaultValue(t *testing.T) {
+	vault := t.TempDir()
+	h, _ := testConfigFile(t, &config.Config{Vault: config.VaultConfig{Path: vault}})
+	rec := patchConfig(h, "127.0.0.1:9", "", `{"patch":{"plugins":{"git_sync":{"enabled":"maybe"}}}}`)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("bad bool: %d %s", rec.Code, rec.Body.String())
+	}
+	if _, err := os.Stat(config.VaultConfigPath(vault)); !os.IsNotExist(err) {
+		t.Fatalf("bad value was written: %v", err)
+	}
+}
+
+func TestPatchWritesNothingWhenVaultPartIsInvalid(t *testing.T) {
+	vault := t.TempDir()
+	h, path := testConfigFile(t, &config.Config{Vault: config.VaultConfig{Path: vault}})
+	before, _ := os.ReadFile(path)
+	rec := patchConfig(h, "127.0.0.1:9", "", `{"patch":{"plugins":{"git_sync":{"enabled":true,"debounce":"7m"}}}}`)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("enabled without branch: %d %s", rec.Code, rec.Body.String())
+	}
+	if after, _ := os.ReadFile(path); string(after) != string(before) {
+		t.Fatalf("global part was written:\n%s", after)
+	}
+}

@@ -32,7 +32,7 @@ func TestBackfillKnowledgeLinksKeepsLeafEntityType(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := v.BackfillKnowledgeLinks(""); err != nil {
+	if err := v.BackfillKnowledgeLinks(); err != nil {
 		t.Fatal(err)
 	}
 	types, err := v.GetKnowledgeEntityTypes()

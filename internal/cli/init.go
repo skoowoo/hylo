@@ -29,7 +29,7 @@ func newInitCmd() *cobra.Command {
 The vault root is chosen from your filesystem — not from vault.path in config.toml.
 Run this inside the directory that contains your Markdown notes (or pass the path).
 
-If .hylo/ already exists, the command exits without changing anything.
+If .hylo/meta.db already exists, the command exits without changing anything.
 
 Config is optional: without a config file, built-in defaults apply for compile output
 directory and search indexing behaviour.`,
@@ -38,13 +38,13 @@ directory and search indexing behaviour.`,
 		RunE:         runVaultInit,
 	}
 	cmd.Flags().BoolVar(&vaultInitLinkImagesOnly, "link-images-only", false,
-		"only rebuild image–note associations (requires an existing .hylo/ in the vault)")
+		"only rebuild image–note associations (requires an initialized vault)")
 	cmd.Flags().BoolVar(&vaultInitReindex, "reindex", false,
-		"delete and rebuild the full-text search index from scratch (requires an existing .hylo/ in the vault)")
+		"delete and rebuild the full-text search index from scratch (requires an initialized vault)")
 	cmd.Flags().BoolVar(&vaultInitRebuildGraph, "rebuild-graph", false,
-		"rebuild the knowledge graph link index from scratch (requires an existing .hylo/ in the vault)")
+		"rebuild the knowledge graph link index from scratch (requires an initialized vault)")
 	cmd.Flags().BoolVar(&vaultInitPreviewOnly, "preview-only", false,
-		"recompute every note's preview (content excerpt + checklist/image/code flags) (requires an existing .hylo/ in the vault)")
+		"recompute every note's preview (content excerpt + checklist/image/code flags) (requires an initialized vault)")
 	return cmd
 }
 
@@ -73,7 +73,7 @@ func runVaultInit(_ *cobra.Command, args []string) error {
 
 	if vaultInitLinkImagesOnly {
 		if !initd {
-			fmt.Fprintf(os.Stderr, "Not a Hylo vault (missing %s); run hylo init first.\n", filepath.Join(root, ".hylo"))
+			fmt.Fprintf(os.Stderr, "Not a Hylo vault (missing %s); run hylo init first.\n", filepath.Join(root, ".hylo", "meta.db"))
 			return fmt.Errorf("vault not initialized")
 		}
 		vault, err := storage.New(root)
@@ -86,7 +86,7 @@ func runVaultInit(_ *cobra.Command, args []string) error {
 
 	if vaultInitReindex {
 		if !initd {
-			fmt.Fprintf(os.Stderr, "Not a Hylo vault (missing %s); run hylo init first.\n", filepath.Join(root, ".hylo"))
+			fmt.Fprintf(os.Stderr, "Not a Hylo vault (missing %s); run hylo init first.\n", filepath.Join(root, ".hylo", "meta.db"))
 			return fmt.Errorf("vault not initialized")
 		}
 		vault, err := storage.New(root)
@@ -99,7 +99,7 @@ func runVaultInit(_ *cobra.Command, args []string) error {
 
 	if vaultInitRebuildGraph {
 		if !initd {
-			fmt.Fprintf(os.Stderr, "Not a Hylo vault (missing %s); run hylo init first.\n", filepath.Join(root, ".hylo"))
+			fmt.Fprintf(os.Stderr, "Not a Hylo vault (missing %s); run hylo init first.\n", filepath.Join(root, ".hylo", "meta.db"))
 			return fmt.Errorf("vault not initialized")
 		}
 		vault, err := storage.New(root)
@@ -112,7 +112,7 @@ func runVaultInit(_ *cobra.Command, args []string) error {
 
 	if vaultInitPreviewOnly {
 		if !initd {
-			fmt.Fprintf(os.Stderr, "Not a Hylo vault (missing %s); run hylo init first.\n", filepath.Join(root, ".hylo"))
+			fmt.Fprintf(os.Stderr, "Not a Hylo vault (missing %s); run hylo init first.\n", filepath.Join(root, ".hylo", "meta.db"))
 			return fmt.Errorf("vault not initialized")
 		}
 		vault, err := storage.New(root)
@@ -124,11 +124,11 @@ func runVaultInit(_ *cobra.Command, args []string) error {
 	}
 
 	if initd {
-		fmt.Printf("Already initialized (%s exists); skipping.\n", filepath.Join(root, ".hylo"))
+		fmt.Printf("Already initialized (%s exists); skipping.\n", filepath.Join(root, ".hylo", "meta.db"))
 		return nil
 	}
 
-	cfg := config.MustLoad("")
+	cfg := config.MustLoadFor(root)
 
 	vault, err := storage.New(root)
 	if err != nil {
@@ -142,7 +142,7 @@ func runVaultInit(_ *cobra.Command, args []string) error {
 	// metadata database. Raw notes and knowledge notes are distinguished and all
 	// fields (origin, compiled) are initialised from disk state.
 	fmt.Printf("Scanning vault: %s\n", vault.Root())
-	registered, err := vault.ScanAndRegisterFull(cfg.Vault.KnowledgeDir)
+	registered, err := vault.ScanAndRegisterFull()
 	if err != nil {
 		return fmt.Errorf("scan vault: %w", err)
 	}
@@ -198,9 +198,8 @@ func runPreviewOnly(vault *storage.Vault) error {
 }
 
 func runRebuildGraph(vault *storage.Vault) error {
-	cfg := config.MustLoad("")
 	fmt.Println("Rebuilding knowledge graph link index...")
-	if err := vault.BackfillKnowledgeLinks(cfg.Vault.KnowledgeDir); err != nil {
+	if err := vault.BackfillKnowledgeLinks(); err != nil {
 		return fmt.Errorf("rebuild graph: %w", err)
 	}
 	fmt.Println("Rebuild complete.")
@@ -208,7 +207,7 @@ func runRebuildGraph(vault *storage.Vault) error {
 }
 
 func runReindex(root string, vault *storage.Vault) error {
-	cfg := config.MustLoad("")
+	cfg := config.MustLoadFor(root)
 	log := logger.New(cfg.Log)
 
 	// Delete the existing bleve index so it is rebuilt with the current schema.

@@ -32,10 +32,6 @@ pub struct VaultChoices {
     /// The current vault when it is neither the default nor an Obsidian one.
     #[serde(skip_serializing_if = "Option::is_none")]
     current: Option<VaultChoice>,
-    /// Where git sync pushes, when it is on: switching vaults would point it
-    /// at the same remote.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    git_sync: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -126,26 +122,6 @@ fn vault_path(doc: &toml_edit::DocumentMut) -> Option<String> {
     doc.get("vault")?.get("path")?.as_str().map(str::to_string)
 }
 
-fn git_sync_remote(doc: &toml_edit::DocumentMut) -> Option<String> {
-    let sync = doc.get("plugins")?.get("git_sync")?;
-    if sync.get("enabled")?.as_bool() != Some(true) {
-        return None;
-    }
-    let remote = sync.get("remote")?.as_str()?.trim();
-    (!remote.is_empty()).then(|| short_remote(remote))
-}
-
-/// `https://github.com/a/b.git` and `git@github.com:a/b.git` both read `github.com/a/b`.
-fn short_remote(remote: &str) -> String {
-    let r = remote
-        .trim_start_matches("https://")
-        .trim_start_matches("http://")
-        .trim_start_matches("ssh://")
-        .trim_start_matches("git@");
-    let r = r.rsplit_once('@').map_or(r, |(_, host)| host);
-    r.trim_end_matches(".git").replacen(':', "/", 1)
-}
-
 #[tauri::command]
 pub fn onboarding_vaults() -> VaultChoices {
     let home = server::home_dir();
@@ -175,7 +151,6 @@ pub fn onboarding_vaults() -> VaultChoices {
         default,
         obsidian,
         current,
-        git_sync: git_sync_remote(&doc),
     }
 }
 
@@ -269,14 +244,8 @@ fn access_error(e: std::io::Error) -> String {
 
 /// Points the server at `path`; false when config.toml already did. A
 /// different vault already on file is kept in config.toml.bak, so switching
-/// never loses where the old notes were. `pause_git_sync` turns sync off so
-/// the new vault isn't wired to the old vault's remote.
-fn write_vault_path(
-    file: &Path,
-    path: &str,
-    pause_git_sync: bool,
-    home: &Path,
-) -> Result<bool, String> {
+/// never loses where the old notes were.
+fn write_vault_path(file: &Path, path: &str, home: &Path) -> Result<bool, String> {
     let mut doc = read_doc(file)?;
     let prev = vault_path(&doc);
     if prev
@@ -289,9 +258,6 @@ fn write_vault_path(
         fs::copy(file, file.with_extension("toml.bak")).map_err(|e| e.to_string())?;
     }
     doc["vault"]["path"] = toml_edit::value(path);
-    if pause_git_sync && git_sync_remote(&doc).is_some() {
-        doc["plugins"]["git_sync"]["enabled"] = toml_edit::value(false);
-    }
     if let Some(dir) = file.parent() {
         fs::create_dir_all(dir).map_err(|e| e.to_string())?;
     }
@@ -303,11 +269,7 @@ fn write_vault_path(
 /// macOS's Documents prompt at a moment it makes sense. Returns whether the
 /// vault changed.
 #[tauri::command]
-pub async fn onboarding_set_vault(
-    app: AppHandle,
-    path: String,
-    pause_git_sync: Option<bool>,
-) -> Result<bool, String> {
+pub async fn onboarding_set_vault(app: AppHandle, path: String) -> Result<bool, String> {
     let home = server::home_dir();
     let target = expand(&path, &home);
     if path == DEFAULT_VAULT {
@@ -315,12 +277,7 @@ pub async fn onboarding_set_vault(
     } else {
         fs::read_dir(&target).map_err(access_error)?;
     }
-    if !write_vault_path(
-        &config_file(&home),
-        &path,
-        pause_git_sync.unwrap_or(false),
-        &home,
-    )? {
+    if !write_vault_path(&config_file(&home), &path, &home)? {
         return Ok(false);
     }
 
@@ -397,13 +354,13 @@ mod tests {
         let file = dir.join("config.toml");
 
         let home = Path::new("/Users/me");
-        assert!(write_vault_path(&file, DEFAULT_VAULT, false, home).unwrap());
+        assert!(write_vault_path(&file, DEFAULT_VAULT, home).unwrap());
         assert!(fs::read_to_string(&file)
             .unwrap()
             .contains("path = \"~/Documents/Hylo Vault\""));
         assert!(!file.with_extension("toml.bak").exists());
         // The same folder spelled out in full is no switch.
-        assert!(!write_vault_path(&file, "/Users/me/Documents/Hylo Vault", false, home).unwrap());
+        assert!(!write_vault_path(&file, "/Users/me/Documents/Hylo Vault", home).unwrap());
         assert!(!file.with_extension("toml.bak").exists());
 
         fs::write(
@@ -411,7 +368,7 @@ mod tests {
             "# keep me\n[server]\nport = 1\n\n[vault]\npath = \"~/.hylo/root\"\n",
         )
         .unwrap();
-        assert!(write_vault_path(&file, "/Users/me/Notes", false, home).unwrap());
+        assert!(write_vault_path(&file, "/Users/me/Notes", home).unwrap());
         let out = fs::read_to_string(&file).unwrap();
         assert!(out.contains("# keep me") && out.contains("port = 1"));
         assert!(out.contains("path = \"/Users/me/Notes\""));
@@ -419,43 +376,5 @@ mod tests {
             .unwrap()
             .contains("~/.hylo/root"));
         let _ = fs::remove_dir_all(&dir);
-    }
-
-    #[test]
-    fn switching_can_pause_git_sync() {
-        let dir = std::env::temp_dir().join(format!("hylo-sync-{}", std::process::id()));
-        let _ = fs::remove_dir_all(&dir);
-        fs::create_dir_all(&dir).unwrap();
-        let file = dir.join("config.toml");
-        let cfg = "[vault]\npath = \"/old\"\n\n[plugins.git_sync]\nenabled = true\nremote = \"git@github.com:me/notes.git\"\n";
-        fs::write(&file, cfg).unwrap();
-        assert_eq!(
-            git_sync_remote(&read_doc(&file).unwrap()).as_deref(),
-            Some("github.com/me/notes")
-        );
-
-        let home = Path::new("/Users/me");
-        write_vault_path(&file, "/new", false, home).unwrap();
-        assert!(git_sync_remote(&read_doc(&file).unwrap()).is_some());
-
-        fs::write(&file, cfg).unwrap();
-        write_vault_path(&file, "/new", true, home).unwrap();
-        let doc = read_doc(&file).unwrap();
-        assert!(git_sync_remote(&doc).is_none());
-        assert_eq!(
-            doc["plugins"]["git_sync"]["remote"].as_str(),
-            Some("git@github.com:me/notes.git")
-        );
-        let _ = fs::remove_dir_all(&dir);
-    }
-
-    #[test]
-    fn remotes_read_the_same_either_way() {
-        assert_eq!(short_remote("https://github.com/a/b.git"), "github.com/a/b");
-        assert_eq!(short_remote("git@github.com:a/b.git"), "github.com/a/b");
-        assert_eq!(
-            short_remote("https://token@github.com/a/b"),
-            "github.com/a/b"
-        );
     }
 }

@@ -205,7 +205,7 @@ func TestScanAndRegisterFullComputesPreview(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = v.Close() })
 
-	if _, err := v.ScanAndRegisterFull(""); err != nil {
+	if _, err := v.ScanAndRegisterFull(); err != nil {
 		t.Fatal(err)
 	}
 
@@ -236,7 +236,7 @@ func TestScanAndRegisterFullSkipsUnreadableFile(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = v.Close() })
 
-	if _, err := v.ScanAndRegisterFull(""); err != nil {
+	if _, err := v.ScanAndRegisterFull(); err != nil {
 		t.Fatal(err)
 	}
 

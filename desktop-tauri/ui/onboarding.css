@@ -579,8 +579,6 @@
 .ob-install-foot a { color: var(--accent-text); text-decoration: none; margin-left: 2px; }
 .ob-install-foot a:hover { text-decoration: underline; }
 
-.ob-toggle--sync { margin: -0.5rem 0 1rem; font-size: var(--text-xs); }
-.ob-toggle--sync code { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 220px; display: inline-block; vertical-align: bottom; }
 
 
 /* Entrances and flourishes settle at once; the spinner keeps turning, since it says work is going on. */
