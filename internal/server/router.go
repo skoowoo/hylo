@@ -6,7 +6,6 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/hardhacker/hylo/internal/agent"
 	"github.com/hardhacker/hylo/internal/channels"
 	"github.com/hardhacker/hylo/internal/client"
 	"github.com/hardhacker/hylo/internal/config"
@@ -41,7 +40,9 @@ func newRouter(
 	feed *live.Feed,
 	apiKey string,
 	channelHub *channels.Hub,
-	proxy config.Proxy) http.Handler {
+	proxy config.Proxy,
+	ah *handler.AgentAPI,
+	restart func()) http.Handler {
 	mux := http.NewServeMux()
 
 	h := handler.New(logger, cfg)
@@ -50,10 +51,6 @@ func newRouter(
 	sh := search.NewHandler(searchPlugin)
 	vh := view.NewView(vault, searchPlugin, cfg)
 
-	agentHub := agent.NewHub()
-	agentCache := agent.NewAgentCache(0, nil)
-	agentCache.WarmUp()
-	ah := handler.NewAgentAPI(logger, cfg, vault, agentHub, mateStore, agentCache)
 	editorBus := editorbus.New()
 	ah.SetEditorBus(editorBus)
 	if channelHub != nil {
@@ -175,6 +172,7 @@ func newRouter(
 	mux.HandleFunc("GET /api/config", cfgHTTP.Get)
 	mux.HandleFunc("GET /api/config/schema", cfgHTTP.Schema)
 	mux.HandleFunc("PATCH /api/config", cfgHTTP.Patch)
+	mux.HandleFunc("POST /api/server/restart", handler.NewRestartHTTP(cfgFileLoaded, restart).Post)
 
 	// MCP endpoint; tools call back into mux in-process, so auth is enforced once at the edge.
 	mux.HandleFunc("GET /api/editor/agent", editorBus.StreamSSE)

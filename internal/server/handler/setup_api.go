@@ -138,7 +138,7 @@ func (a *AgentAPI) SetupHelloPOST(w http.ResponseWriter, r *http.Request) {
 	}
 	run := a.hub.CreateRun(map[string]string{"agentId": body.AgentID})
 	run.AgentID = body.AgentID
-	go a.executeChat(context.WithoutCancel(r.Context()), run, chat)
+	a.detach(r.Context(), func(ctx context.Context) { a.executeChat(ctx, run, chat) })
 	// The intro chat that follows writes in the same language.
 	respondJSON(w, http.StatusAccepted, map[string]any{"runId": run.ID, "lang": lang})
 }

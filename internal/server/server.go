@@ -14,6 +14,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/hardhacker/hylo/internal/agent"
 	"github.com/hardhacker/hylo/internal/channels"
 	"github.com/hardhacker/hylo/internal/config"
 	"github.com/hardhacker/hylo/internal/live"
@@ -25,11 +26,16 @@ import (
 	"github.com/hardhacker/hylo/internal/plugins/renamesync"
 	"github.com/hardhacker/hylo/internal/plugins/search"
 	"github.com/hardhacker/hylo/internal/prompt"
+	"github.com/hardhacker/hylo/internal/relaunch"
+	"github.com/hardhacker/hylo/internal/server/handler"
 	"github.com/hardhacker/hylo/internal/skills"
 	"github.com/hardhacker/hylo/internal/storage"
 )
 
 const shutdownTimeout = 15 * time.Second
+
+// ErrRestart means Run stopped for POST /api/server/restart; the caller relaunches the process.
+var ErrRestart = errors.New("restart requested")
 
 // Server manages a TCP listener for HTTP.
 type Server struct {
@@ -38,6 +44,9 @@ type Server struct {
 	cfg       *config.Config
 	vault     *storage.Vault
 	pluginMgr *plugin.Manager
+	agent     *handler.AgentAPI
+	endRuns   context.CancelFunc
+	restart   chan struct{}
 }
 
 // New creates a Server from the given config, logger, and Vault.
@@ -136,12 +145,29 @@ func New(cfg *config.Config, cfgFileLoaded string, logger *slog.Logger, vault *s
 		mgr.Dispatch(e)
 	})
 
-	return &Server{
-		handler:   newRouter(logger, cfg, vault, cfgFileLoaded, gitPlugin, searchPlugin, compilePlugin, mateStore, mateRunner, skillsMgr, feed, cfg.Server.APIKey, channelHub, proxy),
+	agentCache := agent.NewAgentCache(0, nil)
+	agentCache.WarmUp()
+	ah := handler.NewAgentAPI(logger, cfg, vault, agent.NewHub(), mateStore, agentCache)
+	runsCtx, endRuns := context.WithCancel(context.Background())
+	ah.SetLifetime(runsCtx)
+
+	s := &Server{
 		logger:    logger,
 		cfg:       cfg,
 		vault:     vault,
 		pluginMgr: mgr,
+		agent:     ah,
+		endRuns:   endRuns,
+		restart:   make(chan struct{}, 1),
+	}
+	s.handler = newRouter(logger, cfg, vault, cfgFileLoaded, gitPlugin, searchPlugin, compilePlugin, mateStore, mateRunner, skillsMgr, feed, cfg.Server.APIKey, channelHub, proxy, ah, s.requestRestart)
+	return s
+}
+
+func (s *Server) requestRestart() {
+	select {
+	case s.restart <- struct{}{}:
+	default:
 	}
 }
 
@@ -230,11 +256,15 @@ func (s *Server) Run(pidFile string) error {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
+	restarting := false
 	select {
 	case err := <-errCh:
 		return err
 	case sig := <-quit:
 		s.logger.Info("shutdown signal received", "signal", sig)
+	case <-s.restart:
+		restarting = true
+		s.logger.Info("restart requested")
 	}
 
 	// Notify swallows later SIGINT/SIGTERM. Restore the default terminate
@@ -249,6 +279,9 @@ func (s *Server) Run(pidFile string) error {
 		if pidFile != "" {
 			_ = os.Remove(pidFile)
 		}
+		if restarting {
+			relaunch.SelfOrExit()
+		}
 		os.Exit(1)
 	})
 	defer forceExit.Stop()
@@ -257,7 +290,21 @@ func (s *Server) Run(pidFile string) error {
 	defer cancel()
 
 	s.logger.Info("graceful shutdown", "timeout", shutdownTimeout)
+	err = s.shutdown(ctx, srv, cancelBase)
+	if restarting {
+		// The relaunch frees whatever a failed step still holds.
+		if err != nil {
+			s.logger.Warn("restarting after incomplete shutdown", "err", err)
+		}
+		return ErrRestart
+	}
+	return err
+}
 
+func (s *Server) shutdown(ctx context.Context, srv *http.Server, cancelBase context.CancelFunc) error {
+	// Kill agent processes first: a relaunch keeps the PID, so they would
+	// otherwise outlive the old server and keep writing next to the new one.
+	s.endRuns()
 	// Cancel base context so SSE/streaming handlers exit their select loops
 	// and connections close, letting Shutdown complete well within the timeout.
 	cancelBase()
@@ -265,13 +312,31 @@ func (s *Server) Run(pidFile string) error {
 	if err := srv.Shutdown(ctx); err != nil {
 		return fmt.Errorf("shutdown: %w", err)
 	}
-
 	// Stop plugins before closing the vault so any final commits can complete.
 	s.pluginMgr.Stop(ctx)
+
+	// Waited after the plugins, so no trigger or channel can start another run.
+	if !waitWithin(ctx, s.agent.Wait) {
+		s.logger.Warn("agent runs did not stop within shutdown timeout")
+	}
 
 	s.closeVault(ctx)
 	s.logger.Info("server stopped")
 	return nil
+}
+
+func waitWithin(ctx context.Context, wait func()) bool {
+	done := make(chan struct{})
+	go func() {
+		wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+		return true
+	case <-ctx.Done():
+		return false
+	}
 }
 
 // closeVault releases the sqlite database without letting a stuck connection

@@ -29,14 +29,16 @@ type AgentAPI struct {
 	hub        *agent.Hub
 	store      *mate.Store // nil when store is unavailable; handles both mate config and chat history
 	agentCache *agent.AgentCache
-	active     sync.Map       // runID -> *agent.ChatProcess
-	canceled   sync.Map       // runID -> true; set by RunCancelPOST so executeChat can report "canceled" instead of "failed" for a user-initiated stop
-	pathRuns   sync.Map       // vault path -> runID; set by FireTriggerRun for path-bearing events
-	runner     *mate.Runner   // optional; set via SetMateRunner once the mate runner exists, so TriggerRetryPOST can re-fire through its onDone pipeline
-	editorBus  *editorbus.Bus // optional; cancelled alongside a run so the editor stops typing
-	setupMu    sync.Mutex     // one first-bot setup at a time, so two can't both find no bots
-	chatSlots  sync.Map       // mateID -> chan struct{} (cap 1); one chat run at a time, desktop and channels together
-	queued     sync.Map       // runID -> context.CancelFunc; a run still waiting for its bot's chat
+	active     sync.Map        // runID -> *agent.ChatProcess
+	canceled   sync.Map        // runID -> true; set by RunCancelPOST so executeChat can report "canceled" instead of "failed" for a user-initiated stop
+	pathRuns   sync.Map        // vault path -> runID; set by FireTriggerRun for path-bearing events
+	runner     *mate.Runner    // optional; set via SetMateRunner once the mate runner exists, so TriggerRetryPOST can re-fire through its onDone pipeline
+	editorBus  *editorbus.Bus  // optional; cancelled alongside a run so the editor stops typing
+	setupMu    sync.Mutex      // one first-bot setup at a time, so two can't both find no bots
+	chatSlots  sync.Map        // mateID -> chan struct{} (cap 1); one chat run at a time, desktop and channels together
+	queued     sync.Map        // runID -> context.CancelFunc; a run still waiting for its bot's chat
+	life       context.Context // detached runs end with it; nil leaves them to their own lifetime
+	runs       sync.WaitGroup
 }
 
 // NewAgentAPI constructs the agent HTTP surface.
@@ -53,6 +55,28 @@ func (a *AgentAPI) SetMateRunner(r *mate.Runner) {
 
 // SetEditorBus lets a run cancel stop the editor from typing what the agent already sent.
 func (a *AgentAPI) SetEditorBus(b *editorbus.Bus) { a.editorBus = b }
+
+// SetLifetime ends detached runs, and their agent processes, when ctx ends.
+func (a *AgentAPI) SetLifetime(ctx context.Context) { a.life = ctx }
+
+// Wait returns once every detached run has finished.
+func (a *AgentAPI) Wait() { a.runs.Wait() }
+
+// detach runs fn past its request or caller, until fn returns or the server stops.
+func (a *AgentAPI) detach(ctx context.Context, fn func(context.Context)) {
+	ctx, cancel := context.WithCancel(context.WithoutCancel(ctx))
+	stop := func() bool { return false }
+	if a.life != nil {
+		stop = context.AfterFunc(a.life, cancel)
+	}
+	a.runs.Add(1)
+	go func() {
+		defer a.runs.Done()
+		defer stop()
+		defer cancel()
+		fn(ctx)
+	}()
+}
 
 func (a *AgentAPI) uploadRoot() string {
 	return filepath.Join(a.vault.Root(), a.cfg.Agent.ResolvedUploadDir())
@@ -120,10 +144,10 @@ func (a *AgentAPI) ChatPOST(w http.ResponseWriter, r *http.Request) {
 		slog.String("runId", run.ID),
 		slog.String("agentId", body.AgentID),
 		slog.String("streaming", "sse"))
-	// Use WithoutCancel so the agent subprocess is not killed when the SSE
-	// connection closes (e.g. proxy timeout, client reconnect). The run is
-	// tracked in the hub and can be cancelled via POST /api/runs/:id/cancel.
-	go a.executeChat(context.WithoutCancel(r.Context()), run, body)
+	// The agent subprocess outlives the SSE connection (proxy timeout, client
+	// reconnect); the run is tracked in the hub and can be cancelled via
+	// POST /api/runs/:id/cancel.
+	a.detach(r.Context(), func(ctx context.Context) { a.executeChat(ctx, run, body) })
 	a.hub.StreamSSE(w, r, run)
 }
 
@@ -147,7 +171,7 @@ func (a *AgentAPI) RunsPOST(w http.ResponseWriter, r *http.Request) {
 		slog.String("runId", run.ID),
 		slog.String("agentId", body.AgentID))
 	// The request ends as soon as the runId is sent; the run must outlive it.
-	go a.executeChat(context.WithoutCancel(r.Context()), run, body)
+	a.detach(r.Context(), func(ctx context.Context) { a.executeChat(ctx, run, body) })
 	respondJSON(w, http.StatusAccepted, map[string]any{"runId": run.ID})
 }
 
@@ -342,12 +366,12 @@ func (a *AgentAPI) FireTriggerRun(ctx context.Context, m *mate.Mate, convID, pro
 		TriggerEvent:   string(ev.Type),
 		TriggerID:      ev.TriggerID,
 	}
-	go func() {
+	a.detach(ctx, func(ctx context.Context) {
 		result := a.executeChat(ctx, run, body)
 		if onDone != nil {
 			onDone(result)
 		}
-	}()
+	})
 }
 
 // FireTriggerRetry is the mate.RetryFunc registered with the mate runner —
@@ -374,12 +398,12 @@ func (a *AgentAPI) FireTriggerRetry(ctx context.Context, m *mate.Mate, convID, p
 		TriggerEvent:       string(ev.Type),
 		TriggerID:          ev.TriggerID,
 	}
-	go func() {
+	a.detach(ctx, func(ctx context.Context) {
 		result := a.executeChat(ctx, run, body)
 		if onDone != nil {
 			onDone(result)
 		}
-	}()
+	})
 	return run.ID
 }
 

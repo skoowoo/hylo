@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io/fs"
 	"log/slog"
@@ -13,6 +14,7 @@ import (
 	"github.com/hardhacker/hylo/internal/config"
 	"github.com/hardhacker/hylo/internal/logger"
 	"github.com/hardhacker/hylo/internal/plugins/search"
+	"github.com/hardhacker/hylo/internal/relaunch"
 	"github.com/hardhacker/hylo/internal/server"
 	"github.com/hardhacker/hylo/internal/storage"
 	"github.com/spf13/cobra"
@@ -120,7 +122,11 @@ func runServe(_ *cobra.Command, _ []string) error {
 	pidFile := strings.TrimSpace(servePIDFile)
 
 	srv := server.New(cfg, cfgFileUsed, log, vault)
-	return srv.Run(pidFile)
+	err = srv.Run(pidFile)
+	if errors.Is(err, server.ErrRestart) {
+		relaunch.SelfOrExit()
+	}
+	return err
 }
 
 // autoInitVault checks whether the (freshly created) vault root already contains

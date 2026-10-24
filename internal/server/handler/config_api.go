@@ -5,8 +5,10 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/hardhacker/hylo/internal/config"
 )
@@ -26,6 +28,9 @@ func NewConfigHTTP(logger *slog.Logger, cfg *config.Config, configLoadedPath str
 		configLoadedPath: configLoadedPath,
 	}
 }
+
+// processStarted changes on every restart, since a restart execs a new process.
+var processStarted = strconv.FormatInt(time.Now().UnixNano(), 10)
 
 // Get handles GET /api/config (?reveal_secrets=1 to include secret strings).
 func (c *ConfigHTTP) Get(w http.ResponseWriter, r *http.Request) {
@@ -53,6 +58,7 @@ func (c *ConfigHTTP) Get(w http.ResponseWriter, r *http.Request) {
 		"restart_required_after_save": true,
 		"config_write_path":           writePath,
 		"config_loaded_path":          c.configLoadedPath,
+		"started_at":                  processStarted,
 	}
 
 	respondJSON(w, http.StatusOK, map[string]any{

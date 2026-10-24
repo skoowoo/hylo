@@ -251,7 +251,7 @@ func settingsServerTabHTML() string {
             <div class="cfg-action-bar hairline" x-show="!cfgLoading && !cfgError">
               <div class="cfg-action-bar-inner">
                 <div class="cfg-action-left">
-                  <span class="cfg-status-ok" x-show="cfgSaveOk && !hasDirty">Saved — restart server to apply</span>
+                  <span class="cfg-status-ok" x-show="cfgSaveOk && !hasDirty">Saved</span>
                   <span class="cfg-status-err" x-show="cfgSaveError" x-text="cfgSaveError"></span>
                   <span class="cfg-status-err" x-show="cfgRestartError" x-text="cfgRestartError"></span>
                   <span class="cfg-restart-note" x-show="cfgRestarting">Restarting server…</span>
@@ -259,7 +259,7 @@ func settingsServerTabHTML() string {
                         x-text="Object.keys(patch).length + ' unsaved change' + (Object.keys(patch).length !== 1 ? 's' : '')"></span>
                   <span class="cfg-restart-note"
                         x-show="!hasDirty && !cfgSaveOk && !cfgSaveError && !cfgRestartError && !cfgRestarting">
-                    Pick a section to edit. Save once when done; restart server to apply.
+                    Pick a section to edit. Save once when done; the server restarts to apply.
                   </span>
                 </div>
                 <div class="cfg-action-right">
@@ -496,18 +496,55 @@ const settingsServerJS = `
         } catch (e) { this.cfgSaveError = e.message; }
         finally { this.cfgSaving = false; }
 
-        if (saved && this.editingLocalServer && window.hyloDesktop?.restartServer) {
-          this.cfgRestarting = true;
-          try {
-            const r = await window.hyloDesktop.restartServer();
-            if (r.ok) return;
-            if (r.reason === 'no_pid') { this.cfgSaveOk = true; }
-            else { this.cfgRestartError = r.error || 'Restart failed'; }
-          } catch (e) { this.cfgRestartError = e.message; }
-          finally { this.cfgRestarting = false; }
-        } else if (saved) {
-          this.cfgSaveOk = true;
+        if (saved) await this.restartServer();
+      },
+
+      async restartServer() {
+        this.cfgRestarting = true;
+        this.cfgRestartError = '';
+        let before = '';
+        try {
+          const res = await fetch('/api/server/restart', { method: 'POST' });
+          let data = {};
+          try { data = await res.json(); } catch (e) { /* body lost as the listener closed */ }
+          if (!res.ok) {
+            this.cfgRestartError = data.error || 'Restart failed';
+            this.cfgSaveOk = true;
+            this.cfgRestarting = false;
+            return;
+          }
+          before = data.started_at || '';
+        } catch (e) {
+          // The connection can drop once shutdown starts. Wait for the new process.
         }
+        if (await this.waitForRestart(before)) {
+          location.reload();
+          return;
+        }
+        this.cfgRestartError = 'Server did not come back';
+        this.cfgRestarting = false;
+      },
+
+      async waitForRestart(before) {
+        // Where the server exits instead of exec'ing (Windows), the desktop
+        // heartbeat takes up to ~20s to start it again.
+        const deadline = Date.now() + 60000;
+        let sawDown = !before;
+        while (Date.now() < deadline) {
+          await new Promise(r => setTimeout(r, 200));
+          try {
+            const res = await fetch('/api/config');
+            if (!res.ok) { sawDown = true; continue; }
+            const data = await res.json();
+            const started = (data.meta && data.meta.started_at) || '';
+            if (before) {
+              if (started && started !== before) return true;
+              continue;
+            }
+            if (sawDown && started) return true;
+          } catch (e) { sawDown = true; }
+        }
+        return false;
       },
 
       srvErrorText(err) {
