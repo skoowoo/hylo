@@ -1,18 +1,19 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { EditorState } from '@codemirror/state';
+import { EditorView } from '@codemirror/view';
 import { ensureSyntaxTree } from '@codemirror/language';
 import { history, undo } from '@codemirror/commands';
 import { wikiMarkdownLanguage } from '../src/cm-live/index.js';
 import { autocompletion, completionStatus } from '@codemirror/autocomplete';
-import { planAgentInsert, planAgentRewrite, readAgentDoc, docBlocks, agentType, agentCursorExtension, agentCursorPos, foreignEditCount } from '../src/cm-live/agent-typing.js';
+import { planAgentInsert, planAgentRewrite, readAgentDoc, docBlocks, agentType, agentWritingExtension, agentWriting } from '../src/cm-live/agent-typing.js';
 import { fenceAutoClose } from '../src/cm-live/fence-close.js';
 
 const lang = wikiMarkdownLanguage();
 
 function viewFor(doc, anchor = doc.length, extra = []) {
   const view = {
-    state: EditorState.create({ doc, selection: { anchor }, extensions: [lang, history(), agentCursorExtension, extra] }),
+    state: EditorState.create({ doc, selection: { anchor }, extensions: [lang, history(), agentWritingExtension, extra] }),
     dispatch(...specs) { view.state = view.state.update(...specs).state; },
   };
   ensureSyntaxTree(view.state, view.state.doc.length, 5000);
@@ -59,13 +60,14 @@ test('plan: empty content errors', () => {
   assert.ok(plan('a', {}, '  \n').error);
 });
 
-test('type: lands in the document and clears the caret', async () => {
+test('type: lands in the document, leaves the caret after it and hands the editor back', async () => {
   const view = viewFor('# T\n');
   const p = planAgentInsert(view.state, {}, 'hello world');
   const res = await run(view, p);
   assert.equal(res.ok, true);
   assert.equal(view.state.doc.toString(), '# T\n\nhello world\n');
-  assert.equal(agentCursorPos(view.state), null);
+  assert.equal(view.state.selection.main.head, view.state.doc.length);
+  assert.equal(agentWriting(view.state), false);
 });
 
 test('type: pacing splits into many transactions', async () => {
@@ -124,7 +126,7 @@ test('type: aborts when signalled, keeping what was typed', async () => {
   assert.equal(res.interrupted, true);
   assert.ok(res.chars > 0 && res.chars < 16);
   assert.equal(view.state.doc.toString().length, res.chars);
-  assert.equal(agentCursorPos(view.state), null);
+  assert.equal(agentWriting(view.state), false);
 });
 
 test('type: aborts when the note changes underneath', async () => {
@@ -137,15 +139,32 @@ test('type: aborts when the note changes underneath', async () => {
   assert.equal(res.interrupted, true);
 });
 
-test('type: user edits above the caret shift where typing continues', async () => {
+test('type: while the agent writes, nothing else edits the note or moves the caret', async () => {
   const view = viewFor('tail');
   let n = 0;
   const res = await agentType(view, { pos: 4, text: 'abcdefghij' }, {
     speed: 'slow',
-    sleep: async () => { if (++n === 1) view.dispatch({ changes: { from: 0, insert: 'XX' } }); },
+    sleep: async () => {
+      if (++n !== 2) return;
+      view.dispatch({ changes: { from: 0, insert: 'XX' }, userEvent: 'input.type' });
+      view.dispatch({ selection: { anchor: 0 }, userEvent: 'select.pointer' });
+      view.dispatch({ selection: { anchor: 1 } });
+      undo({ state: view.state, dispatch: (tr) => view.dispatch(tr) });
+    },
   });
   assert.equal(res.ok, true);
-  assert.equal(view.state.doc.toString(), 'XXtailabcdefghij');
+  assert.equal(view.state.doc.toString(), 'tailabcdefghij');
+  assert.equal(view.state.selection.main.head, view.state.doc.length);
+  view.dispatch({ selection: { anchor: 0 } });
+  assert.equal(view.state.selection.main.head, 0, 'the editor is the user\'s again');
+});
+
+test('type: the editor is not editable while the agent writes', async () => {
+  const view = viewFor('');
+  const seen = [];
+  await agentType(view, { pos: 0, text: 'abc' }, { speed: 'slow', sleep: async () => seen.push(view.state.facet(EditorView.editable)) });
+  assert.ok(seen.length && seen.every((v) => v === false), JSON.stringify(seen));
+  assert.equal(view.state.facet(EditorView.editable), true);
 });
 
 test('type: one undo reverts the whole agent write', async () => {
@@ -238,15 +257,15 @@ test('rewrite: replaces the region and one undo restores it', async () => {
   assert.equal(view.state.doc.toString(), DOC);
 });
 
-test('rewrite: the replaced selection does not carry over onto the typed text', async () => {
+test('rewrite: the replaced selection collapses into the agent caret', async () => {
   const view = viewFor(DOC);
   const from = DOC.indexOf('First');
   view.dispatch({ selection: { anchor: from, head: from + 'First paragraph here.'.length } });
   const p = planAgentRewrite(view.state, { target: 'selection' }, 'A much better paragraph.');
   const seen = [];
   await agentType(view, p, { speed: 'slow', sleep: async () => seen.push(view.state.selection.main.empty) });
-  assert.ok(seen.slice(2).every(Boolean), 'selection stayed on the typed text while typing');
-  assert.deepEqual([view.state.selection.main.from, view.state.selection.main.to], [from, from]);
+  assert.ok(seen.every(Boolean), 'no selection spans the typed text while typing');
+  assert.equal(view.state.selection.main.head, from + 'A much better paragraph.'.length);
 });
 
 test('rewrite: delete only', async () => {
@@ -301,25 +320,6 @@ test('type: completions opened by the typing are closed', async () => {
   assert.ok(completionStatus(view.state), 'typing should open completions');
   await run(view, { pos: 1, text: '[[note' }, { speed: 'slow' });
   assert.equal(completionStatus(view.state), null);
-});
-
-test('rewrite: an edit while the region is highlighted moves what gets replaced', async () => {
-  const view = viewFor(DOC);
-  const p = planAgentRewrite(view.state, { target: 'b2', expect: 'First' }, 'New.');
-  let n = 0;
-  await agentType(view, p, {
-    speed: 'slow',
-    sleep: async () => { if (++n === 1) view.dispatch({ changes: { from: p.pos + 5, insert: ' long' } }); },
-  });
-  assert.equal(view.state.doc.toString(), DOC.replace('First paragraph here.', 'New.'));
-});
-
-test('type: agent writes are not counted as foreign edits', async () => {
-  const view = viewFor('');
-  await run(view, { pos: 0, text: 'abc' }, { speed: 'slow' });
-  assert.equal(foreignEditCount(view.state), 0);
-  view.dispatch({ changes: { from: 0, insert: 'x' } });
-  assert.equal(foreignEditCount(view.state), 1);
 });
 
 test('type: chars counts characters, not UTF-16 units', async () => {

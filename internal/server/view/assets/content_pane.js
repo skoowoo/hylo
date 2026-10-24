@@ -57,6 +57,8 @@
   function contentPaneCtrl() {
     return {
       contentPaneOpen: false, tabs: [], activeTab: -1,
+      // The agent is typing into the open note: no switching, closing or toolbar actions.
+      agentWriting: false,
       _skipNextOpenLoad: false, // see _openPane()
       renaming: false, // true while #content-pane-rename-input replaces the active tab's title
       _renameSubmitting: false, // reentrancy guard — see submitRenameActiveNote's leading comment
@@ -542,7 +544,7 @@
 
       // Open an existing note in the pane.
       async openNoteInContentPane(path, title, isKnowledge, pinned, isIndex, canCompile) {
-        if (!path) return;
+        if (!path || this.agentWriting) return;
         this.cancelRenameActiveNote(); // opening any note (even re-opening the active one) always discards an in-progress rename on whatever tab was showing
         var prevTab = this.tabs[this.activeTab];
         if (this.contentPaneOpen && prevTab) __hyloEditorSaveTabState(prevTab.id);
@@ -561,6 +563,7 @@
       // __hyloEditorMaterializeTab) with an auto-generated name; there's
       // no filename to ask for up front and no draft/publish step.
       async openNewInContentPane() {
+        if (this.agentWriting) return;
         this.cancelRenameActiveNote(); // see openNoteInContentPane
         var s = __hyloEditor;
         var prevTab = this.tabs[this.activeTab];
@@ -684,6 +687,10 @@
       // Flips contentPaneOpen false→true while telling its $watch (in
       // initContentPane) to skip self._restore() + reload: the caller
       // already pushed/upserted the right tab and will load it itself.
+      closeContentPane() {
+        if (!this.agentWriting) this.contentPaneOpen = false;
+      },
+
       _openPane() {
         if (!this.contentPaneOpen) this._skipNextOpenLoad = true;
         this.contentPaneOpen = true;
@@ -704,6 +711,7 @@
       },
 
       async contentPaneSwitchTab(i) {
+        if (this.agentWriting) return;
         this.cancelRenameActiveNote(); // see openNoteInContentPane
         __hyloBlurActive();
         if (i === this.activeTab) return;
@@ -732,7 +740,7 @@
       },
 
       async contentPaneCloseTab(i) {
-        if (i < 0 || i >= this.tabs.length) return;
+        if (i < 0 || i >= this.tabs.length || this.agentWriting) return;
         this.cancelRenameActiveNote(); // see openNoteInContentPane
         var wasActive = (i === this.activeTab);
         var closingTab = this.tabs[i];
@@ -1158,7 +1166,9 @@
   };
 
   window.__hyloHotkeys.register('toggle-editor', 'o', function() {
-    if (window.__hyloContentPane) window.__hyloContentPane.contentPaneOpen = !window.__hyloContentPane.contentPaneOpen;
+    var pane = window.__hyloContentPane;
+    if (!pane) return;
+    if (pane.contentPaneOpen) pane.closeContentPane(); else pane.contentPaneOpen = true;
   });
 
   window.__hyloHotkeys.register('new-note', 'n', function() {
@@ -1277,7 +1287,7 @@
   // the Mod-Shift-E it replaced which needed registerRaw's manual check.
   window.__hyloHotkeys.register('reading-mode', 'l', function() {
     var pane = window.__hyloContentPane;
-    if (!pane || !pane.contentPaneOpen || !__hyloEditor.view) return;
+    if (!pane || !pane.contentPaneOpen || pane.agentWriting || !__hyloEditor.view) return;
     var tab = pane.tabs[pane.activeTab];
     if (!tab || !tab.path) return;
     editorMode.toggleReading();
@@ -1286,7 +1296,7 @@
   window.__hyloHotkeys.registerRaw('content-pane-find', function(e, mod) {
     if (!mod || e.shiftKey || e.altKey || e.key.toLowerCase() !== 'f') return;
     var _fContentPane = window.__hyloContentPane;
-    if (!_fContentPane || !_fContentPane.contentPaneOpen) return;
+    if (!_fContentPane || !_fContentPane.contentPaneOpen || _fContentPane.agentWriting) return;
     if (!__hyloCM || !__hyloEditor.view) return;
     e.preventDefault();
     __hyloEditorOpenFind();
@@ -1307,7 +1317,7 @@
   window.__hyloHotkeys.registerRaw('content-pane-tabs-menu-toggle', function(e, mod) {
     if (!mod || e.shiftKey || e.altKey || e.key.toLowerCase() !== 't') return;
     var _pane = window.__hyloContentPane;
-    if (!_pane || !_pane.contentPaneOpen) return;
+    if (!_pane || !_pane.contentPaneOpen || _pane.agentWriting) return;
     var scope = __hyloContentPaneTabsMenuScope();
     if (!scope) return;
     e.preventDefault();

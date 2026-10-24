@@ -80,6 +80,8 @@
       border-radius: 0; /* flush chrome strip */
       height: var(--toolbar-h);
     }
+    .content-pane-tool-bar > * { transition: opacity var(--motion-fast); }
+    .content-pane-tool-bar[inert] > * { opacity: 0.4; }
     /* ── Header tab strip ──────────────────────────────────────────
        Each chip hugs its title's width between --cp-tab-min-w and
        --cp-tab-max-w (flex-shrink:0 — width is a pure function of the

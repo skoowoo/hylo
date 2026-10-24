@@ -50,8 +50,7 @@
     return s.view;
   }
 
-  // Reading view is not editable, so the user could not type to interrupt; write in live
-  // preview without touching the saved preference.
+  // The agent writes in live preview, as a person would; the saved preference stays.
   function __hyloAgentSetReading(on) {
     var s = __hyloEditor;
     s.view.dispatch({effects: s._modeEffects(false, on)});
@@ -63,7 +62,6 @@
     if (__hyloAgentCancelled.delete(op.id)) return;
     var s = __hyloEditor;
     var ctrl = new AbortController();
-    var onKey = null;
     var view = null;
     var wasReading = false;
     __hyloAgentCurrent = { id: op.id, ctrl: ctrl };
@@ -84,16 +82,8 @@
       wasReading = s.readingActive;
       if (wasReading) __hyloAgentSetReading(false);
 
-      // Typing hands control back to the user. A shortcut only does if it edited the
-      // note, so copying or saving mid-typing doesn't stop the agent.
-      onKey = function(e) {
-        if (e.isComposing || e.key === 'Shift' || e.key === 'Meta' || e.key === 'Control' || e.key === 'Alt') return;
-        if (!e.metaKey && !e.ctrlKey) return void ctrl.abort();
-        var before = __hyloCM.foreignEditCount(view.state);
-        setTimeout(function() { if (__hyloCM.foreignEditCount(view.state) !== before) ctrl.abort(); }, 0);
-      };
-      view.contentDOM.addEventListener('keydown', onKey, true);
-
+      // The agent owns the editor and its pane until it finishes or is stopped from chat.
+      window.__hyloContentPane.agentWriting = true;
       var res = await __hyloCM.agentType(view, plan, {
         speed: op.speed,
         signal: ctrl.signal,
@@ -103,7 +93,7 @@
     } catch (e) {
       await __hyloAgentAck({id: op.id, ok: false, error: (e && e.message) || 'editor error', chars: 0});
     } finally {
-      if (onKey && view) view.contentDOM.removeEventListener('keydown', onKey, true);
+      if (window.__hyloContentPane) window.__hyloContentPane.agentWriting = false;
       if (wasReading && s.reading && s.view === view && s.currentPath === op.path && !s.readingActive && !s.inSource) {
         __hyloAgentSetReading(true);
       }

@@ -1,8 +1,8 @@
 // Lets a server-side agent type into the live editor as if it were a person:
-// changes go through ordinary transactions (so rendering, undo and autosave behave
-// as for human input) and a separate agent caret shows where the text lands.
-import { StateField, StateEffect, Transaction, Annotation, EditorSelection } from '@codemirror/state';
-import { Decoration, EditorView, WidgetType } from '@codemirror/view';
+// changes go through ordinary transactions and move the editor's own caret, so rendering,
+// undo and autosave behave as for human input.
+import { EditorState, StateField, StateEffect, Transaction, Annotation, EditorSelection } from '@codemirror/state';
+import { Decoration, EditorView } from '@codemirror/view';
 import { ensureSyntaxTree, syntaxTree } from '@codemirror/language';
 import { isolateHistory } from '@codemirror/commands';
 import { completionStatus, closeCompletion } from '@codemirror/autocomplete';
@@ -10,43 +10,39 @@ import { findFrontmatterNode } from './frontmatter-syntax.js';
 import { resolveAncestor, nameIs } from './tree-utils.js';
 import { createRhythm } from './agent-rhythm.js';
 
-export const setAgentCursor = StateEffect.define();
+// While the agent writes it owns the editor: its caret is the selection, and nothing
+// else may move or edit it. Taking over again means stopping the agent first.
+const setAgentWriting = StateEffect.define();
 
-class AgentCursorWidget extends WidgetType {
-  eq() { return true; }
-  toDOM() {
-    const el = document.createElement('span');
-    el.className = 'cm-agent-cursor';
-    el.setAttribute('aria-hidden', 'true');
-    return el;
-  }
-  ignoreEvent() { return true; }
-}
-
-const agentCursorField = StateField.define({
-  create: () => null,
-  update(pos, tr) {
-    for (const e of tr.effects) if (e.is(setAgentCursor)) return e.value;
-    return pos == null ? null : tr.changes.mapPos(pos, 1);
+const agentWritingField = StateField.define({
+  create: () => false,
+  update(on, tr) {
+    for (const e of tr.effects) if (e.is(setAgentWriting)) return e.value;
+    return on;
   },
-  provide: (f) => EditorView.decorations.from(f, (pos) => (
-    pos == null ? Decoration.none : Decoration.set([Decoration.widget({ widget: new AgentCursorWidget(), side: 1 }).range(pos)])
-  )),
+  provide: (f) => [
+    EditorView.editable.compute([f], (state) => !state.field(f)),
+    EditorView.editorAttributes.compute([f], (state) => (state.field(f) ? { class: 'cm-agent-writing' } : {})),
+  ],
 });
 
-const agentCursorTheme = EditorView.baseTheme({
-  '.cm-agent-cursor': {
-    display: 'inline-block', position: 'relative', width: '0', height: '1.15em',
-    marginLeft: '-1px', verticalAlign: 'text-bottom',
-    borderLeft: '2px solid var(--accent, #5e6ad2)',
-    animation: 'cm-agent-blink 1.1s steps(1) infinite',
+const agentWrite = Annotation.define();
+
+const agentLock = EditorState.transactionFilter.of((tr) => (
+  tr.startState.field(agentWritingField, false) && (tr.docChanged || tr.selection) && !tr.annotation(agentWrite) ? [] : tr
+));
+
+// The drawn caret shows unfocused too: the user usually watches from the chat composer.
+const agentCaretTheme = EditorView.baseTheme({
+  '&.cm-agent-writing > .cm-scroller > .cm-cursorLayer': { animation: 'steps(1) cm-blink 1.2s infinite' },
+  '&.cm-agent-writing > .cm-scroller > .cm-cursorLayer .cm-cursor-primary': {
+    display: 'block', borderLeft: '2px solid var(--accent, #5e6ad2)', marginLeft: '-1px',
   },
-  '.cm-agent-cursor::after': {
+  '&.cm-agent-writing .cm-cursor-primary::after': {
     content: '"AI"', position: 'absolute', left: '-2px', bottom: '100%',
-    padding: '0 4px', borderRadius: '3px', fontSize: '10px', lineHeight: '14px', whiteSpace: 'nowrap',
-    color: 'var(--accent-fg, #fff)', background: 'var(--accent, #5e6ad2)', pointerEvents: 'none',
+    padding: '0 4px', borderRadius: '3px', font: "10px/14px var(--font-ui, system-ui, sans-serif)", whiteSpace: 'nowrap',
+    color: 'var(--accent-fg, #fff)', background: 'var(--accent, #5e6ad2)',
   },
-  '@keyframes cm-agent-blink': { '50%': { opacity: '0.35' } },
 });
 
 // The region about to be rewritten, shown briefly before it is replaced.
@@ -73,17 +69,8 @@ const agentTargetTheme = EditorView.baseTheme({
   },
 });
 
-const agentWrite = Annotation.define();
-
-// Counts edits not made by the agent, so the page can tell whether a shortcut edited the note.
-const foreignEditsField = StateField.define({
-  create: () => 0,
-  update: (n, tr) => (tr.docChanged && !tr.annotation(agentWrite) ? n + 1 : n),
-});
-
-export const agentCursorExtension = [agentCursorField, agentCursorTheme, agentTargetField, agentTargetTheme, foreignEditsField];
-export const agentCursorPos = (state) => state.field(agentCursorField, false) ?? null;
-export const foreignEditCount = (state) => state.field(foreignEditsField, false) ?? 0;
+export const agentWritingExtension = [agentWritingField, agentLock, agentCaretTheme, agentTargetField, agentTargetTheme];
+export const agentWriting = (state) => state.field(agentWritingField, false) ?? false;
 
 const HEADING_RE = /^ {0,3}(#{1,6})[ \t]+(.*?)[ \t#]*$/;
 const FENCE_RE = /^ {0,3}(`{3,}|~{3,})/;
@@ -257,18 +244,6 @@ export function planAgentRewrite(state, { target, expect, fromText, toText } = {
   return { pos: from, replaceTo: to, text: '' };
 }
 
-// Mapped through a replacement, a selection on the region would cover the first typed
-// chunk and stay there; it collapses to the region's start instead.
-function collapseOnto(state, changes) {
-  const { from, to } = changes;
-  const sel = state.selection;
-  if (!sel.ranges.some((r) => !r.empty && r.from < to && r.to > from)) return undefined;
-  const cs = state.changes(changes);
-  return EditorSelection.create(sel.ranges.map((r) => (
-    !r.empty && r.from < to && r.to > from ? EditorSelection.cursor(from) : r.map(cs)
-  )), sel.mainIndex);
-}
-
 // Keeps the agent's position in a comfortable band of the viewport. Scrolling happens in
 // one hop (to `target` of the height) only once it leaves the band, so the view moves
 // occasionally instead of creeping every tick. Wins over the user's own scrolling by design.
@@ -320,36 +295,33 @@ export async function agentType(view, plan, opts = {}) {
   let open = null;
 
   const abort = (reason) => ({ ok: false, interrupted: true, chars: typed, error: reason });
-  const pos = () => agentCursorPos(view.state);
+  const pos = () => view.state.selection.main.head;
 
   // The region being rewritten goes away in the first write, so deleting and the
   // first typed chunk are one transaction and undo reverts the whole rewrite.
   let deleting = plan.replaceTo != null && plan.replaceTo > plan.pos;
-  // Where the region ends now: the highlight is mapped through edits made since planning.
-  const deleteEnd = (at) => {
-    if (!deleting) return at;
-    const t = view.state.field(agentTargetField, false);
-    return t ? Math.max(at, t.to) : at;
-  };
+  const deleteEnd = (at) => (deleting ? Math.max(at, plan.replaceTo) : at);
 
   // The rhythm's pauses can exceed the history's grouping window; a private clock that
   // advances 1ms per write keeps the whole write one undo step whatever the pauses were.
   let clock = Date.now();
 
-  const push = (spec) => {
+  // caret: where the selection lands, as an offset into `insert`.
+  const push = (from, insert, caret = insert.length) => {
     const annotations = [Transaction.time.of(clock++), agentWrite.of(true)];
     if (first) annotations.push(isolateHistory.of('before'));
     first = false;
-    const effects = [...(spec.effects || [])];
-    let changes = spec.changes;
-    let selection;
+    const effects = [];
+    let to = from;
     if (deleting) {
-      changes = { ...changes, to: deleteEnd(changes.from) };
-      selection = collapseOnto(view.state, changes);
+      to = deleteEnd(from);
       effects.push(setAgentTarget.of(null));
       deleting = false;
     }
-    view.dispatch({ ...spec, changes, selection, effects, annotations, userEvent: 'input.type.agent' });
+    view.dispatch({
+      changes: { from, to, insert }, selection: EditorSelection.cursor(from + caret),
+      effects, annotations, userEvent: 'input.type.agent',
+    });
     // input.type keeps the write one undo group but also opens completions, e.g. after "[[".
     if (completionStatus(view.state)) closeCompletion(view);
   };
@@ -364,7 +336,9 @@ export async function agentType(view, plan, opts = {}) {
   };
 
   view.dispatch({
-    effects: [setAgentCursor.of(plan.pos), setAgentTarget.of(deleting ? { from: plan.pos, to: plan.replaceTo } : null)],
+    selection: EditorSelection.cursor(plan.pos),
+    effects: [setAgentWriting.of(true), setAgentTarget.of(deleting ? { from: plan.pos, to: plan.replaceTo } : null)],
+    annotations: agentWrite.of(true),
   });
   follow(view, plan.pos, { top: 0.05, bottom: 0.5, target: 0.25 });
   try {
@@ -373,16 +347,15 @@ export async function agentType(view, plan, opts = {}) {
     if (!src) {
       if (signal?.aborted) return abort('interrupted');
       if (!isCurrent()) return abort('editor switched to another note');
-      const at = pos();
-      if (at == null) return abort('editor state replaced');
-      push({ changes: { from: at, insert: '' } });
+      if (!agentWriting(view.state)) return abort('editor state replaced');
+      push(pos(), '');
       return { ok: true, interrupted: false, chars: 0 };
     }
     for (let j = 0; j < segs.length;) {
       if (signal?.aborted) return abort('interrupted');
       if (!isCurrent()) return abort('editor switched to another note');
+      if (!agentWriting(view.state)) return abort('editor state replaced');
       const at = pos();
-      if (at == null) return abort('editor state replaced');
       const idx = segs[j].index;
       const atLineStart = idx === 0 || src[idx - 1] === '\n';
 
@@ -392,7 +365,7 @@ export async function agentType(view, plan, opts = {}) {
           // Closer already exists below the caret: hop onto it instead of typing it again.
           const next = view.state.doc.lineAt(at).number + 1;
           const to = next <= view.state.doc.lines ? view.state.doc.line(next).to : at;
-          view.dispatch({ effects: setAgentCursor.of(to) });
+          view.dispatch({ selection: EditorSelection.cursor(to), annotations: agentWrite.of(true) });
           followSoon(to);
           typed += codePoints(m[0]);
           while (j < segs.length && segs[j].index < idx + m[0].length) j++;
@@ -409,10 +382,8 @@ export async function agentType(view, plan, opts = {}) {
         if (m && restEmpty) ensureSyntaxTree(view.state, view.state.doc.length, 50);
         if (m && restEmpty && !inCode(view.state, line.from)) {
           const fence = m[2];
-          const insert = m[0] + '\n' + m[1] + fence;
-          const end = at + m[0].length;
-          push({ changes: { from: at, insert }, effects: [setAgentCursor.of(end)] });
-          followSoon(end);
+          push(at, m[0] + '\n' + m[1] + fence, m[0].length);
+          followSoon(at + m[0].length);
           typed += codePoints(m[0]);
           open = { closer: closerRe(fence[0], fence.length) };
           while (j < segs.length && segs[j].index < idx + m[0].length) j++;
@@ -435,18 +406,16 @@ export async function agentType(view, plan, opts = {}) {
         pause = rhythm ? rhythm.pause(src, s.index + s.segment.length) : 0;
         if (pause) break;
       }
-      const end = at + chunk.length;
-      push({ changes: { from: at, insert: chunk }, effects: [setAgentCursor.of(end)] });
-      followSoon(end);
+      push(at, chunk);
+      followSoon(at + chunk.length);
       typed += codePoints(chunk);
       if (rhythm) await sleep(pause + rhythm.gap(count) + rhythm.hesitation());
     }
-    const end = pos();
-    if (end != null) follow(view, end);
+    if (agentWriting(view.state)) follow(view, pos());
     return { ok: true, interrupted: false, chars: typed };
   } catch (e) {
     return { ok: false, interrupted: false, chars: typed, error: (e && e.message) || String(e) };
   } finally {
-    try { view.dispatch({ effects: [setAgentCursor.of(null), setAgentTarget.of(null)], annotations: isolateHistory.of('after') }); } catch (_) { /* view destroyed */ }
+    try { view.dispatch({ effects: [setAgentWriting.of(false), setAgentTarget.of(null)], annotations: [isolateHistory.of('after'), agentWrite.of(true)] }); } catch (_) { /* view destroyed */ }
   }
 }

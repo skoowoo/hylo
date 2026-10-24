@@ -1,6 +1,6 @@
   <div class="content-pane"
        :class="{ open: contentPaneOpen || inboxSheetOpen }"
-       @close-content-pane.document="contentPaneOpen = false">
+       @close-content-pane.document="closeContentPane()">
     <!-- This pane is shared with the inbox message detail below — only one
          of the two is ever visible (mutual exclusion lives in
          homeCtrl/contentPaneCtrl's contentPaneOpen/inboxSheetOpen watchers, home.js/
@@ -9,7 +9,7 @@
     <div class="content-pane-panel" x-show="!inboxSheetOpen">
 
       <!-- ① Tool bar: maximize | tab strip (+ overflow) | note actions -->
-      <div class="content-pane-tool-bar">
+      <div class="content-pane-tool-bar" :inert="agentWriting">
         <!-- Maximize/restore — unconditional (doesn't depend on create vs
              edit mode below), same spot/icon the old tab bar's own button
              used. -->
@@ -439,7 +439,7 @@
           </div>
         </div>
         <button type="button" class="icon-btn-ghost content-pane-close-btn"
-                @click.stop="contentPaneOpen = false"
+                @click.stop="closeContentPane()"
                 title="Close">
           <svg fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
             <path d="M18 6 6 18"/><path d="m6 6 12 12"/>

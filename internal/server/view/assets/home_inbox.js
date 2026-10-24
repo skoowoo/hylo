@@ -122,6 +122,7 @@ function homeInboxMixin(boot) {
       });
     },
     selectInboxMessage(m) {
+      if (this.agentWriting) return;
       this.inboxSelected = m;
       this.inboxSheetOpen = true;
       if (!m.isRead) this.markInboxRead(m);

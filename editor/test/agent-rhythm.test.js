@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { EditorState } from '@codemirror/state';
 import { history, undo } from '@codemirror/commands';
 import { createRhythm } from '../src/cm-live/agent-rhythm.js';
-import { agentType, agentCursorExtension } from '../src/cm-live/agent-typing.js';
+import { agentType, agentWritingExtension } from '../src/cm-live/agent-typing.js';
 import { wikiMarkdownLanguage } from '../src/cm-live/index.js';
 
 const PER_CHAR = 1000 / 70;
@@ -65,7 +65,7 @@ test('randomness varies the timing and keeps it bounded', () => {
 test('long pauses do not split the undo step', async () => {
   const lang = wikiMarkdownLanguage();
   const view = {
-    state: EditorState.create({ doc: '# T\n', extensions: [lang, history(), agentCursorExtension] }),
+    state: EditorState.create({ doc: '# T\n', extensions: [lang, history(), agentWritingExtension] }),
     dispatch(...specs) { view.state = view.state.update(...specs).state; },
   };
   const realNow = Date.now;
@@ -86,7 +86,7 @@ test('long pauses do not split the undo step', async () => {
 test('typing sleeps follow the rhythm: a beat first, longer for paragraph breaks', async () => {
   const lang = wikiMarkdownLanguage();
   const view = {
-    state: EditorState.create({ doc: '', extensions: [lang, agentCursorExtension] }),
+    state: EditorState.create({ doc: '', extensions: [lang, agentWritingExtension] }),
     dispatch(...specs) { view.state = view.state.update(...specs).state; },
   };
   const sleeps = [];
@@ -99,7 +99,7 @@ test('typing sleeps follow the rhythm: a beat first, longer for paragraph breaks
 test('instant speed never sleeps', async () => {
   const lang = wikiMarkdownLanguage();
   const view = {
-    state: EditorState.create({ doc: '', extensions: [lang, agentCursorExtension] }),
+    state: EditorState.create({ doc: '', extensions: [lang, agentWritingExtension] }),
     dispatch(...specs) { view.state = view.state.update(...specs).state; },
   };
   let slept = 0;

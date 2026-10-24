@@ -459,7 +459,7 @@
           // WebKit's native caret spans the line gap above on a paragraph's
           // wrapped lines and leaves stale paint; CM's is sized from the text.
           cm.drawnSelection(),
-          cm.agentCursorExtension,
+          cm.agentWritingExtension,
           cm.keymap.of([].concat(cm.defaultKeymap, cm.historyKeymap)),
           cm.search({ top: true, createPanel: __hyloCreateSearchPanel }),
           cm.EditorView.lineWrapping, cmTheme,

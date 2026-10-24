@@ -4,7 +4,7 @@ import { injectStyle } from './fields.js';
 import { icon } from './icons.js';
 
 const CSS = `
-.hy-embed{display:block;margin:0;border-radius:var(--r-lg,12px);background:var(--surface-soft,#f5f5f7);color:var(--fg,#18181b);font:var(--text-sm,.8125rem)/1.4 var(--font-ui,system-ui,sans-serif);overflow:hidden;text-decoration:none}
+.hy-embed{display:block;box-sizing:border-box;margin:0;border-radius:var(--r-lg,12px);background:var(--surface-soft,#f5f5f7);color:var(--fg,#18181b);font:var(--text-sm,.8125rem)/1.4 var(--font-ui,system-ui,sans-serif);overflow:hidden;text-decoration:none}
 .hy-card-embed{container-type:inline-size}
 .hy-embed-row{display:grid;grid-template-columns:minmax(0,1fr);gap:var(--space-xs,8px);width:100%;min-width:0}
 .hy-embed-row>.hy-embed{min-width:0}
@@ -32,8 +32,10 @@ a.hy-embed-title,.prose a.hy-embed-title{color:inherit;text-decoration:none}
 a.hy-embed-title:hover{text-decoration:underline}
 .hy-embed-play{all:unset;box-sizing:border-box;cursor:pointer;display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:999px;background:var(--fg,#18181b);color:var(--bg,#fff);flex:none}
 .hy-embed-play:focus-visible,.hy-embed-open:focus-visible,.hy-embed-retry:focus-visible,a.hy-embed-title:focus-visible{outline:2px solid rgba(var(--accent-rgb,94,106,210),.5);outline-offset:2px}
+/* The box, not the <video>, sets the height: WebKit drops the video's box for a layout when controls turn on. */
+.hy-embed-video,.hy-embed-pending[data-kind="video"]{aspect-ratio:16/9;max-height:280px}
 .hy-embed-video{position:relative;background:#000;cursor:pointer}
-.hy-embed-video video{display:block;width:100%;aspect-ratio:16/9;max-height:280px;object-fit:contain;background:#000}
+.hy-embed-video video{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:contain;background:#000}
 .hy-embed-video .hy-embed-play{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:48px;height:48px;background:rgba(255,255,255,.92);color:#111;box-shadow:0 2px 10px rgba(0,0,0,.35)}
 .hy-embed-cap{position:absolute;left:0;right:0;bottom:0;display:flex;flex-direction:column;gap:2px;padding:28px 12px 10px;background:linear-gradient(transparent,rgba(0,0,0,.65));color:#fff;pointer-events:none}
 .hy-embed-cap .hy-embed-site{color:rgba(255,255,255,.75)}
@@ -53,7 +55,7 @@ a.hy-embed-title:hover{text-decoration:underline}
 .hy-embed-plain{padding:12px 14px;color:var(--muted,#6d7080);min-height:48px}
 .hy-embed-pending{display:flex;align-items:flex-end;padding:10px 12px;color:var(--muted,#6d7080);font-size:var(--text-xs,.75rem);min-height:84px;animation:hy-embed-pulse 1.4s ease-in-out infinite}
 .hy-embed-pending[data-kind="audio"]{min-height:56px;align-items:center}
-.hy-embed-pending[data-kind="video"]{min-height:0;aspect-ratio:16/9;max-height:280px}
+.hy-embed-pending[data-kind="video"]{min-height:0}
 .hy-embed-pending[data-kind="image"]{min-height:200px}
 @keyframes hy-embed-pulse{50%{opacity:.55}}
 @media (prefers-reduced-motion:reduce){.hy-embed-pending{animation:none}}
@@ -65,7 +67,7 @@ a.hy-embed-title:hover{text-decoration:underline}
 .hy-embed-row .hy-embed-page>.hy-embed-shot{width:100%;height:108px;aspect-ratio:auto;margin:0;border-radius:0}
 .hy-embed-row .hy-embed-audio{flex-direction:column;align-items:stretch;gap:10px;padding:12px}
 .hy-embed-row .hy-embed-file{align-items:flex-start}
-.hy-embed-row>.hy-embed-pending{min-height:200px}
+.hy-embed-row>.hy-embed-pending:not([data-kind="video"]){min-height:200px}
 .hy-embed-row>.hy-embed-pending[data-kind="audio"]{min-height:104px}
 }
 .hy-embed svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
