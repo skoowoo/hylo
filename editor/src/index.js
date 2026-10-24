@@ -14,7 +14,6 @@ export {
   wikiMarkdownLanguage,
   wikiLinksRevalidated,
   frontmatterCollapseField,
-  allowFrontmatterEdit,
   linkClickHandler,
   jumpToHeading,
   listIndentExtension,

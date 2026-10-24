@@ -147,13 +147,6 @@ export function linkClickHandler() {
       pending = null;
       if (e.button !== 0) return false;
 
-      // Frontmatter URLs are Decoration.mark only — no Link syntax node.
-      const fmLink = e.target.closest && e.target.closest('.cm-lp-fm-link');
-      if (fmLink) {
-        pending = { kind: 'fm', url: fmLink.textContent.trim(), startX: e.clientX, startY: e.clientY };
-        return false;
-      }
-
       const hit = e.target.closest && e.target.closest('.cm-lp-link');
       if (!hit || hit.classList.contains('cm-lp-link-editing')) return false;
       const node = linkNodeAt(view, view.posAtDOM(hit));

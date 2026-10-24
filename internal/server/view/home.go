@@ -636,12 +636,12 @@ var homePageHTML = `<!DOCTYPE html>
   </script>
   <style>
 ` + appTokensCSS + `
-` + infoDialogCSS + baseCSS + cselectCSS + homeCSS + imagesCSS + graphCSS + agentChatCSS + contentPaneCSS + noteSharedCSS + noteEditorCSS + shortsCSS + searchOverlayStyles + confirmDialogCSS + settingsModalCSS + frontmatterDialogCSS + serversCSS + `
+` + infoDialogCSS + baseCSS + cselectCSS + homeCSS + imagesCSS + graphCSS + agentChatCSS + contentPaneCSS + noteSharedCSS + noteEditorCSS + shortsCSS + searchOverlayStyles + confirmDialogCSS + settingsModalCSS + serversCSS + `
   </style>
 </head>
 <body x-data="homeCtrl()"@hylo:reference-note.window="referenceNote($event)" @hylo:send-note-to-agent.window="sendNoteToAgentBot($event)">
   <script type="application/json" id="home-boot">{{.Boot}}</script>
-` + searchOnlyOverlayHTML + confirmDialogHTML + infoDialogHTML + frontmatterDialogHTML + settingsModalHTML() + homeImagesLightboxHTML + homeChatToastHTML + `
+` + searchOnlyOverlayHTML + confirmDialogHTML + infoDialogHTML + settingsModalHTML() + homeImagesLightboxHTML + homeChatToastHTML + `
   <div class="home-container">
 ` + homeMainHTML + contentPaneHTML + `
     </div><!-- /.home-main -->
@@ -656,7 +656,7 @@ var homePageHTML = `<!DOCTYPE html>
     Alpine.store('servers', hyloServersStore());
   });
 
-` + liveJS + noteChangesJS + keysJS + pathAcScript + chatReduceJS + chatTextJS + chatKernelJS + chatViewJS + listTightenJS + tabFitJS + graphLayoutJS + editorSessionJS + editorAgentJS + contentPaneScript + searchOverlayScript + confirmDialogJS + infoDialogJS + frontmatterDialogJS + serversStoreJS + settingsCtrlJS + sectionCacheJS + homeImagesJS + homeGraphJS + homeInboxJS + homeShortsJS + tagCloudJS + homeDragJS + homeJS + `
+` + liveJS + noteChangesJS + keysJS + pathAcScript + chatReduceJS + chatTextJS + chatKernelJS + chatViewJS + listTightenJS + tabFitJS + graphLayoutJS + editorSessionJS + editorAgentJS + contentPaneScript + searchOverlayScript + confirmDialogJS + infoDialogJS + serversStoreJS + settingsCtrlJS + sectionCacheJS + homeImagesJS + homeGraphJS + homeInboxJS + homeShortsJS + tagCloudJS + homeDragJS + homeJS + `
   </script>
 ` + noteSharedJS + `
 </body>

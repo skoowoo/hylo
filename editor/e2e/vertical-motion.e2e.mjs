@@ -186,6 +186,50 @@ test('Backspace after a wikilink reveals the source before deleting', async (t) 
   }
 });
 
+// Only the card's Edit button opens the frontmatter source. Arrowing up or
+// Backspace at the body start leaves the caret and the block alone.
+test('frontmatter source opens only from the Edit button', async (t) => {
+  if (launchError) return t.skip('WebKit unavailable');
+  const doc = '---\ntitle: T\ntags: [a, b]\n---\nbody\n';
+  const body = doc.indexOf('body');
+  const page = await browser.newPage({ viewport: { width: 900, height: 600 } });
+  try {
+    await page.goto(server.url + '/?f=widgets.md');
+    await page.waitForFunction(() => window.ready);
+    const state = () => page.evaluate(() => ({
+      doc: window.view.state.doc.toString(),
+      head: window.view.state.selection.main.head,
+      card: !!document.querySelector('.cm-fm-card'),
+    }));
+    await page.evaluate(([doc, body]) => {
+      window.view.focus();
+      window.view.dispatch({ changes: { from: 0, to: window.view.state.doc.length, insert: doc }, selection: { anchor: body } });
+      window.cm.forceParsing(window.view, doc.length, 500);
+    }, [doc, body]);
+    const atRest = { doc, head: body, card: true };
+    assert.deepEqual(await state(), atRest);
+
+    await page.keyboard.press('ArrowUp');
+    assert.deepEqual(await state(), atRest);
+    await page.keyboard.press('Backspace');
+    assert.deepEqual(await state(), atRest);
+
+    await page.hover('.cm-fm-card');
+    await page.click('.cm-fm-card .hy-btn');
+    assert.deepEqual(await state(), { doc, head: 'title: T'.length + 4, card: false });
+    await page.keyboard.press('ArrowDown');
+    assert.equal((await state()).card, false);
+
+    for (let i = 0; i < 3; i++) await page.keyboard.press('ArrowDown');
+    assert.equal((await state()).card, true);
+    await page.keyboard.press('ArrowUp');
+    await page.keyboard.press('ArrowUp');
+    assert.deepEqual(await state(), atRest);
+  } finally {
+    await page.close();
+  }
+});
+
 async function imagePage(doc, count) {
   const page = await browser.newPage({ viewport: { width: 900, height: 1400 } });
   await page.goto(server.url + '/?f=widgets.md');

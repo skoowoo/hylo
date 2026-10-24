@@ -1,6 +1,6 @@
 import { Decoration } from '@codemirror/view';
 
-// Shared by decorators.js, frontmatter-decorate.js and tables-decorate.js —
+// Shared by decorators.js, frontmatter-card.js and tables-decorate.js —
 // the two smallest, most-repeated primitives every node decorator builds on.
 
 export function hideRange(from, to, decos) {

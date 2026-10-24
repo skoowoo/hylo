@@ -9,15 +9,13 @@ import { frontmatterSyntax } from './frontmatter-syntax.js';
 import { livePreviewPlugin, skipListGaps } from './live-preview.js';
 import { horizontalRuleField } from './horizontal-rule-field.js';
 import { fenceCardField } from './fence-card/card-field.js';
-import { frontmatterHeaderField } from './frontmatter-collapse.js';
-import { frontmatterReadOnly } from './frontmatter-readonly.js';
+import { frontmatterCardField } from './frontmatter-card.js';
 import { livePreviewTheme, codeHighlightStyle } from './theme.js';
 import { verticalMotion } from './vertical-motion.js';
 import { widgetReveal } from './widget-reveal.js';
 
 export { wikiLinksRevalidated } from './live-preview.js';
-export { frontmatterCollapseField } from './frontmatter-collapse.js';
-export { allowFrontmatterEdit } from './frontmatter-readonly.js';
+export { frontmatterCollapseField } from './frontmatter-card.js';
 export { linkClickHandler, jumpToHeading } from './link-click.js';
 export { listIndentExtension } from './list-indent.js';
 export { selectionFormatMenu } from './format-menu.js';
@@ -57,20 +55,10 @@ export function wikiMarkdownLanguage() {
  *   on every rebuild — dispatch wikiLinksRevalidated after updating whatever
  *   this closes over (e.g. an existence Set) to force a re-check without a
  *   doc/selection change.
- * @param {(view: import('@codemirror/view').EditorView, from: number, to: number) => void}
- *   [options.onEditFrontmatter] Called with the Frontmatter node's range
- *   when the "Metadata" header's pencil button is clicked — see
- *   frontmatter-collapse.js. Frontmatter is read-only in this view
- *   (frontmatter-readonly.js) otherwise, so this is the only edit path.
  */
 // Torn down when the host switches to source mode. The shared language, the
 // collapse flag, and link clicks stay outside this list: a mode toggle must
-// not reparse the doc or drop a flag the header still reads.
-//
-// The "Metadata" header is its own StateField. decorateFrontmatter only
-// hairlines each YAML line; a block:true row is refused from a ViewPlugin,
-// and an earlier multi-line replace crashed CM6's height-map on a full-doc
-// replace after an edit.
+// not reparse the doc or drop a flag the card still reads.
 export function liveDecorations(options) {
   return [
     livePreviewPlugin.of(options),
@@ -79,8 +67,7 @@ export function liveDecorations(options) {
     verticalMotion,
     horizontalRuleField(),
     fenceCardField(),
-    frontmatterReadOnly(),
-    frontmatterHeaderField(options),
+    frontmatterCardField(options),
     livePreviewTheme,
     syntaxHighlighting(codeHighlightStyle),
   ];

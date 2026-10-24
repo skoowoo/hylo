@@ -3,7 +3,6 @@ import { ViewPlugin, Decoration, EditorView } from '@codemirror/view';
 import { StateEffect, EditorState } from '@codemirror/state';
 import { syntaxTree } from '@codemirror/language';
 import { nodeDecorators, isListGapLine } from './decorators.js';
-import { setFrontmatterCollapsed } from './frontmatter-collapse.js';
 import { readingModeToggled } from './selection.js';
 import { revealWidget } from './widget-reveal.js';
 
@@ -11,7 +10,7 @@ import { revealWidget } from './widget-reveal.js';
 // [[wikilink]] targets exist — e.g. after the async /api/notes/exist batch
 // resolves, or after a vault delete elsewhere touches this note's links —
 // so the next rebuild re-reads options.isWikiLinkBroken even though nothing
-// in the document itself changed. Same seam as setFrontmatterCollapsed below.
+// in the document itself changed.
 export const wikiLinksRevalidated = StateEffect.define();
 
 class LivePreviewPlugin {
@@ -42,12 +41,8 @@ class LivePreviewPlugin {
     const treeChanged = tree != this.tree;
     // A grown tree can add rows/definitions the cache was built without.
     if (update.docChanged || treeChanged) this.layoutCache.clear();
-    // The "Metadata" header toggle dispatches a bare effect — no doc change,
-    // no selection change, so it wouldn't otherwise trigger a rebuild and
-    // decorateFrontmatter's collapsed-block branch would never run.
-    const collapseToggled = update.transactions.some((tr) => tr.effects.some((e) => e.is(setFrontmatterCollapsed)));
     const effectRebuild = update.transactions.some((tr) => tr.effects.some((e) => e.is(wikiLinksRevalidated) || e.is(revealWidget)));
-    if (treeChanged || update.docChanged || update.viewportChanged || update.selectionSet || collapseToggled || effectRebuild || readingModeToggled(update.startState, update.state)) {
+    if (treeChanged || update.docChanged || update.viewportChanged || update.selectionSet || effectRebuild || readingModeToggled(update.startState, update.state)) {
       this.tree = tree;
       this.rebuild(update.view);
     }

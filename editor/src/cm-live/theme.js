@@ -188,7 +188,7 @@ export const livePreviewTheme = EditorView.theme({
     paddingBottom: '0.1em !important',
   },
   // A blank "loose list" line between two items — collapsed to a hairline
-  // (same trick as the frontmatter/table hairline widgets) so cm-lp-list-line's
+  // (same trick as the table hairline widgets) so cm-lp-list-line's
   // own padding is what controls the visible gap, not the blank line's
   // default full-text-line height.
   '.cm-lp-list-gap': { fontSize: '1px', lineHeight: '1px', padding: '0 !important' },
@@ -418,150 +418,88 @@ export const livePreviewTheme = EditorView.theme({
   },
   '.cm-lp-wikiimage-raw': { color: 'var(--link, #7c3aed)' },
 
-  // ── Frontmatter header — block:true widget (frontmatter-collapse.js),
-  // a direct child of .cm-content like any .cm-line, so it lines up at the
-  // same left edge with no extra CSS.
-  '.cm-lp-fm-header': {
-    display: 'flex',
+  // ── Frontmatter card (frontmatter-card.js). hy-card-inline (fence-card/shell.js)
+  // supplies the hover Edit button. Padding, not margin: CM measures the widget's
+  // border box, so a margin on it would drift every line below.
+  '.cm-fm-card': {
+    margin: '0',
+    paddingBottom: 'var(--space-sm, 12px)',
+    fontSize: 'var(--text-sm, 0.8125rem)',
+    lineHeight: '1.5',
+  },
+  '.cm-fm-card .hy-card-bar': { top: '0', right: '0' },
+  '.cm-fm-head': {
+    display: 'inline-flex',
     alignItems: 'center',
-    gap: '0.4em',
+    gap: '0.35em',
+    padding: '0.25rem 0',
     cursor: 'pointer',
     userSelect: 'none',
-    padding: '0.2rem 0 0.15rem',
-    fontSize: 'var(--text-xs, 0.75rem)',
-    fontWeight: '600',
-    letterSpacing: '0.07em',
+    fontSize: 'var(--text-2xs, 0.6875rem)',
+    fontWeight: 'var(--fw-semibold, 600)',
+    letterSpacing: 'var(--ls-cap, 0.07em)',
     textTransform: 'uppercase',
-    color: 'var(--muted, rgba(60,60,67,0.6))',
+    color: 'var(--muted-soft, #9b9eac)',
+    transition: 'color var(--motion-fast, 100ms)',
   },
-  '.cm-lp-fm-header:hover': { color: 'var(--fg, #1a1a1a)' },
-  '.cm-lp-fm-header-chevron': {
-    display: 'inline-flex',
-    transition: 'transform 0.15s ease',
+  '.cm-fm-head:hover': { color: 'var(--fg, #18181b)' },
+  '.cm-fm-chevron': { display: 'inline-flex', transition: 'transform var(--motion-fast, 100ms)' },
+  '.cm-fm-chevron svg': { width: '11px', height: '11px' },
+  '.cm-fm-card-collapsed .cm-fm-chevron': { transform: 'rotate(-90deg)' },
+  '.cm-fm-count': { fontWeight: 'var(--fw-regular, 400)', letterSpacing: '0', fontVariantNumeric: 'tabular-nums' },
+  // fit-content: the key column grows to the longest key up to a cap, past which keys truncate.
+  '.cm-fm-grid': {
+    display: 'grid',
+    gridTemplateColumns: 'fit-content(10rem) minmax(0, 1fr)',
+    columnGap: 'var(--space-lg, 24px)',
+    paddingTop: '0.125rem',
   },
-  '.cm-lp-fm-header-chevron svg': { width: '12px', height: '12px' },
-  '.cm-lp-fm-header-collapsed .cm-lp-fm-header-chevron': { transform: 'rotate(-90deg)' },
-  '.cm-lp-fm-header-edit': {
+  '.cm-fm-key, .cm-fm-val': { padding: '0.2rem 0', minWidth: '0' },
+  '.cm-fm-key': {
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: '0.5em',
+    color: 'var(--muted, #6d7080)',
+  },
+  '.cm-fm-name': { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+  '.cm-fm-icon': { display: 'inline-flex', alignItems: 'center', height: '1.5em', flexShrink: '0', color: 'var(--muted-soft, #9b9eac)' },
+  '.cm-fm-icon svg': { width: '13px', height: '13px', display: 'block' },
+  '.cm-fm-val': { color: 'var(--prose-body, #27272a)', overflowWrap: 'anywhere' },
+  '.cm-fm-val-empty': { color: 'var(--muted-soft, #9b9eac)' },
+  '.cm-fm-val-pre': { whiteSpace: 'pre-line' },
+  '.cm-fm-val-num': { fontVariantNumeric: 'tabular-nums' },
+  '.cm-fm-val-list': { display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '4px' },
+  '.cm-fm-chip, .cm-fm-more': {
     display: 'inline-flex',
     alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: 'auto',
-    padding: '3px',
-    border: 'none',
-    background: 'transparent',
-    color: 'inherit',
-    borderRadius: 'var(--r-sm, 6px)',
-    cursor: 'pointer',
-    opacity: '1',
-    transition: 'opacity 0.15s ease',
-  },
-  // Stays in the DOM (widgets.js) so the row doesn't reflow when this
-  // appears — opacity + pointer-events, not display:none, so it fades and
-  // an invisible button can't eat a stray click.
-  '.cm-lp-fm-header-edit-hidden': { opacity: '0', pointerEvents: 'none' },
-  // The caret can't enter the block any more, so hover is the usual way in.
-  '.cm-lp-fm-header:hover .cm-lp-fm-header-edit-hidden': { opacity: '1', pointerEvents: 'auto' },
-  '.cm-lp-fm-header-edit:hover': { background: 'var(--icon-hov, rgba(0,0,0,0.06))', color: 'var(--fg, #1a1a1a)' },
-  '.cm-lp-fm-header-edit svg': { width: '13px', height: '13px', display: 'block' },
-
-  // ── Frontmatter — no card chrome (no bg, no border) — keys sit flush at
-  // the same left edge as regular markdown body text (.cm-content has no
-  // left padding), not inset like the old bordered-card design was.
-  '.cm-lp-fm-line': {
-    display: 'block',
-    paddingLeft: '0 !important',
-    paddingRight: '0.875rem !important',
-    paddingTop: '0.15rem !important',
-    paddingBottom: '0.15rem !important',
-    fontSize: 'var(--text-base, 0.875rem)',
+    maxWidth: '100%',
+    padding: '0 8px',
+    borderRadius: 'var(--r-full, 999px)',
+    background: 'var(--code-bg, rgba(24,24,27,0.055))',
+    color: 'var(--muted, #6d7080)',
+    fontSize: 'var(--text-xs, 0.75rem)',
     lineHeight: '1.6',
   },
-  // first/last no longer need extra top/bottom padding — that was clearance
-  // for the old bordered card's rounded corners, which are gone.
-  '.cm-lp-fm-label': {
-    display: 'inline-block',
-    fontSize: 'var(--text-2xs, 0.6875rem)',
-    verticalAlign: 'middle',
-    whiteSpace: 'nowrap', // overflow, don't wrap ":" if ch estimate is short
+  '.cm-fm-more': {
+    border: 'none',
+    font: 'inherit',
+    fontSize: 'var(--text-xs, 0.75rem)',
+    cursor: 'pointer',
+    fontVariantNumeric: 'tabular-nums',
+    transition: 'color var(--motion-fast, 100ms)',
   },
-  // Per-field type icon (text/tag/list/number), inserted before the label —
-  // fixed width so it doesn't affect frontmatterLabelWidthCh's ch alignment.
-  '.cm-lp-fm-icon': {
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '14px',
-    marginRight: '0.5em',
-    verticalAlign: 'middle',
-    color: 'var(--muted, rgba(60,60,67,0.55))',
-    flexShrink: '0',
-  },
-  '.cm-lp-fm-icon svg': { width: '13px', height: '13px', display: 'block' },
-  // Block-list items' invisible icon+label stand-in (FrontmatterListIndentWidget)
-  // — visibility:hidden keeps the layout box (and hence the width) without
-  // painting anything, so list-item text lines up under the value column.
-  '.cm-lp-fm-list-indent': { visibility: 'hidden' },
-  '.cm-lp-fm-key': {
-    fontWeight: '500',
-    letterSpacing: '0.07em',
-    textTransform: 'uppercase',
-    color: 'var(--muted, rgba(60,60,67,0.75))',
-  },
-  '.cm-lp-fm-colon': { color: 'var(--muted, rgba(60,60,67,0.5))' },
-  '.cm-lp-fm-val': { color: 'var(--muted, rgba(60,60,67,0.75))' },
-  '.cm-lp-fm-link': {
+  '.cm-fm-more:hover': { color: 'var(--fg, #18181b)' },
+  '.cm-fm-sub-key': { color: 'var(--muted, #6d7080)', marginRight: '0.5em' },
+  '.cm-fm-link': {
     color: 'var(--link, #2563eb)',
     textDecoration: 'underline',
     textDecorationColor: 'var(--link-ul, rgba(37,99,235,0.35))',
     textDecorationThickness: '1px',
     textUnderlineOffset: '2px',
-    cursor: 'pointer',
   },
-  '.cm-lp-fm-link:hover': {
-    background: 'var(--tint-soft, rgba(94,106,210,0.06))',
-    textDecorationColor: 'var(--link-ul-hov, #4c56c8)',
-    borderRadius: '0',
-  },
-  '.cm-lp-fm-tag': {
-    margin: '0.1em 0.25em 0.1em 0',
-    padding: '0.05em 0.5em',
-    borderRadius: 'var(--r-full, 999px)',
-    background: 'var(--cnt-bg, rgba(24,24,27,0.055))',
-    color: 'var(--muted, rgba(60,60,67,0.85))',
-  },
-  // Decorative only (not wired to delete-on-click) — matches the
-  // "removable chip" look of Obsidian's Properties panel. Not on
-  // .cm-lp-fm-list-item: these rows aren't removable chips, just plain
-  // list values, so the "×" read as a stray/broken delete affordance.
-  '.cm-lp-fm-tag::after': { content: '"×"', marginLeft: '0.4em', opacity: '0.5' },
-  '.cm-lp-fm-more': {
-    marginLeft: '0.6em',
-    padding: '0.05em 0.5em',
-    borderRadius: 'var(--r-full, 999px)',
-    background: 'var(--cnt-bg, rgba(24,24,27,0.055))',
-    color: 'var(--muted, rgba(60,60,67,0.75))',
-    fontSize: '0.92em',
-    cursor: 'pointer',
-  },
-  '.cm-lp-fm-more:hover': { color: 'var(--fg, #1a1a1a)' },
-  // On its own row (block-list overflow) it's the first thing on the line,
-  // right after the invisible indent spacer — no inline neighbor to space
-  // away from, so drop the margin that left-aligned it out from under the
-  // value column.
-  '.cm-lp-fm-more-own-line': { marginLeft: '0' },
-  // Shrink line font so CM6 widgetBuffers collapse with the hairline
-  // widget, and kill .cm-lp-fm-line's own !important padding too — that
-  // survives font/line-height shrinking otherwise, fine for one hairline
-  // but a truncated array/list can stack many of them (every hidden item
-  // is its own collapsed line) and the per-row padding adds up into a
-  // real gap.
-  '.cm-lp-fm-collapsed': {
-    fontSize: '1px',
-    lineHeight: '1px',
-    paddingTop: '0 !important',
-    paddingBottom: '0 !important',
-  },
-  '.cm-lp-fm-collapsed-widget': { display: 'inline-block', height: '0' },
+  '.cm-fm-link:hover': { textDecorationColor: 'var(--link-ul-hov, #4c56c8)' },
+  '.cm-fm-bool': { color: 'var(--muted, #6d7080)' },
+  '.cm-fm-bool-on': { color: 'var(--fg, #18181b)' },
 
   // ── Tables — a row is one markdown source line; cells are Decoration.mark
   // spans on it, so there's no real <table> to lean on. flex covers the two

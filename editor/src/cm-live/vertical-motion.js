@@ -28,6 +28,15 @@ function guardedMove(view, range, forward) {
   const doc = view.state.doc;
   const fromLine = doc.lineAt(range.head).number;
   const toLine = doc.lineAt(moved.head).number;
+  // Up onto a multi-line block widget (fence card, frontmatter) lands on its first
+  // line; enter from the edge the caret came from, so the revealed source starts there.
+  if (!forward) {
+    const block = view.lineBlockAt(moved.head);
+    const last = doc.lineAt(block.to);
+    if (block.type === BlockType.WidgetRange && moved.head === block.from && last.to === block.to && last.number > toLine && last.number < fromLine) {
+      return EditorSelection.cursor(last.from, 1, undefined, moved.goalColumn);
+    }
+  }
   if (Math.abs(toLine - fromLine) <= 1) return moved;
   for (let n = forward ? fromLine + 1 : fromLine - 1; forward ? n < toLine : n > toLine;) {
     const block = view.lineBlockAt(doc.line(n).from);

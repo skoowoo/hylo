@@ -1,5 +1,5 @@
 import { StateField, StateEffect, Prec } from '@codemirror/state';
-import { keymap } from '@codemirror/view';
+import { keymap, BlockType } from '@codemirror/view';
 import { resolveAncestor } from './tree-utils.js';
 import { livePreviewPlugin } from './live-preview.js';
 
@@ -45,7 +45,21 @@ export function revealWidgetBeforeCaret(view) {
   return true;
 }
 
+// Backspace at the start of the line below a block card (fence card, frontmatter)
+// would join it onto the closing fence and break the block. Step into the block instead;
+// frontmatter's caret filter keeps the caret out, so there the press does nothing.
+export function revealBlockBeforeCaret(view) {
+  const { state } = view;
+  if (state.readOnly || state.selection.ranges.length > 1) return false;
+  const sel = state.selection.main;
+  if (!sel.empty || sel.head === 0 || state.doc.lineAt(sel.head).from !== sel.head) return false;
+  const block = view.lineBlockAt(sel.head - 1);
+  if (block.type !== BlockType.WidgetRange || block.to !== sel.head - 1) return false;
+  view.dispatch({ selection: { anchor: block.to }, scrollIntoView: true });
+  return true;
+}
+
 export const widgetReveal = [
   revealedWidgetField,
-  Prec.high(keymap.of([{ key: 'Backspace', run: revealWidgetBeforeCaret }])),
+  Prec.high(keymap.of([{ key: 'Backspace', run: (view) => revealBlockBeforeCaret(view) || revealWidgetBeforeCaret(view) }])),
 ];

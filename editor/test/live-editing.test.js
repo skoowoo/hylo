@@ -8,7 +8,8 @@ import { wikiMarkdownLanguage } from '../src/cm-live/index.js';
 import { nodeDecorators, isListGapLine } from '../src/cm-live/decorators.js';
 import { splitWikiLinkInner } from '../src/cm-live/wiki-syntax.js';
 import { closeTypedFence, fenceEnter } from '../src/cm-live/fence-close.js';
-import { frontmatterReadOnly } from '../src/cm-live/frontmatter-readonly.js';
+import { findFrontmatterNode } from '../src/cm-live/frontmatter-syntax.js';
+import { frontmatterCardField } from '../src/cm-live/frontmatter-card.js';
 import { skipListGaps } from '../src/cm-live/live-preview.js';
 import { linkTarget } from '../src/cm-live/link-refs.js';
 import { wordRangeAt } from '../src/cm-live/cjk-words.js';
@@ -250,12 +251,50 @@ test('wikilink heading and alias split', () => {
   assert.deepEqual(splitWikiLinkInner('#Only'), { target: '', heading: 'Only', alias: null });
 });
 
-test('a caret moved into frontmatter is pushed to the body start', () => {
-  const doc = '---\ntitle: x\n---\nbody';
-  let state = EditorState.create({ doc, extensions: [lang, frontmatterReadOnly()] });
-  ensureSyntaxTree(state, state.doc.length, 5000);
-  state = state.update({ selection: { anchor: 6 } }).state;
-  assert.equal(state.selection.main.head, doc.indexOf('body'));
+test('frontmatter needs its closing ---, so a lone opener stays a rule', () => {
+  const fm = (doc) => {
+    const state = EditorState.create({ doc, extensions: [lang] });
+    ensureSyntaxTree(state, doc.length, 5000);
+    const node = findFrontmatterNode(state);
+    return node && [node.from, node.to];
+  };
+  assert.deepEqual(fm('---\ntitle: x\n---\nbody'), [0, 16]);
+  assert.deepEqual(fm('---\ntitle: x\n---'), [0, 16]);
+  assert.deepEqual(fm('---\n---\nbody'), [0, 7]);
+  assert.equal(fm('---\ntitle: x\nbody'), null);
+  assert.equal(fm('---\ntitle: x\n----\nbody'), null);
+});
+
+function fmState(doc, anchor) {
+  const state = EditorState.create({ doc, selection: { anchor }, extensions: [lang, frontmatterCardField()] });
+  ensureSyntaxTree(state, doc.length, 5000);
+  return state;
+}
+
+test('a caret moved under the frontmatter card lands at the body start, or the card edge with no body', () => {
+  assert.equal(fmState('---\nt: x\n---\nbody', 17).update({ selection: { anchor: 6 } }).state.selection.main.head, 13);
+  assert.equal(fmState('---\nt: x\n---\nbody', 17).update({ selection: { anchor: 12 } }).state.selection.main.head, 13);
+  assert.equal(fmState('---\nt: x\n---', 12).update({ selection: { anchor: 0 } }).state.selection.main.head, 12);
+  // A selection may still span it.
+  assert.equal(fmState('---\nt: x\n---\nbody', 17).update({ selection: { anchor: 17, head: 0 } }).state.selection.main.head, 0);
+});
+
+test('typing at the card edge starts a new line; deleting into the card does nothing', () => {
+  const doc = '---\nt: x\n---';
+  const typed = fmState(doc, 12).update({ changes: { from: 12, insert: 'a' }, selection: { anchor: 13 }, userEvent: 'input.type' }).state;
+  assert.equal(typed.doc.toString(), doc + '\na');
+  assert.equal(typed.selection.main.head, 14);
+  const deleted = fmState(doc, 12).update({ changes: { from: 11, to: 12 }, userEvent: 'delete.backward' }).state;
+  assert.equal(deleted.doc.toString(), doc);
+  // Programmatic and history changes pass through.
+  assert.equal(fmState(doc, 12).update({ changes: { from: 11, to: 12 } }).state.doc.toString(), '---\nt: x\n--');
+});
+
+test('a state built with the caret inside the frontmatter opens its source', () => {
+  const doc = '---\nt: x\n---\nbody';
+  assert.equal(fmState(doc, 6).update({ selection: { anchor: 7 } }).state.selection.main.head, 7);
+  assert.equal(fmState(doc, 17).update({ selection: { anchor: 7 } }).state.selection.main.head, 13);
+  assert.equal(fmState('---\nt: x\n---', 12).update({ selection: { anchor: 7 } }).state.selection.main.head, 12);
 });
 
 test('arrowing onto a collapsed list gap moves past it', () => {

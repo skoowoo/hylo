@@ -1,7 +1,7 @@
 // Node-name → decorator. live-preview.js walks the tree and dispatches here.
 // hideRange collapses markers when caret leaves; styleRange is always-on.
 // GFM tables and frontmatter live in their own files (tables-decorate.js,
-// frontmatter-decorate.js) — this file keeps the smaller inline/list/quote/
+// frontmatter-card.js) — this file keeps the smaller inline/list/quote/
 // code decorators that don't carry enough independent state to justify one.
 import { Decoration } from '@codemirror/view';
 import { syntaxTree } from '@codemirror/language';
@@ -14,7 +14,7 @@ import { isSameNode } from './tree-utils.js';
 import { isWidgetRevealed } from './widget-reveal.js';
 import { imageSpan, imageFillsLink } from './image-nodes.js';
 import { decorateTableHeader, decorateTableBodyRow, decorateTableDelimiterRow } from './tables-decorate.js';
-import { decorateFrontmatter } from './frontmatter-decorate.js';
+import { decorateFrontmatterSource } from './frontmatter-card.js';
 import { cardFence, fenceBody } from './fence-card/registry.js';
 import { linkTarget } from './link-refs.js';
 
@@ -595,5 +595,5 @@ export const nodeDecorators = {
   TableHeader: decorateTableHeader,
   TableRow: decorateTableBodyRow,
   TableDelimiter: decorateTableDelimiterRow,
-  Frontmatter: decorateFrontmatter,
+  Frontmatter: decorateFrontmatterSource,
 };

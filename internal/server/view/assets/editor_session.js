@@ -429,7 +429,6 @@
         // Mutating the set alone doesn't repaint; that function also dispatches
         // wikiLinksRevalidated.
         isWikiLinkBroken: function(target) { return s.brokenWikiLinkNames.has(__hyloWikiLinkTargetName(target)); },
-        onEditFrontmatter: __hyloEditorEditFrontmatter,
       };
       s.decoCompartment = new cm.Compartment();
       s.readCompartment = new cm.Compartment();
@@ -690,23 +689,6 @@
   function __hyloFocusInsideEditor() {
     var ea = document.getElementById('content-pane-edit-area');
     return !!(ea && ea.contains(document.activeElement));
-  }
-
-  // Frontmatter is read-only in live preview, so this dialog is its only edit path.
-  function __hyloEditorEditFrontmatter(view, from, to) {
-    var raw = view.state.doc.sliceString(from, to);
-    var lines = raw.split('\n');
-    var hasClose = lines.length > 1 && lines[lines.length - 1].trim() === '---';
-    var interior = (hasClose ? lines.slice(1, lines.length - 1) : lines.slice(1)).join('\n');
-    if (!window.__hyloEditFrontmatter) return;
-    window.__hyloEditFrontmatter(interior, function(newInterior) {
-      var body = newInterior.replace(/\s+$/, '');
-      var newBlock = '---\n' + (body ? body + '\n' : '') + '---';
-      view.dispatch({
-        changes: { from: from, to: to, insert: newBlock },
-        annotations: __hyloCM.allowFrontmatterEdit.of(true),
-      });
-    });
   }
 
   // ── Content loaders ──────────────────────────────────────────────────────────
