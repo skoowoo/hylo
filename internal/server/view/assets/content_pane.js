@@ -1147,16 +1147,21 @@
     }
   }
 
-  // Global undo/redo called by the desktop shell menu via webview eval.
-  // Calls CodeMirror undo directly, bypassing browser native undo.
-  window.__hyloUndo = function() {
+  // Called by the desktop Edit menu. The editor keeps its own history; native
+  // undo would corrupt it, but every other field only has the native one.
+  function __hyloHistory(cmd, native) {
     var s = __hyloEditor;
-    if (s.view && __hyloCM) __hyloCM.cmUndo(s.view);
-  };
-  window.__hyloRedo = function() {
-    var s = __hyloEditor;
-    if (s.view && __hyloCM) __hyloCM.cmRedo(s.view);
-  };
+    var ae = document.activeElement;
+    // The find panel's input sits inside view.dom but has its own native history.
+    var inText = s.view && s.view.contentDOM.contains(ae) && !/^(INPUT|TEXTAREA)$/.test(ae.tagName);
+    if (!inText && ae && (ae.isContentEditable || /^(INPUT|TEXTAREA)$/.test(ae.tagName))) {
+      document.execCommand(native);
+    } else if (s.view && __hyloCM) {
+      __hyloCM[cmd](s.view);
+    }
+  }
+  window.__hyloUndo = function() { __hyloHistory('cmUndo', 'undo'); };
+  window.__hyloRedo = function() { __hyloHistory('cmRedo', 'redo'); };
 
   window.__hyloEditorShellHref = function() {
     try {
@@ -1293,14 +1298,11 @@
     editorMode.toggleReading();
   });
 
-  window.__hyloHotkeys.registerRaw('content-pane-find', function(e, mod) {
-    if (!mod || e.shiftKey || e.altKey || e.key.toLowerCase() !== 'f') return;
+  window.__hyloHotkeys.register('find', 'f', function() {
     var _fContentPane = window.__hyloContentPane;
-    if (!_fContentPane || !_fContentPane.contentPaneOpen || _fContentPane.agentWriting) return;
-    if (!__hyloCM || !__hyloEditor.view) return;
-    e.preventDefault();
+    if (!_fContentPane || !_fContentPane.contentPaneOpen || _fContentPane.agentWriting) return false;
+    if (!__hyloCM || !__hyloEditor.view) return false;
     __hyloEditorOpenFind();
-    return true;
   });
 
   // The tabs dropdown's own open/highlight state lives in its local x-data

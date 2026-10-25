@@ -89,6 +89,11 @@ pub fn toggle(window: &tauri::WebviewWindow) {
     use objc2_app_kit::{NSView, NSWindow};
     use objc2_foundation::NSRect;
 
+    // Fixed-size windows (onboarding) keep their size, as AppKit's own zoom would.
+    if !window.is_resizable().unwrap_or(true) {
+        return;
+    }
+
     static RESTORE: Mutex<Option<NSRect>> = Mutex::new(None);
 
     let _ = window.with_webview(move |pw| {
@@ -113,6 +118,9 @@ pub fn toggle(window: &tauri::WebviewWindow) {
 
 #[cfg(not(target_os = "macos"))]
 pub fn toggle(window: &tauri::WebviewWindow) {
+    if !window.is_resizable().unwrap_or(true) {
+        return;
+    }
     if window.is_maximized().unwrap_or(false) {
         let _ = window.unmaximize();
     } else {

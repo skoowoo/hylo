@@ -19,7 +19,6 @@ mod zoom;
 use std::sync::atomic::Ordering;
 use std::sync::Mutex;
 
-use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
 use tauri::{Manager, RunEvent, WebviewUrl, WebviewWindowBuilder, WindowEvent};
 
 use crate::commands::ShellState;
@@ -257,76 +256,132 @@ fn bundled_archive(app: &tauri::AppHandle) -> Option<std::path::PathBuf> {
     path.exists().then_some(path)
 }
 
+// Page-owned shortcuts the user can rebind get no accelerator, so the menu never shows a stale key.
+// The page sees a key first and a menu accelerator only fires when it declines the event.
+#[cfg(target_os = "macos")]
 fn install_menu(app: &tauri::AppHandle) -> tauri::Result<()> {
-    let undo = MenuItem::with_id(app, "undo", "Undo", true, None::<&str>)?;
-    let redo = MenuItem::with_id(app, "redo", "Redo", true, None::<&str>)?;
+    use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
+
+    let item = |id: &str, text: &str, accel: Option<&str>| {
+        MenuItem::with_id(app, id, text, true, accel)
+    };
+    let sep = || PredefinedMenuItem::separator(app);
+
+    let app_menu = Submenu::with_items(
+        app,
+        "Hylo",
+        true,
+        &[
+            &PredefinedMenuItem::about(app, None, None)?,
+            &sep()?,
+            &item("open-settings", "Settings…", Some("Cmd+,"))?,
+            &sep()?,
+            &PredefinedMenuItem::services(app, None)?,
+            &sep()?,
+            &PredefinedMenuItem::hide(app, None)?,
+            &PredefinedMenuItem::hide_others(app, None)?,
+            &PredefinedMenuItem::show_all(app, None)?,
+            &sep()?,
+            &PredefinedMenuItem::quit(app, None)?,
+        ],
+    )?;
+    let file = Submenu::with_items(
+        app,
+        "File",
+        true,
+        &[
+            &item("new-note", "New Note", None)?,
+            &sep()?,
+            &item("close-tab", "Close Tab", None)?,
+            &PredefinedMenuItem::close_window(app, None)?,
+        ],
+    )?;
     let edit = Submenu::with_items(
         app,
         "Edit",
         true,
         &[
-            &undo,
-            &redo,
-            &PredefinedMenuItem::separator(app)?,
+            &item("undo", "Undo", Some("Cmd+Z"))?,
+            &item("redo", "Redo", Some("Cmd+Shift+Z"))?,
+            &sep()?,
             &PredefinedMenuItem::cut(app, None)?,
             &PredefinedMenuItem::copy(app, None)?,
             &PredefinedMenuItem::paste(app, None)?,
             &PredefinedMenuItem::select_all(app, None)?,
+            &sep()?,
+            &item("find", "Find", Some("Cmd+F"))?,
         ],
     )?;
-
-    let menu = {
-        #[cfg(target_os = "macos")]
-        {
-            let app_menu = Submenu::with_items(
-                app,
-                "Hylo",
-                true,
-                &[
-                    &PredefinedMenuItem::about(app, None, None)?,
-                    &PredefinedMenuItem::separator(app)?,
-                    &PredefinedMenuItem::hide(app, None)?,
-                    &PredefinedMenuItem::hide_others(app, None)?,
-                    &PredefinedMenuItem::show_all(app, None)?,
-                    &PredefinedMenuItem::separator(app)?,
-                    &PredefinedMenuItem::quit(app, None)?,
-                ],
-            )?;
-            let zoom = MenuItem::with_id(app, "zoom", "Zoom", true, None::<&str>)?;
-            let window_menu = Submenu::with_items(
-                app,
-                "Window",
-                true,
-                &[
-                    &PredefinedMenuItem::minimize(app, None)?,
-                    &zoom,
-                    &PredefinedMenuItem::separator(app)?,
-                    &PredefinedMenuItem::close_window(app, None)?,
-                ],
-            )?;
-            Menu::with_items(app, &[&app_menu, &edit, &window_menu])?
-        }
-        #[cfg(not(target_os = "macos"))]
-        {
-            Menu::with_items(app, &[&edit])?
-        }
-    };
+    let view = Submenu::with_items(
+        app,
+        "View",
+        true,
+        &[
+            &item("toggle-search", "Search", Some("Cmd+K"))?,
+            &sep()?,
+            &item("toggle-editor", "Toggle Editor", None)?,
+            &item("expand-editor", "Expand Editor", None)?,
+            &item("reading-mode", "Reading Mode", None)?,
+            &sep()?,
+            &item("refresh", "Refresh", Some("Cmd+R"))?,
+        ],
+    )?;
+    let window_menu = Submenu::with_items(
+        app,
+        "Window",
+        true,
+        &[
+            &PredefinedMenuItem::minimize(app, None)?,
+            &item("zoom", "Zoom", None)?,
+            &sep()?,
+            &PredefinedMenuItem::fullscreen(app, None)?,
+            &sep()?,
+            &PredefinedMenuItem::bring_all_to_front(app, None)?,
+        ],
+    )?;
+    let help = Submenu::with_items(
+        app,
+        "Help",
+        true,
+        &[
+            &item("help-site", "Hylo on GitHub", None)?,
+            &item("help-issue", "Report an Issue", None)?,
+        ],
+    )?;
+    let menu = Menu::with_items(app, &[&app_menu, &file, &edit, &view, &window_menu, &help])?;
     app.set_menu(menu)?;
+    window_menu.set_as_windows_menu_for_nsapp()?;
+    help.set_as_help_menu_for_nsapp()?;
+
     app.on_menu_event(|app, event| {
-        if event.id().0 == "zoom" {
-            if let Some(window) = app.get_webview_window("main") {
-                zoom::toggle(&window);
-            }
+        let id = event.id().0.as_str();
+        let link = match id {
+            "help-site" => Some("https://github.com/skoowoo/hylo"),
+            "help-issue" => Some("https://github.com/skoowoo/hylo/issues"),
+            _ => None,
+        };
+        if let Some(url) = link {
+            let _ = open::that(url);
             return;
         }
-        let script = match event.id().0.as_str() {
-            "undo" => "window.__hyloUndo && window.__hyloUndo()",
-            "redo" => "window.__hyloRedo && window.__hyloRedo()",
-            _ => return,
+        let Some(window) = app.get_webview_window("main") else {
+            return;
         };
-        if let Some(window) = app.get_webview_window("main") {
-            let _ = window.eval(script);
-        }
+        let script = match id {
+            "zoom" => return zoom::toggle(&window),
+            // Pages without the editor still have native fields to undo in.
+            "undo" => "window.__hyloUndo ? __hyloUndo() : document.execCommand('undo')".to_string(),
+            "redo" => "window.__hyloRedo ? __hyloRedo() : document.execCommand('redo')".to_string(),
+            _ => format!("window.__hyloHotkeys && window.__hyloHotkeys.run({id:?})"),
+        };
+        let _ = window.eval(script);
     });
+    Ok(())
+}
+
+// Elsewhere the webview handles editing keys itself, and a menu bar holding
+// only Edit would clash with the app's own chrome.
+#[cfg(not(target_os = "macos"))]
+fn install_menu(_app: &tauri::AppHandle) -> tauri::Result<()> {
     Ok(())
 }

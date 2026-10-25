@@ -75,6 +75,12 @@ const keysJS = `
       unregister: function(id) {
         _reg = _reg.filter(function(r) { return r.id !== id; });
       },
+      // The desktop menu runs actions by id, so a menu item and its hotkey share one handler.
+      run: function(id) {
+        for (var i = _reg.length - 1; i >= 0; i--) {
+          if (_reg[i].id === id) { _reg[i].fn(); return; }
+        }
+      },
       // Raw handlers receive (event, mod) and fire before mod+key handlers.
       // Return true to stop further hotkey processing for that keydown.
       registerRaw: function(id, fn) {
