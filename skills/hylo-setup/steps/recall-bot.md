@@ -8,7 +8,7 @@ Give them a Recall bot that brings their own notes back to them, in their inbox,
 
 1. In one sentence, say it brings their notes back to them on its own, and ask which of these they want. Offer them as multi-pick `choices`, one `- [ ] <name> — <when, what>` each, in this order:
    - **Weekly review**: every Monday morning, a short letter on what their week was about and how it ties to what they've thought before.
-   - **Look back**: every Saturday morning, something from their history they've likely forgotten that speaks to where they are now.
+   - **Look back**: every afternoon, something from their history they've likely forgotten that speaks to where they are now.
    - **Short notes**: after each short note, a word on it in light of what they've written before; nothing when their notes have nothing to add.
 
    If one fits them especially (many short notes, a vault years deep), say so in the text above.
@@ -33,7 +33,7 @@ Give them a Recall bot that brings their own notes back to them, in their inbox,
           ```
           Use the hylo-recall skill to review everything I wrote this past week.
           ```
-       - **Look back**: schedule `weekly sat 09:00`.
+       - **Look back**: schedule `daily 15:00`.
 
           ```
           Use the hylo-recall skill for a random look back: a few things from my history that I have likely forgotten.

@@ -126,7 +126,7 @@ flowchart TB
 | Trigger | 事件 | Prompt | 走哪个 skill |
 | --- | --- | --- | --- |
 | Weekly review | `scheduled`，weekly mon 09:05 | `trigger_recall_weekly.md` | 点名 hylo-recall（周回顾） |
-| Look back | `scheduled`，weekly sat 09:00 | `trigger_recall_random.md` | 点名 hylo-recall（随机翻历史） |
+| Look back | `scheduled`，daily 15:00 | `trigger_recall_random.md` | 点名 hylo-recall（随机翻历史） |
 | Short notes | `short_note_created` | `trigger_recall_short.md` | 点名 hylo-recall（回应：放在过往笔记里看）；没结果时只回 `[silent]`，不进收件箱 |
 
 **Trigger prompt 的写法**（hylo-bots `references/triggers.md` + `references/skills.md`）：只写做什么、点名用哪个 skill、加上用户偏好（话题、数量、语言），不写方法。不写 curl、URL、API 参数，这些属于 skill。
