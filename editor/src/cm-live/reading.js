@@ -19,7 +19,10 @@ const readingTheme = EditorView.theme({
     paddingTop: '0.8em !important',
     paddingBottom: '0.4em !important',
   },
-  '&.cm-reading .cm-content': { cursor: 'default' },
+  // Typography that would shift the caret or IME while typing; reading view has neither.
+  '&.cm-reading .cm-content': { cursor: 'default', textAutospace: 'normal', textWrapStyle: 'pretty' },
+  '&.cm-reading .cm-lp-codeblock': { textWrapStyle: 'auto' },
+  '&.cm-reading .cm-lp-codeblock, &.cm-reading .cm-lp-code': { textAutospace: 'no-autospace' },
 });
 
 export function readingExtensions() {

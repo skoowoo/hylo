@@ -311,6 +311,7 @@
   function setProse(node, text, streaming) {
     if (streaming) text = text.replace(PARTIAL_FENCE, '$1');
     var openTail = !!streaming && endsInOpenFence(text);
+    node.classList.toggle('is-streaming', !!streaming);
     if (node._raw === text && node._openTail === openTail) return;
     node._raw = text;
     node._openTail = openTail;

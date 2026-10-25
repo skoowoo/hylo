@@ -94,8 +94,8 @@ const appTokensShared = `
       --img-select-border:rgba(255,255,255,0.72); --img-select-bg:rgba(0,0,0,0.28);
       --img-busy-bg:rgba(0,0,0,0.25); --img-control-bg:rgba(0,0,0,0.55); --img-control-fg:#fff;
 
-      --font-ui:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
-      --font-sans:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+      --font-ui:"Inter","PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans CJK SC",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+      --font-sans:"Inter","PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans CJK SC",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
       --font-mono:"JetBrains Mono",ui-monospace,monospace;
       --text-xs:0.75rem; --text-sm:0.8125rem; --text-base:0.875rem; --text-md:0.9375rem; --text-body:1rem;
       --text-title-sm:1rem; --text-title-lg:1.375rem;

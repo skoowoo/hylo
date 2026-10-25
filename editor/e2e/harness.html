@@ -19,6 +19,7 @@
 import * as cm from '/bundle/editor.js';
 const doc = await (await fetch('/fixture' + location.search)).text();
 window.cm = cm;
+window.reading = new cm.Compartment();
 window.view = new cm.EditorView({
   parent: document.getElementById('area'),
   state: cm.EditorState.create({
@@ -35,6 +36,7 @@ window.view = new cm.EditorView({
       cm.drawnSelection(),
       cm.frontmatterCollapseField,
       cm.liveDecorations({ resolveImageSrc: (name) => '/image?' + encodeURIComponent(name) }),
+      window.reading.of([]),
     ],
   }),
 });

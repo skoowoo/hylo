@@ -204,6 +204,7 @@ function homeGraphMixin() {
       var bgColor = css.getPropertyValue('--bg').trim() || '#0f0f0f';
       var accentColor = css.getPropertyValue('--accent').trim() || '#cc785c';
       var mutedHex = css.getPropertyValue('--muted').trim() || '#71717a';
+      var labelFont = css.getPropertyValue('--font-ui').trim() || 'sans-serif';
       var edgeColor = /^#[0-9a-f]{6}$/i.test(mutedHex)
         ? self._hexToRgba(mutedHex, 0.32)
         : 'rgba(113,113,122,0.32)';
@@ -253,7 +254,7 @@ function homeGraphMixin() {
               'font-size': function (ele) {
                 return Math.max(10, Math.min(13, 10 + ele.data('degree') * 0.2)) + 'px';
               },
-              'font-family': 'Inter,-apple-system,sans-serif',
+              'font-family': labelFont,
               'text-valign': 'bottom',
               'text-halign': 'center',
               'text-margin-y': 5,
