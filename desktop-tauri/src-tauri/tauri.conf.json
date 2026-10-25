@@ -48,11 +48,6 @@
           "y": 220
         }
       }
-    },
-    "windows": {
-      "nsis": {
-        "installMode": "currentUser"
-      }
     }
   }
 }

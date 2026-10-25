@@ -1,7 +1,7 @@
 /**
  * gen-icons.mjs
  * Reads selected pixelarticons SVGs and generates
- * internal/server/view/shared_icons_pixel.go
+ * internal/server/view/shared_icons_neo.go
  *
  * Run: node gen-icons.mjs  (from editor/)
  * Or:  make icons
@@ -13,7 +13,7 @@ import { fileURLToPath } from 'url';
 
 const __dir   = dirname(fileURLToPath(import.meta.url));
 const SVG_DIR = resolve(__dir, 'node_modules/pixelarticons/svg');
-const OUT     = resolve(__dir, '../internal/server/view/shared_icons_pixel.go');
+const OUT     = resolve(__dir, '../internal/server/view/shared_icons_neo.go');
 
 // pixelarticons filename (no .svg)  →  Go constant suffix
 const ICONS = [

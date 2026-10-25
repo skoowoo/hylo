@@ -15,29 +15,21 @@ VERSION    := $(shell git describe --tags --always --dirty 2>/dev/null || echo "
 COMMIT     := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 BUILD_DATE := $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 
+# Image goes to GHCR under this checkout's GitHub repo; GHCR names must be lowercase.
+REPO_URL := $(shell git remote get-url origin 2>/dev/null | sed -E 's\#^git@github\.com:\#https://github.com/\#; s\#\.git$$\#\#')
+IMAGE    ?= $(shell echo "$(REPO_URL)" | sed -E 's\#^https://github\.com/\#ghcr.io/\#' | tr A-Z a-z)
+
 LDFLAGS := -s -w \
   -X $(MODULE)/internal/build.Version=$(VERSION) \
   -X $(MODULE)/internal/build.Commit=$(COMMIT) \
   -X $(MODULE)/internal/build.BuildDate=$(BUILD_DATE)
 
-.PHONY: build run serve lint test test-js clean tidy clip-zip icons editor desktop-ui dist-all dist-clean dist-cli dist-cli-snapshot dist-cli-linux dist-clip dist-dmg dist-win-app dist-checksum
+.PHONY: build test test-js icons editor desktop-ui dist-all dist-clean dist-cli-snapshot dist-cli-linux dist-docker dist-clip dist-dmg dist-checksum help
 
 ## build: compile the binary into ./bin/hylo
 build:
 	@mkdir -p bin
 	go build -ldflags "$(LDFLAGS)" -o bin/$(BINARY) $(CMD_DIR)
-
-## run: build and print version (smoke test)
-run: build
-	./bin/$(BINARY) version
-
-## serve: build and start the HTTP server
-serve: build
-	./bin/$(BINARY) serve
-
-## lint: run golangci-lint
-lint:
-	golangci-lint run ./...
 
 ## test: run all tests
 test:
@@ -50,12 +42,7 @@ test-js:
 	node --test "internal/server/view/assets/**/*.test.js"
 	cd editor && npm run test:e2e
 
-## tidy: tidy and verify go modules
-tidy:
-	go mod tidy
-	go mod verify
-
-## icons: regenerate internal/server/view/shared_icons_pixel.go from pixelarticons
+## icons: regenerate internal/server/view/shared_icons_neo.go from pixelarticons
 icons:
 	cd editor && node gen-icons.mjs
 
@@ -68,10 +55,6 @@ desktop-ui:
 	UPDATE_DESKTOP_TOKENS=1 go test ./internal/server/view -run TestDesktopShellTokens -count=1
 	node desktop-tauri/scripts/sync-ui.mjs
 
-## clean: remove build artifacts
-clean:
-	rm -rf bin/
-
 ## dist-all: build CLI archive, Clip extension zip, and the desktop DMG into ./dist, then checksum
 dist-all: dist-clean dist-dmg dist-cli-linux dist-clip dist-checksum
 
@@ -80,17 +63,20 @@ dist-clean:
 	rm -rf dist/ desktop-tauri/bundled/ desktop-tauri/src-tauri/target/release/bundle
 	@mkdir -p dist
 
-## dist-cli: build hylo CLI for the current platform only (via goreleaser, requires git tag)
-dist-cli:
-	goreleaser release --clean --config $(GORELEASER_CONFIG)
-
-## dist-cli-snapshot: local test build without a git tag, current platform only
+## dist-cli-snapshot: build hylo CLI for the current platform via goreleaser (no git tag needed)
 dist-cli-snapshot:
 	goreleaser release --snapshot --clean --config $(GORELEASER_CONFIG)
 
 ## dist-cli-linux: build hylo CLI for linux/amd64 via Docker into ./dist
 dist-cli-linux:
 	./scripts/build-linux.sh
+
+## dist-docker: build the linux/amd64 server image with Pi, tagged for GHCR (push with docker push)
+dist-docker:
+	docker buildx build --platform linux/amd64 \
+	  --build-arg VERSION=$(VERSION) --build-arg COMMIT=$(COMMIT) --build-arg BUILD_DATE=$(BUILD_DATE) \
+	  --label org.opencontainers.image.source=$(REPO_URL) \
+	  -t $(IMAGE):$(VERSION) -t $(IMAGE):latest .
 
 ## dist-clip: build Clip browser extension and zip into ./dist
 dist-clip:
@@ -114,23 +100,10 @@ dist-dmg: dist-cli-snapshot
 	  cp "$$DMG" "dist/Hylo-$$VER.dmg"
 	@rm -rf desktop-tauri/bundled
 
-## dist-win-app: build the Tauri NSIS installer into ./dist (Windows only)
-dist-win-app: dist-cli-snapshot
-	@mkdir -p desktop-tauri/bundled
-	@ZIP=$$(find dist -maxdepth 1 -name "hylo_$$(go env GOOS)_$$(go env GOARCH).zip" | head -1); \
-	  test -n "$$ZIP" || (echo "Error: dist/hylo_$$(go env GOOS)_$$(go env GOARCH).zip not found"; exit 1); \
-	  echo "==> Bundling $$ZIP into Hylo..."; \
-	  cp "$$ZIP" desktop-tauri/bundled/hylo.zip
-	cd desktop-tauri && npm install && npm run build -- --bundles nsis --config src-tauri/tauri.dist.windows.json
-	@VER=$$(node -p "require('./desktop-tauri/src-tauri/tauri.conf.json').version"); \
-	  EXE=$$(find desktop-tauri/src-tauri/target/release/bundle/nsis -name '*-setup.exe' | head -1); \
-	  test -n "$$EXE" || (echo "Error: Tauri NSIS installer not found"; exit 1); \
-	  cp "$$EXE" "dist/Hylo-$$VER.exe"
-	@rm -rf desktop-tauri/bundled
-
 ## dist-checksum: generate SHA-256 checksums for all dist artifacts into dist/checksums.txt
 dist-checksum:
-	cd dist && shasum -a 256 $(shell ls dist/*.tar.gz dist/*.zip dist/*.dmg dist/*.exe 2>/dev/null | xargs -n1 basename) > checksums.txt
+	cd dist && shasum -a 256 $(shell ls dist/*.tar.gz dist/*.zip dist/*.dmg 2>/dev/null | xargs -n1 basename) > checksums.txt
 
+## help: list targets
 help:
 	@grep -E '^##' Makefile | sed 's/## //'

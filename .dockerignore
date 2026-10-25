@@ -1,0 +1,11 @@
+.git
+bin
+dist
+**/node_modules
+desktop-tauri
+extensions
+testdata
+*.env
+*.local
+config.toml
+.DS_Store
