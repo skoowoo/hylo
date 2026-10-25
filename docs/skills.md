@@ -13,7 +13,7 @@ This guide covers what each built-in skill does and how to talk to it. For how s
   - [hylo-compile-note — compile a note into knowledge](#hylo-compile-note--compile-a-note-into-knowledge)
   - [hylo-index-knowledge — build the knowledge index](#hylo-index-knowledge--build-the-knowledge-index)
   - [hylo-memory — extract personal memory](#hylo-memory--extract-personal-memory)
-  - [hylo-recall — find, inspire, review, explore](#hylo-recall--find-inspire-review-explore)
+  - [hylo-recall — find, reflect, inspire, review, explore](#hylo-recall--find-reflect-inspire-review-explore)
   - [hylo-setup — guided setup in chat](#hylo-setup--guided-setup-in-chat)
   - [hylo-writing — draft, revise, and write articles](#hylo-writing--draft-revise-and-write-articles)
 
@@ -90,13 +90,14 @@ Run memory extraction — also scan /journal/ this time.
 Refresh my personal memory base.
 ```
 
-## hylo-recall — find, inspire, review, explore
+## hylo-recall — find, reflect, inspire, review, explore
 
-Gets things back out of your notes and knowledge base. Four modes:
+Gets things back out of your notes and knowledge base, and talks with you about them like an old friend who has read everything you wrote: what you said years ago, how you have changed, what you keep circling. Five modes:
 
-- **Find** — a resource, a topic, a view, or every note that touches something, across all time, including what you wrote long ago and forgot. Ask what you think about something and your own views come first, dated; what you read is labelled as such. Give it a note or draft and it shows what backs it up and what pushes against it.
+- **Find** — a resource, a topic, a view, or every note that touches something, across all time, including what you wrote long ago and forgot. Ask what you think about something and your own views come first, dated; what you read is labelled as such. Give it a note or draft and it lists what backs it up and what pushes against it.
+- **Reflect** — its take on something you just wrote, seen against your history: an earlier note that already answered it, a view you've since turned around on, a question you keep coming back to. A few sentences, not a list.
 - **Inspire** — ideas and material for something you're thinking about or writing: your own past thinking, quotes and cases from what you read, links from other areas, and questions you left open.
-- **Review** — the past week or month as a digest of themes and tensions, or a random look back that surfaces a few forgotten notes worth seeing again.
+- **Review** — a short letter on your past week or month: what was on your mind, what moved, and how it ties to what you wrote before; or a random look back that brings up something forgotten that speaks to where you are now.
 - **Explore** — the shape of your knowledge: its areas and their size (from the domain indexes), where it comes from, what has been growing or gone quiet, and how it lines up with your goals, as a mind map with next steps.
 
 All answer in the conversation; nothing is saved unless you pick that afterwards. Your own views and what you read are always kept apart.
@@ -105,6 +106,7 @@ All answer in the conversation; nothing is saved unless you pick that afterwards
 
 ```
 Find everything I've written about pricing.
+What do you make of this idea, given what I've written before?
 What do I think about remote work?
 Give me material for a post on onboarding.
 Give me a review of this month.
@@ -114,7 +116,7 @@ What's in my knowledge base?
 
 ## hylo-setup — guided setup in chat
 
-Runs on your first chat after onboarding. Hylo walks you through setup one step at a time: it writes you a getting-started guide live in the editor, checks which language you'd like it to use and remembers it, asks a little about you if your vault is still empty, offers a Recall bot that brings your notes back to you (a weekly review, a random look back through your history, a cross-check of each new short note; pick any), offers a News bot that brings a morning digest from news sources you pick, compiles a few of your notes into knowledge, then sums up what's in place. Progress is kept in `/_setup/progress.md`, so you can stop anytime and pick up later.
+Runs on your first chat after onboarding. Hylo walks you through setup one step at a time: it writes you a getting-started guide live in the editor, checks which language you'd like it to use and remembers it, asks a little about you if your vault is still empty, offers a Recall bot that brings your notes back to you (a weekly review, a random look back through your history, a word on each new short note in light of your past notes; pick any), offers a News bot that brings a morning digest from news sources you pick, compiles a few of your notes into knowledge, then sums up what's in place. Progress is kept in `/_setup/progress.md`, so you can stop anytime and pick up later.
 
 **Use it for:** finishing setup you skipped, or redoing a step. Name Hylo setup when you ask, so everyday requests to set something up don't start it.
 

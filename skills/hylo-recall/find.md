@@ -11,7 +11,7 @@ Find what the user is looking for in their notes: a resource, a topic, a view, e
 | A resource ("that article on X", "the book Y recommended") | one or a few notes; stop when found |
 | A topic ("everything on X") | every unit and note on it, across all time |
 | A view ("what do I think about X", "what did I say about Y") | their own statements on it, with dates |
-| What relates to a piece of content (a note, draft, link or pasted text) | units that back it up, and units that conflict with it |
+| What relates to a piece of content (a note, draft, link or pasted text) | units that back it up, and units that conflict with it; for your take on it rather than a list, use Reflect |
 
 For a piece of content, first pull 3–8 search phrases from it: its entities and, above all, the **claims** it makes. Conflict depends on stance, not keyword overlap. A link: fetch it with your own web tool, or ask them to paste it.
 

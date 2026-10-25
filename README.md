@@ -197,7 +197,7 @@ The desktop app creates a **Hylo** bot during onboarding. If you skipped that, o
 | `note_created` on `/Web Clips/`  | Compiles new web clips automatically                                          |
 | `scheduled` daily 09:00          | Updates your personal memory                                                  |
 
-Edit or remove any of them under **Settings → Bots**, or click **New Bot** to build your own. The setup chat that follows onboarding also offers a **Recall** bot that brings your notes back to you, in any of three ways you pick: a review of your past week every Monday, a few forgotten notes from your history every Saturday, and a cross-check of each new short note against your knowledge base.
+Edit or remove any of them under **Settings → Bots**, or click **New Bot** to build your own. The setup chat that follows onboarding also offers a **Recall** bot that brings your notes back to you, in any of three ways you pick: a review of your past week every Monday, a few forgotten notes from your history every Saturday, and a word on each new short note in light of what you wrote before.
 
 #### Backing Agents
 

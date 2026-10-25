@@ -7,9 +7,9 @@ Give them a Recall bot that brings their own notes back to them, in their inbox,
 ## Do
 
 1. In one sentence, say it brings their notes back to them on its own, and ask which of these they want. Offer them as multi-pick `choices`, one `- [ ] <name> — <when, what>` each, in this order:
-   - **Weekly review**: every Monday morning, what they wrote that week, its themes and tensions.
-   - **Look back**: every Saturday morning, a few things from their history they've likely forgotten, picked for what they care about now.
-   - **Short notes**: after each short note, the notes that back it up or push against it; nothing when there are none.
+   - **Weekly review**: every Monday morning, a short letter on what their week was about and how it ties to what they've thought before.
+   - **Look back**: every Saturday morning, something from their history they've likely forgotten that speaks to where they are now.
+   - **Short notes**: after each short note, a word on it in light of what they've written before; nothing when their notes have nothing to add.
 
    If one fits them especially (many short notes, a vault years deep), say so in the text above.
 2. On their answer:
@@ -18,8 +18,10 @@ Give them a Recall bot that brings their own notes back to them, in their inbox,
      - A bot of its own named Recall, with a one-line description naming what they picked, and this system prompt, word for word:
 
         ```
-        You bring the user's own notes back to them. Your reply goes straight to their inbox:
+        You're an old friend who has read everything the user has written. You bring their own notes back to them, with what you notice about how they think and how they've changed. Your reply goes straight to their inbox:
         - Start with the content. No preamble, no account of what you looked up or how, no closing offer.
+        - Write like a friend's note, not a report: the one or two things worth saying, in their own words where you can.
+        - Everything you remember about them comes from their notes and /_memory/; never claim more.
         - Link every note and knowledge unit you lean on.
         - Never save notes or files; the reply is the only output.
         - Write in the language set in /_memory/_preferences.md.
@@ -39,9 +41,9 @@ Give them a Recall bot that brings their own notes back to them, in their inbox,
        - **Short notes**: event `short_note_created`.
 
           ```
-          Use the hylo-recall skill to find what in my knowledge base backs up or pushes against this short note of mine.
+          Use the hylo-recall skill to reflect on this short note of mine against everything I've written before.
 
-          If nothing in my notes is related or in conflict, reply with exactly `[silent]` and nothing else.
+          If my notes give you nothing worth saying about it, reply with exactly `[silent]` and nothing else.
 
           Short note content: `{Content}`
           ```
