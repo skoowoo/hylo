@@ -1,0 +1,138 @@
+  <!-- Search -->
+  <div x-data="searchOverlay()"
+       tabindex="-1"
+       @keydown.window="onKey($event)"
+       @open-search.window="openWithMode($event.detail)"
+       @htmx:after:swap.window="onResultsSwap($event)"
+       class="fixed inset-0 z-[10000] pointer-events-none outline-none">
+
+    <!-- Overlay panel -->
+    <div x-show="show"
+         x-cloak
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0 -translate-y-2 scale-[0.97]"
+         x-transition:enter-end="opacity-100 translate-y-0 scale-100"
+         x-transition:leave="transition ease-in duration-120"
+         x-transition:leave-start="opacity-100 translate-y-0 scale-100"
+         x-transition:leave-end="opacity-0 -translate-y-1 scale-[0.98]"
+         class="pointer-events-auto absolute left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-[860px]"
+         style="top:calc(50% - 284px)">
+
+      <div class="srch-panel rounded-xl overflow-hidden border">
+
+        <!-- Input row -->
+        <div class="srch-row flex items-center gap-3 px-4 border-b" style="height:68px">
+          <input type="hidden" id="srch-field" name="field" :value="mode.field">
+          <input type="hidden" id="srch-kind"  name="kind"  :value="mode.kind">
+          <button @click.prevent="openModeMenu()"
+                  tabindex="-1"
+                  :class="{'has-mode': mode.field || mode.kind}"
+                  class="srch-icon-area shrink-0 flex items-center gap-1.5 justify-center">
+            <svg class="srch-icon w-[18px] h-[18px] shrink-0"
+                 fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
+              <circle cx="11" cy="11" r="8"/><path stroke-linecap="round" d="m21 21-4.35-4.35"/>
+            </svg>
+            <span x-show="mode.field || mode.kind"
+                  class="srch-mode-chip"
+                  x-text="mode.label"></span>
+          </button>
+          <input type="text"
+                 x-ref="input"
+                 :placeholder="mode.placeholder"
+                 @input="onInput($event)"
+                 @keydown="onInputKeydown($event)"
+                 hx-get="/notes/search"
+                 hx-trigger="input changed delay:300ms, search"
+                 hx-target="#search-results"
+                 hx-swap="innerHTML"
+                 hx-include="#srch-field,#srch-kind"
+                 hx-sync="this:replace"
+                 name="q"
+                 autocomplete="off"
+                 autocorrect="off"
+                 autocapitalize="off"
+                 spellcheck="false"
+                 class="srch-input flex-1 bg-transparent outline-none">
+          <span class="srch-hint flex items-center gap-1.5 shrink-0">
+            <span x-show="!mode.field && !mode.kind && !hasQuery" class="flex items-center gap-1.5">
+              <kbd>/</kbd> mode
+              <span class="srch-hint-sep">·</span>
+            </span>
+            <kbd>esc</kbd> close
+          </span>
+        </div>
+
+        <!-- Mode selector -->
+        <div x-show="showModes"
+             x-transition:enter="transition ease-out duration-100"
+             x-transition:enter-start="opacity-0"
+             x-transition:enter-end="opacity-100"
+             x-transition:leave="transition ease-in duration-100"
+             x-transition:leave-start="opacity-100"
+             x-transition:leave-end="opacity-0"
+             class="srch-mode-menu border-b">
+          <div class="flex flex-col gap-0.5 p-2" @mousemove="onModeHover($event)">
+            <template x-for="(m, i) in modes" :key="m.key">
+              <button @click="selectMode(m)"
+                      :class="{'is-active': i === modeIdx}"
+                      class="srch-mode-item flex items-center gap-3 px-3 py-2 rounded-lg w-full text-left">
+                <span class="srch-mode-name" x-text="m.label"></span>
+                <span class="srch-mode-desc flex-1" x-text="m.desc"></span>
+                <span x-show="m.key === mode.key" class="ml-auto shrink-0" style="color:var(--accent-text);font-size:var(--text-xs)">✓</span>
+              </button>
+            </template>
+          </div>
+          <div class="srch-mode-footer flex items-center gap-4 px-4 border-t" style="height:var(--btn-h-sm)">
+            <span class="srch-hint flex items-center gap-1.5"><kbd>↑</kbd><kbd>↓</kbd> navigate</span>
+            <span class="srch-hint flex items-center gap-1.5"><kbd>↵</kbd> select</span>
+            <span class="srch-hint flex items-center gap-1.5"><kbd>esc</kbd> cancel</span>
+          </div>
+        </div>
+
+        <!-- Body: two-column split (results left, preview right) — shown only when there is a query -->
+        <div class="flex overflow-hidden"
+             x-show="hasQuery"
+             x-transition:enter="transition ease-out duration-150"
+             x-transition:enter-start="opacity-0"
+             x-transition:enter-end="opacity-100"
+             style="height:480px">
+
+          <!-- Left: results list -->
+          <div id="search-results" @click="onResultClick($event)" @mousemove="onResultHover($event)"
+               class="srch-results-pane flex flex-col overflow-y-auto [scrollbar-width:none]"></div>
+
+          <!-- Right: note preview -->
+          <div id="search-preview"
+               class="flex-1 overflow-y-auto
+                      [scrollbar-width:thin] [scrollbar-color:var(--line-edge)_transparent]">
+            <div class="srch-prev-hint">Navigate results to preview</div>
+          </div>
+        </div>
+
+        <!-- Footer hints — shown only when body is visible -->
+        <div class="srch-footer flex items-center gap-4 px-4 border-t" x-show="hasQuery" style="height:var(--btn-h-sm)">
+          <span class="srch-hint flex items-center gap-1.5">
+            <kbd>↑↓</kbd> navigate
+          </span>
+          <span class="srch-hint flex items-center gap-1.5">
+            <kbd>↵</kbd> open
+          </span>
+          <span class="srch-hint flex items-center gap-1.5">
+            <kbd x-text="isMac ? '⌘↵' : 'Ctrl+↵'"></kbd> copy path
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Backdrop -->
+    <div x-show="show" x-cloak @click="close()"
+         x-transition:enter="transition-opacity ease-out duration-200"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition-opacity ease-in duration-150"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         :class="show ? 'pointer-events-auto' : 'pointer-events-none'"
+         class="srch-backdrop fixed inset-0 -z-10"></div>
+
+  </div>

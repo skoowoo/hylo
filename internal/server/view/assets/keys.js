@@ -1,6 +1,4 @@
-package view
-
-// keysJS is the foundational keyboard runtime injected first on every page.
+// The foundational keyboard runtime injected first on every page.
 // It sets up two capture-phase listeners so both run before any element
 // handler and fire regardless of which element currently has focus.
 //
@@ -26,7 +24,6 @@ package view
 //   both together; extra's own methods are merged on top and may still read/
 //   write `open` directly for cases (e.g. an animated close) where hiding
 //   needs to lag behind the ESC-stack pop.
-const keysJS = `
   (function() {
     var _isMac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
     var _reg = [];
@@ -189,4 +186,3 @@ const keysJS = `
     for (var k in extra) base[k] = extra[k];
     return base;
   };
-`

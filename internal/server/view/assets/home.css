@@ -6,7 +6,7 @@
       font-family: var(--font-ui);
       -webkit-font-smoothing: antialiased;
     }
-    /* macOS desktop only (html.macos, set by shared_theme.go's bootstrap
+    /* macOS desktop only (html.macos, set by head.html's bootstrap
        script — see the window effects in desktop-tauri lib.rs): let the sidebar
        show the window's native vibrancy instead of painting over it. Body
        has to be the one that goes transparent — it's the layer directly

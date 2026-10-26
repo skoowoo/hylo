@@ -1,0 +1,15 @@
+{{/* Morphed by htmx, which copies attributes via setAttribute; WKWebView rejects '@'/':'-prefixed names, so Alpine's shorthands are spelled out here. */}}
+<hx-partial hx-target="#home-side-folders-body" hx-swap="outerMorph">
+<div id="home-side-folders-body" class="home-side-children" x-bind:class="{'is-open': foldersOpen && !sideEmpty.folders}">
+  <div class="home-side-children-inner">
+{{template "home-side-folders-inner" .}}
+  </div>
+</div>
+</hx-partial>
+<hx-partial hx-target="#home-side-knowledge-body" hx-swap="outerMorph">
+<div id="home-side-knowledge-body" class="home-side-children" x-bind:class="{'is-open': knowledgeOpen && !sideEmpty.knowledge}">
+  <div class="home-side-children-inner">
+{{template "home-side-knowledge-inner" .}}
+  </div>
+</div>
+</hx-partial>

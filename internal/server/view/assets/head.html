@@ -1,0 +1,82 @@
+{{/* Shared <head> contents; the argument is the page title.
+
+The theme script runs before first paint, so there's no flash of the wrong
+theme: dark lives on bare :root (shared_tokens.go), light applies via
+:root[data-theme="light"] or an unforced OS preference. With nothing stored,
+the desktop shell's theme (window.__HYLO_THEME__) seeds the choice once.
+Settings → Appearance stores light/dark/auto under 'hylo-theme' and calls
+__hyloApplyTheme; "auto" follows OS changes without a reload.
+
+The accent script applies the stored preset as inline custom properties on
+<html>, which outrank the :root token blocks, so no stylesheet needs to know
+about presets; the default preset clears them. Hover depends on the resolved
+theme, so __hyloApplyTheme re-invokes it, and the 'storage' listener keeps
+other same-origin views (desktop shell) in step.
+*/}}
+{{define "head"}}
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>{{.}}</title>
+  <script>(function(){
+  window.__hyloApplyTheme=function(pref){
+    try{
+      var sysLight=window.matchMedia&&window.matchMedia('(prefers-color-scheme: light)').matches;
+      var effectiveLight=pref==='light'?true:(pref==='dark'?false:sysLight);
+      if(pref==='light'){document.documentElement.setAttribute('data-theme','light');}
+      else if(pref==='dark'){document.documentElement.setAttribute('data-theme','dark');}
+      else{document.documentElement.removeAttribute('data-theme');}
+      if(window.hyloDesktop&&window.hyloDesktop.setViewBgColor){
+        window.hyloDesktop.setViewBgColor(effectiveLight?'#f9f9fb':'#18191e',pref==='light'?'light':(pref==='dark'?'dark':''));
+      }
+      if(window.__hyloApplyAccent)window.__hyloApplyAccent();
+    }catch(_){}
+  };
+  var stored=localStorage.getItem('hylo-theme');
+  // A page with no theme of its own starts on the desktop app's (dark for a new install).
+  var shellTheme=window.__HYLO_THEME__;
+  if(!stored&&(shellTheme==='light'||shellTheme==='dark')){stored=shellTheme;localStorage.setItem('hylo-theme',stored);}
+  window.__hyloApplyTheme(stored==='light'||stored==='dark'?stored:'auto');
+  if(window.matchMedia){
+    window.matchMedia('(prefers-color-scheme: light)').addEventListener('change',function(){
+      var cur=localStorage.getItem('hylo-theme');
+      if(cur!=='light'&&cur!=='dark')window.__hyloApplyTheme('auto');
+    });
+  }
+})()</script>
+  <script>(function(){
+  var presets={{accentPresets}};
+  window.__hyloAccentPresets=presets;
+  var KEY='hylo-accent',PROPS=['--accent','--accent-rgb','--accent-hov','--accent-text'];
+  function isLight(){
+    var t=document.documentElement.getAttribute('data-theme');
+    if(t==='light')return true;
+    if(t==='dark')return false;
+    return !!(window.matchMedia&&window.matchMedia('(prefers-color-scheme: light)').matches);
+  }
+  window.__hyloApplyAccent=function(id){
+    try{
+      if(id==null)id=localStorage.getItem(KEY);
+      var p=null;
+      for(var i=0;i<presets.length;i++)if(presets[i].id===id)p=presets[i];
+      var st=document.documentElement.style;
+      if(!p||p.id==={{accentDefault}}){
+        PROPS.forEach(function(k){st.removeProperty(k);});
+      }else{
+        st.setProperty('--accent',p.a);
+        st.setProperty('--accent-rgb',p.r);
+        var light=isLight();
+        st.setProperty('--accent-hov',light?p.hl:p.hd);
+        if(light)st.removeProperty('--accent-text');else st.setProperty('--accent-text',p.td);
+      }
+      window.dispatchEvent(new CustomEvent('hylo:accent'));
+    }catch(_){}
+  };
+  window.__hyloApplyAccent();
+  window.addEventListener('storage',function(e){
+    if(e.key===KEY)window.__hyloApplyAccent(e.newValue);
+  });
+})()</script>
+  <script>(function(){if(window.hyloDesktop&&window.hyloDesktop.platform==='darwin')document.documentElement.classList.add('macos');})()</script>
+  <link rel="stylesheet" href="{{asset "vendor/fonts.css"}}">
+{{end}}

@@ -20,6 +20,7 @@ import (
 	"github.com/hardhacker/hylo/internal/prompt"
 	"github.com/hardhacker/hylo/internal/server/handler"
 	"github.com/hardhacker/hylo/internal/server/middleware"
+	"github.com/hardhacker/hylo/internal/server/static"
 	"github.com/hardhacker/hylo/internal/server/view"
 	"github.com/hardhacker/hylo/internal/skills"
 	"github.com/hardhacker/hylo/internal/storage"
@@ -221,7 +222,7 @@ func newRouter(
 	mux.HandleFunc("GET /api/images/serve", gh.ServeImageByName)
 	mux.HandleFunc("GET /api/images/at", gh.ServeImageAt)
 	mux.HandleFunc("POST /api/images/delete", gh.DeleteGalleryImage)
-	mux.Handle("GET /static/", http.StripPrefix("/static/", staticHandler()))
+	mux.Handle("GET /static/", http.StripPrefix("/static/", static.Handler()))
 
 	// Plugin routes
 	mux.HandleFunc("POST /api/search", sh.Search)

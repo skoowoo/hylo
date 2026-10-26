@@ -1,0 +1,24 @@
+    html, body { height: 100%; margin: 0; }
+    body {
+      display: flex; align-items: center; justify-content: center;
+      background: var(--bg); color: var(--fg);
+      font-family: var(--font-ui); font-size: var(--text-base);
+      -webkit-font-smoothing: antialiased;
+    }
+    .login-drag { position: fixed; top: 0; left: 0; right: 0; height: 36px; }
+    .login-card {
+      width: min(360px, calc(100vw - 32px));
+      background: var(--surface-soft); border: 1px solid var(--line-hair);
+      border-radius: var(--r-lg, 12px); padding: 28px 24px 24px;
+    }
+    .login-logo {
+      margin: 0 0 20px; font-size: var(--text-title-lg); font-weight: 600;
+      letter-spacing: 0.2em;
+    }
+    .login-card .field-input { height: var(--btn-h); padding: 0 0.75rem; font-family: var(--font-ui); font-size: var(--text-base); box-sizing: border-box; }
+    .login-btn { width: 100%; margin-top: 12px; }
+    .login-btn:disabled { opacity: 0.5; cursor: default; }
+    .login-msg { min-height: 1.25rem; margin-top: 10px; font-size: var(--text-sm); }
+    .login-err { color: var(--s-err); }
+    .login-hint { margin: 14px 0 0; color: var(--muted); font-size: var(--text-xs); line-height: 1.5; }
+    .login-hint code { font-family: var(--font-mono); color: var(--fg); background: var(--btn-bg); padding: 1px 5px; border-radius: var(--r-xs, 4px); }

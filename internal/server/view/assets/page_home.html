@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+{{template "head" "Home — Hylo"}}
+  <script src="{{asset "vendor/tailwind.js"}}"></script>
+  <script defer src="{{asset "vendor/alpine-focus.min.js"}}"></script>
+  <script defer src="{{asset "vendor/alpine.min.js"}}"></script>
+  {{/* Fragment endpoints answer errors with plain text, so error statuses must
+  never swap into a pane; htmx:response:error surfaces them instead. */}}
+  <meta name="htmx-config" content='{"extensions":"alpine-compat,hylo","noSwap":[204,304,"4xx","5xx"]}'>
+  <script src="{{asset "vendor/htmx.min.js"}}"></script>
+  <script src="{{asset "vendor/htmx-alpine-compat.min.js"}}"></script>
+  <script src="{{asset "vendor/cytoscape.min.js"}}"></script>
+  <script src="{{asset "vendor/layout-base.js"}}"></script>
+  <script src="{{asset "vendor/cose-base.js"}}"></script>
+  <script src="{{asset "vendor/cytoscape-fcose.min.js"}}"></script>
+  <script src="{{asset "vendor/d3-cloud.min.js"}}"></script>
+  <script src="{{asset "vendor/marked.min.js"}}"></script>
+  <script src="{{asset "vendor/dompurify.min.js"}}"></script>
+  <script src="{{asset "agents/logos.js"}}"></script>
+  <link rel="stylesheet" href="{{asset "bundle/home.css"}}">
+</head>
+<body x-data="homeCtrl()" @hylo:reference-note.window="referenceNote($event)" @hylo:send-note-to-agent.window="sendNoteToAgentBot($event)">
+  <script type="application/json" id="home-boot">{{.Boot}}</script>
+{{template "search_overlay.html" .}}
+{{template "confirm_dialog.html" .}}
+{{template "info_dialog.html" .}}
+{{template "settings_modal.html" .}}
+{{template "home_images_lightbox.html" .}}
+{{template "home_chat_toast.html" .}}
+{{template "home.html" .}}
+
+  <div id="graph-tooltip" class="graph-tooltip"></div>
+
+  {{/* Synchronous, ahead of the deferred Alpine, so alpine:init is already registered. */}}
+  <script src="{{asset "bundle/home.js"}}"></script>
+</body>
+</html>

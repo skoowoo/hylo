@@ -1,0 +1,92 @@
+    /* ── Settings modal overlay ─────────────────────────────── */
+    [x-cloak] { display: none !important; }
+    .settings-modal-overlay {
+      position: fixed; inset: 0; z-index: 1000;
+      background: var(--overlay-bg);
+      backdrop-filter: var(--glass-scrim-filter);
+      -webkit-backdrop-filter: var(--glass-scrim-filter);
+      border-radius: 0; /* full-viewport scrim — never rounds */
+      display: flex; align-items: center; justify-content: center;
+    }
+    .settings-modal-panel {
+      width: 1040px; max-width: calc(100vw - 2rem);
+      height: 720px; max-height: calc(100vh - 2rem);
+      background: var(--bg);
+      /* Shadow carries the floating edge; the line is only a whisper. */
+      border: var(--bd-w) solid var(--line-hair);
+      border-radius: var(--r-xl);
+      box-shadow: var(--shadow-lg) var(--shadow-color);
+      display: flex; flex-direction: column; overflow: hidden;
+      /* Anchors .settings-modal-close, now that there's no title bar for it
+         to sit in. */
+      position: relative;
+    }
+
+    /* Positioned against the whole panel rather than just .settings-content,
+       so it also floats above .settings-sidebar (which has no header of its
+       own) — same 12px corner offset as the app's other floating chrome
+       (graph's zoom controls/node panel). Lands inside the content header's
+       row (below) on the right. */
+    .settings-modal-close {
+      position: absolute; top: 12px; right: 12px; z-index: 5;
+    }
+    /* The desktop webview builds the window drag mask from -webkit-app-region rects in
+       DOM order (drag = union, no-drag = subtract); z-index and selector
+       specificity don't matter. The panel's no-drag subtracts the page's
+       own drag strips underneath it; the reused .home-list-head re-adds
+       drag (home.css), which covers this button's corner — so the button
+       must come AFTER .settings-modal-inner in the DOM for its no-drag to
+       win. Don't move it back to the top of the panel. */
+    html.macos .settings-modal-panel,
+    html.macos .settings-modal-close { -webkit-app-region: no-drag; }
+    .settings-modal-inner {
+      flex: 1; min-height: 0; display: flex; overflow: hidden;
+      border-radius: 0;
+    }
+
+    /* ── Settings inner layout ───────────────────────────────── */
+
+    /* ── Primary sidebar ──────────────────────────────────────── */
+    .settings-sidebar {
+      flex-shrink: 0; width: 196px;
+      border-right: var(--bd-w) solid var(--line-hair);
+      background: var(--surface-soft);
+      padding: 0 0.5rem 1rem; display: flex; flex-direction: column;
+      gap: 2px; user-select: none;
+      /* .side-nav-item.is-active (base.css) just consumes the generic
+         --control-active-bg — but since this container's own background is
+         --surface-soft rather than --bg, the token is locally repointed at
+         --control-active-bg-on-soft (shared_tokens.go) so the selected item
+         still reads as a clear lift. Same fix as .home-side (home.css). */
+      --control-active-bg: var(--control-active-bg-on-soft);
+    }
+
+    /* Same height and type as the content pane's title row, so both sit on one line. */
+    .settings-sidebar-title {
+      flex-shrink: 0; height: var(--toolbar-h); padding: 0 8px;
+      display: flex; align-items: center;
+      font-size: var(--text-base); font-weight: 600; color: var(--fg);
+    }
+    html.macos .settings-sidebar-title { -webkit-app-region: drag; }
+
+    /* ── Content area ─────────────────────────────────────────── */
+    .settings-content { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden; border-radius: 0; }
+    /* Reuses the shared .home-list-head (home.css) so this pane's top
+       chrome matches every other section's header row instead of
+       inventing its own; just a title here since the pane below already
+       carries whatever controls it needs. */
+    .settings-content-title {
+      min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      font-size: var(--text-base); font-weight: 600; color: var(--fg);
+    }
+    /* A tab's detail view (a config section, a bot) leaves through here. The
+       negative margins line the chevron up with the pane's left edge. */
+    .settings-back { margin: 0 -4px 0 -10px; }
+
+    /* ── Pane ─────────────────────────────────────────────────── */
+    /* Shared by every tab that's just "a scrollable column of fields"
+       (Appearance/Shortcuts/Notifications/Skills/Agents) — Server and
+       Agent Bots have their own multi-part layouts (.cfg-content,
+       .agent-bots-pane) and don't use this. */
+    .settings-scroll-pane { flex: 1; overflow-y: auto; padding: 1.75rem 1.5rem 3rem; }
+    ::-webkit-scrollbar { display: none; }

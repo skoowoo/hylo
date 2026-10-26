@@ -1,9 +1,0 @@
-
-    /* The ProseMirror/Milkdown editor this file used to style was replaced by
-       a CodeMirror 6 live-preview editor (editor/src/cm-live/) —
-       its visuals are an EditorView.theme() injected at runtime by editor.js,
-       plus #content-pane-edit-area's own rules in content_pane.css, not static CSS here.
-       Left in place (rather than removed) so noteEditorCSS's go:embed wiring
-       in embed.go/notestyles.go/home.go doesn't need to change for an empty
-       file — nothing currently needs adding here, but the concatenation
-       point still exists if editor-only styling comes up again. */

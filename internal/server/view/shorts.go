@@ -221,11 +221,9 @@ func (vh *ViewHandler) ShortsStream(w http.ResponseWriter, r *http.Request) {
 	}{groups, cursor, hasMore}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := shortsStreamTemplate.Execute(w, data); err != nil {
+	if err := views.ExecuteTemplate(w, "shorts_stream.html", data); err != nil {
 		http.Error(w, "render: "+err.Error(), http.StatusInternalServerError)
 	}
 }
 
 // ─── templates ────────────────────────────────────────────────────────────────
-
-var shortsStreamTemplate = template.Must(template.New("shorts-stream").Parse(shortsStreamHTML))

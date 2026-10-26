@@ -1,0 +1,110 @@
+{{/* Skills tab: every skill added to ~/.hylo/skills, and the catalog Hylo curates. */}}
+          <!-- Skills tab -->
+          <div class="settings-scroll-pane" x-show="tab === 'skills'">
+            <div class="skills-toolbar">
+              <div class="seg" role="tablist">
+                <button type="button" class="seg-btn" role="tab" :class="{active: skillsTab === 'added'}"
+                        :aria-selected="skillsTab === 'added'" @click="skillsTab = 'added'">
+                  Added <span class="seg-count" x-show="!skillsLoading" x-text="skillsList.length"></span>
+                </button>
+                <button type="button" class="seg-btn" role="tab" :class="{active: skillsTab === 'catalog'}"
+                        :aria-selected="skillsTab === 'catalog'" @click="skillsTab = 'catalog'">
+                  Catalog <span class="seg-count" x-show="!skillsLoading" x-text="catalogSkills.length"></span>
+                </button>
+              </div>
+              <div class="skills-toolbar-actions">
+                <button type="button" class="btn-outline" @click="skillsRepoOpen = !skillsRepoOpen; $nextTick(() => skillsRepoOpen && $refs.skillsRepo.focus())">{{template "skills-plus"}}Add from GitHub</button>
+{{template "toolbar-refresh" (dict "Loading" `skillsLoading` "Click" `loadSkills()` "Busy" `Loading…`)}}
+              </div>
+            </div>
+            <form class="skills-repo-form" x-show="skillsRepoOpen" @submit.prevent="addSkillFromRepo()">
+              <input class="field-input" type="text" x-ref="skillsRepo" x-model="skillsRepo.repo" placeholder="owner/repo or GitHub URL" spellcheck="false">
+              <input class="field-input skills-repo-name" type="text" x-model="skillsRepo.skill" placeholder="Skill name (optional)" spellcheck="false">
+              <button type="submit" class="btn-solid" :disabled="!skillsRepo.repo.trim() || skillsRepo.adding" x-text="skillsRepo.adding ? 'Adding…' : 'Add'"></button>
+              <button type="button" class="btn-outline" @click="skillsRepoOpen = false">Cancel</button>
+            </form>
+            <p class="skills-hint" x-show="skillsTab === 'added'">Every skill in <code>~/.hylo/skills/</code>, wherever it came from. Turn them on for a bot under Bots.</p>
+            <p class="skills-hint" x-show="skillsTab === 'catalog'">Skills Hylo curates on GitHub. Add one, then turn it on for a bot.</p>
+            <div class="cfg-err-msg" x-show="skillsError && !skillsLoading" x-text="'Error: ' + skillsError"></div>
+            <div class="cfg-loader" x-show="skillsLoading">Loading skills…</div>
+            <div x-show="!skillsLoading && skillsTab === 'added'">
+              <template x-if="builtinSkills.length">
+                <div class="skills-builtin">
+                  <button type="button" class="list-card skills-builtin-row" :aria-expanded="skillsBuiltinOpen"
+                          @click="skillsBuiltinOpen = !skillsBuiltinOpen">
+                    <span class="skill-icon">{{template "skills-sparkle"}}</span>
+                    <span class="skills-builtin-text">
+                      <span class="skills-builtin-title"><span x-text="builtinSkills.length"></span> built-in skills</span>
+                      <span class="skills-builtin-names" x-text="builtinSkills.map(function(s) { return s.name; }).join(', ')"></span>
+                    </span>
+                    <span class="skill-used">Always on for the main bot</span>
+                    <svg class="skills-builtin-chev" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m9 6 6 6-6 6"/></svg>
+                  </button>
+                  <div class="skills-grid skills-builtin-grid" x-show="skillsBuiltinOpen">
+                    <template x-for="s in builtinSkills" :key="s.name">{{template "skills-card"}}
+                    </template>
+                  </div>
+                </div>
+              </template>
+              <template x-if="extraSkills.length === 0">
+                <div class="skills-empty">
+                  No other skills added yet.
+                  <button type="button" class="skills-empty-link" @click="skillsTab = 'catalog'">Browse the catalog</button>
+                </div>
+              </template>
+              <div class="skills-grid">
+                <template x-for="s in extraSkills" :key="s.name">{{template "skills-card"}}
+                </template>
+              </div>
+            </div>
+            <div x-show="!skillsLoading && skillsTab === 'catalog'">
+              <div class="skills-grid">
+                <template x-for="s in catalogSkills" :key="s.name">{{template "skills-card"}}
+                </template>
+              </div>
+            </div>
+          </div><!-- .skills-pane -->
+
+{{define "skills-sparkle"}}<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z"/></svg>{{end}}
+{{define "skills-trash"}}<svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>{{end}}
+{{define "skills-plus"}}<svg fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg>{{end}}
+{{define "skills-source"}}
+                      <template x-if="s.repo">
+                        <a class="skill-source" :href="'https://github.com/' + s.repo" target="_blank" rel="noopener noreferrer"
+                           :title="s.repo" x-text="s.repo"></a>
+                      </template>
+                      <template x-if="!s.repo">
+                        <span class="skill-source" x-text="s.default ? 'hylo' : 'local'"></span>
+                      </template>{{end}}
+{{define "skills-desc"}}
+                    <p class="skill-desc" :class="{'is-empty': !s.description}" :title="s.description || ''"
+                       x-text="s.description || (s.added ? 'No description.' : 'Add to use with your agents.')"></p>{{end}}
+{{define "skills-card"}}
+                  <div class="list-card skill-card" :class="s.added ? 'is-added' : 'skill-card--available'">
+                    <div class="skill-card-head">
+                      <span class="skill-icon">{{template "skills-sparkle"}}</span>
+                      <span class="skill-name" x-text="s.name" :title="s.name"></span>
+                      <template x-if="s.added && !s.default">
+                        <button type="button" class="icon-btn-ghost icon-btn-ghost--sm skill-remove"
+                                :disabled="!!skillsRemoving[s.name]"
+                                :title="skillsRemoving[s.name] ? 'Removing…' : 'Remove'" aria-label="Remove"
+                                @click="removeSkill(s.name)">{{template "skills-trash"}}</button>
+                      </template>
+                    </div>{{template "skills-desc"}}
+                    <div class="skill-card-foot">{{template "skills-source"}}
+                      <template x-if="s.added && skillsTab === 'added'">
+                        <span class="skill-used" :class="{'is-unused': !s.bots.length}" :title="skillUsedBy(s)" x-text="skillUsedBy(s)"></span>
+                      </template>
+                      <template x-if="s.added && skillsTab === 'catalog'">
+                        <span class="badge">Added</span>
+                      </template>
+                      <template x-if="!s.added">
+                        <button type="button" class="btn-outline btn--xs"
+                                :disabled="!!skillsAdding[s.name]"
+                                @click="addSkill(s)">
+                          <template x-if="!skillsAdding[s.name]">{{template "skills-plus"}}</template>
+                          <span x-text="skillsAdding[s.name] ? 'Adding…' : 'Add'"></span>
+                        </button>
+                      </template>
+                    </div>
+                  </div>{{end}}

@@ -1,0 +1,3 @@
+    .notif-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 0.35rem; }
+    .notif-saved { font-size: var(--text-xs); color: var(--s-ok); margin: 0; font-weight: 500; }
+    .notif-sound-row { display: flex; align-items: center; gap: 0.5rem; max-width: 280px; }

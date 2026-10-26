@@ -15,4 +15,4 @@ vendored copy was taken from.
 | cytoscape-fcose.min.js, cose-base.js, layout-base.js, d3-cloud.min.js, tailwind.js | not recorded in the file | — |
 
 Load order matters: the Alpine plugin before Alpine core, the htmx extension
-after htmx. Extensions must also be listed in `htmxConfig` (view/shared_head.go).
+after htmx. Extensions must also be listed in the htmx-config meta (view/assets/page_home.html).

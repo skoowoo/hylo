@@ -1,0 +1,23 @@
+    /* ── Appearance fields ────────────────────────────────────── */
+    .settings-fields { max-width: 640px; display: flex; flex-direction: column; gap: 1.75rem; }
+    .settings-field-label {
+      display: block; font-size: var(--text-sm); font-weight: 600;
+      color: var(--fg); margin-bottom: 0.5rem;
+    }
+    .settings-field-desc { font-size: var(--text-xs); color: var(--muted); margin-top: 0.4rem; line-height: 1.5; }
+    .settings-error { margin-top: 0.4rem; font-size: var(--text-xs); color: var(--s-err); }
+
+    .accent-swatches { display: flex; flex-wrap: wrap; gap: 0.75rem; padding: 0.4rem; }
+    /* Ring is a pseudo-element border, not outline: the page-wide
+       "button:focus { outline: none }" (images.css/shorts.css) would wipe an
+       outline the moment a click focuses the swatch. */
+    .accent-swatch {
+      position: relative; width: 1.5rem; height: 1.5rem; padding: 0; border: none;
+      cursor: pointer; border-radius: var(--r-full); background: var(--sw);
+    }
+    .accent-swatch::after {
+      content: ''; position: absolute; inset: -5px; border-radius: var(--r-full);
+      border: 2px solid transparent; transition: border-color var(--motion-fast);
+    }
+    .accent-swatch:hover::after { border-color: rgba(var(--ink-rgb), 0.25); }
+    .accent-swatch.active::after { border-color: var(--sw); }

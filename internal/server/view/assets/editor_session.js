@@ -385,7 +385,7 @@
     if (s.view) return;
     if (s.initPromise) return s.initPromise;
     s.initPromise = (async function() {
-      var cm = await import('/static/editor.js');
+      var cm = await import(window.__hyloModules.editor);
       __hyloCM = cm;
 
       var editArea = document.getElementById('content-pane-edit-area');

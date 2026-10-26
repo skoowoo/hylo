@@ -2,7 +2,6 @@ package view
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"html/template"
 	"math"
@@ -94,7 +93,7 @@ func (vh *ViewHandler) Home(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var buf bytes.Buffer
-	if err := homePageTemplate.Execute(&buf, data); err != nil {
+	if err := views.ExecuteTemplate(&buf, "page_home.html", data); err != nil {
 		http.Error(w, fmt.Sprintf("render: %s", err), http.StatusInternalServerError)
 		return
 	}
@@ -247,14 +246,6 @@ func homeSectionMoreURL(typ, path string, nextNs int64) string {
 	return "/home/section/more?" + q.Encode()
 }
 
-func renderHomeSectionFull(data homeSectionData) (template.HTML, error) {
-	var buf bytes.Buffer
-	if err := homeSectionTemplate.ExecuteTemplate(&buf, "full", data); err != nil {
-		return "", err
-	}
-	return template.HTML(buf.String()), nil //nolint:gosec // server-rendered fragment, not user HTML
-}
-
 // renderHomeSectionHTML resolves a /home or /home/section request into the
 // #home-list-pane contents for whichever sidebar item is active. This is the
 // dispatch point between the right pane's different "view kinds": today a
@@ -274,21 +265,17 @@ func (vh *ViewHandler) renderHomeSectionHTML(r *http.Request) (template.HTML, er
 		// The message list is client-rendered (home.js fetches /api/inbox once
 		// #home-inbox-list lands — see __hyloSectionArrived); only the head
 		// renders the unread count.
-		var buf bytes.Buffer
-		if err := homeInboxSectionTemplate.Execute(&buf, homePageData{Boot: vh.homeBoot()}); err != nil {
-			return "", err
-		}
-		return template.HTML(buf.String()), nil //nolint:gosec // rendered by html/template
+		return renderHTML("home_inbox_section.html", homePageData{Boot: vh.homeBoot()})
 	case "chat":
 		// Static shell. home.js attaches the chat kernel once #chat-root
 		// lands in the DOM (__hyloSectionArrived); the markup itself never varies.
-		return template.HTML(homeChatSection), nil //nolint:gosec // static markup, not user HTML
+		return renderHTML("home_chat_section.html", nil)
 	}
 	data, err := vh.homeSectionData(r, false)
 	if err != nil {
 		return "", err
 	}
-	return renderHomeSectionFull(data)
+	return renderHTML("full", data)
 }
 
 // renderHomeShortsSection renders the Shorts view: a header (title + a
@@ -327,18 +314,14 @@ func (vh *ViewHandler) renderHomeShortsSection(r *http.Request) (template.HTML, 
 		ActiveMonthLabel: activeMonthLabel,
 	}
 
-	var buf bytes.Buffer
-	if err := homeShortsSectionTemplate.Execute(&buf, data); err != nil {
-		return "", err
-	}
-	return template.HTML(buf.String()), nil //nolint:gosec // server-rendered fragment, not user HTML
+	return renderHTML("home_shorts_section.html", data)
 }
 
 // renderHomeImagesSection renders the image gallery grid (toolbar, thumbnail
 // grid, select/delete). Pagination goes through /images/grid, whose #img-grid
 // target and sentinel markup match here.
 // The lightbox overlay this grid opens lives once at the page level (see
-// homePageHTML) rather than inside this swappable fragment.
+// page_home.html) rather than inside this swappable fragment.
 func (vh *ViewHandler) renderHomeImagesSection(r *http.Request) (template.HTML, error) {
 	imgs, err := vh.vault.ListImages(0, imagesPageSize+1)
 	if err != nil {
@@ -366,11 +349,7 @@ func (vh *ViewHandler) renderHomeImagesSection(r *http.Request) (template.HTML, 
 		return "", err
 	}
 
-	var buf bytes.Buffer
-	if err := homeImagesSectionTemplate.Execute(&buf, imagesGridData{Images: items, NextNs: nextNs, Count: count}); err != nil {
-		return "", err
-	}
-	return template.HTML(buf.String()), nil //nolint:gosec // server-rendered fragment, not user HTML
+	return renderHTML("home_images_section.html", imagesGridData{Images: items, NextNs: nextNs, Count: count})
 }
 
 // tagWallMaxTags caps how many distinct tags the wall/picker ever fetch —
@@ -456,11 +435,7 @@ func (vh *ViewHandler) renderHomeTagsSection(r *http.Request) (template.HTML, er
 		data.Count = len(data.Items)
 	}
 
-	var buf bytes.Buffer
-	if err := homeSectionTemplate.ExecuteTemplate(&buf, "tags", data); err != nil {
-		return "", err
-	}
-	return template.HTML(buf.String()), nil //nolint:gosec // server-rendered fragment, not user HTML
+	return renderHTML("tags", data)
 }
 
 // HomeSection handles GET /home/section?type=pinned|folder|shorts|images|tags|knowledge|inbox|chat[&path=DIR][&tag=NAME][&index=PATH&view=list|grid|graph]
@@ -501,72 +476,9 @@ func (vh *ViewHandler) HomeSectionMore(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := homeSectionTemplate.ExecuteTemplate(w, "rows", data); err != nil {
+	if err := views.ExecuteTemplate(w, "rows", data); err != nil {
 		http.Error(w, "render: "+err.Error(), http.StatusInternalServerError)
 	}
-}
-
-var homeTemplateFuncs = template.FuncMap{
-	// tagsJSON serializes the wall's tag list for __hyloRenderTagCloud
-	// (home.js) to lay out client-side via d3-cloud. Returned as a plain
-	// string, not template.HTML, so html/template still HTML-escapes it into
-	// the data-tags attribute (the JSON's own double quotes become &#34;) —
-	// the browser unescapes that back to valid JSON before JS reads it.
-	"tagsJSON": func(tags []tagItem) string {
-		b, err := json.Marshal(tags)
-		if err != nil {
-			return "[]"
-		}
-		return string(b)
-	},
-	"label": func(item noteItem) string {
-		if item.Title != "" {
-			return item.Title
-		}
-		return item.Name
-	},
-	"folderLabel": func(dir string) string {
-		if dir == "/" {
-			return "/"
-		}
-		if len(dir) > 1 && dir[0] == '/' {
-			return dir[1:]
-		}
-		return dir
-	},
-	// xshow gives an x-show element its server-known visibility before Alpine runs.
-	"xshow": func(show bool) template.HTMLAttr {
-		if show {
-			return ""
-		}
-		return `style="display:none"`
-	},
-	"encdir":   url.QueryEscape,
-	"sideIcon": sideIcon,
-	"coverURL": func(name string) string {
-		if name == "" {
-			return ""
-		}
-		return "/api/images/serve?name=" + url.QueryEscape(name)
-	},
-	// todoRingDash returns the stroke-dasharray for the todo progress ring
-	// (see .home-note-badge--todo-fill): "<filled length> <circumference>",
-	// where filled is the arc length representing done/total around a
-	// circle of radius todoRingRadius. The gap value only needs to be at
-	// least the circle's full circumference — however much filled leaves
-	// unused just stays empty, which is exactly the un-done remainder.
-	"todoRingDash": func(done, total int) string {
-		if total <= 0 {
-			return fmt.Sprintf("0 %.2f", todoRingCircumference)
-		}
-		ratio := float64(done) / float64(total)
-		if ratio < 0 {
-			ratio = 0
-		} else if ratio > 1 {
-			ratio = 1
-		}
-		return fmt.Sprintf("%.2f %.2f", todoRingCircumference*ratio, todoRingCircumference)
-	},
 }
 
 // todoRingRadius matches the <circle r="..."> in the "rows" template's
@@ -575,28 +487,6 @@ const todoRingRadius = 8.0
 
 var todoRingCircumference = 2 * math.Pi * todoRingRadius
 
-var homeSectionTemplate = func() *template.Template {
-	t := template.New("home-section").Funcs(homeTemplateFuncs)
-	for name, text := range map[string]string{
-		"rows":          homeSectionRowsHTML,
-		"full":          homeSectionFullHTML,
-		"graph-section": homeGraphSectionHTML,
-		"tags":          homeTagsSectionHTML,
-	} {
-		template.Must(t.New(name).Funcs(homeTemplateFuncs).Parse(text))
-	}
-	return t
-}()
-
-var homeShortsSectionTemplate = template.Must(template.New("home-shorts-section").Funcs(homeTemplateFuncs).Parse(homeShortsSectionHTML))
-
-var homeImagesSectionTemplate = template.Must(template.New("home-images-section").Funcs(homeTemplateFuncs).Parse(homeImagesSectionHTML))
-
-var homeChatSection = strings.Replace(homeChatSectionHTML, "{{sideIconBot}}", string(sideIcon("bot")), 1)
-
-var homeInboxSectionTemplate = template.Must(template.New("home-inbox").Funcs(homeTemplateFuncs).Parse(
-	strings.NewReplacer("{{svgCheck}}", svgCheck, "{{sideIconInbox}}", string(sideIcon("inbox"))).Replace(homeInboxSectionHTML)))
-
 func (vh *ViewHandler) noteItemsFromNotes(notes []storage.Note) []noteItem {
 	items := make([]noteItem, 0, len(notes))
 	for _, n := range notes {
@@ -604,56 +494,6 @@ func (vh *ViewHandler) noteItemsFromNotes(notes []storage.Note) []noteItem {
 	}
 	attachCovers(vh.vault, items)
 	return items
-}
-
-var homePageHTML = `<!DOCTYPE html>
-<html lang="en">
-` + headHTML(headOpts{title: "Home — Hylo", withFonts: true, withTW: true, withAlpine: true, withHTMX: true}) + `
-  <script src="/static/vendor/cytoscape.min.js"></script>
-  <script src="/static/vendor/layout-base.js"></script>
-  <script src="/static/vendor/cose-base.js"></script>
-  <script src="/static/vendor/cytoscape-fcose.min.js"></script>
-  <script src="/static/vendor/d3-cloud.min.js"></script>
-  <script src="/static/vendor/marked.min.js"></script>
-  <script src="/static/vendor/dompurify.min.js"></script>
-  <script src="/static/agents/logos.js"></script>
-  <script>
-  if (typeof marked !== 'undefined') { marked.setOptions({ gfm: true, breaks: true }); }
-  </script>
-  <style>
-` + appTokensCSS + `
-` + infoDialogCSS + baseCSS + cselectCSS + homeCSS + imagesCSS + graphCSS + agentChatCSS + contentPaneCSS + noteSharedCSS + noteEditorCSS + shortsCSS + searchOverlayStyles + confirmDialogCSS + settingsModalCSS + serversCSS + `
-  </style>
-</head>
-<body x-data="homeCtrl()"@hylo:reference-note.window="referenceNote($event)" @hylo:send-note-to-agent.window="sendNoteToAgentBot($event)">
-  <script type="application/json" id="home-boot">{{.Boot}}</script>
-` + searchOnlyOverlayHTML + confirmDialogHTML + infoDialogHTML + settingsModalHTML() + homeImagesLightboxHTML + homeChatToastHTML + `
-  <div class="home-container">
-` + homeMainHTML + contentPaneHTML + `
-    </div><!-- /.home-main -->
-  </div><!-- /.home-shell -->
-</div><!-- /.home-container -->
-
-  <div id="graph-tooltip" class="graph-tooltip"></div>
-
-  <script>
-  document.addEventListener('alpine:init', () => {
-` + alpineStoresScript + `
-    Alpine.store('servers', hyloServersStore());
-  });
-
-` + liveJS + noteChangesJS + keysJS + pathAcScript + chatReduceJS + chatTextJS + chatKernelJS + chatViewJS + listTightenJS + tabFitJS + graphLayoutJS + editorSessionJS + editorAgentJS + contentPaneScript + searchOverlayScript + confirmDialogJS + infoDialogJS + serversStoreJS + settingsCtrlJS + sectionCacheJS + homeImagesJS + homeGraphJS + homeInboxJS + homeShortsJS + tagCloudJS + homeDragJS + homeJS + `
-  </script>
-` + noteSharedJS + `
-</body>
-</html>`
-
-var homePageTemplate = withHomeSidebarParts(template.New("home").Funcs(homeTemplateFuncs), homePageHTML)
-
-// withHomeSidebarParts parses the sidebar bodies shared by the initial page and
-// /home/refresh, so both render identical markup for htmx to morph.
-func withHomeSidebarParts(t *template.Template, text string) *template.Template {
-	return template.Must(template.Must(t.Parse(text)).Parse(homeSidebarPartsHTML))
 }
 
 // HomeRefresh handles GET /home/refresh — returns HTMX OOB fragments for the
@@ -685,28 +525,10 @@ func (vh *ViewHandler) HomeRefresh(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var buf bytes.Buffer
-	if err := homeRefreshTemplate.Execute(&buf, data); err != nil {
+	if err := views.ExecuteTemplate(&buf, "home_refresh.html", data); err != nil {
 		http.Error(w, fmt.Sprintf("home/refresh: render: %s", err), http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	_, _ = w.Write(buf.Bytes())
 }
-
-// Morphed by htmx, which copies attributes via setAttribute — WKWebView rejects
-// '@'/':'-prefixed names, so Alpine's shorthands must be spelled out here.
-var homeRefreshTemplate = withHomeSidebarParts(template.New("home-refresh").Funcs(homeTemplateFuncs), `<hx-partial hx-target="#home-side-folders-body" hx-swap="outerMorph">
-<div id="home-side-folders-body" class="home-side-children" x-bind:class="{'is-open': foldersOpen && !sideEmpty.folders}">
-  <div class="home-side-children-inner">
-{{template "home-side-folders-inner" .}}
-  </div>
-</div>
-</hx-partial>
-<hx-partial hx-target="#home-side-knowledge-body" hx-swap="outerMorph">
-<div id="home-side-knowledge-body" class="home-side-children" x-bind:class="{'is-open': knowledgeOpen && !sideEmpty.knowledge}">
-  <div class="home-side-children-inner">
-{{template "home-side-knowledge-inner" .}}
-  </div>
-</div>
-</hx-partial>
-`)

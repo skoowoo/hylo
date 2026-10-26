@@ -9,8 +9,8 @@ const outDir = join(__dirname, '../internal/server/static');
 
 // Code splitting keeps each language grammar (cm-live/code-languages.js) in its
 // own lazily fetched chunk. Chunk names are hashed, so stale ones are cleared
-// first; vendor/ (third-party scripts) and agents/ (agent logos) are hand-managed and stay.
-const keep = new Set(['vendor', 'agents']);
+// first; vendor/ (third-party scripts), agents/ (agent logos) and the Go package files stay.
+const keep = new Set(['vendor', 'agents', 'static.go', 'static_test.go']);
 for (const name of readdirSync(outDir)) {
   if (!keep.has(name)) rmSync(join(outDir, name), { recursive: true, force: true });
 }

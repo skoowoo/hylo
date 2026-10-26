@@ -2,7 +2,6 @@ package view
 
 import (
 	"encoding/json"
-	"html/template"
 	"net/http"
 	"net/url"
 	"sort"
@@ -200,11 +199,9 @@ func (vh *ViewHandler) ImagesGrid(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := imagesGridTemplate.Execute(w, imagesGridData{Images: items, NextNs: nextNs}); err != nil {
+	if err := views.ExecuteTemplate(w, "images_grid.html", imagesGridData{Images: items, NextNs: nextNs}); err != nil {
 		http.Error(w, "render: "+err.Error(), http.StatusInternalServerError)
 	}
 }
 
 // ── templates ─────────────────────────────────────────────────────────────────
-
-var imagesGridTemplate = template.Must(template.New("imagesgrid").Parse(imagesGridHTML))

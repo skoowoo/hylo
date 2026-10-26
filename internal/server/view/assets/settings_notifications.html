@@ -1,0 +1,41 @@
+{{/* Notifications tab: desktop-only notification prefs. */}}
+          <!-- Notifications tab -->
+          <div class="settings-scroll-pane" x-show="tab === 'notifications'">
+            <div class="cfg-loader" x-show="!isDesktop">Available in the desktop app only.</div>
+            <template x-if="isDesktop">
+              <div class="settings-fields">
+{{template "notify-toggle-row" (dict "Field" `textEnabled` "Label" `Text Notifications` "Desc" `Show a system notification when a new inbox message arrives.`)}}{{template "notify-toggle-row" (dict "Field" `soundEnabled` "Label" `Sound` "Desc" `Play a sound when a new inbox message arrives.`)}}
+
+                <template x-if="notifySettings.soundEnabled">
+                  <div>
+                    <label class="settings-field-label">Notification Sound</label>
+                    <div class="notif-sound-row">
+                      <div style="flex:1;min-width:0">
+{{template "cselect-open" `notifySoundLabel(notifySettings.sound)`}}<template x-for="o in notifySounds" :key="o.id"><button type="button" class="cselect-option" :class="notifySettings.sound===o.id?'sel':''" @click="notifySettings.sound=o.id; saveNotifySettings(); csOpen=false"><span class="dot dot--fg cselect-option-dot"></span><span x-text="o.label"></span></button></template>{{template "cselect-close"}}
+                      </div>
+                      <button type="button" class="icon-btn icon-btn--lg" title="Preview sound"
+                              :disabled="notifySettings.sound === 'none'"
+                              @click="window.hyloDesktop?.inboxNotify?.previewSound(notifySettings.sound)">
+                        <svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 4v16l13-8z"/></svg>
+                      </button>
+                    </div>
+                    <p class="settings-field-desc">Sound played when a new inbox message arrives.</p>
+                  </div>
+                </template>
+
+                <p class="notif-saved" x-show="notifySaveOk">Saved</p>
+
+              </div>
+            </template>
+          </div>
+
+{{define "notify-toggle-row"}}                <div>
+                  <div class="notif-row">
+                    <label class="settings-field-label" style="margin:0">{{.Label}}</label>
+                    <div class="seg">
+                      <button type="button" class="seg-btn" :class="{active: !notifySettings.{{.Field}}}" @click="notifySettings.{{.Field}} = false; saveNotifySettings()">Off</button>
+                      <button type="button" class="seg-btn" :class="{active: notifySettings.{{.Field}}}" @click="notifySettings.{{.Field}} = true; saveNotifySettings()">On</button>
+                    </div>
+                  </div>
+                  <p class="settings-field-desc">{{.Desc}}</p>
+                </div>{{end}}

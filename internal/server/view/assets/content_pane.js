@@ -818,7 +818,7 @@
       // where that bot's chat left off) and drops a `[[stem]]` wikilink for
       // the active note into its composer. home.js is what actually owns
       // the chat panel/agentBots list, so this only dispatches an event
-      // (mirrors search_overlay.go's hylo:reference-note) rather than
+      // (mirrors search_overlay.js's hylo:reference-note) rather than
       // reaching into window._homeData's chat internals directly.
       sendActiveNoteToAgentBot(mateId) {
         var tab = this.tabs[this.activeTab];
@@ -1330,7 +1330,7 @@
 
   // While the tabs dropdown is open: ↑/↓ move the highlighted row, Enter
   // switches to it. Registered after content-pane-scroll (below) so it's checked
-  // first — see keysJS's reverse-registration-order dispatch — and takes
+  // first — see keys.js's reverse-registration-order dispatch — and takes
   // over plain arrow keys instead of letting them scroll the editor.
   window.__hyloHotkeys.registerRaw('content-pane-tabs-menu-nav', function(e, mod) {
     if (mod || e.shiftKey || e.altKey) return;

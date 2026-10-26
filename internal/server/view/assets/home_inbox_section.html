@@ -34,7 +34,7 @@
   </div>
   <template x-if="!inboxLoading && visibleInboxMessages().length === 0">
     <div class="empty-state empty-state--page">
-      <div class="empty-state-icon">{{sideIconInbox}}</div>
+      <div class="empty-state-icon">{{sideIcon "inbox"}}</div>
       <div class="empty-state-title" x-text="inboxFilter === 'unread' ? 'All caught up' : 'No messages yet'"></div>
       <div class="empty-state-desc" x-show="inboxFilter !== 'unread'">Messages from your bots show up here.</div>
     </div>

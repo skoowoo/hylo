@@ -31,7 +31,7 @@ window.handleSearchResultSelection = function (el) {
 
 // ── Agent bot avatar ────────────────────────────────────────────────────────
 // Global (not a homeCtrl method) because the settings modal's agent-bots list
-// renders in its own Alpine scope (settingsCtrl(), shared_settings_modal.go)
+// renders in its own Alpine scope (settingsCtrl(), settings_modal.js)
 // which doesn't inherit homeCtrl's methods — both call this directly instead.
 function _agentBotHash(name) {
   var h = 0;

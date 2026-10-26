@@ -15,7 +15,7 @@
   var fenceLoad = null;
   var fenceMod = null;
   function fenceModule() {
-    fenceLoad = fenceLoad || import('/static/fence-card.js').then(function (m) { return (fenceMod = m); });
+    fenceLoad = fenceLoad || import(window.__hyloModules.fenceCard).then(function (m) { return (fenceMod = m); });
     return fenceLoad;
   }
 

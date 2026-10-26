@@ -17,7 +17,7 @@ func TestHomeRefreshUsesMorphSafeAttributes(t *testing.T) {
 		IndexNotes:     []noteItem{{}},
 		KnowledgeCount: 1,
 	}
-	if err := homeRefreshTemplate.Execute(&buf, data); err != nil {
+	if err := views.ExecuteTemplate(&buf, "home_refresh.html", data); err != nil {
 		t.Fatal(err)
 	}
 	out := buf.String()

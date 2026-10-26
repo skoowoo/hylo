@@ -1,70 +1,5 @@
-package view
-
-// Shortcuts tab: keyboard shortcut reference list.
-const settingsShortcutsCSS = `
-    .shortcuts-fields { max-width: 640px; }
-    .shortcuts-list { display: flex; flex-direction: column; }
-    .shortcuts-row {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 0.6rem 0; gap: 1rem;
-    }
-    .shortcuts-row-meta { min-width: 0; flex: 1; }
-    .shortcuts-label { font-size: var(--text-sm); font-weight: 600; color: var(--fg); display: block; }
-    .shortcuts-desc { font-size: var(--text-xs); color: var(--muted); margin-top: 0.1rem; }
-    .shortcuts-keys { display: flex; gap: 0.3rem; align-items: center; flex-shrink: 0; }
-    .kbd {
-      display: inline-flex; align-items: center;
-      padding: 0.18rem 0.42rem;
-      border-radius: var(--r-xs);
-      background: var(--btn-bg); border: var(--bd-w) solid transparent;
-      font-family: var(--font-mono);
-      font-size: var(--text-xs); color: var(--fg); white-space: nowrap; line-height: 1.4;
-    }
-    button.kbd { cursor: pointer; }
-    button.kbd:hover { background: var(--btn-bg-hov); }
-    .kbd-recording { border-color: var(--accent, var(--fg)); color: var(--muted); }
-    .shortcuts-btn {
-      background: none; border: none; padding: 0; cursor: pointer;
-      font-size: var(--text-xs); color: var(--muted);
-    }
-    .shortcuts-btn:hover { color: var(--fg); }
-    .shortcuts-error { flex-basis: 100%; text-align: right; font-size: var(--text-xs); color: var(--danger, #d33); }
-    .shortcuts-row { flex-wrap: wrap; }
-`
-
-func settingsShortcutsTabHTML() string {
-	return `
-          <!-- Shortcuts tab -->
-          <div class="settings-scroll-pane" x-show="tab === 'shortcuts'">
-            <div class="shortcuts-fields">
-              <div class="shortcuts-list">
-                <template x-for="s in shortcutDefs" :key="s.id">
-                  <div class="shortcuts-row hairline">
-                    <div class="shortcuts-row-meta">
-                      <span class="shortcuts-label" x-text="s.label"></span>
-                      <span class="shortcuts-desc" x-text="s.desc"></span>
-                    </div>
-                    <div class="shortcuts-keys" @click.outside="recordingId === s.id && cancelRecord()">
-                      <template x-if="s.editable && customKeys[s.id] && recordingId !== s.id">
-                        <button type="button" class="shortcuts-btn" @click="resetCombo(s)">Reset</button>
-                      </template>
-                      <button type="button" class="kbd kbd-combo" x-show="s.editable"
-                              :class="{ 'kbd-recording': recordingId === s.id }"
-                              @click="recordingId === s.id ? cancelRecord() : startRecord(s)"
-                              x-html="recordingId === s.id ? 'Press shortcut…' : hyloKbdHTML(fmtCombo(getCombo(s)))"></button>
-                      <span class="kbd kbd-combo" x-show="!s.editable" x-html="hyloKbdHTML(fmtCombo(getCombo(s)))"></span>
-                    </div>
-                    <div class="shortcuts-error" x-show="recordingId === s.id && shortcutError" x-text="shortcutError"></div>
-                  </div>
-                </template>
-              </div>
-            </div>
-          </div><!-- .shortcuts-pane -->
-
-`
-}
-
-const settingsShortcutsJS = `
+  function settingsShortcutsTab() {
+    return {
       isMac: /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent),
       customKeys: Object.assign({}, window.__hyloHotkeys.custom),
       recordingId: null,
@@ -131,4 +66,5 @@ const settingsShortcutsJS = `
         this.setCombo(s, null);
       },
 
-`
+    };
+  }

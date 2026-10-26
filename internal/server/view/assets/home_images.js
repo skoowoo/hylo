@@ -61,7 +61,7 @@ function homeImagesMixin() {
     selectedCount: 0,
     initImages() {
       _lbOpen = (data) => { this.lightbox = data; };
-      // Route both overlays through the shared ESC stack (shared_keys.go)
+      // Route both overlays through the shared ESC stack (keys.js)
       // instead of @keydown.escape.window: that binding fires on window's
       // bubble phase, but the stack's document-capture listener runs first
       // and swallows Escape whenever the editor's content pane (or any other

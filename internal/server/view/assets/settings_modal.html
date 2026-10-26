@@ -1,0 +1,37 @@
+{{/* The settings modal: shell, sidebar nav and every tab, opened from the sidebar's Settings button. */}}
+  <div id="hylo-settings-modal"
+       x-data="settingsCtrl()"
+       x-show="$store.settingsModal.open"
+       x-trap.inert.noreturn="$store.settingsModal.open"
+       x-cloak
+       class="settings-modal-overlay">
+    <div class="settings-modal-panel" @mousedown.stop>
+      <div class="settings-modal-inner">
+
+        <!-- Primary sidebar -->
+{{template "settings-nav"}}
+
+        <div class="settings-content">
+
+          <div class="home-list-head">
+            <button type="button" class="icon-btn-ghost settings-back" x-show="detailView()" @click="detailView().back()"
+                    :title="detailView() ? 'Back to ' + detailView().parent : ''" :aria-label="detailView() ? 'Back to ' + detailView().parent : ''">
+              <svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+            </button>
+            <span class="settings-content-title" x-text="detailView() ? detailView().title : ({ {{- range $i, $t := settingsTabs}}{{if $i}},{{end}}'{{$t.ID}}':'{{$t.Label}}'{{end -}} }[tab] || '')"></span>
+          </div>
+
+{{template "settings_appearance.html"}}{{template "settings_server.html"}}{{template "settings_shortcuts.html"}}{{template "settings_notifications.html"}}{{template "settings_agentbots.html"}}{{template "settings_skills.html"}}{{template "settings_agentcli.html"}}
+        </div><!-- .settings-content -->
+      </div><!-- .settings-modal-inner -->
+      <!-- Must stay after .settings-modal-inner: see the -webkit-app-region note in the CSS above. -->
+      <button class="icon-btn-ghost settings-modal-close" @click="requestClose()" type="button">
+        <svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
+          <path stroke-linecap="round" d="M18 6 6 18"/>
+          <path stroke-linecap="round" d="m6 6 12 12"/>
+        </svg>
+      </button>
+    </div><!-- .settings-modal-panel -->
+  </div><!-- #hylo-settings-modal -->
+
+{{define "settings-nav"}}<nav class="settings-sidebar hairline"><div class="settings-sidebar-title">Settings</div>{{range settingsTabs}}<button class="side-nav-item settings-sidebar-item"{{if .DesktopOnly}} x-show="isDesktop"{{end}} :class="{'is-active': tab === '{{.ID}}'}" x-press="tab = '{{.ID}}'"><svg class="side-nav-icon" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">{{.Icon}}</svg>{{.Label}}</button>{{end}}</nav>{{end}}

@@ -1,0 +1,91 @@
+    .skills-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; margin-bottom: 0.75rem; }
+    .skills-toolbar-actions { display: flex; align-items: center; gap: 0.5rem; }
+    .skills-repo-form { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; flex-wrap: wrap; }
+    .skills-repo-form .field-input { flex: 2 1 14rem; min-width: 0; }
+    .skills-repo-form .skills-repo-name { flex: 1 1 9rem; }
+    .skills-hint { font-size: var(--text-xs); color: var(--muted); line-height: 1.5; margin: 0 0 1rem; min-height: 1.5em; }
+    .skills-hint code {
+      font-family: var(--font-mono); font-size: var(--text-2xs);
+      padding: 0.05rem 0.3rem; border-radius: var(--r-xs); background: var(--code-bg);
+    }
+    .skills-empty {
+      display: flex; flex-direction: column; align-items: center; gap: 0.5rem;
+      font-size: var(--text-sm); color: var(--muted); padding: 2.5rem 0; text-align: center;
+    }
+    .skills-empty-link {
+      border: none; background: none; padding: 0; font: inherit; font-size: var(--text-sm);
+      color: var(--accent-text); border-radius: 0;
+    }
+    .skills-empty-link:hover { text-decoration: underline; }
+    .skills-builtin { margin-bottom: 0.5rem; }
+    .skills-builtin:has(.skills-builtin-row[aria-expanded="true"]) {
+      margin-bottom: 1.25rem; padding-bottom: 1.25rem; border-bottom: 1px solid var(--line-hair); border-radius: 0;
+    }
+    .skills-builtin-row {
+      display: flex; align-items: center; gap: 0.6rem; width: 100%;
+      padding: 0.6rem 0.75rem 0.6rem 0.9rem; text-align: left;
+      font-family: inherit; color: var(--fg);
+      transition: background-color var(--motion-fast);
+    }
+    .skills-builtin-row:hover { background: var(--card-hov); }
+    .skills-builtin-row:focus-visible { outline: 2px solid rgba(var(--accent-rgb), 0.5); outline-offset: 1px; }
+    .skills-builtin-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.1rem; }
+    .skills-builtin-title { font-size: var(--text-sm); font-weight: var(--fw-semibold); }
+    .skills-builtin-names {
+      font-size: var(--text-xs); color: var(--muted);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .skills-builtin-chev { width: 14px; height: 14px; flex-shrink: 0; color: var(--muted); transition: transform var(--motion-fast); }
+    .skills-builtin-row[aria-expanded="true"] .skills-builtin-chev { transform: rotate(90deg); }
+    .skills-builtin-grid { margin-top: 0.5rem; }
+    .skills-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(232px, 1fr)); gap: 0.5rem; }
+
+    /* Surface from the shared .list-card (base.css); not --clickable since
+       the card's controls are the targets. */
+    .skill-card {
+      display: flex; flex-direction: column; gap: 0.5rem; min-width: 0;
+      padding: 0.8rem 0.8rem 0.7rem 0.9rem;
+      transition: background-color var(--motion-fast);
+    }
+    .skill-card:hover { background: var(--card-hov); }
+    .skill-card-head { display: flex; align-items: center; gap: 0.55rem; min-width: 0; }
+    .skill-icon {
+      display: grid; place-items: center; width: 26px; height: 26px; flex-shrink: 0;
+      border-radius: var(--r-md); background: var(--btn-bg); color: var(--muted);
+      transition: background-color var(--motion-fast), color var(--motion-fast);
+    }
+    .skill-icon svg { width: 13px; height: 13px; }
+    .skill-card.is-added .skill-icon, .skills-builtin-row .skill-icon { background: rgba(var(--accent-rgb), 0.12); color: var(--accent-text); }
+    .skill-name {
+      flex: 1; min-width: 0; font-size: var(--text-sm); font-weight: var(--fw-semibold); color: var(--fg);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .skill-card--available .skill-name { color: var(--muted); }
+    /* Remove is rare and destructive, so it stays out of sight until the card is in use. */
+    .skill-remove { opacity: 0; transition: opacity var(--motion-fast), color var(--motion-fast), background-color var(--motion-fast); }
+    .skill-card:hover .skill-remove, .skill-remove:focus-visible, .skill-remove:disabled { opacity: 1; }
+    .skill-remove:hover:not(:disabled) { color: var(--s-err); background: var(--s-err-bg); }
+    @media (hover: none) { .skill-remove { opacity: 1; } }
+    .skill-desc {
+      font-size: var(--text-xs); color: var(--muted); line-height: 1.5;
+      min-height: 3em; overflow-wrap: anywhere;
+      display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+    }
+    .skill-desc.is-empty { opacity: 0.6; font-style: italic; }
+    .skill-used {
+      min-width: 0; font-size: var(--text-2xs); color: var(--muted);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 1; text-align: right;
+    }
+    .skill-used.is-unused { opacity: 0.6; }
+    .skills-builtin-row .skill-used { flex-shrink: 0; }
+    .skill-card-foot {
+      display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;
+      margin-top: auto; min-height: var(--btn-h-xs);
+    }
+    .skill-source {
+      min-width: 0; font-family: var(--font-mono); font-size: var(--text-2xs); color: var(--muted);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      text-decoration: none; opacity: 0.7; border-radius: 0;
+      transition: color var(--motion-fast), opacity var(--motion-fast);
+    }
+    a.skill-source:hover { color: var(--accent-text); opacity: 1; }

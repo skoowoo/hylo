@@ -1,3 +1,4 @@
+  <div class="home-container">
   <!-- Sidebar + note list ─────────────────────────────────────────── -->
   <div class="home-shell"
        :class="{'content-pane-open': (contentPaneOpen || inboxSheetOpen), 'is-resizing': isPaneResizing, 'is-editor-maximized': splitRatio <= 0.02}"
@@ -192,3 +193,7 @@
            @mousedown="startPaneResize($event)"
            @dblclick="splitRatio = 0.5"
            title="Drag to resize"></div>
+{{template "content_pane.html" .}}
+    </div><!-- /.home-main -->
+  </div><!-- /.home-shell -->
+</div><!-- /.home-container -->

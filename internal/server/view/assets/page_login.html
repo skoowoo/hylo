@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+{{template "head" "Sign in — Hylo"}}
+  <link rel="stylesheet" href="{{asset "bundle/login.css"}}">
+</head>
+<body>
+  <div class="login-drag" data-tauri-drag-region></div>
+  <main class="login-card">
+    <p class="login-logo">HYLO</p>
+    <form method="post" action="/login">
+      <input type="hidden" name="next" value="{{.Next}}">
+      <input class="field-input" type="password" name="key" placeholder="API key"
+             autocomplete="current-password" spellcheck="false" autofocus required>
+      <button id="login-btn" class="btn-solid login-btn" type="submit">Sign in</button>
+      <div id="login-msg" class="login-msg" role="alert">{{if .Error}}<span class="login-err">{{.Error}}</span>{{end}}</div>
+    </form>
+    <p class="login-hint">Run <code>hylo auth show</code> on the server to see the key.</p>
+  </main>
+</body>
+</html>

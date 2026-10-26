@@ -1,0 +1,56 @@
+{{/* Agents tab: detected CLI agents and their models. The agents list is shared with Bots, so it lives in settings_modal.js. */}}
+          <!-- Agents tab -->
+          <div class="settings-scroll-pane" x-show="tab === 'agents'">
+            <div class="agents-toolbar">
+{{template "toolbar-refresh" (dict "Loading" `agentsLoading` "Click" `loadAgents(true)` "Busy" `Detecting…`)}}
+              <span class="agents-summary" x-show="!agentsLoading && agents.length">
+                <span x-text="agents.filter(a=>a.available).length + ' available · ' + agents.filter(a=>!a.available).length + ' not installed'"></span>
+                <span x-show="agentsFromCache && agentsCachedAt"
+                      x-text="' · cached ' + Math.round((Date.now() - agentsCachedAt) / 60000) + 'm ago'"></span>
+              </span>
+            </div>
+            <div class="cfg-loader" x-show="agentsLoading">Detecting agents on PATH — this may take a moment…</div>
+            <div class="cfg-err-msg" x-show="agentsError && !agentsLoading" x-text="'Error: ' + agentsError"></div>
+            <div class="agents-list" x-show="!agentsLoading && !agentsError && agents.length">
+              <template x-for="ag in sortedAgents" :key="ag.id">
+                <div class="list-card list-card--hover list-card--soft agent-card" :class="{unavailable: !ag.available}">
+                  <div class="agent-card-top">
+                    <span class="dot" :class="ag.available ? 'dot--on' : 'dot--off'"></span>
+                    <span class="agent-card-name" x-text="ag.name"></span>
+                    <span class="agent-card-id" x-text="ag.id"></span>
+                    <span class="agent-status-badge" :class="ag.available ? 'ok' : ''"
+                          x-text="ag.available ? 'available' : 'not installed'"></span>
+                  </div>
+                  <div class="agent-card-info">
+                    <span class="agent-col-mono agent-meta-path"
+                          :title="ag.path || ag.bin"
+                          x-text="ag.path || ag.bin || '—'"></span>
+                    <span class="agent-col-mono"
+                          x-show="ag.version"
+                          x-text="'v' + ag.version"></span>
+                    <span class="agent-col-mono"
+                          x-show="ag.streamFormat"
+                          x-text="ag.streamFormat"></span>
+                  </div>
+                  <div class="agent-card-models">
+                    <template x-for="m in agentDisplayModels(ag)" :key="m.id">
+                      <span class="badge badge--sm agent-model-pill" :title="(m.label && m.label !== m.id) ? m.id + ' — ' + m.label : m.id" x-text="m.id"></span>
+                    </template>
+                    <span class="agent-model-more"
+                          x-show="ag.models && ag.models.length > 4"
+                          x-text="'+' + (ag.models.length - 4) + ' more'"></span>
+                  </div>
+                  <template x-if="ag.cliExample">
+                    <div class="agent-card-cli">
+                      <span class="agent-cli-label">Example:</span>
+                      <span class="agent-cli-code" :title="ag.cliExample" x-text="ag.cliExample"></span>
+                      <button type="button" class="agent-cli-copy"
+                              :class="agentCopied === ag.id ? 'copied' : ''"
+                              @click.stop="copyCliExample(ag)"
+                              x-text="agentCopied === ag.id ? 'copied' : 'copy'"></button>
+                    </div>
+                  </template>
+                </div>
+              </template>
+            </div>
+          </div><!-- .agents-pane -->

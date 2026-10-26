@@ -1,7 +1,4 @@
-package view
-
-// Shared look of the panels that connect a chat app to a bot.
-const settingsChatLinkCSS = `
+/* Shared look of the panels that connect a chat app to a bot. */
     .cfg-link { padding: 0.88rem 0 0; margin-top: 0.5rem; }
     .cfg-link-head {
       display: flex; align-items: center; justify-content: space-between;
@@ -26,4 +23,3 @@ const settingsChatLinkCSS = `
     .cfg-link-status a { color: var(--accent-text); }
     .cfg-link-err { font-size: var(--text-xs); color: var(--s-err); margin-top: 0.5rem; }
     .cfg-link-ok { font-size: var(--text-xs); color: var(--s-ok); margin-top: 0.5rem; }
-`

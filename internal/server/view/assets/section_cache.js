@@ -344,7 +344,7 @@ function __hyloSectionArrived(url, entry) {
   if (document.getElementById('tag-cloud')) __hyloRenderTagCloud();
 }
 
-// App-level htmx hooks; the name is whitelisted in shared_head.go's htmx-config.
+// App-level htmx hooks; the name is whitelisted in page_home.html's htmx-config.
 // Section loads all come from __hyloSectionFetch (source = target = the pane).
 htmx.registerExtension('hylo', {
   htmx_before_swap: function (elt, detail) {
