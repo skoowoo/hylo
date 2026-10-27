@@ -1,8 +1,7 @@
 // Arrow keys must walk a long live-preview note line by line in WebKit (the
-// desktop app's engine). Regression guard for the height-map skew in
-// decoration-helpers.js's excludeFromTextSample: a heading/code line taken as
-// CM's text-size sample made one ArrowUp jump ~95 lines and logged
-// "Viewport failed to stabilize".
+// desktop app's engine). Regression guard for the height-map skew that
+// text-metrics.js prevents: a heading/code line taken as CM's text-size sample
+// made one ArrowUp jump ~95 lines and logged "Viewport failed to stabilize".
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';

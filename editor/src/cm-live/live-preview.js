@@ -1,10 +1,12 @@
 // Viewport-scoped tree walk → decorators.js.
-import { ViewPlugin, Decoration, EditorView } from '@codemirror/view';
+import { ViewPlugin, Decoration } from '@codemirror/view';
 import { StateEffect, EditorState } from '@codemirror/state';
 import { syntaxTree } from '@codemirror/language';
-import { nodeDecorators, isListGapLine } from './decorators.js';
+import { nodeDecorators, isHairlineLine } from './decorators.js';
+import { drawnRanges } from './decoration-helpers.js';
 import { readingModeToggled } from './selection.js';
-import { revealWidget } from './widget-reveal.js';
+import { revealedWidgetField } from './widget-reveal.js';
+import { suppressedLinkRevealField } from './link-reveal-suppression.js';
 
 // Dispatched by app wiring (content_pane.js) once it has (re)computed which
 // [[wikilink]] targets exist — e.g. after the async /api/notes/exist batch
@@ -13,11 +15,18 @@ import { revealWidget } from './widget-reveal.js';
 // in the document itself changed.
 export const wikiLinksRevalidated = StateEffect.define();
 
+// State besides the selection that decides what shows raw. Compared by value,
+// so a change rebuilds however it was dispatched.
+const REVEAL_FIELDS = [revealedWidgetField, suppressedLinkRevealField];
+
+function revealChanged(a, b) {
+  return readingModeToggled(a, b) || REVEAL_FIELDS.some((f) => a.field(f, false) !== b.field(f, false));
+}
+
 class LivePreviewPlugin {
   constructor(view, options) {
     this.options = options || {};
     this.decorations = Decoration.none;
-    this.imageAtoms = Decoration.none;
     // Per-node layout (table columns, list marker widths, link definitions).
     // Survives selection/viewport rebuilds; cleared when doc or tree changes.
     this.layoutCache = new Map();
@@ -41,8 +50,8 @@ class LivePreviewPlugin {
     const treeChanged = tree != this.tree;
     // A grown tree can add rows/definitions the cache was built without.
     if (update.docChanged || treeChanged) this.layoutCache.clear();
-    const effectRebuild = update.transactions.some((tr) => tr.effects.some((e) => e.is(wikiLinksRevalidated) || e.is(revealWidget)));
-    if (treeChanged || update.docChanged || update.viewportChanged || update.selectionSet || effectRebuild || readingModeToggled(update.startState, update.state)) {
+    const revalidated = update.transactions.some((tr) => tr.effects.some((e) => e.is(wikiLinksRevalidated)));
+    if (treeChanged || update.docChanged || update.viewportChanged || update.selectionSet || revalidated || revealChanged(update.startState, update.state)) {
       this.tree = tree;
       this.rebuild(update.view);
     }
@@ -61,7 +70,7 @@ class LivePreviewPlugin {
       }
       return decorate(node, view, decos, this.options, this.layoutCache);
     };
-    for (const { from, to } of view.visibleRanges) {
+    for (const { from, to } of drawnRanges(view)) {
       // Continuation lines take their indent from the item's marker, which may be above the viewport.
       for (let n = tree.resolveInner(from, 1); n; n = n.parent) {
         const mark = n.name === 'ListItem' && n.getChild('ListMark');
@@ -70,26 +79,30 @@ class LivePreviewPlugin {
       tree.iterate({ from, to, enter });
     }
     this.decorations = Decoration.set(decos, true);
-    this.imageAtoms = Decoration.set(decos.filter((r) => r.value.spec.atomicImage), true);
   }
 }
 
 export const livePreviewPlugin = ViewPlugin.fromClass(LivePreviewPlugin, {
   decorations: (v) => v.decorations,
-  provide: (plugin) => EditorView.atomicRanges.of((view) => view.plugin(plugin)?.imageAtoms ?? Decoration.none),
 });
 
-// A collapsed list gap is 1px tall, so a caret parked there is invisible and
-// costs an extra keypress. Carry it on to the next line in the direction it was moving.
-export const skipListGaps = EditorState.transactionFilter.of((tr) => {
+// A hairline row (isHairlineLine) can't show a caret, and revealing its source
+// would move every line below. Carry the caret on in the direction it moved:
+// a one-character step crossed the line break, a longer one keeps its column.
+export const skipHairlines = EditorState.transactionFilter.of((tr) => {
   if (!tr.selection || tr.docChanged) return tr;
   const sel = tr.newSelection.main;
   if (!sel.empty) return tr;
   const state = tr.startState;
-  const line = state.doc.lineAt(sel.head);
-  if (!isListGapLine(state, line.number)) return tr;
   const prev = state.selection.main.head;
-  const target = state.doc.line(line.number + (sel.head >= prev ? 1 : -1));
-  const col = prev - state.doc.lineAt(prev).from;
-  return [tr, { selection: { anchor: Math.min(target.from + col, target.to) }, sequential: true }];
+  const line = state.doc.lineAt(sel.head);
+  if (line.number === state.doc.lineAt(prev).number || !isHairlineLine(state, line.number)) return tr;
+  const forward = sel.head >= prev;
+  const n = line.number + (forward ? 1 : -1);
+  if (n < 1 || n > state.doc.lines) return tr;
+  const target = state.doc.line(n);
+  const anchor = Math.abs(sel.head - prev) <= 1
+    ? (forward ? target.from : target.to)
+    : Math.min(target.from + (prev - state.doc.lineAt(prev).from), target.to);
+  return [tr, { selection: { anchor }, sequential: true }];
 });

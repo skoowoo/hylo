@@ -47,6 +47,13 @@ export class HyloMarkmap extends Markmap {
     return mm;
   }
 
+  // An instant render (first draw, edit, resize) lands in this frame: a 0ms d3 transition
+  // still waits for the next timer tick, and the card showed blank until then.
+  transition(sel) {
+    if (this.options.duration) return super.transition(sel);
+    return Object.assign(sel, { end: () => Promise.resolve() });
+  }
+
   async renderData(originData) {
     const { paddingX, autoFit, maxWidth, lineWidth } = this.options;
     const rootNode = this.state.data;
@@ -189,7 +196,8 @@ export class HyloMarkmap extends Markmap {
     const mmPathMerge = mmPathEnter.merge(mmPath);
 
     this.svg.style('--markmap-max-width', maxWidth ? `${maxWidth}px` : null);
-    await new Promise(requestAnimationFrame);
+    // Sizes are read synchronously; only an animated render waits for the next frame.
+    if (this.options.duration) await new Promise(requestAnimationFrame);
     this._relayout();
     mmFoMerge.each(function () {
       const text = this.querySelector('.mm-text');

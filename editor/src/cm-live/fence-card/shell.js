@@ -88,7 +88,8 @@ function zoomButtons(getInst) {
 const FADE_MS = 160;
 
 // Lightbox-style overlay: scrim click, Esc, focus held on its buttons and restored on close.
-function openOverlay({ lang, source, renderer, onClose }) {
+// returnFocus(el) lets the host take focus back itself (true if it did).
+function openOverlay({ lang, source, renderer, onClose, returnFocus }) {
   const prevFocus = document.activeElement;
   const overlay = document.createElement('div');
   overlay.className = 'hy-card-full hy-card-full-hidden';
@@ -113,7 +114,7 @@ function openOverlay({ lang, source, renderer, onClose }) {
       if (inst) inst.destroy();
       overlay.remove();
     }, FADE_MS);
-    if (prevFocus && prevFocus.isConnected) prevFocus.focus({ preventScroll: true });
+    if (prevFocus && prevFocus.isConnected && !(returnFocus && returnFocus(prevFocus))) prevFocus.focus({ preventScroll: true });
     onClose();
   };
   const fit = iconButton('scan', 'Fit to view', () => inst && inst.fit && inst.fit());
@@ -145,16 +146,22 @@ function openOverlay({ lang, source, renderer, onClose }) {
   return close;
 }
 
-// onEdit is supplied by the CM widget only; other hosts have no source to jump to.
-// mode tells the renderer which view state it may share: 'card' | 'pip' | 'full'.
-export function mountShell({ into, lang, source, renderer, minHeight, onEdit, mode = 'card' }) {
-  ensureStyle();
+// The card's box before anything is drawn in it, already at the size it keeps.
+export function cardFrame(lang, minHeight) {
   const root = document.createElement('div');
   root.className = `hy-card hy-card-${lang}`;
-  const body = document.createElement('div');
+  const body = root.appendChild(document.createElement('div'));
   body.className = 'hy-card-body';
   body.style.height = minHeight + 'px';
-  root.appendChild(body);
+  return { root, body };
+}
+
+// onEdit and returnFocus are supplied by the CM widget only; other hosts have no source to
+// jump to and no editor to refocus. mode tells the renderer which view state it may share:
+// 'card' | 'pip' | 'full'.
+export function mountShell({ into, lang, source, renderer, minHeight, onEdit, returnFocus, mode = 'card' }) {
+  ensureStyle();
+  const { root, body } = cardFrame(lang, minHeight);
 
   let inst = null;
   let current = source;
@@ -175,22 +182,30 @@ export function mountShell({ into, lang, source, renderer, minHeight, onEdit, mo
     ...zoomButtons(() => inst),
     iconButton('scan', 'Fit to view', () => inst && inst.fit && inst.fit()),
     iconButton('maximize-2', 'Fullscreen', () => {
-      if (!closeOverlay) closeOverlay = openOverlay({ lang, source: current, renderer, onClose: () => { closeOverlay = null; } });
+      if (!closeOverlay) closeOverlay = openOverlay({ lang, source: current, renderer, returnFocus, onClose: () => { closeOverlay = null; } });
     }),
   );
   if (onEdit) bar.append(iconButton('code-xml', 'Edit source', () => onEdit()));
   root.appendChild(bar);
   into.replaceChildren(root);
 
-  // Deferred a frame: the body's height is fixed, so the card paints before the renderer's first layout.
-  requestAnimationFrame(() => {
-    if (destroyed) return;
+  // Drawn in the frame the card appears, never while it has no width: a renderer laid out
+  // detached (a card parked before it mounted) fits to nothing. A card already in the page
+  // mounts now; a detached one when it's laid out with a width.
+  const mountNow = () => {
     try {
       inst = renderer.mount(body, current, { mode, onError: fail });
     } catch (e) {
       fail(e);
     }
+  };
+  const ro = new ResizeObserver(() => {
+    if (inst || destroyed || !body.clientWidth) return;
+    ro.disconnect();
+    mountNow();
   });
+  if (body.isConnected && body.clientWidth) mountNow();
+  else ro.observe(body);
 
   return {
     update(next) {
@@ -199,6 +214,7 @@ export function mountShell({ into, lang, source, renderer, minHeight, onEdit, mo
     },
     destroy() {
       destroyed = true;
+      ro.disconnect();
       if (closeOverlay) closeOverlay();
       if (inst) inst.destroy();
     },

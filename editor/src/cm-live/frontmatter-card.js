@@ -4,14 +4,14 @@
 import { StateField, StateEffect, EditorState, EditorSelection, ChangeSet, Transaction } from '@codemirror/state';
 import { Decoration, EditorView, WidgetType } from '@codemirror/view';
 import { syntaxTree } from '@codemirror/language';
-import { selectionTouchesRange, readingModeToggled } from './selection.js';
+import { headInBlock, readingModeToggled } from './selection.js';
 import { findFrontmatterNode } from './frontmatter-syntax.js';
 import { parseFrontmatter } from './frontmatter-yaml.js';
 import { wikiLinksRevalidated } from './live-preview.js';
 import { splitWikiLinkInner } from './wiki-syntax.js';
 import { WikiLinkWidget } from './widgets.js';
 import { ensureStyle, iconButton } from './fence-card/shell.js';
-import { excludeFromTextSample } from './decoration-helpers.js';
+import { heldBlocks, blockHold, blockSpacer } from './block-hold.js';
 
 export const setFrontmatterCollapsed = StateEffect.define();
 
@@ -38,7 +38,7 @@ const frontmatterEditingField = StateField.define({
     if (tr.effects.some((e) => e.is(editFrontmatter))) return true;
     const node = findFrontmatterNode(tr.state);
     if (!node || tr.state.readOnly) return false;
-    const inside = selectionTouchesRange(tr.state, node.from, node.to);
+    const inside = headInBlock(tr.state, node.from, node.to);
     return inside && (value || tr.isUserEvent('undo') || tr.isUserEvent('redo'));
   },
 });
@@ -181,6 +181,8 @@ function wikiTargets(fields) {
   return out;
 }
 
+const estimateHeight = (collapsed, fieldCount) => (collapsed ? 32 : 32 + fieldCount * 26);
+
 class FrontmatterCardWidget extends WidgetType {
   constructor(source, fields, collapsed, canEdit, broken, options) {
     super();
@@ -202,7 +204,7 @@ class FrontmatterCardWidget extends WidgetType {
   }
 
   get estimatedHeight() {
-    return this.collapsed ? 32 : 32 + this.fields.length * 26;
+    return estimateHeight(this.collapsed, this.fields.length);
   }
 
   // Text with [[links]] rendered as the same chips the body uses.
@@ -346,7 +348,8 @@ function interior(state, node) {
 
 function build(state, options) {
   const node = findFrontmatterNode(state);
-  if (!node || isEditing(state)) return Decoration.none;
+  if (!node) return Decoration.none;
+  if (isEditing(state)) return Decoration.set([blockSpacer(node.to)]);
   const source = interior(state, node);
   const fields = parseFrontmatter(source);
   const broken = options.isWikiLinkBroken ? wikiTargets(fields).filter((t) => t && options.isWikiLinkBroken(t)) : [];
@@ -378,7 +381,18 @@ export function frontmatterCardField(options = {}) {
     },
     provide: (f) => EditorView.decorations.from(f, (v) => v.decorations),
   });
-  return [frontmatterEditingField, keepCaretOut, keepEditsOut, cardField];
+  // While the source is open, block-hold.js keeps the card's height.
+  const held = heldBlocks.of((state) => {
+    const node = findFrontmatterNode(state);
+    if (!node) return [];
+    const collapsed = state.field(frontmatterCollapseField, false);
+    const source = interior(state, node);
+    const editing = isEditing(state);
+    // The estimate only matters for a card never measured before editing.
+    const estimate = editing ? estimateHeight(collapsed, parseFrontmatter(source).length) : 0;
+    return [{ from: node.from, to: node.to, key: 'frontmatter\n' + collapsed + '\n' + source, editing, estimate }];
+  });
+  return [frontmatterEditingField, keepCaretOut, keepEditsOut, cardField, held, blockHold];
 }
 
 // livePreviewPlugin hook: the source shown while editing looks like a code block.
@@ -393,7 +407,6 @@ export function decorateFrontmatterSource(node, view, decos) {
     if (n === first) classes.push('cm-lp-codeblock-first', 'cm-lp-codeblock-fence');
     if (n === last) classes.push('cm-lp-codeblock-last', 'cm-lp-codeblock-fence');
     decos.push(Decoration.line({ class: classes.join(' ') }).range(state.doc.line(n).from));
-    excludeFromTextSample(state.doc.line(n), decos);
   }
   return false;
 }

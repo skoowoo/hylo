@@ -45,17 +45,20 @@ export function revealWidgetBeforeCaret(view) {
   return true;
 }
 
-// Backspace at the start of the line below a block card (fence card, frontmatter)
-// would join it onto the closing fence and break the block. Step into the block instead;
-// frontmatter's caret filter keeps the caret out, so there the press does nothing.
+// Backspace at the start of the line below a rendered block — a card (fence card,
+// frontmatter) or a rule — would join it onto the closing fence or the "---" and break
+// the block. Step onto it instead, which shows its source; frontmatter's caret filter
+// keeps the caret out, so there the press does nothing.
 export function revealBlockBeforeCaret(view) {
   const { state } = view;
   if (state.readOnly || state.selection.ranges.length > 1) return false;
   const sel = state.selection.main;
   if (!sel.empty || sel.head === 0 || state.doc.lineAt(sel.head).from !== sel.head) return false;
-  const block = view.lineBlockAt(sel.head - 1);
-  if (block.type !== BlockType.WidgetRange || block.to !== sel.head - 1) return false;
-  view.dispatch({ selection: { anchor: block.to }, scrollIntoView: true });
+  const above = sel.head - 1;
+  const block = view.lineBlockAt(above);
+  const card = block.type === BlockType.WidgetRange && block.to === above;
+  if (!card && !resolveAncestor(state, above, (n) => n.name === 'HorizontalRule', -1)) return false;
+  view.dispatch({ selection: { anchor: above }, scrollIntoView: true });
   return true;
 }
 

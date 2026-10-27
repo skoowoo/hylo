@@ -240,17 +240,15 @@ export const livePreviewTheme = EditorView.theme({
     maskRepeat: 'no-repeat',
   },
 
-  // ── HR — padding not margin (ResizeObserver); reduced vs old 2em (blank
-  // line already adds ~1.75em). margin:0 clears <hr> UA default.
-  '.cm-lp-hr': {
-    border: 'none',
-    margin: '0',
+  // ── HR — the rule's line and its "---" source share one height.
+  '.cm-lp-hr': { fontSize: '0.75rem', lineHeight: '1.25rem', color: 'var(--muted-soft, rgba(60,60,67,0.45))' },
+  '.cm-lp-hr-rule': {
+    display: 'inline-block',
+    width: '100%',
+    height: '1px',
+    verticalAlign: 'middle',
+    background: 'var(--line-edge, rgba(24,24,27,0.16))',
     borderRadius: '0',
-    borderTop: '1px solid var(--line-edge, rgba(24,24,27,0.16))',
-    padding: '0.5em 0',
-  },
-  '.cm-lp-hr.cm-lp-hr-tight-bottom': {
-    paddingBottom: '0',
   },
 
   // ── Fenced code — per-line chrome; borderRadius:0 so middle lines don't
@@ -366,9 +364,10 @@ export const livePreviewTheme = EditorView.theme({
   '.cm-lp-wikilink-broken:hover': { background: 'transparent', color: 'var(--muted, #6d7080)' },
 
   // ── Images ──────────────────────────────────────────────────────────────
+  // Bottom-aligned, the line is exactly the picture's height: what imageBox() estimates.
   '.cm-lp-wikiimage': {
     display: 'inline-block',
-    verticalAlign: 'middle',
+    verticalAlign: 'bottom',
     maxWidth: '100%',
     cursor: 'default',
     position: 'relative',
@@ -409,13 +408,17 @@ export const livePreviewTheme = EditorView.theme({
     lineHeight: '1.5',
   },
   '.cm-lp-image-broken svg': { width: '14px', height: '14px', flexShrink: '0' },
+  // The edge is an outline, so the box is the picture's own size.
   '.cm-lp-wikiimage img': {
     display: 'block',
     maxWidth: '100%',
     maxHeight: '360px',
-    border: '1px solid var(--tbl-bd, rgba(24,24,27,0.12))',
+    outline: '1px solid var(--tbl-bd, rgba(24,24,27,0.12))',
+    outlineOffset: '-1px',
     borderRadius: 'var(--r-sm, 6px)',
   },
+  // Size known (image-sizes.js): the box is final before the file arrives.
+  '.cm-lp-image-sized img': { width: '100%', height: 'auto', maxHeight: 'none', aspectRatio: 'var(--image-ratio)' },
   '.cm-lp-wikiimage-raw': { color: 'var(--link, #7c3aed)' },
 
   // ── Frontmatter card (frontmatter-card.js). hy-card-inline (fence-card/shell.js)
@@ -539,15 +542,24 @@ export const livePreviewTheme = EditorView.theme({
   // Keep last-row bottom border — no outer <table> to close the box.
   '.cm-lp-table-row-last .cm-lp-table-cell-first': { borderBottomLeftRadius: 'var(--r-sm, 6px)' },
   '.cm-lp-table-row-last .cm-lp-table-cell-last': { borderBottomRightRadius: 'var(--r-sm, 6px)' },
-  '.cm-lp-table-row-top .cm-lp-table-cell': { borderTop: '1px solid var(--tbl-bd, rgba(24,24,27,0.12))' },
-  '.cm-lp-table-row-top .cm-lp-table-cell-first': { borderTopLeftRadius: 'var(--r-sm, 6px)' },
-  '.cm-lp-table-row-top .cm-lp-table-cell-last': { borderTopRightRadius: 'var(--r-sm, 6px)' },
-  // Row under the caret: plain source, sized like the cells so the switch doesn't jolt.
+  // Row under the caret: plain source in the cells' box — same font, padding
+  // and frame borders — so the switch never changes the row's height.
   '.cm-lp-table-raw': {
     fontSize: 'var(--text-base, 0.875rem)',
     color: 'var(--td-tx, #374151)',
-    paddingTop: '0.45rem !important',
-    paddingBottom: '0.45rem !important',
+    padding: '0.45rem 0.75rem !important',
+    border: '1px solid var(--tbl-bd, rgba(24,24,27,0.12))',
+    borderTop: 'none',
+    borderRadius: '0',
+  },
+  '.cm-lp-table-raw-header': {
+    borderTop: '1px solid var(--tbl-bd, rgba(24,24,27,0.12))',
+    borderTopLeftRadius: 'var(--r-sm, 6px)',
+    borderTopRightRadius: 'var(--r-sm, 6px)',
+  },
+  '.cm-lp-table-raw-last': {
+    borderBottomLeftRadius: 'var(--r-sm, 6px)',
+    borderBottomRightRadius: 'var(--r-sm, 6px)',
   },
   '.cm-lp-table-raw-delim, .cm-lp-table-pipe': { color: 'var(--muted-soft, rgba(60,60,67,0.35))' },
   // Hairline: shrink line font + inline-block widget (not block — splits buffers).

@@ -5,29 +5,30 @@ import assert from 'node:assert/strict';
 import { EditorState, EditorSelection } from '@codemirror/state';
 import { syntaxTree, ensureSyntaxTree } from '@codemirror/language';
 import { wikiMarkdownLanguage } from '../src/cm-live/index.js';
-import { nodeDecorators, isListGapLine } from '../src/cm-live/decorators.js';
+import { nodeDecorators, isListGapLine, isHairlineLine } from '../src/cm-live/decorators.js';
 import { splitWikiLinkInner } from '../src/cm-live/wiki-syntax.js';
 import { closeTypedFence, fenceEnter } from '../src/cm-live/fence-close.js';
 import { findFrontmatterNode } from '../src/cm-live/frontmatter-syntax.js';
 import { frontmatterCardField } from '../src/cm-live/frontmatter-card.js';
-import { skipListGaps } from '../src/cm-live/live-preview.js';
+import { skipHairlines } from '../src/cm-live/live-preview.js';
 import { linkTarget } from '../src/cm-live/link-refs.js';
 import { wordRangeAt } from '../src/cm-live/cjk-words.js';
 import { toggleBold, toggleInlineCode, insertLink } from '../src/cm-live/inline-format.js';
 import { nextCell, previousCell, tableEnter } from '../src/cm-live/table-keys.js';
 import { applyTarget } from '../src/cm-live/wikilink-complete.js';
-import { revealedWidgetField, revealWidgetBeforeCaret } from '../src/cm-live/widget-reveal.js';
+import { revealedWidgetField, revealWidgetBeforeCaret, revealBlockBeforeCaret } from '../src/cm-live/widget-reveal.js';
 import { imageNodeAt, imageSpan } from '../src/cm-live/image-nodes.js';
 import { jumpToHeading } from '../src/cm-live/link-click.js';
 import { fenceBody } from '../src/cm-live/fence-card/registry.js';
-import { Decoration } from '@codemirror/view';
+import { Decoration, EditorView } from '@codemirror/view';
+import { imageField } from '../src/cm-live/image-field.js';
 
 const lang = wikiMarkdownLanguage();
 
 function viewFor(doc, anchor, head = anchor) {
   const parse = (st) => (ensureSyntaxTree(st, st.doc.length, 5000), st);
   const view = {
-    state: parse(EditorState.create({ doc, selection: EditorSelection.range(anchor, head), extensions: [lang, revealedWidgetField] })),
+    state: parse(EditorState.create({ doc, selection: EditorSelection.range(anchor, head), extensions: [lang, revealedWidgetField, imageField()] })),
     plugin: () => ({ decorations: Decoration.set(decorate(view), true) }),
     focus() {},
     get visibleRanges() { return [{ from: 0, to: view.state.doc.length }]; },
@@ -39,6 +40,7 @@ function viewFor(doc, anchor, head = anchor) {
 const text = (view) => view.state.doc.toString();
 const sel = (view) => [view.state.selection.main.anchor, view.state.selection.main.head];
 
+// The live-preview plugin's decorations plus the state fields' (images).
 function decorate(view) {
   const out = [];
   syntaxTree(view.state).iterate({
@@ -47,8 +49,14 @@ function decorate(view) {
       if (d) d(n, view, out, {}, new Map());
     },
   });
+  for (const set of view.state.facet(EditorView.decorations)) {
+    if (typeof set === 'function') continue;
+    for (const c = set.iter(); c.value; c.next()) out.push(c.value.range(c.from, c.to));
+  }
   return out;
 }
+
+const isImage = (r) => r.value.spec.widget && r.value.spec.widget.constructor.name === 'ImageWidget';
 
 function decoClasses(view) {
   return decorate(view).map((r) => r.value.spec.class || (r.value.spec.widget ? r.value.spec.widget.constructor.name : 'hidden'));
@@ -297,32 +305,42 @@ test('a state built with the caret inside the frontmatter opens its source', () 
   assert.equal(fmState('---\nt: x\n---', 12).update({ selection: { anchor: 7 } }).state.selection.main.head, 12);
 });
 
+test('a range selection leaves inline syntax and rows rendered; a caret reveals them', () => {
+  const doc = 'a **b** [l](u) c\n\n| x |\n|---|\n| 1 |\n\n---\n\nend';
+  const hidden = (view) => decorate(view).filter((r) => !r.value.spec.widget && !r.value.spec.class && !r.value.spec.attributes).length;
+  const all = viewFor(doc, 0, doc.length);
+  const caret = viewFor(doc, 4);
+  assert.ok(hidden(all) > hidden(caret));
+  assert.ok(!decoClasses(all).some((c) => /table-raw/.test(c)));
+  assert.ok(decoClasses(all).includes('HorizontalRuleWidget'));
+  assert.ok(decoClasses(viewFor(doc, doc.indexOf('| 1'))).some((c) => /table-raw/.test(c)));
+  assert.ok(!decoClasses(viewFor(doc, doc.indexOf('---\n\nend'))).includes('HorizontalRuleWidget'));
+});
+
 test('arrowing onto a collapsed list gap moves past it', () => {
   const doc = '- a\n\n- b';
   assert.equal(isListGapLine(viewFor(doc, 0).state, 2), true);
-  let state = EditorState.create({ doc, selection: { anchor: 3 }, extensions: [lang, skipListGaps] });
+  let state = EditorState.create({ doc, selection: { anchor: 3 }, extensions: [lang, skipHairlines] });
   ensureSyntaxTree(state, state.doc.length, 5000);
   state = state.update({ selection: { anchor: 4 } }).state;
-  assert.equal(state.selection.main.head, 8);
+  assert.equal(state.selection.main.head, 5);
 });
 
-// CM samples line height from the first short plain-text line; a styled line
-// passing that test skews the height map and arrow keys jump dozens of lines.
-test('heading, quote and code lines are kept out of the text-size sample', () => {
-  const doc = '# h111\n\n> quote\n\n```\naaaa\n```\n\nbody';
-  const view = viewFor(doc, doc.length);
-  const covered = new Set();
-  syntaxTree(view.state).iterate({
-    enter(n) {
-      const d = nodeDecorators[n.name];
-      if (!d) return;
-      const out = [];
-      d(n, view, out, {}, new Map());
-      for (const r of out) if (r.value.spec.class === 'cm-lp-styled-line') covered.add(view.state.doc.lineAt(r.from).number);
-    },
-  });
-  assert.ok([1, 3, 6].every((n) => covered.has(n)));
-  assert.ok(!covered.has(9));
+test('arrowing across a table delimiter row or a setext underline steps over it', () => {
+  const step = (doc, from, to) => {
+    let state = EditorState.create({ doc, selection: { anchor: from }, extensions: [lang, skipHairlines] });
+    ensureSyntaxTree(state, state.doc.length, 5000);
+    return state.update({ selection: { anchor: to } }).state.selection.main.head;
+  };
+  const table = '| a | b |\n|---|---|\n| 1 | 2 |';
+  assert.equal(step(table, 9, 10), 20);
+  assert.equal(step(table, 20, 19), 9);
+  assert.equal(isHairlineLine(viewFor(table, 0).state, 2), true);
+  assert.equal(isHairlineLine(viewFor(table, 0).state, 3), false);
+  const setext = 'Title\n---\n\nnext';
+  assert.equal(step(setext, 5, 6), 10);
+  assert.equal(isHairlineLine(viewFor(setext, 0).state, 2), true);
+  assert.equal(isHairlineLine(viewFor('- a\n---', 0).state, 2), false);
 });
 
 // ── P2 ──────────────────────────────────────────────────────────────────
@@ -410,6 +428,18 @@ test('Backspace after a wikilink widget reveals the source first', () => {
   assert.ok(decoClasses(view).includes('WikiLinkWidget'));
 });
 
+test('Backspace below a rule steps onto it instead of joining the line to it', () => {
+  const doc = 'a\n\n---\nText';
+  const view = viewFor(doc, doc.indexOf('Text'));
+  view.lineBlockAt = (pos) => ({ type: 'text', from: view.state.doc.lineAt(pos).from, to: view.state.doc.lineAt(pos).to });
+  assert.equal(revealBlockBeforeCaret(view), true);
+  assert.equal(text(view), doc);
+  assert.equal(view.state.selection.main.head, doc.indexOf('---') + 3);
+  const plain = viewFor('a\nText', 2);
+  plain.lineBlockAt = view.lineBlockAt;
+  assert.equal(revealBlockBeforeCaret(plain), false);
+});
+
 test('Backspace after an image is left to delete the picture; plain text stays default', () => {
   const doc = '![a](u.png)';
   const view = viewFor(doc, doc.length);
@@ -422,7 +452,7 @@ test('a selection covering images keeps them rendered and atomic', () => {
   const doc = '![a](one.png)\n\n![b](two.png)\n';
   const view = viewFor(doc, 0, doc.length);
   const decos = decorate(view);
-  const images = decos.filter((r) => r.value.spec.atomicImage);
+  const images = decos.filter(isImage);
   assert.equal(images.length, 2);
   assert.equal(images[0].value.spec.widget.selected, true);
   assert.equal(images[1].value.spec.widget.selected, true);
@@ -444,7 +474,7 @@ test('a linked image stays rendered when selected and spans the whole link', () 
   const resting = viewFor(doc, 0);
   const decos = decorate(resting);
   Decoration.set(decos, true);
-  const images = decos.filter((r) => r.value.spec.atomicImage);
+  const images = decos.filter(isImage);
   assert.equal(images.length, 1);
   assert.equal(resting.state.sliceDoc(images[0].from, images[0].to), doc.slice(0, -1));
   assert.equal(images[0].value.spec.widget.selected, false);
@@ -455,7 +485,7 @@ test('a linked image stays rendered when selected and spans the whole link', () 
   const selected = viewFor(doc, block.from, block.to);
   const selectedDecos = decorate(selected);
   Decoration.set(selectedDecos, true);
-  const widget = selectedDecos.find((r) => r.value.spec.atomicImage);
+  const widget = selectedDecos.find(isImage);
   assert.equal(widget.value.spec.widget.selected, true);
   assert.ok(!decoClasses(selected).includes('cm-lp-wikiimage-raw'));
   const inside = viewFor(doc, node.from + 2);

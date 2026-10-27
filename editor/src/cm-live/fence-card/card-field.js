@@ -1,14 +1,69 @@
 // Block widgets for registered fence cards. A StateField because CM6 refuses block decorations
-// from a ViewPlugin (see live-preview.js). While the caret is inside, the source stays plain
-// and a large card's preview lives in the floating pip.js panel instead of the document flow.
+// from a ViewPlugin (see live-preview.js). While a selection's head is inside, the source stays
+// plain and a large card's preview lives in the floating pip.js panel instead of the document flow.
 import { StateField } from '@codemirror/state';
-import { Decoration, EditorView, ViewPlugin, WidgetType } from '@codemirror/view';
+import { Decoration, EditorView, WidgetType } from '@codemirror/view';
 import { syntaxTree } from '@codemirror/language';
-import { selectionTouchesRange, readingModeToggled } from '../selection.js';
+import { headInBlock, readingModeToggled } from '../selection.js';
 import { cardEntry, cardFence } from './registry.js';
-import { NEVER_CONTAINS_HR } from '../horizontal-rule-field.js';
-import { mountCard } from './host.js';
+import { LEAF_BLOCKS } from '../tree-utils.js';
+import { mountCard, returnEditorFocus } from './host.js';
 import { cardPip } from './pip.js';
+import { heldBlocks, blockHold, blockSpacer } from '../block-hold.js';
+
+// A card scrolled out of the viewport loses its widget; kept rendered here, it
+// comes back as it was instead of remounting blank and redrawing.
+const parked = new Map();
+const PARK_MAX = 6;
+let holding = 0;
+const passed = [];
+
+// A replace↔widget swap with an eq() widget reuses the DOM yet still destroys the
+// old instance, so a parked DOM still in the page is in use: never handed out or destroyed.
+function park(key, dom) {
+  const prev = parked.get(key);
+  parked.delete(key);
+  // Two cards with the same source share a key; the one pushed out is gone for good.
+  if (prev && prev !== dom) drop(prev);
+  parked.set(key, dom);
+  if (!holding) trim();
+}
+
+function drop(dom) {
+  if (dom.isConnected || !dom._card) return;
+  dom._card.destroy();
+  dom._card = null;
+}
+
+function trim() {
+  while (parked.size > PARK_MAX) {
+    const [oldest, old] = parked.entries().next().value;
+    parked.delete(oldest);
+    drop(old);
+  }
+}
+
+function unpark(key) {
+  const dom = parked.get(key);
+  if (!dom) return null;
+  parked.delete(key);
+  return dom.isConnected ? null : dom;
+}
+
+// Runs fn with every card it scrolls away kept, so the cards in view come back
+// as they were however many it passes (scroll.js measuring the note). Cards it
+// only passes, never mounted, are dropped rather than mounted detached.
+export function keepingParkedCards(fn) {
+  holding++;
+  try {
+    return fn();
+  } finally {
+    if (!--holding) {
+      for (const dom of passed.splice(0)) drop(dom);
+      trim();
+    }
+  }
+}
 
 class CardWidget extends WidgetType {
   constructor(info, source) {
@@ -33,7 +88,13 @@ class CardWidget extends WidgetType {
     return cardEntry(this.info).minHeight + 20;
   }
 
+  get key() {
+    return this.info + '\n' + this.source;
+  }
+
   toDOM(view) {
+    const kept = unpark(this.key);
+    if (kept) return kept;
     const wrap = document.createElement('div');
     wrap.className = 'cm-card-widget';
     // A press would drop the DOM selection inside the card, and CM's next DOM flush reads it as
@@ -44,20 +105,17 @@ class CardWidget extends WidgetType {
         view.dispatch({ selection: { anchor: editPos(view.state.doc, view.posAtDOM(wrap)) }, scrollIntoView: true });
         view.focus();
       },
+      returnFocus: (el) => returnEditorFocus(view, el),
     });
     wrap._card = h;
     wrap.appendChild(h.el);
     return wrap;
   }
 
-  // A replace↔widget swap with an eq() widget reuses the DOM yet still destroys the old
-  // instance, so teardown waits to see whether the DOM survived the update.
   destroy(dom) {
-    queueMicrotask(() => {
-      if (dom.isConnected || !dom._card) return;
-      dom._card.destroy();
-      dom._card = null;
-    });
+    if (!dom._card) return;
+    if (holding && !dom._card.mounted) passed.push(dom);
+    else park(this.key, dom);
   }
 
   ignoreEvent() {
@@ -73,27 +131,6 @@ function editPos(doc, fenceStart) {
   return /^\s*(`{3,}|~{3,})\s*$/.test(next.text) ? open.to : next.to;
 }
 
-// Holds the card's height under the source while it's being edited, so the
-// text below doesn't jump when the card turns into a few lines of source
-// (or back). Sized by cardSpacer below; shrinks to nothing once the source
-// outgrows the card.
-class CardSpacerWidget extends WidgetType {
-  eq() {
-    return true;
-  }
-
-  toDOM() {
-    const el = document.createElement('div');
-    el.className = 'cm-card-spacer';
-    return el;
-  }
-
-  ignoreEvent() {
-    return false;
-  }
-}
-
-// Fences sit where the HR walk would stop descending, except FencedCode itself.
 function collect(state) {
   const found = [];
   syntaxTree(state).iterate({
@@ -103,7 +140,7 @@ function collect(state) {
         if (f) found.push(f);
         return false;
       }
-      if (NEVER_CONTAINS_HR.has(node.name)) return false;
+      if (LEAF_BLOCKS.has(node.name)) return false;
     },
   });
   return found;
@@ -112,8 +149,8 @@ function collect(state) {
 function build(state, found) {
   const ranges = [];
   for (const f of found) {
-    if (selectionTouchesRange(state, f.from, f.to)) {
-      ranges.push(Decoration.widget({ widget: new CardSpacerWidget(), block: true, side: 1 }).range(f.to));
+    if (headInBlock(state, f.from, f.to)) {
+      ranges.push(blockSpacer(f.to));
       continue;
     }
     const widget = new CardWidget(f.info, f.body);
@@ -137,61 +174,15 @@ export const cardState = StateField.define({
   provide: (f) => EditorView.decorations.from(f, (v) => v.decorations),
 });
 
-const cardKey = (f) => f.info + '\n' + f.body;
-
-// Remembers each card's rendered height (from the height map, so it's the
-// measured one) and, while a card is being edited, sets the spacer to that
-// height minus the source's.
-const cardSpacer = ViewPlugin.fromClass(class {
-  constructor(view) {
-    this.heights = new Map();
-    this.editing = null; // { from, target }
-    this.update({ view, state: view.state, changes: null });
-  }
-
-  update(u) {
-    const view = u.view;
-    const { found } = u.state.field(cardState);
-    if (this.editing && u.changes) this.editing.from = u.changes.mapPos(this.editing.from);
-    let active = null;
-    for (const f of found) {
-      if (selectionTouchesRange(u.state, f.from, f.to)) {
-        active = f;
-        continue;
-      }
-      const block = view.lineBlockAt(f.from);
-      if (block.from === f.from && block.to === f.to && block.height > 0) this.heights.set(cardKey(f), block.height);
-    }
-    if (!active) {
-      this.editing = null;
-      return;
-    }
-    // The target is fixed when editing starts; typing changes the key but not the card's slot.
-    if (!this.editing || this.editing.from !== active.from) {
-      const known = this.heights.get(cardKey(active));
-      this.editing = { from: active.from, target: known ?? cardEntry(active.info).minHeight + 20 };
-    }
-    const { target } = this.editing;
-    view.requestMeasure({
-      key: this,
-      read: () => {
-        const lineEl = (pos) => {
-          const { node } = view.domAtPos(pos);
-          return (node.nodeType === 1 ? node : node.parentElement).closest('.cm-line');
-        };
-        const first = lineEl(active.from);
-        const last = lineEl(active.to);
-        if (!first || !last) return null;
-        return last.getBoundingClientRect().bottom - first.getBoundingClientRect().top;
-      },
-      write: (sourceHeight) => {
-        const spacer = view.contentDOM.querySelector('.cm-card-spacer');
-        if (spacer && sourceHeight != null) spacer.style.height = Math.max(0, Math.round(target - sourceHeight)) + 'px';
-      },
-    });
-  }
-});
+// While the caret is inside a card's source, block-hold.js keeps the card's height.
+const heldCards = heldBlocks.of((state) => state.field(cardState).found.map((f) => ({
+  from: f.from,
+  to: f.to,
+  key: f.info + '\n' + f.body,
+  editing: headInBlock(state, f.from, f.to),
+  estimate: cardEntry(f.info).minHeight + 20,
+})));
 
 export function fenceCardField() {
-  return [cardState, cardSpacer, cardPip(cardState)];
+  return [cardState, heldCards, blockHold, cardPip(cardState)];
 }

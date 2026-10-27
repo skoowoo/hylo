@@ -3,8 +3,7 @@
 //   [text][label] full reference, [text][] collapsed — LinkLabel child
 //   [text]        shortcut — neither; only a link if the label is defined
 import { syntaxTree } from '@codemirror/language';
-// Definitions only start a block, so the walk can skip leaf blocks.
-import { NEVER_CONTAINS_HR as LEAF_BLOCKS } from './horizontal-rule-field.js';
+import { LEAF_BLOCKS } from './tree-utils.js';
 
 // CommonMark label matching: case-insensitive, inner whitespace collapsed.
 function normalizeLabel(label) {

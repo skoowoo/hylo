@@ -1,7 +1,7 @@
-// Hold off decorateLink reveal while a click-to-open is pending.
-// mousedown can't preventDefault (breaks drag-select), so the caret briefly
-// touches the link — without this, raw "[text](url)" flashes before mouseup.
-// StateField (not a module var) so it stays in CM6's transaction pipeline.
+// Hold off decorateLink reveal for a link being clicked open. mousedown can't
+// preventDefault (breaks drag-select), so the caret lands in the link; the
+// link stays rendered until the click turns out to be a drag, or the caret
+// moves on by keyboard or the doc changes.
 import { StateField, StateEffect } from '@codemirror/state';
 
 export const setSuppressedLinkReveal = StateEffect.define();
@@ -10,10 +10,10 @@ export const suppressedLinkRevealField = StateField.define({
   create: () => null, // { from, to } | null
   update(value, tr) {
     for (const e of tr.effects) {
-      if (e.is(setSuppressedLinkReveal)) value = e.value;
+      if (e.is(setSuppressedLinkReveal)) return e.value;
     }
-    // Doc edit invalidates the range; also heals a missed mouseup clear.
-    return tr.docChanged ? null : value;
+    if (tr.docChanged || (tr.selection && !tr.isUserEvent('select.pointer'))) return null;
+    return value;
   },
 });
 

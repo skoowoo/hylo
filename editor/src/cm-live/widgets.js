@@ -1,6 +1,7 @@
 import { WidgetType, EditorView } from '@codemirror/view';
 import { openImageViewer } from './image-viewer.js';
 import { imageNodeAt } from './image-nodes.js';
+import { imageBox, columnWidth, rememberImageSize, IMAGE_MAX_HEIGHT } from './image-sizes.js';
 
 // Click puts the caret `offset` chars into the source the widget replaces,
 // which flips it back to raw markdown for editing.
@@ -56,10 +57,6 @@ export class WikiLinkWidget extends WidgetType {
   }
 }
 
-// Rendered height per src: a re-created <img> holds its box while it decodes
-// instead of collapsing to zero, and the height map gets a real estimate.
-const imageHeightCache = new Map();
-
 const ZOOM_ICON =
   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="m21 3-7 7"/><path d="m3 21 7-7"/></svg>';
 const BROKEN_ICON =
@@ -68,45 +65,45 @@ const BROKEN_ICON =
 // ![[file]] and ![alt](url). `src` is already resolved by the decorator;
 // `label` names the image in the broken-image placeholder. Double-click edits
 // the source `editOffset` chars in; the corner button opens the viewer.
+// `size` (image-sizes.js) lays the box out at its final size before the file
+// loads and gives CM the line's real height while it isn't drawn.
 export class ImageWidget extends WidgetType {
-  constructor(src, label, editOffset, selected = false) {
+  constructor(src, label, editOffset, selected = false, size = null) {
     super();
     this.src = src;
     this.label = label;
     this.editOffset = editOffset;
     this.selected = selected;
+    this.size = size;
   }
 
   eq(other) {
-    return other.src === this.src && other.label === this.label && other.editOffset === this.editOffset && other.selected === this.selected;
+    return other.src === this.src && other.label === this.label && other.editOffset === this.editOffset &&
+      other.selected === this.selected && sameSize(other.size, this.size);
   }
 
-  // Selection changes the outline only — rebuilding would reload the image.
+  // Selection and a learned size change the box only — rebuilding would reload the image.
   updateDOM(dom, _view, old) {
     if (old.src !== this.src || old.label !== this.label || old.editOffset !== this.editOffset) return false;
     dom.classList.toggle('cm-lp-image-selected', this.selected);
+    if (!dom.classList.contains('cm-lp-image-broken')) sizeBox(dom, this.size);
     return true;
   }
 
   get estimatedHeight() {
-    return imageHeightCache.get(this.src) ?? -1;
+    return this.size ? Math.ceil(imageBox(this.size, columnWidth()).height) : -1;
   }
 
   toDOM(view) {
     const wrap = document.createElement('span');
     wrap.className = 'cm-lp-wikiimage' + (this.selected ? ' cm-lp-image-selected' : '');
+    sizeBox(wrap, this.size);
     const img = document.createElement('img');
     img.alt = this.label;
     img.draggable = false;
-    const known = imageHeightCache.get(this.src);
-    if (known) wrap.style.minHeight = known + 'px';
-    img.addEventListener('load', () => {
-      wrap.style.minHeight = '';
-      if (wrap.offsetHeight) imageHeightCache.set(this.src, wrap.offsetHeight);
-    }, { once: true });
+    img.addEventListener('load', () => rememberImageSize(this.src, img.naturalWidth, img.naturalHeight), { once: true });
     img.addEventListener('error', () => {
-      imageHeightCache.delete(this.src);
-      wrap.style.minHeight = '';
+      sizeBox(wrap, null);
       wrap.classList.add('cm-lp-image-broken');
       wrap.innerHTML = BROKEN_ICON;
       const text = document.createElement('span');
@@ -154,6 +151,17 @@ export class ImageWidget extends WidgetType {
   ignoreEvent() {
     return false;
   }
+}
+
+function sameSize(a, b) {
+  return a === b || (!!a && !!b && a[0] === b[0] && a[1] === b[1]);
+}
+
+// The same box imageBox() predicts, in CSS so it follows the column's width.
+function sizeBox(wrap, size) {
+  wrap.classList.toggle('cm-lp-image-sized', !!size);
+  wrap.style.width = size ? `min(${size[0]}px, 100%, ${(IMAGE_MAX_HEIGHT * size[0]) / size[1]}px)` : '';
+  wrap.style.setProperty('--image-ratio', size ? `${size[0]} / ${size[1]}` : '');
 }
 
 // GFM "[ ]"/"[x]" → checkbox in the list's marker column. Position is read
@@ -312,26 +320,21 @@ export class CodeHeaderWidget extends WidgetType {
   }
 }
 
-// Thematic break as <hr>.
+// Thematic break: a rule across the line that holds its "---".
 export class HorizontalRuleWidget extends WidgetType {
-  // Blank after hr: drop bottom padding so it doesn't stack on blank-line height.
-  constructor(followedByBlank) {
-    super();
-    this.followedByBlank = !!followedByBlank;
-  }
-
-  eq(other) {
-    return other.followedByBlank === this.followedByBlank;
+  eq() {
+    return true;
   }
 
   toDOM() {
-    const hr = document.createElement('hr');
-    hr.className = 'cm-lp-hr' + (this.followedByBlank ? ' cm-lp-hr-tight-bottom' : '');
-    return hr;
+    const rule = document.createElement('span');
+    rule.className = 'cm-lp-hr-rule';
+    return rule;
   }
 
+  // A click on the rule lands the caret on its line, revealing the source.
   ignoreEvent() {
-    return true;
+    return false;
   }
 }
 

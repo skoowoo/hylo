@@ -4,13 +4,15 @@
 // Edge cases:
 //   1. Drag: travel >= CLICK_DRAG_THRESHOLD → don't open (not "selection empty"
 //      — hand tremor alone can make a 1-char selection).
-//   2. Already editing: selectionTouchesRange on pre-click selection → don't open.
+//   2. Already editing: caretTouchesRange on pre-click selection → don't open.
 //   3. Hit test is the rendered link text itself (.cm-lp-link), so the first and
 //      last characters are as clickable as the middle.
 //   4. mouseup: raw capture-phase — CM6 MouseSelection preventDefault races domEventHandlers.
+//   5. A link clicked open keeps its rendered form until the caret moves on
+//      (link-reveal-suppression.js), so opening it never flashes the source.
 import { EditorView, ViewPlugin } from '@codemirror/view';
 import { syntaxTree, ensureSyntaxTree } from '@codemirror/language';
-import { selectionTouchesRange } from './selection.js';
+import { caretTouchesRange } from './selection.js';
 import { setSuppressedLinkReveal, suppressedLinkRevealField } from './link-reveal-suppression.js';
 import { linkTarget } from './link-refs.js';
 
@@ -119,13 +121,15 @@ export function linkClickHandler() {
           }
           // Macrotask: CM6 finalizes caret placement on this same mouseup.
           setTimeout(() => {
-            // Clear suppression + open in one callback to avoid reveal flash.
-            this.view.dispatch({ effects: setSuppressedLinkReveal.of(null) });
             const traveled = Math.hypot(e.clientX - p.startX, e.clientY - p.startY);
-            if (traveled >= CLICK_DRAG_THRESHOLD) return;
-            // Collapse tremor-induced 1-char selection to a caret.
+            // A drag selects text: the link shows its source like any other edit.
+            if (traveled >= CLICK_DRAG_THRESHOLD) {
+              this.view.dispatch({ effects: setSuppressedLinkReveal.of(null) });
+              return;
+            }
+            // Collapse tremor-induced 1-char selection to a caret; the link stays rendered.
             if (!this.view.state.selection.main.empty) {
-              this.view.dispatch({ selection: { anchor: this.view.state.selection.main.head } });
+              this.view.dispatch({ selection: { anchor: this.view.state.selection.main.head }, userEvent: 'select.pointer' });
             }
             if (p.kind === 'anchor') {
               jumpToHeading(this.view, p.target);
@@ -152,7 +156,7 @@ export function linkClickHandler() {
       const node = linkNodeAt(view, view.posAtDOM(hit));
       if (!node) return false;
       // Already editing raw markdown — leave alone.
-      if (selectionTouchesRange(view.state, node.from, node.to)) return false;
+      if (caretTouchesRange(view.state, node.from, node.to)) return false;
       pending = node.url.startsWith('#')
         ? { kind: 'anchor', target: node.url.slice(1), startX: e.clientX, startY: e.clientY }
         : { kind: 'url', url: node.url, startX: e.clientX, startY: e.clientY };

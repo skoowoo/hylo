@@ -31,4 +31,10 @@ export {
   planAgentRewrite,
   readAgentDoc,
   agentType,
+  stableTextMetrics,
+  syncDoc,
+  docSynced,
+  preloadImageSizes,
+  editorScroll,
+  focusInPlace,
 } from './cm-live/index.js';

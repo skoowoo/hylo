@@ -1,7 +1,7 @@
 // ── GFM tables — per-line decorations; cells are inline-block + % width
 // (shared across rows). No block widget / contenteditable.
 import { Decoration } from '@codemirror/view';
-import { selectionTouchesLine } from './selection.js';
+import { caretOnLine } from './selection.js';
 import { TableEmptyCellWidget, TableDelimiterWidget } from './widgets.js';
 import { hideRange, styleRange } from './decoration-helpers.js';
 
@@ -80,27 +80,18 @@ function getTableLayout(tableNode, doc, cache) {
 }
 
 // Hairline via inline-block widget + shrunk line font-size (shrinks CM6
-// widgetBuffers too). Plain hideRange / block widget leave a tall gap.
+// widgetBuffers too). Plain hideRange / block widget leave a tall gap. Only
+// typing reaches the row raw: caret motion steps over it (isHairlineLine).
 export function decorateTableDelimiterRow(node, view, decos) {
   if (!node.node.parent || node.node.parent.name !== 'Table') return;
   const state = view.state;
   const line = state.doc.lineAt(node.from);
-  if (selectionTouchesLine(state, line)) {
+  if (caretOnLine(state, line)) {
     decos.push(Decoration.line({ class: 'cm-lp-table-raw cm-lp-table-raw-delim' }).range(line.from));
     return;
   }
   decos.push(Decoration.line({ class: 'cm-lp-table-row cm-lp-table-delim' }).range(line.from));
   decos.push(Decoration.replace({ widget: new TableDelimiterWidget() }).range(line.from, line.to));
-}
-
-function isFirstBodyRow(tableNode, node) {
-  const first = tableNode && tableNode.getChild('TableRow');
-  return !!first && first.from === node.from;
-}
-
-function headerIsRaw(state, tableNode) {
-  const header = tableNode.getChild('TableHeader');
-  return !!header && selectionTouchesLine(state, state.doc.lineAt(header.from));
 }
 
 function decorateTableRow(isHeader) {
@@ -112,10 +103,14 @@ function decorateTableRow(isHeader) {
     const last = tableNode && tableNode.lastChild;
     const isLastRow = !isHeader && !!last && last.from === node.from && last.to === node.to;
 
-    // The row being edited stays a plain text line: inside the flex row its
-    // text runs and spans would become separate flex items and lose spacing.
-    if (selectionTouchesLine(state, line)) {
-      decos.push(Decoration.line({ class: 'cm-lp-table-raw' }).range(line.from));
+    // The row being edited stays a plain text line (inside the flex row its
+    // text runs and spans would become separate flex items), framed by the
+    // same borders and padding as its cells, so the table keeps its shape.
+    if (caretOnLine(state, line)) {
+      const raw = ['cm-lp-table-raw'];
+      if (isHeader) raw.push('cm-lp-table-raw-header');
+      if (isLastRow) raw.push('cm-lp-table-raw-last');
+      decos.push(Decoration.line({ class: raw.join(' ') }).range(line.from));
       for (const pipe of node.node.getChildren('TableDelimiter')) styleRange(pipe.from, pipe.to, 'cm-lp-table-pipe', decos);
       return;
     }
@@ -123,8 +118,6 @@ function decorateTableRow(isHeader) {
     const rowClasses = ['cm-lp-table-row'];
     if (isHeader) rowClasses.push('cm-lp-table-row-header');
     if (isLastRow) rowClasses.push('cm-lp-table-row-last');
-    // A raw header no longer draws the table's top edge.
-    if (!isHeader && isFirstBodyRow(tableNode, node) && headerIsRaw(state, tableNode)) rowClasses.push('cm-lp-table-row-top');
     decos.push(Decoration.line({ class: rowClasses.join(' ') }).range(line.from));
 
     const layout = tableNode ? getTableLayout(tableNode, doc, tableCache) : { alignments: [], weights: [] };
@@ -146,6 +139,8 @@ function decorateTableRow(isHeader) {
 
     // Column count from header alignments — trailing empty cells still need boxes.
     const colCount = Math.max(alignments.length, weights.length, colCells.length);
+    let total = 0;
+    for (let col = 0; col < colCount; col++) total += weights[col] || 4;
     let pos = line.from;
     for (let col = 0; col < colCount; col++) {
       const cls = ['cm-lp-table-cell'];
@@ -158,7 +153,8 @@ function decorateTableRow(isHeader) {
       // has already claimed its own min-width floor (tableColumnMinEm), so
       // a short column can never be squeezed narrower than its own content
       // needs just because a sibling column is much longer.
-      const styleParts = ['flex:' + weight + ' 1 0%', 'min-width:' + tableColumnMinEm(weight) + 'em'];
+      // The floor gives way to the column's weighted share of the row, so a table always fits the column.
+      const styleParts = ['flex:' + weight + ' 1 0%', `min-width:min(${tableColumnMinEm(weight)}em,${(100 * weight) / total}%)`];
       if (align) styleParts.push('text-align:' + align);
       const style = styleParts.join(';');
       const cell = colCells[col];

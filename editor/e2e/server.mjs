@@ -50,7 +50,12 @@ export async function startServer() {
       const name = path.basename(url.searchParams.get('f') || '');
       return send('text/plain; charset=utf-8', fs.readFileSync(path.join(HERE, 'fixtures', name)));
     }
-    if (url.pathname === '/image') return send('image/svg+xml', IMAGE);
+    if (url.pathname === '/image') {
+      // "…800x1200…" in the name sizes the stand-in; a short delay like a real fetch + decode.
+      const dims = /(\d+)x(\d+)/.exec(url.search);
+      const svg = dims ? IMAGE.replace(/1600/g, dims[1]).replace(/1000/g, dims[2]) : IMAGE;
+      return setTimeout(() => send('image/svg+xml', svg), dims ? 80 : 0);
+    }
     if (url.pathname === '/chat') return send('text/html', chatPage());
     const asset = /^\/(view|vendor)\/([\w.-]+)$/.exec(url.pathname);
     if (asset) {

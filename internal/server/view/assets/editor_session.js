@@ -13,9 +13,9 @@
     brokenWikiLinkNames: new Set(),
     wikiLinkRevalidateSeq: 0,
     decoCompartment: null, readCompartment: null,
-    inSource: false, pendingScrollRaf: null,
+    inSource: false,
     // Heading a [[note#Heading]] click should land on once the note opens;
-    // applied by __hyloEditorRestoreScroll so its scroll writes don't undo it.
+    // applied by __hyloEditorRestoreScroll in place of the saved position.
     pendingHeading: null,
     // reading: global user preference, survives note/tab switches and restarts.
     // readingActive: what the view is actually showing — drafts stay editable
@@ -168,12 +168,12 @@
       tab._materializing = false;
     }
   }
-  // Only real edits reach here: tab switches use view.setState(), which skips updateListener.
+  // Only real edits reach here: tab switches use view.setState(), which skips
+  // updateListener, and a disk sync is already saved.
   function __hyloEditorHandleContentChange(md) {
     var s = __hyloEditor;
     var pane = window.__hyloContentPane;
     if (pane && !pane.contentPaneOpen) return;
-    s.currentMd = md;
     var tab = __hyloEditorActiveTab();
     if (tab && !tab.path) {
       // In-memory only (never persisted) — lets switching back to this tab
@@ -238,6 +238,10 @@
     return name.replace(/\.md$/i, '');
   }
 
+  function __hyloWikiImageSrc(filename) {
+    return '/api/images/serve?name=' + encodeURIComponent(filename);
+  }
+
   // ![alt](path) → served from the vault. Relative paths resolve against the
   // note's folder, "/..." against the vault root; anything with a scheme
   // (https:, data:) is left alone.
@@ -297,9 +301,9 @@
     }
     s.pendingHeading = heading || null;
     await __hyloContentPaneOpenWikiLink(target);
-    // No restore in flight means the open failed or bailed; don't let the
-    // heading leak into whatever note opens next.
-    if (!s.pendingScrollRaf) s.pendingHeading = null;
+    // The open has consumed it, or failed or bailed; either way it mustn't
+    // leak into whatever note opens next.
+    s.pendingHeading = null;
   }
 
   // Open a wiki-link target in the pane.  value is the raw [[…]] inner text.
@@ -339,16 +343,16 @@
     } catch(_) {}
   }
 
-  // Per-tab scroll position and source-mode flag. snapshot anchors on a doc
-  // position: a fresh state forgets measured line heights, so the raw
-  // scrollTop lands hundreds of lines off on a long note.
+  // Per-tab scroll position, caret and source-mode flag. The snapshot anchors on
+  // a doc position: a fresh state forgets measured line heights, so a raw
+  // scrollTop would land hundreds of lines off on a long note.
   var __hyloTabStates = new Map();
   function __hyloEditorSaveTabState(tabId) {
     if (!tabId) return;
     var view = __hyloEditor.view;
     __hyloTabStates.set(tabId, {
-      scrollTop: view ? view.scrollDOM.scrollTop : 0,
       snapshot: view ? view.scrollSnapshot() : null,
+      selection: view ? view.state.selection.toJSON() : null,
       inSource: __hyloEditor.inSource,
     });
   }
@@ -420,9 +424,7 @@
       var sharedLanguage = cm.wikiMarkdownLanguage();
 
       var liveOptions = {
-        resolveImageSrc: function(filename) {
-          return '/api/images/serve?name=' + encodeURIComponent(filename);
-        },
+        resolveImageSrc: __hyloWikiImageSrc,
         resolveMarkdownImageSrc: function(url) { return __hyloNoteImageSrc(url, s.currentPath); },
         onWikiLinkClick: function(target, alias, e, heading) { void __hyloEditorFollowWikiLink(target, heading); },
         // Populated (async, after each note load) by __hyloEditorRevalidateWikiLinks.
@@ -459,6 +461,10 @@
           // WebKit's native caret spans the line gap above on a paragraph's
           // wrapped lines and leaves stale paint; CM's is sized from the text.
           cm.drawnSelection(),
+          // In both modes: keeps CM's height estimates from shifting as it scrolls,
+          // and owns the scroll so its corrections land in the frame they're made.
+          cm.stableTextMetrics,
+          cm.editorScroll,
           cm.agentWritingExtension,
           cm.keymap.of([].concat(cm.defaultKeymap, cm.historyKeymap)),
           cm.search({ top: true, createPanel: __hyloCreateSearchPanel }),
@@ -470,9 +476,12 @@
           s.decoCompartment.of(decoInitial),
           s.readCompartment.of(readInitial),
           cm.EditorView.updateListener.of(function(update) {
-            // setState() never fires this, so every docChanged here is a real edit.
+            // setState() never fires this.
             if (!update.docChanged) return;
-            __hyloEditorHandleContentChange(update.state.doc.toString());
+            var md = update.state.doc.toString();
+            s.currentMd = md;
+            var edited = update.transactions.some(function(tr) { return tr.docChanged && !tr.annotation(cm.docSynced); });
+            if (edited) __hyloEditorHandleContentChange(md);
           }),
           cm.EditorView.domEventHandlers({
             paste: function(e, view) {
@@ -493,11 +502,14 @@
       };
       // One EditorState per note/tab, swapped in with setState(): a switch is not an edit,
       // so nothing lands in undo history or hits the frontmatter filter.
-      s._buildState = function(content, inSource, reading) {
+      // selection: the tab's own, saved when it was left (dropped if the note got shorter).
+      s._buildState = function(content, inSource, reading, selection) {
+        var doc = content || '';
+        var fits = selection && selection.ranges.every(function(r) { return Math.max(r.anchor, r.head) <= doc.length; });
         return cm.EditorState.create({
-          doc: content || '',
-          // Land past frontmatter and any leading list/heading marker, not at offset 0.
-          selection: cm.EditorSelection.cursor(cm.initialCursorOffset(content || '')),
+          doc: doc,
+          // Otherwise land past frontmatter and any leading list/heading marker, not at offset 0.
+          selection: fits ? cm.EditorSelection.fromJSON(selection) : cm.EditorSelection.cursor(cm.initialCursorOffset(doc)),
           extensions: s._buildExtensions(
             inSource ? [sourceHighlight] : cm.liveDecorations(liveOptions),
             (!inSource && reading) ? cm.readingExtensions() : []
@@ -658,16 +670,12 @@
       },
       // User-triggered: source / reading → live preview
       exitSource: function() {
-        var s = __hyloEditor;
-        if (s.readingActive) __hyloEditorSetReadingPref(false);
-        s.currentMd = s.view.state.doc.toString();
+        if (__hyloEditor.readingActive) __hyloEditorSetReadingPref(false);
         reconfigure(false, false);
       },
       // User-triggered: any mode → reading view
       enterReading: function() {
-        var s = __hyloEditor;
         __hyloEditorSetReadingPref(true);
-        s.currentMd = s.view.state.doc.toString();
         reconfigure(false, true, {skipFocus: true});
       },
       // More menu's "Source / Live preview" item.
@@ -680,8 +688,9 @@
     };
   })();
 
+  // Focus handed back without moving the caret or the scroll (cm-live/focus.js).
   function __hyloFocusEditor() {
-    if (__hyloEditor.view) __hyloEditor.view.focus();
+    if (__hyloEditor.view) __hyloCM.focusInPlace(__hyloEditor.view);
   }
   function __hyloBlurActive() {
     if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
@@ -717,47 +726,54 @@
       return false;
     }
     var content = read.text;
-    await __hyloEditorPreloadLanguages(content);
+    await __hyloEditorPreload(content, path);
     if (!__hyloEditorIsActiveTabId(tabId)) return false;
     s.currentPath = path; s.currentMd = __hyloEditorTightenLists(content); s.dirty = false;
     // Apply state (will create new state if no saved state)
-    return await __hyloEditorApplyState(savedState || { inSource: false, scrollTop: 0 }, tabId);
+    return await __hyloEditorApplyState(savedState || { inSource: false }, tabId);
   }
 
-  // Re-reads the note already showing; the doc is replaced only if the file changed.
+  // Re-reads the note already showing and applies only what changed on disk.
   async function __hyloContentPaneRefreshNote(path, tabId) {
     var read = await __hyloEditorReadNote(path);
     if (read.text === null) return;
     var content = __hyloEditorTightenLists(read.text);
     var s = __hyloEditor;
     if (s.dirty || s.currentPath !== path || content === s.currentMd || !__hyloEditorIsActiveTabId(tabId)) return;
-    await __hyloEditorPreloadLanguages(content);
-    if (s.dirty || s.currentPath !== path || !__hyloEditorIsActiveTabId(tabId)) return;
-    __hyloEditorSaveTabState(tabId);
-    s.currentMd = content;
-    await __hyloEditorApplyState(__hyloEditorRestoreTabState(tabId), tabId);
+    await __hyloEditorPreload(content, path);
+    if (s.dirty || s.currentPath !== path || !__hyloEditorIsActiveTabId(tabId) || !s.view) return;
+    __hyloCM.syncDoc(s.view, content);
   }
 
   async function __hyloContentPaneSetContent(content, tabId, savedState) {
     var s = __hyloEditor;
     if (s.dirty && s.currentPath) { clearTimeout(s.saveTimer); s.saveTimer = null; await __hyloEditorDoSave(); }
     else { clearTimeout(s.saveTimer); s.saveTimer = null; }
-    await __hyloEditorPreloadLanguages(content || '');
+    await __hyloEditorPreload(content || '', '');
     if (!__hyloEditorIsActiveTabId(tabId)) return false;
     __hyloEditorSaveStatus('');
     s.currentPath = ''; s.currentMd = __hyloEditorTightenLists(content || ''); s.dirty = false;
     
     // Apply state
-    return await __hyloEditorApplyState(savedState || { inSource: false, scrollTop: 0 }, tabId);
+    return await __hyloEditorApplyState(savedState || { inSource: false }, tabId);
   }
   
-  // Runs before currentPath/currentMd switch over, so typing into the old
-  // note during the wait still saves to the old note. Capped so a slow chunk
-  // only costs a late highlight, never a stalled open.
-  function __hyloEditorPreloadLanguages(content) {
-    var p = __hyloCM && __hyloCM.preloadCodeLanguages(content);
-    if (!p) return null;
-    return Promise.race([p, new Promise(function(r) { setTimeout(r, 150); })]);
+  // What the note at `path` needs before its state is built: grammars, card
+  // renderers, and image sizes (CM keeps an unrendered line's first height
+  // estimate). Runs before currentPath/currentMd switch over, so typing into
+  // the old note during the wait still saves to it. Capped so a slow one only
+  // costs a late highlight or one height correction, never a stalled open.
+  async function __hyloEditorPreload(content, path) {
+    await __hyloEnsureContentPaneEditor();
+    var cm = __hyloCM;
+    var jobs = [
+      cm.preloadCodeLanguages(content),
+      cm.preloadImageSizes(content, {
+        resolveImageSrc: __hyloWikiImageSrc,
+        resolveMarkdownImageSrc: function(url) { return __hyloNoteImageSrc(url, path); },
+      }),
+    ].filter(Boolean);
+    await Promise.race([Promise.all(jobs), new Promise(function(r) { setTimeout(r, 150); })]);
   }
 
   async function __hyloEditorApplyState(state, expectedTabId) {
@@ -779,44 +795,33 @@
     // A note/tab switch: brand-new EditorState (mode baked in from the
     // start) swapped in via setState(), not a dispatch()'d replace onto the
     // previous tab's state — see s._buildState's comment for why.
-    s.view.setState(s._buildState(s.currentMd, wantSource, wantReading));
+    s.view.setState(s._buildState(s.currentMd, wantSource, wantReading, state.selection));
     // A fresh state is parsed only ~3000 chars deep; the background worker
     // finishes 100–500ms later, so the rest would paint as raw markdown first.
     __hyloCM.forceParsing(s.view, s.view.state.doc.length, 40);
     __hyloEditorSetModeState(wantSource, wantReading);
     void __hyloEditorRevalidateWikiLinks();
-    // Sync write covers the tab-switch frame; the next one lands after CM's measure.
-    __hyloEditorRestoreScroll(state, { sync: true, tabId: expectedTabId, focus: true });
+    __hyloEditorRestoreScroll(state);
+    // A pane still closed (loading ahead of its slide) takes focus as it opens.
+    // Whether the caret is on screen is known once CM's measure (queued first)
+    // has landed the restore or the heading jump.
+    requestAnimationFrame(function() {
+      var pane = window.__hyloContentPane;
+      if (pane && pane.contentPaneOpen && __hyloEditorIsActiveTabId(expectedTabId) && !__hyloFocusInsideEditor()) __hyloFocusEditor();
+    });
     return true;
   }
 
-  // saved: { scrollTop, snapshot? } from __hyloEditorSaveTabState.
-  function __hyloEditorRestoreScroll(saved, opts) {
+  // saved: { snapshot } from __hyloEditorSaveTabState, or nothing for the top.
+  // Dispatched straight after setState, so CM lays out the new doc and scrolls
+  // it in the same measure, before anything paints.
+  function __hyloEditorRestoreScroll(saved) {
     var s = __hyloEditor;
-    opts = opts || {};
-    var top = (saved && saved.scrollTop) || 0;
+    var heading = s.pendingHeading;
+    s.pendingHeading = null;
+    if (heading && __hyloCM.jumpToHeading(s.view, heading)) return;
     var snap = saved && saved.snapshot;
-    var tabId = opts.tabId;
-    function scroller() { return document.querySelector('#content-pane-edit-area .cm-scroller'); }
-    function write() {
-      var el = scroller();
-      if (el) el.scrollTop = top;
-      // A reload can come back shorter than when the snapshot was taken.
-      if (snap && s.view && snap.value.range.to <= s.view.state.doc.length) s.view.dispatch({ effects: snap });
-    }
-    function apply() {
-      if (tabId && !__hyloEditorIsActiveTabId(tabId)) return;
-      write();
-      if (s.pendingHeading && s.view) __hyloCM.jumpToHeading(s.view, s.pendingHeading);
-    }
-    if (s.pendingScrollRaf) cancelAnimationFrame(s.pendingScrollRaf);
-    if (opts.sync) write();
-    s.pendingScrollRaf = requestAnimationFrame(function() {
-      s.pendingScrollRaf = null;
-      apply();
-      s.pendingHeading = null;
-      // A pane still closed (loading ahead of its slide) takes focus as it opens.
-      var pane = window.__hyloContentPane;
-      if (opts.focus && pane && pane.contentPaneOpen && !__hyloFocusInsideEditor()) __hyloFocusEditor();
-    });
+    // A reload can come back shorter than when the snapshot was taken.
+    if (snap && snap.value.range.to <= s.view.state.doc.length) s.view.dispatch({ effects: snap });
+    else s.view.scrollDOM.scrollTop = 0;
   }

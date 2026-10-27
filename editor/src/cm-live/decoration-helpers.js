@@ -1,7 +1,6 @@
 import { Decoration } from '@codemirror/view';
 
-// Shared by decorators.js, frontmatter-card.js and tables-decorate.js —
-// the two smallest, most-repeated primitives every node decorator builds on.
+// The primitives the decoration builders share.
 
 export function hideRange(from, to, decos) {
   if (from >= to) return;
@@ -26,8 +25,16 @@ export function hangRange(from, to, width, className, decos) {
   );
 }
 
-// CM samples line height from the first short plain-text line; a styled line
-// sampled there skews the height map and arrow keys jump far. A span opts it out.
-export function excludeFromTextSample(line, decos) {
-  styleRange(line.from, line.to, 'cm-lp-styled-line', decos);
+// What CM draws: the visible viewport plus the lines holding the main
+// selection's ends, which stay in the DOM after scrolling away. Decorating
+// less leaves those lines measured raw, and their height changes on return.
+export function drawnRanges(view) {
+  const ranges = view.visibleRanges.map(({ from, to }) => ({ from, to }));
+  const { main } = view.state.selection;
+  for (const pos of [main.anchor, main.head]) {
+    if (ranges.some((r) => pos >= r.from && pos <= r.to)) continue;
+    const line = view.state.doc.lineAt(pos);
+    ranges.push({ from: line.from, to: line.to });
+  }
+  return ranges.sort((a, b) => a.from - b.from);
 }

@@ -139,8 +139,8 @@
       var back = entry.opener;
       if (_shown(back) && !entry.surface.contains(back)) {
         var view = typeof __hyloEditor !== 'undefined' && __hyloEditor.view;
-        // Native focus() on CodeMirror scrolls it to the top in WebKit.
-        if (view && view.dom.contains(back)) view.focus();
+        // Native focus(), and CM's own, scroll CodeMirror to its caret in WebKit.
+        if (view && view.dom.contains(back)) __hyloFocusEditor();
         else back.focus({ preventScroll: true });
       } else if (!_stk.length && window.__hyloFocusHome) {
         window.__hyloFocusHome();

@@ -6,13 +6,18 @@ import { codeLanguages } from './code-languages.js';
 import { syntaxHighlighting } from '@codemirror/language';
 import { wikiSyntax } from './wiki-syntax.js';
 import { frontmatterSyntax } from './frontmatter-syntax.js';
-import { livePreviewPlugin, skipListGaps } from './live-preview.js';
-import { horizontalRuleField } from './horizontal-rule-field.js';
+import { livePreviewPlugin, skipHairlines } from './live-preview.js';
 import { fenceCardField } from './fence-card/card-field.js';
 import { frontmatterCardField } from './frontmatter-card.js';
 import { livePreviewTheme, codeHighlightStyle } from './theme.js';
 import { verticalMotion } from './vertical-motion.js';
 import { widgetReveal } from './widget-reveal.js';
+import { stableTextMetrics } from './text-metrics.js';
+import { imageField } from './image-field.js';
+import { editorScroll } from './scroll.js';
+export { preloadImageSizes } from './image-field.js';
+export { editorScroll } from './scroll.js';
+export { focusInPlace } from './focus.js';
 
 export { wikiLinksRevalidated } from './live-preview.js';
 export { frontmatterCollapseField } from './frontmatter-card.js';
@@ -27,6 +32,8 @@ export { wikiLinkCompletion } from './wikilink-complete.js';
 export { readingExtensions } from './reading.js';
 export { initialCursorOffset } from './initial-cursor.js';
 export { preloadCodeLanguages } from './code-languages.js';
+export { stableTextMetrics } from './text-metrics.js';
+export { syncDoc, docSynced } from './doc-sync.js';
 export { agentWritingExtension, planAgentInsert, planAgentRewrite, readAgentDoc, agentType } from './agent-typing.js';
 
 // Shared by live-preview mode and (Phase 4) plain source mode, so toggling
@@ -62,12 +69,14 @@ export function wikiMarkdownLanguage() {
 export function liveDecorations(options) {
   return [
     livePreviewPlugin.of(options),
-    skipListGaps,
+    stableTextMetrics,
+    editorScroll,
+    skipHairlines,
     widgetReveal,
     verticalMotion,
-    horizontalRuleField(),
     fenceCardField(),
     frontmatterCardField(options),
+    imageField(options),
     livePreviewTheme,
     syntaxHighlighting(codeHighlightStyle),
   ];

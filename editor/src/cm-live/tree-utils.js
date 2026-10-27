@@ -28,3 +28,19 @@ export function resolveAncestor(state, pos, predicate, side = 1) {
 export function isSameNode(a, b) {
   return !!a && !!b && a.from === b.from && a.to === b.to && a.name === b.name;
 }
+
+// Leaf blocks: a "---", a fence or a link definition only ever starts at the
+// block-container level (Document, Blockquote, ListItem), so a walk looking for
+// one never needs to descend into these.
+export const LEAF_BLOCKS = new Set([
+  'Paragraph',
+  'ATXHeading1', 'ATXHeading2', 'ATXHeading3', 'ATXHeading4', 'ATXHeading5', 'ATXHeading6',
+  'SetextHeading1', 'SetextHeading2',
+  'FencedCode', 'CodeBlock',
+  'HTMLBlock',
+  'CommentBlock', 'ProcessingInstruction',
+  'Table', 'TableHeader', 'TableRow', 'TableCell', 'TableDelimiter',
+  'Frontmatter',
+  'LinkReference',
+  'BlankLine',
+]);

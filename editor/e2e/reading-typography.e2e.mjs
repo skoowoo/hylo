@@ -118,7 +118,7 @@ test('drawn selection covers autospaced text in reading view', async (t) => {
       const to = text.indexOf('后');
       v.dispatch({ selection: { anchor: from, head: to } });
       requestAnimationFrame(() => requestAnimationFrame(() => {
-        const bg = [...v.dom.querySelectorAll('.cm-selectionBackground')].map((e) => e.getBoundingClientRect());
+        const bg = [...v.dom.querySelectorAll('.cm-lp-selection-layer .cm-selectionBackground')].map((e) => e.getBoundingClientRect());
         resolve({
           drawn: bg.length ? { left: Math.min(...bg.map((b) => b.left)), right: Math.max(...bg.map((b) => b.right)) } : null,
           text: { left: v.coordsAtPos(from, 1).left, right: v.coordsAtPos(to, -1).right },

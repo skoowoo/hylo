@@ -1,3 +1,4 @@
+import { cardEntry } from './fence-card/registry.js';
 import { LanguageDescription, LanguageSupport, StreamLanguage } from '@codemirror/language';
 
 // Explicit list instead of @codemirror/language-data, whose registry bundles ~140 grammars.
@@ -43,15 +44,18 @@ export const codeLanguages = [
 
 const FENCE_INFO_RE = /^ {0,3}(?:`{3,}|~{3,})[ \t]*([^\s`]+)/gm;
 
-// Grammars are lazy chunks; one that isn't loaded yet when the note is parsed
-// leaves its fence unhighlighted until the chunk lands and a reparse runs.
-// Resolves once every language this text fences is loaded; null if none pending.
+// Grammars and card renderers are lazy chunks; one that isn't loaded when the note
+// is drawn leaves a fence unhighlighted, or a card blank, until the chunk lands.
+// Resolves once every one this text fences is loaded (loads are cached); null if none pending.
 export function preloadCodeLanguages(text) {
-  const pending = new Set();
+  const pending = [];
   for (const m of text.matchAll(FENCE_INFO_RE)) {
     const desc = LanguageDescription.matchLanguageName(codeLanguages, m[1], true);
-    if (desc && !desc.support) pending.add(desc);
+    if (desc && !desc.support) pending.push(desc.load().catch(() => null));
+    // A card whose renderer is already here mounts at its final size in the frame it appears.
+    const card = cardEntry(m[1]);
+    if (card && card.editor && !card.renderer) pending.push(card.load().catch(() => null));
   }
-  if (!pending.size) return null;
-  return Promise.all([...pending].map((d) => d.load().catch(() => null)));
+  if (!pending.length) return null;
+  return Promise.all(pending);
 }

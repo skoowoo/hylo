@@ -5,14 +5,15 @@
 // code decorators that don't carry enough independent state to justify one.
 import { Decoration } from '@codemirror/view';
 import { syntaxTree } from '@codemirror/language';
-import { selectionTouchesRange, selectionTouchesLine, selectionInsideRange, selectionCoversRange, readingMode } from './selection.js';
+import { caretTouchesRange, caretOnLine, headInBlock, selectionInsideRange, readingMode } from './selection.js';
 import { isRevealSuppressed } from './link-reveal-suppression.js';
-import { HangMarkWidget, WikiLinkWidget, ImageWidget, TaskCheckboxWidget, ListMarkerWidget, CodeHeaderWidget } from './widgets.js';
+import { HangMarkWidget, WikiLinkWidget, TaskCheckboxWidget, ListMarkerWidget, CodeHeaderWidget, HorizontalRuleWidget } from './widgets.js';
+import { imageEditing } from './image-field.js';
 import { wikiNodeInner, splitWikiLinkInner } from './wiki-syntax.js';
-import { hideRange, styleRange, hangRange, excludeFromTextSample } from './decoration-helpers.js';
+import { hideRange, styleRange, hangRange } from './decoration-helpers.js';
 import { isSameNode } from './tree-utils.js';
 import { isWidgetRevealed } from './widget-reveal.js';
-import { imageSpan, imageFillsLink } from './image-nodes.js';
+import { imageFillsLink } from './image-nodes.js';
 import { decorateTableHeader, decorateTableBodyRow, decorateTableDelimiterRow } from './tables-decorate.js';
 import { decorateFrontmatterSource } from './frontmatter-card.js';
 import { cardFence, fenceBody } from './fence-card/registry.js';
@@ -68,7 +69,6 @@ function pushHeadingLines(doc, level, textFrom, textTo, nextNo, decos) {
     if (paddingBottom) styleDecls.push('padding-bottom:' + paddingBottom + ' !important');
     if (styleDecls.length) lineSpec.attributes = { style: styleDecls.join(';') };
     decos.push(Decoration.line(lineSpec).range(doc.line(n).from));
-    excludeFromTextSample(doc.line(n), decos);
   }
 }
 
@@ -96,7 +96,7 @@ function decorateHeading(level) {
     // Fold trailing space after "#"s — not part of HeaderMark.
     const extra =
       mark.to < line.to && view.state.doc.sliceString(mark.to, mark.to + 1) === ' ' ? 1 : 0;
-    if (selectionTouchesLine(view.state, line)) {
+    if (caretOnLine(view.state, line)) {
       // Caret on the line reveals the "#"s, muted so they read as syntax. At
       // the line start they hang in the margin; nested ("> # x") they stay inline.
       if (mark.from === line.from) {
@@ -110,7 +110,8 @@ function decorateHeading(level) {
   };
 }
 
-// "Text\n===" / "Text\n---". Left raw while the caret is on the underline:
+// "Text\n===" / "Text\n---". The underline is a hairline the caret steps
+// over (isHairlineLine). Only typing reaches it, and then it is all left raw:
 // a lone "-" typed under a paragraph is already an H2, and styling it would
 // flash a heading on the way to "- item".
 function decorateSetextHeading(level) {
@@ -119,14 +120,9 @@ function decorateSetextHeading(level) {
     const mark = node.node.getChild('HeaderMark');
     if (!mark) return;
     const markLine = doc.lineAt(mark.from);
-    if (selectionTouchesLine(view.state, markLine)) return;
+    if (caretOnLine(view.state, markLine)) return;
     const firstNo = doc.lineAt(node.from).number;
     pushHeadingLines(doc, level, firstNo, markLine.number - 1, markLine.number + 1, decos);
-    if (selectionTouchesRange(view.state, node.from, node.to)) {
-      styleRange(markLine.from, markLine.to, 'cm-lp-heading-mark', decos);
-      return;
-    }
-    // Same hairline collapse as a hidden fence line.
     decos.push(Decoration.line({ class: 'cm-lp-hidden-line' }).range(markLine.from));
     hideRange(markLine.from, markLine.to, decos);
   };
@@ -141,7 +137,7 @@ function decorateWrappedMark(markName, className) {
     const first = marks[0];
     const last = marks[marks.length - 1];
     styleRange(first.to, last.from, className, decos);
-    if (selectionTouchesRange(view.state, node.from, node.to)) return;
+    if (caretTouchesRange(view.state, node.from, node.to)) return;
     hideRange(first.from, first.to, decos);
     hideRange(last.from, last.to, decos);
   };
@@ -190,7 +186,6 @@ function decorateBlockquote(node, view, decos) {
     if (n === outerToLine && isBlankLine(doc, n + 1)) styleDecls.push('padding-bottom:0 !important');
     if (styleDecls.length) lineSpec.attributes = { style: styleDecls.join(';') };
     decos.push(Decoration.line(lineSpec).range(doc.line(n).from));
-    excludeFromTextSample(doc.line(n), decos);
   }
 }
 
@@ -201,7 +196,7 @@ const QUOTE_STEP_REM = 1.5;
 function decorateQuoteMark(node, view, decos) {
   const doc = view.state.doc;
   const markLine = doc.lineAt(node.from);
-  if (selectionTouchesLine(view.state, markLine)) {
+  if (caretOnLine(view.state, markLine)) {
     // One hanging box for the whole "> > " prefix, placed by its first mark,
     // so the revealed markers sit in the quote's own padding.
     const prefix = node.from === markLine.from && QUOTE_PREFIX_RE.exec(markLine.text);
@@ -228,7 +223,7 @@ function decorateLink(node, view, decos, options, cache) {
   const target = linkTarget(view.state, node.node, cache);
   // An undefined reference is just bracketed text.
   if (!target) return;
-  const editing = selectionTouchesRange(view.state, node.from, node.to) && !isRevealSuppressed(view.state, node.from, node.to);
+  const editing = caretTouchesRange(view.state, node.from, node.to) && !isRevealSuppressed(view.state, node.from, node.to);
   if (target.textTo > target.textFrom) {
     decos.push(
       Decoration.mark(editing ? { class: 'cm-lp-link cm-lp-link-editing' } : { class: 'cm-lp-link', attributes: { title: target.url } })
@@ -251,14 +246,14 @@ function decorateUrl(node, view, decos) {
     styleRange(node.from, node.to, 'cm-lp-link-url', decos);
     return;
   }
-  const editing = selectionTouchesRange(view.state, node.from, node.to);
+  const editing = caretTouchesRange(view.state, node.from, node.to);
   styleRange(node.from, node.to, editing ? 'cm-lp-link cm-lp-link-editing' : 'cm-lp-link', decos);
 }
 
 function decorateAutolinkBrackets(node, view, decos) {
   const marks = node.node.getChildren('LinkMark');
   if (marks.length < 2) return;
-  if (selectionTouchesRange(view.state, node.from, node.to) && !isRevealSuppressed(view.state, node.from, node.to)) return;
+  if (caretTouchesRange(view.state, node.from, node.to) && !isRevealSuppressed(view.state, node.from, node.to)) return;
   hideRange(marks[0].from, marks[0].to, decos);
   hideRange(marks[1].from, marks[1].to, decos);
 }
@@ -271,7 +266,7 @@ function decorateLinkReference(node, view, decos) {
 // ── \* — the backslash is syntax; show it only while the caret is on it.
 
 function decorateEscape(node, view, decos) {
-  if (selectionTouchesRange(view.state, node.from, node.to)) return;
+  if (caretTouchesRange(view.state, node.from, node.to)) return;
   hideRange(node.from, node.from + 1, decos);
 }
 
@@ -290,7 +285,6 @@ function decorateIndentedCode(node, view, decos) {
     if (n === fromNo) classes.push('cm-lp-codeblock-first');
     if (n === toNo) classes.push('cm-lp-codeblock-last');
     decos.push(Decoration.line({ class: classes.join(' ') }).range(line.from));
-    excludeFromTextSample(line, decos);
     const indent = /^(?: {1,4}|\t)/.exec(line.text);
     if (indent) hideRange(line.from, line.from + indent[0].length, decos);
   }
@@ -302,11 +296,7 @@ function decorateHtmlBlock(node, view, decos) {
   const doc = view.state.doc;
   const fromNo = doc.lineAt(node.from).number;
   const toNo = doc.lineAt(Math.max(node.from, node.to - 1)).number;
-  for (let n = fromNo; n <= toNo; n++) {
-    const line = doc.line(n);
-    decos.push(Decoration.line({ class: 'cm-lp-htmlblock' }).range(line.from));
-    excludeFromTextSample(line, decos);
-  }
+  for (let n = fromNo; n <= toNo; n++) decos.push(Decoration.line({ class: 'cm-lp-htmlblock' }).range(doc.line(n).from));
 }
 
 function decorateHtmlTag(node, view, decos) {
@@ -317,39 +307,11 @@ function decorateHtmlComment(node, view, decos) {
   styleRange(node.from, node.to, 'cm-lp-html-comment', decos);
 }
 
-// ── ![alt](url) / ![[file]] — atomic, so selection and Backspace treat the
-// picture as one object; a caret inside (double-click) reveals the source.
+// ── ![alt](url) / ![[file]] render from image-field.js; here only the source
+// shown while the caret is inside the picture (double-click) gets its color.
 
-// Spans the wrapping link too, so a caret in its URL keeps the source shown.
-function imageEditing(view, node) {
-  const span = imageSpan(node.node);
-  return selectionInsideRange(view.state, span.from, span.to);
-}
-
-function pushImage(decos, view, node, src, label, editOffset) {
-  const span = imageSpan(node.node);
-  decos.push(
-    Decoration.replace({
-      widget: new ImageWidget(src, label, editOffset, selectionCoversRange(view.state, span.from, span.to)),
-      atomicImage: true,
-    }).range(span.from, span.to)
-  );
-}
-
-function decorateImage(node, view, decos, options) {
-  const marks = node.node.getChildren('LinkMark');
-  const urlNode = node.node.getChild('URL');
-  if (marks.length < 2 || !urlNode) return;
-  const url = view.state.doc.sliceString(urlNode.from, urlNode.to);
-  const alt = view.state.doc.sliceString(marks[0].to, marks[1].from);
-  if (imageEditing(view, node)) {
-    styleRange(node.from, node.to, 'cm-lp-wikiimage-raw', decos);
-    return;
-  }
-  // Relative paths name files in the vault, not URLs on the app's own page.
-  const resolve = options && options.resolveMarkdownImageSrc;
-  const src = resolve ? resolve(url) : url;
-  pushImage(decos, view, node, src, alt || url, 2);
+function decorateImageSource(node, view, decos) {
+  if (imageEditing(view.state, node.node)) styleRange(node.from, node.to, 'cm-lp-wikiimage-raw', decos);
 }
 
 // ── List markers. Each list gets a fixed-width marker column (bullet/task
@@ -470,22 +432,24 @@ function decorateListMark(node, view, decos, options, cache) {
   if (isListGapLine(state, line.number + 1)) {
     const gap = doc.line(line.number + 1);
     decos.push(Decoration.line({ class: 'cm-lp-list-gap' }).range(gap.from));
-    // 1px line class would leave a short ASCII run for CM's text-size probe.
-    // textHeight 1 makes vertical motion's step (>> 1) zero, so the scan never ends.
     hideRange(gap.from, gap.to, decos);
   }
 }
 
-// The marker-line ListItem starting on line `n` (past any indent or "> " prefix), else null.
-function itemStartingOn(state, n) {
+// The node starting line `n`, past any indent or "> " prefix.
+function lineStartNode(state, n) {
   const line = state.doc.line(n);
   const lead = /^[\s>]*/.exec(line.text)[0].length;
-  const node = syntaxTree(state).resolveInner(line.from + lead, 1);
+  return syntaxTree(state).resolveInner(line.from + lead, 1);
+}
+
+// The marker-line ListItem starting on line `n`, else null.
+function itemStartingOn(state, n) {
+  const node = lineStartNode(state, n);
   return node.name === 'ListMark' ? node.parent : null;
 }
 
-// A blank line between a one-line item and the next item of the same list;
-// decorateListMark collapses it and skipListGaps steps over it.
+// A blank line between a one-line item and the next item of the same list.
 export function isListGapLine(state, n) {
   const doc = state.doc;
   if (n <= 1 || n >= doc.lines || doc.line(n).text.trim()) return false;
@@ -494,7 +458,27 @@ export function isListGapLine(state, n) {
   return !!below && isSameNode(above.parent, below.parent);
 }
 
-// HorizontalRule → horizontal-rule-field.js (needs block:true StateField).
+// Rows drawn as a 1px hairline whenever the caret is elsewhere: a list gap, a
+// table's delimiter row, a setext underline. skipHairlines carries the caret
+// over them, since showing one's source would move every line below.
+export function isHairlineLine(state, n) {
+  if (n < 1 || n > state.doc.lines) return false;
+  if (isListGapLine(state, n)) return true;
+  const node = lineStartNode(state, n);
+  const parent = node.parent;
+  if (!parent) return false;
+  if (node.name === 'TableDelimiter') return parent.name === 'Table';
+  return node.name === 'HeaderMark' && /^SetextHeading/.test(parent.name) && parent.from < state.doc.line(n).from;
+}
+
+// ── Thematic break: one line either way, the rule or its "---" source, at the
+// same height, so the caret passing through never moves the text below.
+function decorateHorizontalRule(node, view, decos) {
+  const line = view.state.doc.lineAt(node.from);
+  decos.push(Decoration.line({ class: 'cm-lp-hr' }).range(line.from));
+  if (caretOnLine(view.state, line)) return;
+  decos.push(Decoration.replace({ widget: new HorizontalRuleWidget() }).range(node.from, node.to));
+}
 
 // ── Fenced code — card chrome only when closed (≥2 CodeMarks). The fence
 // lines keep a fixed height whether shown raw (caret in the block) or not,
@@ -506,7 +490,8 @@ function decorateFencedCode(node, view, decos) {
   const toLineNo = doc.lineAt(Math.max(node.from, node.to - 1)).number;
   const marks = node.node.getChildren('CodeMark');
   const info = node.node.getChild('CodeInfo');
-  const editingBlock = selectionTouchesRange(view.state, node.from, node.to);
+  // Same test as card-field.js, so a card and its source never disagree.
+  const editingBlock = headInBlock(view.state, node.from, node.to);
   // fence-card/card-field.js replaces the whole block with a widget.
   if (!editingBlock && cardFence(doc, node.node)) return;
   // Unclosed fence extends to EOF — no card chrome until it's closed.
@@ -516,8 +501,6 @@ function decorateFencedCode(node, view, decos) {
     if (n === fromLine.number) classes.push('cm-lp-codeblock-first', 'cm-lp-codeblock-fence');
     if (n === toLineNo) classes.push('cm-lp-codeblock-last', 'cm-lp-codeblock-fence');
     decos.push(Decoration.line({ class: classes.join(' ') }).range(doc.line(n).from));
-    // Unhighlighted code (no grammar, or not loaded yet) is plain text in a mono face.
-    excludeFromTextSample(doc.line(n), decos);
   }
   if (editingBlock) {
     if (info) styleRange(info.from, info.to, 'cm-lp-code-lang-edit', decos);
@@ -532,7 +515,6 @@ function decorateFencedCode(node, view, decos) {
 }
 
 // ── Wikilink — not atomic, so arrow keys can step inside and reveal the source.
-// Wiki images are atomic; see pushImage.
 
 function decorateWikiLink(node, view, decos, options) {
   const inner = wikiNodeInner(node.node, view.state.doc);
@@ -548,17 +530,6 @@ function decorateWikiLink(node, view, decos, options) {
       widget: new WikiLinkWidget(target, heading, alias, options && options.onWikiLinkClick, broken),
     }).range(node.from, node.to)
   );
-}
-
-function decorateWikiImage(node, view, decos, options) {
-  const filename = wikiNodeInner(node.node, view.state.doc);
-  if (!filename) return;
-  if (imageEditing(view, node)) {
-    styleRange(node.from, node.to, 'cm-lp-wikiimage-raw', decos);
-    return;
-  }
-  const src = options && options.resolveImageSrc ? options.resolveImageSrc(filename) : filename;
-  pushImage(decos, view, node, src, filename, 3);
 }
 
 export const nodeDecorators = {
@@ -586,12 +557,12 @@ export const nodeDecorators = {
   HTMLTag: decorateHtmlTag,
   Comment: decorateHtmlComment,
   CommentBlock: decorateHtmlComment,
-  Image: decorateImage,
+  Image: decorateImageSource,
   ListMark: decorateListMark,
-  // HorizontalRule → horizontal-rule-field.js
+  HorizontalRule: decorateHorizontalRule,
   FencedCode: decorateFencedCode,
   WikiLink: decorateWikiLink,
-  WikiImage: decorateWikiImage,
+  WikiImage: decorateImageSource,
   TableHeader: decorateTableHeader,
   TableRow: decorateTableBodyRow,
   TableDelimiter: decorateTableDelimiterRow,

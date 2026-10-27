@@ -445,17 +445,15 @@
     }
     #content-pane-edit-area .cm-editor.cm-focused { outline: none; }
     #content-pane-edit-area .cm-scroller {
-      overflow-y: auto;
       padding: 2.5rem max(clamp(1.25rem, 4vw, 2.5rem), calc(50% - 360px));
     }
     /* The tool bar has no divider, so scrolled text dissolves into --bg
        just under it rather than being cut off. Eased (smoothstep) stops keep
        both ends of the ramp soft, so no edge reads as a gradient boundary;
        it's 20px tall, which the scroller's top padding (and reading mode's,
-       below) fully clears at rest. right: 14px clears the scrollbar, which
-       is 11px wide under scrollbar-width: thin (the standard property beats
-       the 5px ::-webkit-scrollbar rule below); text never reaches there,
-       its horizontal padding is at least 20px. */
+       below) fully clears at rest. right: 14px clears the editor's 11px
+       scrollbar (cm-live/scroll.js); text never reaches there, its
+       horizontal padding is at least 20px. */
     #content-pane-edit-area::before {
       content: ""; position: absolute; z-index: 10; top: 0; left: 0; right: 14px; height: 20px;
       pointer-events: none; border-radius: 0;
@@ -600,16 +598,3 @@
     /* The drag mask is built from where the bar was, so it lags a moving bar. */
     html.macos .home-shell.is-pane-moving .content-pane-tool-bar { -webkit-app-region: no-drag; }
 
-    /* ── Content-pane scrollbars ─────────────────────────────────────── */
-    #content-pane-edit-area .cm-scroller {
-      scrollbar-width: thin;
-      scrollbar-color: var(--scrollbar-thumb) transparent;
-    }
-    #content-pane-edit-area .cm-scroller::-webkit-scrollbar { width: 5px; }
-    #content-pane-edit-area .cm-scroller::-webkit-scrollbar-track { background: transparent; }
-    #content-pane-edit-area .cm-scroller::-webkit-scrollbar-thumb {
-      background: var(--scrollbar-thumb);
-    }
-    #content-pane-edit-area .cm-scroller::-webkit-scrollbar-thumb:hover {
-      background: var(--scrollbar-thumb-hov);
-    }

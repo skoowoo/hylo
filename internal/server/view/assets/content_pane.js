@@ -583,7 +583,7 @@
         this._activateTab(idx);
 
         s.currentPath = ''; s.currentMd = ''; s.dirty = false;
-        await this._openWith(__hyloEditorApplyState({ inSource: false, scrollTop: 0 }, newTab.id));
+        await this._openWith(__hyloEditorApplyState({ inSource: false }, newTab.id));
       },
 
       // Makes tabs[idx] the active tab. A tab already inside the visible
@@ -688,7 +688,7 @@
         var savedState = __hyloEditorRestoreTabState(tab.id);
         if (!tab.path) return this._openWith(this._openUntitledTab(tab, savedState));
         if (__hyloEditor.currentPath === tab.path) {
-          if (savedState) __hyloEditorRestoreScroll(savedState, { sync: true });
+          if (savedState) __hyloEditorRestoreScroll(savedState);
           this.contentPaneOpen = true;
           if (!__hyloEditor.dirty) void __hyloContentPaneRefreshNote(tab.path, tab.id);
           return;
@@ -713,7 +713,9 @@
       async contentPaneSwitchTab(i) {
         if (this.agentWriting) return;
         this.cancelRenameActiveNote(); // see openNoteInContentPane
-        __hyloBlurActive();
+        // A chip or menu keeps no focus. The editor keeps its own: regaining it would make
+        // WebKit scroll to the caret (cm-live/focus.js).
+        if (!__hyloFocusInsideEditor()) __hyloBlurActive();
         if (i === this.activeTab) return;
 
         var prevTab = this.tabs[this.activeTab];

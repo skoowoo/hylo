@@ -113,6 +113,8 @@ export function mount(el, source, ctx = {}) {
   // The initial render already fits; refit only when the box actually changes size.
   let size = `${el.clientWidth}x${el.clientHeight}`;
   const ro = new ResizeObserver(() => {
+    // Detached while parked (card-field.js), it measures 0×0; nothing to fit.
+    if (!el.clientWidth) return;
     const next = `${el.clientWidth}x${el.clientHeight}`;
     if (next === size) return;
     size = next;
