@@ -183,7 +183,7 @@ function homeCtrl() {
     // Knowledge's All/category items share the single 'knowledge' bucket,
     // rather than one per selection) — see listViewKey()/setListView().
     listViewModes: loadListViewModes(),
-    foldersOpen: true,
+    foldersOpen: false,
     knowledgeOpen: false,
     chatsOpen: true,
     // Chat transcript lives on this._chat (chat_kernel.js). These fields are

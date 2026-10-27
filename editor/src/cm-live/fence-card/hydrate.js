@@ -46,3 +46,13 @@ export function hydrateFenceCards(root, { openTail = false } = {}) {
   prev.forEach((h) => { if (h) h.destroy(); });
   if (handles.length) live.set(root, handles);
 }
+
+// For hosts that render markdown block by block and own each block's lifetime (the
+// chat): turns one <pre><code class="language-X"> into its card in place, or returns
+// null when X has no card. The handle's update/destroy are the host's to call.
+export function mountFenceBlock(pre, { partial = false } = {}) {
+  const code = pre.querySelector('code[class*="language-"]');
+  const lang = code && (/language-(\S+)/.exec(code.className) || [])[1];
+  if (!lang || !cardEntry(lang)) return null;
+  return mountCard(lang, code.textContent, { replace: pre, partial });
+}

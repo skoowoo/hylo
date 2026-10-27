@@ -1,53 +1,9 @@
 // Chat pane. Mounted while #chat-root is in the document and discarded on
-// HTMX swap. Each segment kind owns its signature, mount, and patch so a
-// streaming token only rewrites the tail. Open and copied live here, not on
-// the message.
+// HTMX swap. Message rows come from chat_rows.js; this keeps them in order and
+// owns the scroll model, the composer and the trigger tab's run log.
 (function (root) {
   var R = root.__hyloChatReduce;
-  var openSegs = new WeakMap();
-  var copiedUntil = new Map();
-  var copiedListener = null;
-  var hydrateListener = null;
-
-  function isOpen(seg) { return !!openSegs.get(seg); }
-
-  function toggleOpen(seg) {
-    var on = !openSegs.get(seg);
-    openSegs.set(seg, on);
-    return on;
-  }
-
-  function copiedNow(id) {
-    var exp = copiedUntil.get(id) || 0;
-    if (exp > Date.now()) return true;
-    if (exp) copiedUntil.delete(id);
-    return false;
-  }
-
-  function rememberCopy(id) {
-    var exp = Date.now() + 2000;
-    copiedUntil.set(id, exp);
-    setTimeout(function () {
-      if (copiedUntil.get(id) !== exp) return;
-      copiedUntil.delete(id);
-      if (copiedListener) copiedListener(id, false);
-    }, 2000);
-  }
-
-  function answerText(msg) {
-    var segs = msg.segments || [];
-    var ai = R.answerIndex(segs, msg.status === 'running');
-    return ai >= 0 ? (segs[ai].content || '').trim() : '';
-  }
-
-  function copyReply(msg, btn) {
-    var text = answerText(msg);
-    if (!text || !navigator.clipboard) return;
-    navigator.clipboard.writeText(text).then(function () {
-      rememberCopy(msg.id);
-      setCopyIcon(btn, true);
-    }).catch(function () { /* clipboard denied */ });
-  }
+  var Rows = root.__hyloChatRows;
 
   function normalizeVaultDir(raw) {
     var s = (raw || '').replace(/\/+/g, '/');
@@ -140,840 +96,21 @@
     return h.firstChild;
   }
 
-  var CHEVRON = '<svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 18l6-6-6-6"/></svg>';
-  var COPY_SVG = '<svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path stroke-linecap="round" stroke-linejoin="round" d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>';
-  var CHECK_SVG = '<svg fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20 6L9 17l-5-5"/></svg>';
-  var RETRY_SVG = '<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 1 1-3-6.7"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 3v6h-6"/></svg>';
-
-  // Batch-fetches title/preview/cover for note-touched cards, keyed by vault
-  // path. Shared across every note_access segment on the page so re-mounting
-  // (patch always forces a remount here) doesn't refetch what's cached.
-  var noteInfoCache = Object.create(null); // path -> row | null (not in vault); undefined = not fetched or fetch failed
-
-  function fetchNoteInfo(paths) {
-    var need = paths.filter(function (p) { return p && !(p in noteInfoCache); });
-    if (!need.length) return Promise.resolve();
-    var chunks = [];
-    for (var i = 0; i < need.length; i += 100) chunks.push(need.slice(i, i + 100));
-    return Promise.all(chunks.map(function (chunk) {
-      return fetch('/api/notes/info', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ paths: chunk }),
-      }).then(function (resp) { return resp.ok ? resp.json() : null; })
-        .then(function (data) {
-          if (!data) return;
-          var got = Object.create(null);
-          (data.notes || []).forEach(function (n) { noteInfoCache[n.path] = n; got[n.path] = true; });
-          chunk.forEach(function (p) { if (!got[p]) noteInfoCache[p] = null; });
-        })
-        .catch(function () {});
-    }));
-  }
-
-  // One card per touched note, built from the same markup/classes as the
-  // real note grid (home.css/.home-list-body.is-grid) so it looks and
-  // behaves identically — borderless surface, title + preview + cover.
-  // Starts from the path alone (filename as title) and hydrates with the
-  // note's real title/preview/cover once fetchNoteInfo resolves.
-  function noteAccessCard(item) {
-    var path = item.path || '';
-    var base = path.split('/').pop() || path;
-    var fallbackTitle = base.replace(/\.md$/i, '');
-    var isWrite = item.action === 'write';
-
-    var card = el('div', 'list-card list-card--clickable home-list-card home-note-row seg-note-access-card');
-    card.title = path;
-
-    var cover = el('div', 'home-note-cover');
-    var coverImg = document.createElement('img');
-    coverImg.alt = ''; coverImg.loading = 'lazy'; coverImg.decoding = 'async';
-    cover.appendChild(coverImg);
-    show(cover, false);
-    card.appendChild(cover);
-
-    var top = el('div', 'home-note-row-top');
-    var titleblock = el('div', 'home-note-row-titleblock');
-    var titlerow = el('div', 'home-note-row-titlerow');
-    var titleEl = el('span', 'home-note-row-title');
-    titleEl.textContent = fallbackTitle;
-    titlerow.appendChild(titleEl);
-    titleblock.appendChild(titlerow);
-    var previewEl = el('span', 'home-note-row-preview-grid');
-    show(previewEl, false);
-    titleblock.appendChild(previewEl);
-    top.appendChild(titleblock);
-
-    var badges = el('div', 'home-note-row-badges');
-    var actionBadge = el('span', 'badge badge--sm' + (isWrite ? ' badge--accent' : ''));
-    actionBadge.textContent = isWrite ? 'write' : 'read';
-    badges.appendChild(actionBadge);
-    top.appendChild(badges);
-    card.appendChild(top);
-
-    var meta = el('div', 'home-note-row-meta');
-    var timeEl = el('span', 'home-note-row-time');
-    show(timeEl, false);
-    meta.appendChild(timeEl);
-    card.appendChild(meta);
-
-    card.addEventListener('click', function () {
-      if (window.__hyloContentPane) {
-        void window.__hyloContentPane.openNoteInContentPane(path, titleEl.textContent || fallbackTitle, false, false);
-      }
-    });
-
-    function hydrate() {
-      var info = noteInfoCache[path];
-      if (!info) return;
-      if (info.title) titleEl.textContent = info.title.replace(/\.md$/i, '');
-      if (info.preview) { previewEl.textContent = info.preview; show(previewEl, true); }
-      if (info.updatedAt) { timeEl.textContent = R.formatTime(info.updatedAt); show(timeEl, true); }
-      if (info.cover) {
-        coverImg.src = info.cover;
-        show(cover, true);
-        card.classList.add('has-cover');
-      }
-    }
-
-    return { node: card, hydrate: hydrate };
-  }
-
-  // Adds left/right arrow buttons over a horizontally-scrolling row (the
-  // scrollbar itself is hidden — see .seg-note-access-row in agent_chat.css)
-  // and keeps them in sync with scroll position: hidden entirely when
-  // everything already fits, each one disabled at its end of the track.
-  function wireHorizontalScroller(scroller, row) {
-    var prev = el('button', 'icon-btn seg-note-access-arrow seg-note-access-arrow--prev');
-    prev.type = 'button';
-    prev.setAttribute('aria-label', 'Scroll left');
-    prev.appendChild(svg(CHEVRON));
-    var next = el('button', 'icon-btn seg-note-access-arrow seg-note-access-arrow--next');
-    next.type = 'button';
-    next.setAttribute('aria-label', 'Scroll right');
-    next.appendChild(svg(CHEVRON));
-    scroller.appendChild(prev);
-    scroller.appendChild(next);
-
-    function update() {
-      var max = row.scrollWidth - row.clientWidth;
-      var fits = max <= 1;
-      show(prev, !fits && row.scrollLeft > 0);
-      show(next, !fits && row.scrollLeft < max - 1);
-    }
-    function page(dir) {
-      row.scrollBy({ left: dir * Math.max(row.clientWidth * 0.8, 220), behavior: 'smooth' });
-    }
-    prev.addEventListener('click', function () { page(-1); });
-    next.addEventListener('click', function () { page(1); });
-    row.addEventListener('scroll', update, { passive: true });
-    // mount() runs before the caller inserts this subtree into the document
-    // (see mountSegments), so scrollWidth/clientWidth would still read 0 if
-    // checked synchronously here — defer past that insertion's layout pass.
-    requestAnimationFrame(update);
-    return update;
-  }
-
-  function setCopyIcon(btn, on) {
-    if (!btn) return;
-    btn.classList.toggle('copied', on);
-    while (btn.firstChild) btn.removeChild(btn.firstChild);
-    btn.appendChild(svg(on ? CHECK_SVG : COPY_SVG));
-  }
-
-  function initials(name) {
-    if (!name) return '?';
-    return name.trim().slice(0, 1).toUpperCase();
-  }
-
   function show(node, on) {
     if (!node) return;
     node.style.display = on ? '' : 'none';
   }
 
-  // A fence opener still being typed would render as an empty code block until
-  // its info string is whole and the block can become its card.
-  var PARTIAL_FENCE = /(^|\n)[ \t]*(`{1,3}|~{1,3})[^`\n]*$/;
-
-  var FENCE_LINE = /^[ \t]*(`{3,}|~{3,})(.*)$/;
-
-  // A fence still open at the end of a streaming reply has a half-written body.
-  function endsInOpenFence(text) {
-    var open = '';
-    text.split('\n').forEach(function (line) {
-      var m = FENCE_LINE.exec(line);
-      if (!m) return;
-      if (!open) open = m[1];
-      else if (m[1][0] === open[0] && m[1].length >= open.length && !m[2].trim()) open = '';
-    });
-    return !!open;
-  }
-
+  // A run's body re-renders whole; chat rows render block by block (chat_rows.js).
   function setProse(node, text, streaming) {
-    if (streaming) text = text.replace(PARTIAL_FENCE, '$1');
-    var openTail = !!streaming && endsInOpenFence(text);
+    if (streaming) text = Rows.streamable(text);
+    var openTail = !!streaming && Rows.endsInOpenFence(text);
     node.classList.toggle('is-streaming', !!streaming);
     if (node._raw === text && node._openTail === openTail) return;
     node._raw = text;
     node._openTail = openTail;
     node.innerHTML = root.__hyloRenderMarkdown(text, { cache: !streaming });
     root.__hyloHydrateFenceCards(node, { openTail: openTail });
-  }
-
-  function setText(node, text) {
-    if (!node || node._raw === text) return;
-    node._raw = text;
-    node.textContent = text;
-  }
-
-  var CHECK_MARK = '<svg class="seg-tool-check" fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
-  var CROSS_MARK = '<svg class="seg-tool-check" fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24"><path stroke-linecap="round" d="M7 7l10 10M17 7L7 17"/></svg>';
-
-  var TOOL_VERBS = {
-    read: ['Reading', 'Read'],
-    search: ['Searching', 'Searched'], grep: ['Searching', 'Searched'], glob: ['Searching', 'Searched'],
-    find: ['Searching', 'Searched'], list: ['Listing', 'Listed'], ls: ['Listing', 'Listed'],
-    edit: ['Editing', 'Edited'], multiedit: ['Editing', 'Edited'], write: ['Writing', 'Wrote'],
-    file_change: ['Editing', 'Edited'], patch: ['Editing', 'Edited'], delete: ['Deleting', 'Deleted'],
-    bash: ['Running', 'Ran'], execute: ['Running', 'Ran'], shell: ['Running', 'Ran'],
-    fetch: ['Fetching', 'Fetched'], webfetch: ['Fetching', 'Fetched'], websearch: ['Searching web', 'Searched web'],
-    task: ['Delegating', 'Delegated'], agent: ['Delegating', 'Delegated'],
-    todowrite: ['Planning', 'Planned'], think: ['Thinking', 'Thought'],
-    view: ['Reading', 'Read'], read_file: ['Reading', 'Read'], cat: ['Reading', 'Read'],
-    create: ['Writing', 'Wrote'], write_file: ['Writing', 'Wrote'],
-    str_replace: ['Editing', 'Edited'], str_replace_editor: ['Editing', 'Edited'], apply_patch: ['Editing', 'Edited'],
-    replace: ['Editing', 'Edited'], move: ['Moving', 'Moved'],
-    grep_search: ['Searching', 'Searched'], codebase_search: ['Searching', 'Searched'], search_files: ['Searching', 'Searched'],
-    list_dir: ['Listing', 'Listed'], list_directory: ['Listing', 'Listed'],
-    web_fetch: ['Fetching', 'Fetched'], web_search: ['Searching web', 'Searched web'],
-    run_terminal_cmd: ['Running', 'Ran'], run_command: ['Running', 'Ran']
-  };
-
-  function toolVerb(name, running) {
-    var short = String(name || '').replace(/^mcp__.*__/, '');
-    var key = short.toLowerCase().replace(/^codex_/, '');
-    var v = TOOL_VERBS[key];
-    if (v) return v[running ? 0 : 1];
-    return !key || key === 'other' ? 'Tool' : short;
-  }
-
-  function fmtDur(ms) {
-    if (ms < 100) return '';
-    if (ms < 10000) return (ms / 1000).toFixed(1) + 's';
-    var s = Math.round(ms / 1000);
-    return s < 60 ? s + 's' : Math.floor(s / 60) + 'm ' + (s % 60) + 's';
-  }
-
-  function toolMs(seg) {
-    var total = 0;
-    var calls = seg.calls || [];
-    for (var i = 0; i < calls.length; i++) if (calls[i].endedAt) total += calls[i].endedAt - calls[i].startedAt;
-    return total;
-  }
-
-  var chipsShown = new WeakMap();
-
-  // Notes the call touched, as chips that pop in as they're discovered.
-  function noteChips(seg, notes) {
-    var row = el('div', 'seg-tool-notes');
-    var seenCount = chipsShown.get(seg) || 0;
-    chipsShown.set(seg, notes.length);
-    notes.forEach(function (n, idx) {
-      var base = n.path.split('/').pop() || n.path;
-      var info = noteInfoCache[n.path];
-      var title = (info && info.title ? info.title : base).replace(/\.md$/i, '');
-      var chip = el('button', 'seg-note-chip' + (n.action === 'write' ? ' is-write' : '') + (idx >= seenCount ? ' is-fresh' : ''));
-      chip.type = 'button';
-      chip.title = n.path;
-      chip.textContent = title;
-      chip.addEventListener('click', function () {
-        if (window.__hyloContentPane) {
-          void window.__hyloContentPane.openNoteInContentPane(n.path, title, false, false);
-        }
-      });
-      row.appendChild(chip);
-    });
-    return row;
-  }
-
-  // Rows rebuild wholesale on structural change; a per-seg memo keeps one-shot
-  // entrance animations from replaying on every rebuild.
-  var shownState = new WeakMap();
-  function firstShow(seg, state) {
-    var fresh = shownState.get(seg) !== state;
-    shownState.set(seg, state);
-    return fresh;
-  }
-
-  // Negative delay keeps looping animations in phase across row rebuilds.
-  function phase(node, period) {
-    node.style.animationDelay = '-' + (Date.now() % period) + 'ms';
-  }
-
-  function segCtx(msg) {
-    var segs = msg.segments || [];
-    return { segs: segs, running: msg.status === 'running' };
-  }
-
-  var kinds = {
-    text: {
-      sig: function () { return ['t']; },
-      mount: function (slot, seg, ctx, i, msg, rec) {
-        var node = el('div', 'prose');
-        setProse(node, seg.content || '', ctx.running);
-        rec.node = node;
-        slot.appendChild(node);
-      },
-      patch: function (rec, seg, ctx) {
-        if (!rec.node) return false;
-        setProse(rec.node, seg.content || '', ctx.running);
-        return true;
-      },
-    },
-    thinking: {
-      sig: function (seg, ctx) { return ['h', (ctx.running && !seg.endedAt) ? 1 : 0, seg.endedAt ? 1 : 0]; },
-      mount: function (slot, seg, ctx, i, msg, rec) {
-        var live = ctx.running && !seg.endedAt;
-        var open = isOpen(seg);
-        var wrap = el('div', 'seg-thinking hairline');
-        var btn = el('button', 'seg-thinking-toggle' + (open ? ' open' : '') + (live ? ' is-streaming' : ''));
-        btn.type = 'button';
-        btn.appendChild(svg(CHEVRON));
-        var label = el('span', 'seg-thinking-label');
-        var dur = seg.endedAt && seg.startedAt ? fmtDur(seg.endedAt - seg.startedAt) : '';
-        label.textContent = live ? 'Thinking' : (dur ? 'Thought for ' + dur : 'Thought');
-        if (live) phase(label, 1800);
-        btn.appendChild(label);
-        var body = el('div', 'seg-thinking-content' + (live && !open ? ' is-preview' : ''));
-        setText(body, seg.content || '');
-        show(body, open || (live && !!seg.content));
-        btn.addEventListener('click', function () {
-          var on = toggleOpen(seg);
-          btn.classList.toggle('open', on);
-          body.classList.toggle('is-preview', live && !on);
-          show(body, on || (live && !!seg.content));
-        });
-        wrap.appendChild(btn);
-        wrap.appendChild(body);
-        rec.body = body;
-        rec.live = live;
-        slot.appendChild(wrap);
-      },
-      patch: function (rec, seg) {
-        if (!rec.body) return false;
-        setText(rec.body, seg.content || '');
-        if (rec.live && seg.content && !isOpen(seg)) show(rec.body, true);
-        return true;
-      },
-    },
-    tool_use: {
-      sig: function (seg, ctx) {
-        var calls = seg.calls || [];
-        var last = calls.length ? calls[calls.length - 1] : null;
-        return ['u', seg.name || '', seg.count || 0, (seg.results || []).length, ctx.running ? 1 : 0,
-          last ? last.arg : '', last && last.failed ? 1 : 0,
-          (seg.notes || []).map(function (n) { return n.path + n.action; }).join('|')];
-      },
-      mount: function (slot, seg, ctx, i, msg, rec) {
-        var results = seg.results || [];
-        var calls = seg.calls || [];
-        var last = calls.length ? calls[calls.length - 1] : null;
-        var pending = ctx.running && results.length < seg.count;
-        var failed = false;
-        for (var ci = 0; ci < calls.length; ci++) if (calls[ci].failed) failed = true;
-        var state = pending ? 'run' : (failed ? 'err' : (results.length ? 'ok' : 'idle'));
-        var hasBody = results.some(function (r) { return !!r; });
-        var open = hasBody && isOpen(seg);
-
-        var wrap = el('div', 'seg-tool is-' + state);
-        var head = el(hasBody ? 'button' : 'div', 'seg-tool-head' + (open ? ' open' : ''));
-        if (hasBody) head.type = 'button';
-
-        var icon;
-        if (state === 'run') { icon = el('span', 'seg-tool-spinner'); phase(icon, 700); }
-        else if (state === 'ok' || state === 'err') {
-          icon = svg(state === 'ok' ? CHECK_MARK : CROSS_MARK);
-          if (firstShow(seg, state + results.length)) icon.classList.add('is-fresh');
-        } else icon = el('span', 'seg-tool-icon-done');
-        head.appendChild(icon);
-
-        var verb = el('span', 'seg-tool-verb');
-        verb.textContent = toolVerb(seg.name, pending);
-        if (pending) phase(verb, 1800);
-        head.appendChild(verb);
-        var notes = seg.notes || [];
-        if (last && last.arg && !notes.length) {
-          var arg = el('span', 'seg-tool-arg');
-          arg.textContent = last.arg;
-          arg.title = last.arg;
-          head.appendChild(arg);
-        }
-        if (seg.count > 1) {
-          var cnt = el('span', 'seg-tool-count');
-          cnt.textContent = '×' + seg.count;
-          head.appendChild(cnt);
-        }
-        var d = pending ? '' : fmtDur(toolMs(seg));
-        if (d) {
-          var t = el('span', 'seg-tool-time');
-          t.textContent = d;
-          head.appendChild(t);
-        }
-        if (hasBody) head.appendChild(svg(CHEVRON));
-        wrap.appendChild(head);
-        if (notes.length) wrap.appendChild(noteChips(seg, notes));
-        slot.appendChild(wrap);
-        if (!hasBody) return;
-
-        var box = el('div');
-        show(box, open);
-        rec.pres = [];
-        for (var ri = 0; ri < results.length; ri++) {
-          var pre = el('pre', 'seg-tool-result-content');
-          if (results.length > 1) pre.style.marginTop = '0.25rem';
-          pre.textContent = results.length > 1 ? ('[' + (ri + 1) + '] ' + results[ri]) : results[ri];
-          pre._raw = results[ri];
-          box.appendChild(pre);
-          rec.pres.push(pre);
-        }
-        head.addEventListener('click', function () {
-          var on = toggleOpen(seg);
-          head.classList.toggle('open', on);
-          show(box, on);
-        });
-        wrap.appendChild(box);
-      },
-      patch: function (rec, seg) {
-        var results = seg.results || [];
-        if (!results.length) return rec.pres ? false : true;
-        if (!rec.pres || rec.pres.length !== results.length) return false;
-        for (var ri = 0; ri < results.length; ri++) {
-          if (rec.pres[ri]._raw === results[ri]) continue;
-          rec.pres[ri]._raw = results[ri];
-          rec.pres[ri].textContent = results.length > 1 ? ('[' + (ri + 1) + '] ' + results[ri]) : results[ri];
-        }
-        return true;
-      },
-    },
-    tool_result: {
-      sig: function () { return ['r']; },
-      mount: function (slot, seg, ctx, i, msg, rec) {
-        var open = isOpen(seg);
-        var wrap = el('div', 'seg-tool-result');
-        var btn = el('button', 'seg-tool-result-toggle' + (open ? ' open' : ''));
-        btn.type = 'button';
-        btn.appendChild(svg(CHEVRON));
-        btn.appendChild(document.createTextNode('Result'));
-        var pre = el('pre', 'seg-tool-result-content');
-        setText(pre, seg.content || '');
-        show(pre, open);
-        btn.addEventListener('click', function () {
-          var on = toggleOpen(seg);
-          btn.classList.toggle('open', on);
-          show(pre, on);
-        });
-        wrap.appendChild(btn);
-        wrap.appendChild(pre);
-        rec.pre = pre;
-        slot.appendChild(wrap);
-      },
-      patch: function (rec, seg) {
-        if (!rec.pre) return false;
-        setText(rec.pre, seg.content || '');
-        return true;
-      },
-    },
-    note_access: {
-      sig: function (seg) {
-        var items = seg.items || [];
-        var bits = ['n', items.length];
-        for (var i = 0; i < items.length; i++) bits.push(items[i].path, items[i].action);
-        return bits;
-      },
-      mount: function (slot, seg, ctx, i, msg, rec) {
-        var items = seg.items || [];
-        if (!items.length) return;
-        var wrap = el('div', 'seg-note-access');
-        var label = el('div', 'seg-note-access-label');
-        label.textContent = 'Notes touched';
-        wrap.appendChild(label);
-        // home-list-body/is-grid gives these the exact same card layout as
-        // the real note grid (see home.css); .seg-note-access-row itself
-        // turns that into a horizontal scroll strip (agent_chat.css).
-        var scroller = el('div', 'seg-note-access-scroller');
-        var row = el('div', 'seg-note-access-row home-list-body is-grid');
-        // Hidden until the vault confirms which notes exist; the wrapper is
-        // appended now so it keeps its place among later segments.
-        show(wrap, false);
-        scroller.appendChild(row);
-        wrap.appendChild(scroller);
-        slot.appendChild(wrap);
-        var updateArrows = wireHorizontalScroller(scroller, row);
-        fetchNoteInfo(items.map(function (it) { return it.path; })).then(function () {
-          var cards = items
-            .filter(function (it) { return noteInfoCache[it.path] !== null; })
-            .map(noteAccessCard);
-          if (!cards.length) return;
-          cards.forEach(function (c) { row.appendChild(c.node); c.hydrate(); });
-          show(wrap, true);
-          updateArrows();
-          if (hydrateListener) hydrateListener();
-        });
-      },
-      patch: function () { return false; },
-    },
-    status: {
-      sig: function (seg, ctx) { return ['s', ctx.running ? 1 : 0]; },
-      mount: function (slot, seg, ctx, i, msg, rec) {
-        if (!ctx.running) return;
-        var node = el('div', 'seg-status is-running');
-        setText(node, seg.label || '');
-        rec.node = node;
-        slot.appendChild(node);
-      },
-      patch: function (rec, seg, ctx) {
-        if (!ctx.running) return rec.node ? false : true;
-        if (!rec.node) return false;
-        setText(rec.node, seg.label || '');
-        return true;
-      },
-    },
-    console: {
-      sig: function () { return ['c']; },
-      mount: function (slot, seg, ctx, i, msg, rec) {
-        var node = el('pre', 'seg-console');
-        setText(node, seg.content || '');
-        rec.node = node;
-        slot.appendChild(node);
-      },
-      patch: function (rec, seg) {
-        if (!rec.node) return false;
-        setText(rec.node, seg.content || '');
-        return true;
-      },
-    },
-    error: {
-      sig: function () { return ['e']; },
-      mount: function (slot, seg, ctx, i, msg, rec) {
-        var node = el('div', 'seg-error');
-        setText(node, seg.message || '');
-        rec.node = node;
-        slot.appendChild(node);
-      },
-      patch: function (rec, seg) {
-        if (!rec.node) return false;
-        setText(rec.node, seg.message || '');
-        return true;
-      },
-    },
-  };
-
-  // A turn is one trace (thinking, tools, narration) then the reply. While
-  // running the trace keeps its newest steps in a capped box; once settled it
-  // folds to a one-line summary.
-  var TRACE_TYPES = { thinking: 1, tool_use: 1, tool_result: 1, status: 1, text: 1 };
-
-  function buildItems(ctx) {
-    var segs = ctx.segs, ai = R.answerIndex(segs, ctx.running);
-    var trace = { trace: true, segs: [], idx: [], live: ctx.running }, rest = [], steps = 0;
-    for (var i = 0; i < segs.length; i++) {
-      if (i !== ai && TRACE_TYPES[segs[i].type]) {
-        trace.segs.push(segs[i]);
-        trace.idx.push(i);
-        if (segs[i].type !== 'status') steps++;
-      } else if (i !== ai) rest.push({ seg: segs[i], i: i });
-    }
-    var items = [];
-    if (steps) items.push(trace);
-    else for (var k = 0; k < trace.segs.length; k++) items.push({ seg: trace.segs[k], i: trace.idx[k] });
-    if (ai >= 0) items.push({ seg: segs[ai], i: ai });
-    return items.concat(rest);
-  }
-
-  var openTraces = new WeakMap();
-  var traceState = new WeakMap();
-
-  function traceSummary(segs, live) {
-    var think = 0, thinking = false, hasThink = false, order = [], counts = {};
-    for (var i = 0; i < segs.length; i++) {
-      var sg = segs[i];
-      if (sg.type === 'thinking') {
-        hasThink = true;
-        if (sg.endedAt && sg.startedAt) think += sg.endedAt - sg.startedAt;
-        else if (live) thinking = true;
-      } else if (sg.type === 'tool_use') {
-        var v = toolVerb(sg.name, false);
-        if (!(v in counts)) { counts[v] = 0; order.push(v); }
-        counts[v] += sg.count || 1;
-      }
-    }
-    var parts = [];
-    if (thinking) parts.push('Thinking');
-    else if (hasThink) { var d = fmtDur(think); parts.push(d ? 'Thought ' + d : 'Thought'); }
-    for (var k = 0; k < order.length; k++) parts.push(order[k] + (counts[order[k]] > 1 ? ' ×' + counts[order[k]] : ''));
-    return parts.join(' · ') || (live ? 'Working' : 'Worked');
-  }
-
-  function traceText(slot, seg, ctx, rec) {
-    var node = el('div', 'prose seg-trace-text');
-    setProse(node, seg.content || '', ctx.running);
-    rec.node = node;
-    slot.appendChild(node);
-  }
-
-  // The capped box fades its top edge only once older steps are cut off.
-  // They overflow upward, which scrollHeight doesn't count.
-  function markOverflow(inner) {
-    requestAnimationFrame(function () {
-      var a = inner.firstElementChild, z = inner.lastElementChild;
-      var h = a && z ? z.offsetTop + z.offsetHeight - a.offsetTop : 0;
-      inner.classList.toggle('is-overflow', h > inner.clientHeight + 1);
-    });
-  }
-
-  function mountTrace(slot, item, ctx, msg, rec) {
-    var first = item.segs[0];
-    var live = item.live;
-    var open = !!openTraces.get(first);
-    var was = traceState.get(first);
-    traceState.set(first, live ? 'live' : 'settled');
-    var folding = !live && !open && was === 'live';
-    var wrap = el('div', 'seg-trace' + (live ? ' is-live' : ''));
-    var shell = el('div', 'seg-trace-shell' + (open ? '' : (live || folding ? ' is-capped' : ' is-collapsed')));
-    var inner = el('div', 'seg-trace-body');
-    rec.kids = [];
-    for (var n = 0; n < item.segs.length; n++) {
-      var seg = item.segs[n];
-      var kslot = el('div');
-      var krec = { type: seg.type };
-      if (seg.type === 'text') traceText(kslot, seg, ctx, krec);
-      else if (kinds[seg.type]) kinds[seg.type].mount(kslot, seg, ctx, item.idx[n], msg, krec);
-      inner.appendChild(kslot);
-      rec.kids.push(krec);
-    }
-    shell.appendChild(inner);
-    var head = el('button', 'seg-trace-head' + (open ? ' open' : ''));
-    head.type = 'button';
-    head.appendChild(svg(CHEVRON));
-    var label = el('span');
-    label.textContent = traceSummary(item.segs, live);
-    if (live) phase(label, 1800);
-    head.appendChild(label);
-    head.addEventListener('click', function () {
-      var on = !openTraces.get(first);
-      openTraces.set(first, on);
-      head.classList.toggle('open', on);
-      shell.classList.remove('is-capped', 'is-collapsed');
-      if (!on) shell.classList.add(live ? 'is-capped' : 'is-collapsed');
-      if (!on && live) markOverflow(inner);
-    });
-    wrap.appendChild(head);
-    wrap.appendChild(shell);
-    slot.appendChild(wrap);
-    if (live || folding) markOverflow(inner);
-    if (folding) {
-      requestAnimationFrame(function () {
-        requestAnimationFrame(function () { shell.classList.add('is-collapsed'); });
-      });
-    }
-    rec.n = item.segs.length;
-    rec.live = live;
-    rec.inner = inner;
-  }
-
-  function rowSig(msg, snap) {
-    if (msg.role === 'user') {
-      var ids = (msg.attachments || []).map(function (a) { return a.id; }).join(',');
-      return 'u\0' + (msg.content || '') + '\0' + ids;
-    }
-    var ctx = segCtx(msg);
-    var stopping = snap.stoppingId === msg.id ? 1 : 0;
-    var bits = [msg.status || '', stopping, msg.triggerEvent || '', snap.mateName(msg), answerText(msg) ? 1 : 0];
-    var items = buildItems(ctx);
-    for (var n = 0; n < items.length; n++) {
-      var it = items[n];
-      var segs = it.trace ? it.segs : [it.seg];
-      if (it.trace) bits.push('trace', it.live ? 1 : 0);
-      for (var m = 0; m < segs.length; m++) {
-        var kind = kinds[segs[m].type];
-        if (it.trace && segs[m].type === 'text') bits.push('tt');
-        else if (kind) bits.push.apply(bits, kind.sig(segs[m], ctx, it.trace ? it.idx[m] : it.i));
-        else bits.push(segs[m].type || '');
-      }
-    }
-    return bits.join('\0');
-  }
-
-  function mountSegments(body, msg) {
-    var ctx = segCtx(msg);
-    var items = buildItems(ctx);
-    var slots = [];
-    for (var n = 0; n < items.length; n++) {
-      var it = items[n];
-      var slot = el('div');
-      var rec;
-      if (it.trace) {
-        rec = { type: 'trace' };
-        mountTrace(slot, it, ctx, msg, rec);
-      } else {
-        rec = { type: it.seg.type };
-        var kind = kinds[it.seg.type];
-        if (kind) kind.mount(slot, it.seg, ctx, it.i, msg, rec);
-      }
-      body.appendChild(slot);
-      slots.push(rec);
-    }
-    body._slots = slots;
-  }
-
-  function patchSegments(body, msg) {
-    var slots = body._slots;
-    if (!slots) return false;
-    var ctx = segCtx(msg);
-    var items = buildItems(ctx);
-    if (slots.length !== items.length) return false;
-    for (var n = 0; n < items.length; n++) {
-      var it = items[n];
-      var rec = slots[n];
-      if (it.trace) {
-        if (!rec || rec.type !== 'trace' || rec.n !== it.segs.length || rec.live !== it.live) return false;
-        for (var m = 0; m < it.segs.length; m++) {
-          var ks = it.segs[m], kr = rec.kids[m], kk = ks.type === 'text' ? kinds.text : kinds[ks.type];
-          if (!kr || kr.type !== ks.type) return false;
-          if (kk && kk.patch && kk.patch(kr, ks, ctx, it.idx[m]) === false) return false;
-        }
-        if (it.live) markOverflow(rec.inner);
-        continue;
-      }
-      var kind = kinds[it.seg.type];
-      if (!rec || rec.type !== it.seg.type) return false;
-      if (kind && kind.patch && kind.patch(rec, it.seg, ctx, it.i) === false) return false;
-    }
-    return true;
-  }
-
-  function footer(msg, snap, api) {
-    var foot = el('div', 'msg-footer');
-    var segs = msg.segments || [];
-    var stopping = snap.stoppingId === msg.id;
-    if (msg.status === 'running' && stopping) {
-      var stop = el('span', 'msg-thinking-label');
-      stop.appendChild(document.createTextNode('Stopping'));
-      var dots = el('span', 'thinking-dots');
-      dots.appendChild(el('span')); dots.appendChild(el('span')); dots.appendChild(el('span'));
-      stop.appendChild(dots);
-      foot.appendChild(stop);
-    } else if (msg.status === 'running' && !segs.length) {
-      var think = el('span', 'msg-thinking-label');
-      think.appendChild(document.createTextNode('Thinking'));
-      var dots2 = el('span', 'thinking-dots');
-      dots2.appendChild(el('span')); dots2.appendChild(el('span')); dots2.appendChild(el('span'));
-      think.appendChild(dots2);
-      foot.appendChild(think);
-    }
-    if (msg.status !== 'running') {
-      var ts = R.msgAt(msg);
-      var label = ts ? R.formatTime(ts) : '';
-      if (label) {
-        var time = el('span', 'msg-agent-time');
-        time.textContent = label;
-        foot.appendChild(time);
-        foot._timeEl = time;
-      }
-    }
-    if (msg.status !== 'running' && answerText(msg)) {
-      var copy = el('button', 'msg-copy-btn' + (copiedNow(msg.id) ? ' copied' : ''));
-      copy.type = 'button';
-      copy.title = 'Copy reply';
-      copy.appendChild(svg(copiedNow(msg.id) ? CHECK_SVG : COPY_SVG));
-      copy.addEventListener('click', function () { copyReply(msg, copy); });
-      foot.appendChild(copy);
-    }
-    return foot;
-  }
-
-  function statusBanner(msg, snap, api) {
-    if (msg.status !== 'failed' && msg.status !== 'canceled') return null;
-    var banner = el('div', 'msg-status-banner ' + (msg.status === 'failed' ? 'is-failed' : 'is-stopped'));
-    var span = el('span');
-    span.textContent = msg.status === 'failed' ? 'Failed to respond' : 'Stopped';
-    banner.appendChild(span);
-    var retry = el('button', 'msg-retry-btn');
-    retry.type = 'button';
-    retry.title = 'Retry';
-    retry.disabled = !!snap.busy;
-    retry.appendChild(svg(RETRY_SVG));
-    retry.appendChild(document.createTextNode('Retry'));
-    retry.addEventListener('click', function () { api.retry(msg.id); });
-    banner.appendChild(retry);
-    return banner;
-  }
-
-  function buildAssistant(msg, snap, api) {
-    var row = el('div', 'msg-row msg-row-assistant');
-    var wrap = el('div', 'msg-assistant-wrap');
-    var header = el('div', 'msg-agent-header');
-    var name = snap.mateName(msg);
-    var avatar = el('div', 'avatar avatar--md msg-agent-avatar');
-    var mate = null;
-    for (var i = 0; i < snap.mates.length; i++) if (snap.mates[i].id === msg.agentBotId) { mate = snap.mates[i]; break; }
-    var colorKey = mate ? mate.name : (msg.agentBotId || '');
-    if (root.agentBotAvatarSVG) avatar.innerHTML = root.agentBotAvatarSVG(colorKey, snap.mates, name);
-    else avatar.textContent = initials(name);
-    header.appendChild(avatar);
-    var nameEl = el('div', 'msg-agent-name');
-    nameEl.textContent = name;
-    header.appendChild(nameEl);
-    if (msg.triggerEvent) {
-      var badge = el('span', 'badge badge--accent');
-      badge.textContent = snap.triggerLabel(msg.triggerEvent);
-      header.appendChild(badge);
-    }
-    wrap.appendChild(header);
-    var body = el('div', 'msg-body');
-    mountSegments(body, msg);
-    wrap.appendChild(body);
-    var banner = statusBanner(msg, snap, api);
-    if (banner) wrap.appendChild(banner);
-    var foot = footer(msg, snap, api);
-    wrap.appendChild(foot);
-    row.appendChild(wrap);
-    row._body = body;
-    row._foot = foot;
-    return row;
-  }
-
-  function buildUser(msg) {
-    var row = el('div', 'msg-row msg-row-user');
-    var wrap = el('div', 'msg-user-wrap');
-    var atts = msg.attachments || [];
-    if (atts.length) {
-      var grid = el('div', 'msg-user-images');
-      atts.forEach(function (a) {
-        var src = '/api/chat/uploads/' + encodeURIComponent(a.id);
-        var open = el('button', 'msg-user-image');
-        open.type = 'button';
-        open.title = a.name || 'image';
-        open.dataset.imgSrc = src;
-        open.dataset.imgName = a.name || a.id;
-        open.dataset.imgExt = (a.id.match(/\.[a-z]+$/i) || [''])[0];
-        open.addEventListener('click', function () {
-          if (root.openImageLightbox) root.openImageLightbox(open);
-        });
-        var img = el('img');
-        img.src = src;
-        img.alt = a.name || 'image';
-        open.appendChild(img);
-        grid.appendChild(open);
-      });
-      wrap.appendChild(grid);
-    }
-    if ((msg.content || '').trim()) {
-      var bubble = el('div', 'msg-user-bubble prose');
-      setProse(bubble, msg.content || '', false);
-      wrap.appendChild(bubble);
-    }
-    row.appendChild(wrap);
-    return row;
   }
 
   function kbd(text) {
@@ -1128,7 +265,6 @@
     var attachImage = rootEl.querySelector('#chat-add-image');
     var fileInput = rootEl.querySelector('#chat-file-input');
     var pendingImages = rootEl.querySelector('#chat-pending-images');
-    var inputCard = rootEl.querySelector('#chat-input-card');
     var imageSig = '';
     var stopBtn = rootEl.querySelector('#chat-stop');
     var newBtn = rootEl.querySelector('#chat-new-btn');
@@ -1141,7 +277,7 @@
     spacer.setAttribute('aria-hidden', 'true');
     thread.appendChild(spacer);
 
-    var rows = new Map();
+    var rows = new Map(); // message id -> row (chat_rows.js)
     // Rows of conversations switched away from, kept built so coming back doesn't rebuild them.
     var shelf = new Map();
     var SHELF_MAX = 400;
@@ -1155,6 +291,7 @@
     }
     var ac = null;
     var ro = null;
+    var taRO = null;
     var contentRo = null;
     var scrollRaf = 0;
     var timeTimer = 0;
@@ -1165,10 +302,9 @@
 
     function onCopied(id, onIcon) {
       var row = rows.get(id);
-      var btn = row && row.querySelector('.msg-copy-btn');
-      setCopyIcon(btn, onIcon);
+      if (row && row.copyBtn) Rows.setCopyIcon(row.copyBtn, onIcon);
     }
-    copiedListener = onCopied;
+    Rows.onCopied(onCopied);
 
     // The thread is either stuck to the bottom or holding the reader's place
     // (the top row in view) through every reflow. Only the reader's own
@@ -1179,8 +315,19 @@
     var lastTop = 0;
     var SCROLL_KEYS = { ArrowUp: 1, ArrowDown: 1, PageUp: 1, PageDown: 1, Home: 1, End: 1, ' ': 1 };
 
-    function markIntent() { intentAt = performance.now(); }
-    function userScrolling() { return dragging || performance.now() - intentAt < 600; }
+    // While the reader's gesture (or its momentum) is in flight, WKWebView's UI
+    // process owns the position and keeps applying it in the coordinates it began
+    // in: an absolute scrollTop write lands under it, and flipping the origin
+    // mid-flight threw the reader to the top. So absolute writes wait for the
+    // gesture to end; until then only relative scrollBy compensates.
+    var INTENT_MS = 600;
+    var quietTimer = 0;
+    function markIntent() {
+      intentAt = performance.now();
+      clearTimeout(quietTimer);
+      quietTimer = setTimeout(settle, INTENT_MS + 50);
+    }
+    function userScrolling() { return dragging || performance.now() - intentAt < INTENT_MS; }
 
     var glide = null;
 
@@ -1194,15 +341,16 @@
 
     function syncOrigin() {
       var want = api.stick() && !triggerMode;
-      if (reversed() === want) return;
+      if (reversed() === want || (userScrolling() && !triggerMode)) return;
       var top = fromTop();
       scrollEl.classList.toggle('is-stuck', want);
       scrollEl.scrollTop = want ? 0 : top;
     }
 
-    // A glide in progress owns the scroll position until it lands.
+    // A glide in progress owns the scroll position until it lands, the reader's
+    // gesture until it ends.
     function pin() {
-      if (glide) return;
+      if (glide || userScrolling()) return;
       syncOrigin();
       if (scrollEl.scrollTop !== 0) scrollEl.scrollTop = 0;
     }
@@ -1219,8 +367,8 @@
     function holdAnchor() {
       var a = api.anchor();
       var row = a && rows.get(a.id);
-      if (!row || row.parentNode !== thread) return false;
-      var delta = row.getBoundingClientRect().top - scrollEl.getBoundingClientRect().top - a.top;
+      if (!row || row.node.parentNode !== thread) return false;
+      var delta = row.node.getBoundingClientRect().top - scrollEl.getBoundingClientRect().top - a.top;
       // A relative scroll adds to WebKit's in-flight position; assigning scrollTop would
       // overwrite it and drop a compensation still on its way.
       if (Math.abs(delta) >= 1) scrollEl.scrollBy(0, delta);
@@ -1323,12 +471,11 @@
     function startMorph() {
       if (!morph) return;
       if (performance.now() - morph.at > 2000) { morph = null; return; }
-      var row = null;
+      var bubble = null;
       rows.forEach(function (r, id) {
-        if (!morph.seen[id] && r.classList.contains('msg-row-user') && r.textContent.trim() === morph.text) row = r;
+        if (!morph.seen[id] && r.bubble && r.node.textContent.trim() === morph.text) bubble = r.bubble;
       });
-      if (!row) return;
-      var bubble = row.querySelector('.msg-user-bubble');
+      if (!bubble) return;
       endGlide();
       glide = { from: morph.top, t0: performance.now(), bubble: bubble, chip: morph.from, raf: 0 };
       morph = null;
@@ -1376,11 +523,6 @@
       g.bubble.style.transform = 'translate(' + dx * (1 - e) + 'px,' + (dy * (1 - ey) - left) + 'px) scale(' + (s0 + (1 - s0) * e) + ')';
     }
 
-    function onContentHydrated() {
-      if (triggerMode) measureRuns();
-      else settle();
-    }
-    hydrateListener = onContentHydrated;
     root.__hyloPreloadFenceCards();
 
     function updateJump(snap) {
@@ -1411,7 +553,6 @@
       var sig = imgs.map(function (i) {
         return [i.localId, i.uploading ? 1 : 0, i.failed ? 1 : 0, i.id || ''].join(':');
       }).join('|');
-      if (inputCard) inputCard.classList.toggle('has-images', imgs.length > 0);
       if (sig === imageSig) return;
       imageSig = sig;
       pendingImages.replaceChildren();
@@ -1496,12 +637,12 @@
       var row = rows.get(id);
       rows.delete(id);
       if (!row) return;
-      if (row.parentNode) row.parentNode.removeChild(row);
+      if (row.node.parentNode) row.node.parentNode.removeChild(row.node);
       shelf.delete(id);
       shelf.set(id, row);
       if (shelf.size > SHELF_MAX) {
         var oldest = shelf.keys().next().value;
-        root.__hyloReleaseFenceCards(shelf.get(oldest));
+        shelf.get(oldest).destroy();
         shelf.delete(oldest);
       }
     }
@@ -1521,7 +662,7 @@
       if (busy === lastBusy) return;
       lastBusy = busy;
       rows.forEach(function (row) {
-        var btn = row.querySelector && row.querySelector('.msg-retry-btn');
+        var btn = row.node.querySelector('.msg-retry-btn');
         if (btn) btn.disabled = busy;
       });
     }
@@ -1567,25 +708,17 @@
         var row = rows.get(id);
         if (!row && msg.id && (row = unshelve(id))) returned = true;
         var stopBit = snap.stoppingId === id ? 1 : 0;
-        if (row && row._epoch === snap.catalogEpoch && row._rev === msg.rev && row._stop === stopBit) {
-          prev = place(row, prev);
-          continue;
-        }
-        var sig = rowSig(msg, snap);
-        var same = row && row._epoch === snap.catalogEpoch && row._struct === sig;
-        if (!(same && row._body && patchSegments(row._body, msg))) {
-          var fresh = msg.role === 'user' ? buildUser(msg) : buildAssistant(msg, snap, api);
-          if (row) root.__hyloReleaseFenceCards(row);
-          if (row && row.parentNode) row.parentNode.replaceChild(fresh, row);
-          row = fresh;
+        if (!row) {
+          row = Rows.create(msg, snap, api);
           rows.set(id, row);
-          row._struct = sig;
-          row._epoch = snap.catalogEpoch;
+        } else if (row.rev !== msg.rev || row.epoch !== snap.catalogEpoch || row.stop !== stopBit) {
+          row.update(msg, snap);
         }
-        row._rev = msg.rev;
-        row._stop = stopBit;
-        row._msgId = id;
-        prev = place(row, prev);
+        row.rev = msg.rev;
+        row.epoch = snap.catalogEpoch;
+        row.stop = stopBit;
+        row.node._msgId = id;
+        prev = place(row.node, prev);
       }
       if (spacer.parentNode !== thread || (prev && prev.nextSibling !== spacer)) thread.appendChild(spacer);
       rows.forEach(function (row, id) { if (!seen[id]) retire(id); });
@@ -1647,21 +780,14 @@
       main.appendChild(head);
 
       var text = runText(msg);
-      if (status === 'running' && !text) {
-        var work = el('div', 'msg-thinking-label');
-        work.appendChild(document.createTextNode('Working'));
-        var dots = el('span', 'thinking-dots');
-        dots.appendChild(el('span')); dots.appendChild(el('span')); dots.appendChild(el('span'));
-        work.appendChild(dots);
-        main.appendChild(work);
-      }
+      if (status === 'running' && !text) main.appendChild(Rows.dots('Working'));
       var body = null;
       if (text) {
         body = el('div', 'trig-run-body prose' + (runOpen.has(msg.id) ? '' : ' is-clamped'));
         setProse(body, text, status === 'running');
         main.appendChild(body);
       }
-      var banner = statusBanner(msg, snap, api);
+      var banner = Rows.statusBanner(msg, snap, api);
       if (banner) main.appendChild(banner);
 
       if (status !== 'running') {
@@ -1697,11 +823,11 @@
         });
         // Same rule as the chat's note cards: a note gone from the vault gets no chip.
         if (notes.length) {
-          fetchNoteInfo(notes.map(function (n) { return n.path; })).then(function () {
-            notes.forEach(function (n, k) { if (noteInfoCache[n.path] === null) chips[k].remove(); });
+          Rows.fetchNoteInfo(notes.map(function (n) { return n.path; })).then(function () {
+            notes.forEach(function (n, k) { if (Rows.noteInfo(n.path) === null) chips[k].remove(); });
           });
         }
-        var took = status === 'succeeded' && msg.createdAt && msg.completedAt ? fmtDur(msg.completedAt - msg.createdAt) : '';
+        var took = status === 'succeeded' && msg.createdAt && msg.completedAt ? Rows.fmtDur(msg.completedAt - msg.createdAt) : '';
         if (took) {
           var dur = el('span', 'trig-run-dur');
           dur.textContent = took;
@@ -1804,7 +930,7 @@
         var msg = snap.messages[i];
         if (!msg || msg.role !== 'assistant' || msg.status === 'running') continue;
         var row = rows.get(msg.id);
-        var timeEl = row && row._foot && row._foot._timeEl;
+        var timeEl = row && row.timeEl;
         if (!timeEl) continue;
         var label = R.formatTime(R.msgAt(msg), now);
         if (timeEl.textContent !== label) timeEl.textContent = label;
@@ -1848,8 +974,12 @@
     function onScroll() {
       if (scrollEl && !triggerMode && rows.size) {
         var wasStuck = api.stick();
-        if (fromBottom() <= 64) api.setStick(true);
-        else if (api.stick() && userScrolling() && scrollEl.scrollTop < lastTop - 1) api.setStick(false);
+        // The reader's direction decides: up leaves the bottom at once, down into
+        // its last stretch rejoins it. scrollTop grows toward the bottom in both origins.
+        if (userScrolling()) {
+          if (scrollEl.scrollTop < lastTop - 1) api.setStick(false);
+          else if (scrollEl.scrollTop > lastTop + 1 && fromBottom() <= 64) api.setStick(true);
+        }
         // Stuck but shoved off the bottom by a reflow the observer hasn't seen yet.
         else if (api.stick()) pin();
         syncOrigin();
@@ -1896,7 +1026,17 @@
         contentRo.observe(thread);
         contentRo.observe(scrollEl);
       }
+      // Markdown's own images: the sanitizer strips every img class, so a card's (embed) never match.
+      var REPLY_IMG = '.msg-body .prose img:not([class])';
       on(scrollEl, 'click', function (e) {
+        var img = e.target.closest && e.target.closest(REPLY_IMG);
+        if (img && root.openImageLightbox) {
+          e.preventDefault();
+          img.dataset.imgSrc = img.src;
+          img.dataset.imgName = img.alt || img.src.split('/').pop();
+          root.openImageLightbox(img);
+          return;
+        }
         var a = e.target.closest && e.target.closest('a');
         if (!a) return;
         var href = a.getAttribute('href') || '';
@@ -1932,16 +1072,38 @@
         },
         escKey: 'chat-ac',
       });
-      on(ta, 'input', function () {
+      on(ta, 'input', function (e) {
         if (detaching) return;
         api.setDraft(ta.value);
-        root.__hyloAutoResize(ta);
+        root.__hyloAutoResize(ta, e);
         ac.refresh();
         show(hint, !ta.value);
         refreshContext();
         if (sendBtn) sendBtn.disabled = !api.state().canSend;
       });
       on(ta, 'click', function () { ac.refresh(); });
+      var taScroll = ta.parentElement, snapTimer = 0;
+      // Scroll origin is the bottom, so text above = range + scrollTop. Text
+      // growing past the cap moves this without a scroll event, hence the observer.
+      var syncFade = function () {
+        var lh = parseFloat(getComputedStyle(taScroll).lineHeight) || 21;
+        var above = taScroll.scrollHeight - taScroll.clientHeight + taScroll.scrollTop;
+        taScroll.style.setProperty('--fade-top', Math.min(Math.max(above, 0), lh) + 'px');
+      };
+      if (typeof ResizeObserver !== 'undefined') {
+        taRO = new ResizeObserver(syncFade);
+        taRO.observe(ta);
+      }
+      on(taScroll, 'scroll', function () {
+        syncFade();
+        // A wheel or trackpad comes to rest on a line boundary, so no half line shows.
+        clearTimeout(snapTimer);
+        snapTimer = setTimeout(function () {
+          var lh = parseFloat(getComputedStyle(taScroll).lineHeight) || 21;
+          var top = Math.round(taScroll.scrollTop / lh) * lh;
+          if (Math.abs(top - taScroll.scrollTop) > 0.5) taScroll.scrollTo({ top: top, behavior: 'smooth' });
+        }, 150);
+      }, { passive: true });
       on(ta, 'keyup', function (ev) {
         if (ev.key === 'ArrowLeft' || ev.key === 'ArrowRight' || ev.key === 'Home' || ev.key === 'End') ac.refresh();
       });
@@ -2154,9 +1316,7 @@
       clearComposer: function () {
         if (!ta) return;
         ta.value = '';
-        ta.style.height = '';
-        var card = ta.closest('.chat-input-card');
-        if (card) card.classList.remove('is-multiline');
+        root.__hyloAutoResize(ta);
         show(hint, true);
       },
       focusComposer: focusComposer,
@@ -2165,15 +1325,17 @@
         detaching = true;
         setAttachOpen(false);
         endGlide();
-        root.__hyloReleaseFenceCards(thread);
-        shelf.forEach(function (row) { root.__hyloReleaseFenceCards(row); });
+        if (runsEl) root.__hyloReleaseFenceCards(runsEl);
+        rows.forEach(function (row) { row.destroy(); });
+        shelf.forEach(function (row) { row.destroy(); });
         shelf.clear();
         if (root.__hyloFocusHome === focusComposer) root.__hyloFocusHome = null;
-        if (copiedListener === onCopied) copiedListener = null;
-        if (hydrateListener === onContentHydrated) hydrateListener = null;
+        clearTimeout(quietTimer);
+        Rows.onCopied(null);
         listen.abort();
         if (timeTimer) { clearInterval(timeTimer); timeTimer = 0; }
         if (ro) { ro.disconnect(); ro = null; }
+        if (taRO) { taRO.disconnect(); taRO = null; }
         if (contentRo) { contentRo.disconnect(); contentRo = null; }
         if (ac) {
           try { ac.close(); } catch (e) { /* ignore */ }

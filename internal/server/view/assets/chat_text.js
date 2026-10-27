@@ -1,5 +1,5 @@
-// Shared text helpers. Markdown is used by the inbox sheet; the composer
-// height rule is used by Shorts. Neither belongs to the chat pane.
+// Shared text helpers: markdown (chat, inbox), fence cards, and the composer
+// height rule (chat, Shorts).
 (function (root) {
   var mdCache = new Map();
 
@@ -9,7 +9,8 @@
   }
 
   // Mirrors the registry in editor/src/cm-live/fence-card/registry.js; only these load the chunk.
-  var FENCE_CARD_SEL = ['mindmap', 'choices', 'proposal', 'receipt', 'sources', 'embed'].map(function (l) {
+  var CARD_LANGS = ['mindmap', 'choices', 'proposal', 'receipt', 'sources', 'embed'];
+  var FENCE_CARD_SEL = CARD_LANGS.map(function (l) {
     return 'pre > code.language-' + l;
   }).join(', ');
   var fenceLoad = null;
@@ -53,6 +54,46 @@
       .catch(function () { shown(true); });
   };
 
+  function preprocess(text) {
+    var processed = text.replace(/\[\[([^\]\[|]+?)(?:\|([^\]\[]+?))?\]\]/g, function (_, target, display) {
+      target = target.trim();
+      display = (display || target).trim();
+      var name = target.endsWith('.md') ? target : target + '.md';
+      return '[' + display + '](/notes?name=' + encodeURIComponent(name) + ')';
+    });
+    return processed.replace(/(?<!~)~(?!~)/g, '\\~');
+  }
+
+  function escapeHTML(s) {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  function sanitize(html) {
+    if (typeof DOMPurify === 'undefined') return html;
+    DOMPurify.addHook('uponSanitizeAttribute', onlyFenceClass);
+    try {
+      return DOMPurify.sanitize(html, {
+        ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 's', 'del', 'code', 'pre', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+          'ul', 'ol', 'li', 'blockquote', 'a', 'hr', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'img'],
+        ALLOWED_ATTR: ['href', 'title', 'src', 'alt', 'class'],
+      });
+    } finally {
+      DOMPurify.removeHook('uponSanitizeAttribute', onlyFenceClass);
+    }
+  }
+
+  function cachePut(cache, key, val) {
+    if (cache.size >= 300) {
+      var iter = cache.keys();
+      for (var ei = 0; ei < 50; ei++) {
+        var nxt = iter.next();
+        if (nxt.done) break;
+        cache.delete(nxt.value);
+      }
+    }
+    cache.set(key, val);
+  }
+
   root.__hyloRenderMarkdown = function (text, opts) {
     if (!text || typeof text !== 'string') return '';
     var useCache = !opts || opts.cache !== false;
@@ -60,43 +101,67 @@
       var cached = mdCache.get(text);
       if (cached !== undefined) return cached;
     }
-    var processed = text.replace(/\[\[([^\]\[|]+?)(?:\|([^\]\[]+?))?\]\]/g, function (_, target, display) {
-      target = target.trim();
-      display = (display || target).trim();
-      var name = target.endsWith('.md') ? target : target + '.md';
-      return '[' + display + '](/notes?name=' + encodeURIComponent(name) + ')';
-    });
-    processed = processed.replace(/(?<!~)~(?!~)/g, '\\~');
-    var html;
-    if (typeof marked === 'undefined') {
-      html = processed.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    } else {
-      html = marked.parse(processed);
-      if (typeof DOMPurify !== 'undefined') {
-        DOMPurify.addHook('uponSanitizeAttribute', onlyFenceClass);
-        try {
-          html = DOMPurify.sanitize(html, {
-            ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 's', 'del', 'code', 'pre', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
-              'ul', 'ol', 'li', 'blockquote', 'a', 'hr', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'img'],
-            ALLOWED_ATTR: ['href', 'title', 'src', 'alt', 'class'],
-          });
-        } finally {
-          DOMPurify.removeHook('uponSanitizeAttribute', onlyFenceClass);
-        }
-      }
-    }
-    if (useCache) {
-      if (mdCache.size >= 300) {
-        var iter = mdCache.keys();
-        for (var ei = 0; ei < 50; ei++) {
-          var nxt = iter.next();
-          if (nxt.done) break;
-          mdCache.delete(nxt.value);
-        }
-      }
-      mdCache.set(text, html);
-    }
+    var processed = preprocess(text);
+    var html = typeof marked === 'undefined' ? escapeHTML(processed) : sanitize(marked.parse(processed));
+    if (useCache) cachePut(mdCache, text, html);
     return html;
+  };
+
+  var blockCache = new Map();
+
+  // The top-level blocks of a reply, each rendered on its own, so a host can keep
+  // every block whose HTML didn't change and only redo the one still growing.
+  // A block: { html, card, source }; card is the fence language when it has one.
+  root.__hyloMarkdownBlocks = function (text) {
+    if (!text || typeof text !== 'string') return [];
+    var processed = preprocess(text);
+    if (typeof marked === 'undefined') return [{ html: '<p>' + escapeHTML(processed) + '</p>', card: '' }];
+    var tokens = marked.lexer(processed);
+    var out = [];
+    for (var i = 0; i < tokens.length; i++) {
+      var tok = tokens[i];
+      if (tok.type === 'space') continue;
+      var html = blockCache.get(tok.raw);
+      if (html === undefined) {
+        var one = [tok];
+        one.links = tokens.links;
+        html = sanitize(marked.parser(one));
+        cachePut(blockCache, tok.raw, html);
+      }
+      if (!html.trim()) continue;
+      var card = tok.type === 'code' ? cardLang(tok.lang) : '';
+      out.push({ html: html, card: card, source: card ? tok.text : '' });
+    }
+    return out;
+  };
+
+  function cardLang(info) {
+    var lang = String(info || '').trim().split(/\s/)[0];
+    return CARD_LANGS.indexOf(lang) !== -1 ? lang : '';
+  }
+
+  // One card fence a host renders as its own block: the card replaces `pre` and
+  // the handle's update/destroy are the host's. Until the chunk is in, the code
+  // block stays hidden so it never paints as code.
+  root.__hyloFenceBlock = function (pre, partial) {
+    if (fenceMod) return fenceMod.mountFenceBlock(pre, { partial: partial });
+    var real = null, dead = false, next = null, nextPartial = partial;
+    pre.style.display = 'none';
+    fenceModule().then(function (m) {
+      // A parked row is out of the page but still owns this block: mount it anyway.
+      if (dead) return;
+      real = m.mountFenceBlock(pre, { partial: nextPartial });
+      if (real && next !== null) real.update(next, { partial: nextPartial });
+    }).catch(function () { pre.style.display = ''; });
+    return {
+      get el() { return real ? real.el : pre; },
+      update: function (src, o) {
+        nextPartial = !!(o && o.partial);
+        if (real) real.update(src, o);
+        else next = src;
+      },
+      destroy: function () { dead = true; if (real) real.destroy(); },
+    };
   };
 
   // Through the editing path, not a value write, so undo survives and WebKit
@@ -111,19 +176,30 @@
     el.dispatchEvent(new Event('input', { bubbles: true }));
   };
 
-  root.__hyloAutoResize = function (el) {
+  function fitHeight(el) {
+    if (getComputedStyle(el).fieldSizing === 'content') return;
+    el.style.height = 'auto';
+    el.style.height = el.scrollHeight + 'px';
+  }
+
+  // ev is the input event when the user edited, absent for a programmatic
+  // value. Typing only grows the composer: a wrapped shape stays until the
+  // text is emptied, and the height until the user deletes, since IME marked
+  // text (pinyin) is wider than what it commits and would bounce both.
+  root.__hyloAutoResize = function (el, ev) {
     if (!el) return;
-    var card = el.closest('.chat-input-card, .shorts-compose-card');
-    if (card) {
+    var type = ev ? ev.inputType || '' : '';
+    var deleted = /^delete/.test(type) && type !== 'deleteCompositionText';
+    if (!ev || deleted || !el.value) el.style.removeProperty('--grow-floor');
+    var card = el.closest('.chat-input-card');
+    if (card && !(ev && el.value && card.classList.contains('is-multiline'))) {
       // Judge against the single-row shape: multiline widens the textarea, so
       // measuring in it would unwrap the text and flip back.
       card.classList.remove('is-multiline');
-      el.style.height = 'auto';
-      var cs = getComputedStyle(el);
-      var singleLineH = (parseFloat(cs.lineHeight) || 20) + parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
-      card.classList.toggle('is-multiline', el.scrollHeight > singleLineH + 1);
+      fitHeight(el);
+      card.classList.toggle('is-multiline', el.offsetHeight > (parseFloat(getComputedStyle(el).lineHeight) || 20) + 1);
     }
-    el.style.height = 'auto';
-    el.style.height = Math.min(el.scrollHeight, 140) + 'px';
+    fitHeight(el);
+    if (ev && !deleted && el.value) el.style.setProperty('--grow-floor', el.offsetHeight + 'px');
   };
 })(typeof window !== 'undefined' ? window : global);

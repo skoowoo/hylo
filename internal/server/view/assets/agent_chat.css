@@ -429,11 +429,12 @@
     /* Full row width, not shrink-to-fit: cards size themselves from it, and a
        width that followed their own layout let choices flip between row and column. */
     .msg-assistant-wrap {
+      --row-gap: 0.4rem;
       flex: 1 1 auto;
       min-width: 0;
       display: flex;
       flex-direction: column;
-      gap: 0.4rem;
+      gap: var(--row-gap);
     }
 
     .msg-agent-header {
@@ -458,10 +459,11 @@
     /* .msg-trigger-badge now uses the shared .badge / .badge--accent (base.css). */
 
     .msg-body {
+      --row-gap: 0.35rem;
       position: relative;
       display: flex;
       flex-direction: column;
-      gap: 0.35rem;
+      gap: var(--row-gap);
       /* A slight inset from the avatar's left edge (well under half its
          28px width) — reads as "belonging to" the header above it rather
          than being flush with the avatar, without looking like a reply
@@ -490,6 +492,18 @@
     .msg-body .prose> .hy-card-slot:last-child> .hy-card,
     .trig-run-body.prose> .hy-card-slot:last-child> .hy-card {
       margin-bottom: 0;
+    }
+
+    /* A reply's image gets a fixed-height frame: its size is known before it
+       loads, so loading never pushes the reply. Click opens it full size.
+       Classless only: a card's own images (embed) keep their layout. */
+    .msg-body .prose img:not([class]) {
+      display: block;
+      width: auto;
+      height: 15rem;
+      max-width: 100%;
+      object-fit: contain;
+      cursor: zoom-in;
     }
 
     .msg-body .prose li>p,
@@ -569,45 +583,18 @@
       white-space: nowrap;
     }
 
-    .seg-trace-shell {
-      display: grid;
-      grid-template-rows: 1fr;
-      transition: grid-template-rows var(--motion-view) ease;
-    }
-
-    .seg-trace-shell.is-collapsed { grid-template-rows: 0fr; }
-
-    /* Steps overflow upward, so the newest stay in view; folding keeps the
-       cap until the row has shrunk. */
-    .seg-trace-shell.is-capped .seg-trace-body {
-      max-height: 9.5rem;
-      justify-content: flex-end;
-    }
-
-    .seg-trace-shell.is-capped .seg-trace-body.is-overflow {
-      -webkit-mask-image: linear-gradient(to bottom, transparent, #000 2.5rem);
-      mask-image: linear-gradient(to bottom, transparent, #000 2.5rem);
-    }
-
-    .seg-trace-body > * { flex-shrink: 0; }
-
-    .msg-body .seg-trace-text {
-      --prose-body: var(--muted);
-      --prose-strong: var(--muted);
-      color: var(--muted);
-    }
-
-    .seg-trace-body {
+    /* Same gap as the reply's blocks, so a narration line joining the rail
+       lands where it already was. */
+    .seg-trace-rail {
+      flex-shrink: 0;
       position: relative;
       display: flex;
       flex-direction: column;
-      gap: 0.4rem;
-      min-height: 0;
-      overflow: hidden;
+      gap: var(--row-gap);
       padding-left: 0.7rem;
     }
 
-    .seg-trace-body::before {
+    .seg-trace-rail::before {
       content: '';
       position: absolute;
       left: 0;
@@ -617,8 +604,24 @@
       background: var(--line-hair);
     }
 
-    .seg-trace.is-live .seg-trace-body::before {
+    /* Capped until the reader opens it; older steps overflow upward. */
+    .seg-trace-shell.is-capped > .chat-clip {
+      max-height: 9.5rem;
+      justify-content: flex-end;
+    }
+    .seg-trace-shell.is-capped.is-overflow > .chat-clip {
+      -webkit-mask-image: linear-gradient(to bottom, transparent, #000 2.5rem);
+      mask-image: linear-gradient(to bottom, transparent, #000 2.5rem);
+    }
+
+    .seg-trace.is-live .seg-trace-rail::before {
       background: linear-gradient(to bottom, var(--line-hair) 60%, var(--accent-text));
+    }
+
+    .msg-body .seg-trace-text {
+      --prose-body: var(--muted);
+      --prose-strong: var(--muted);
+      color: var(--muted);
     }
 
     .seg-trace .seg-thinking {
@@ -662,7 +665,7 @@
     }
 
     .seg-thinking-content {
-      margin-top: 0.35rem;
+      padding-top: 0.35rem;
       font-size: var(--text-xs);
       color: var(--muted);
       font-style: italic;
@@ -675,7 +678,7 @@
       display: flex;
       flex-direction: column;
       justify-content: flex-end;
-      max-height: 3.1em;
+      max-height: calc(3.1em + 0.35rem);
       overflow: hidden;
       opacity: 0.8;
       -webkit-mask-image: linear-gradient(to bottom, transparent, #000 70%);
@@ -715,14 +718,29 @@
       opacity: 1;
     }
 
-    .seg-tool-head svg:last-child:not(.seg-tool-check) {
+    .seg-tool-head:disabled {
+      cursor: default;
+      opacity: 1;
+    }
+
+    /* One box for spinner, check and dot, so the head never shifts as the call settles. */
+    .seg-tool-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      width: 10px;
+      height: 10px;
+    }
+
+    .seg-tool-chevron {
       width: 9px;
       height: 9px;
       flex-shrink: 0;
       opacity: 0.6;
     }
 
-    .seg-tool-head.open svg:last-child:not(.seg-tool-check) {
+    .seg-tool-head.open .seg-tool-chevron {
       transform: rotate(90deg);
     }
 
@@ -811,6 +829,8 @@
       animation: seg-shake 0.28s ease-in-out;
     }
 
+    .seg-tool-results.is-multi > .seg-tool-result-content { margin-top: 0.25rem; }
+
     .seg-tool-result-content {
       padding: 0.45rem 0.65rem;
       background: var(--btn-bg);
@@ -836,10 +856,11 @@
       gap: 0.5rem;
       align-self: stretch;
       min-width: 0;
-      /* Breathing room from the reply text above and the footer below —
+      /* Breathing room from the trace above and the reply below —
          .msg-body's generic inter-segment gap (0.35rem) reads as too tight
-         next to a block this visually heavy. */
-      margin: 0.5rem 0;
+         next to a block this visually heavy. Padding, not margin, so its
+         reveal folds it to nothing. */
+      padding: 0.5rem 0;
     }
 
     .seg-note-access-label {
@@ -869,8 +890,12 @@
     .seg-note-access-row.home-list-body.is-grid::-webkit-scrollbar {
       display: none; /* Chrome/Safari/newer Edge */
     }
+    /* Fixed at the tallest a card gets (two-line title, three-line preview), so
+       one filling in its title, preview or cover never moves the reply. */
     .seg-note-access-row .home-list-card {
       flex: 0 0 220px;
+      height: 11rem;
+      overflow: hidden;
     }
 
     .seg-note-access-scroller {
@@ -944,6 +969,46 @@
       min-height: 22px;
       padding-left: 0.625rem;
     }
+
+    /* A part that shows up after its row was built (notes, a failed run's
+       banner) grows in from nothing, so nothing above or below it jumps. One
+       there from the start is .is-static and shows at its size at once. */
+    .chat-reveal,
+    .chat-fold {
+      display: grid;
+      grid-template-rows: 0fr;
+      transition: grid-template-rows var(--motion-view) ease;
+    }
+    .chat-reveal.is-open,
+    .chat-fold.is-open { grid-template-rows: 1fr; }
+    @starting-style {
+      .chat-reveal.is-open:not(.is-static) { grid-template-rows: 0fr; }
+    }
+    /* Boxes that only clip or scroll, never a shape: base.css's 8px default
+       radius would cut the corners of what's inside (the composer's caret, a
+       folding step, the notes strip's end cards, an ellipsized line's glyphs). */
+    .chat-clip,
+    .chat-input-scroll,
+    .chat-textarea,
+    .chat-hint-name,
+    .seg-note-access-row,
+    .seg-trace-head span,
+    .seg-tool-arg,
+    .seg-thinking-content {
+      border-radius: 0;
+    }
+
+    .chat-clip {
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      overflow: hidden;
+    }
+    /* Its parent's gap travels inside the clip, so a closed reveal leaves no gap either. */
+    .chat-reveal { margin-top: calc(-1 * var(--row-gap, 0px)); }
+    .chat-reveal > .chat-clip > * { margin-top: var(--row-gap, 0px); }
+
+    .msg-banner-slot { display: contents; }
 
     .msg-status-banner {
       display: inline-flex;
@@ -1054,6 +1119,10 @@
     .chat-input-outer {
       --composer-fade-h: 1.5rem;
       position: absolute;
+      /* Composites as one layer when it overlaps the thread's scroll layer. Left
+         open, WebKit lifts the masked .chat-input-scroll into a layer of its own,
+         and the textarea's caret stops painting there. */
+      isolation: isolate;
       left: 0;
       /* Stops short of the true right edge by .chat-scroll's real
          scrollbar-gutter width, measured in JS with a few px of safety
@@ -1200,13 +1269,17 @@
 
     /* A pill while the text fits one row; once it wraps (__hyloAutoResize sets
        .is-multiline) the text takes the full width and the buttons drop to a
-       row below, so no column beside the text stays empty.
-       Same tinted-wash background as the shared .field-input (base.css), but
-       unlike it, stays borderless even on focus — no accent outline here,
-       by design. Border is still declared (transparent) rather than
-       dropped, purely so the box model never has to change if that ever
-       changes, not because anything currently swaps its color. */
+       row below. Both shapes share one geometry so the switch only adds
+       height: a text line is exactly --btn-h tall, buttons sit on the bottom
+       edge at the same inset, and the radius is concentric with the buttons
+       instead of flipping from pill to card.
+       Same tinted wash as .field-input (base.css), but borderless even on
+       focus; the transparent border keeps the box model stable. */
     .chat-input-card {
+      --composer-pad: 0.3rem;
+      /* Room for the caret at a line's ends: it straddles the text edge, and
+         both the textarea and its scroller clip there. */
+      --caret-room: 3px;
       position: relative;
       width: 100%;
       display: flex;
@@ -1214,36 +1287,34 @@
       align-items: stretch;
       background: var(--btn-bg);
       border: var(--bd-w) solid transparent;
-      border-radius: var(--r-full);
-      padding: 0.3rem;
+      border-radius: calc(var(--btn-h) / 2 + var(--composer-pad) + var(--bd-w));
+      padding: var(--composer-pad);
       /* The attachment menu opens above the card. */
       overflow: visible;
     }
 
     .chat-input-row {
-      position: relative;
       display: grid;
       grid-template-columns: auto minmax(0, 1fr) auto;
       grid-template-areas: "add text send";
-      align-items: center;
+      align-items: end;
       column-gap: 0.5rem;
     }
     .chat-add { grid-area: add; }
-    .chat-textarea { grid-area: text; }
+    .chat-input-scroll { grid-area: text; }
     .chat-send-circle, .chat-stop-circle { grid-area: send; }
 
-    .chat-input-card.is-multiline,
-    .chat-input-card.has-images {
-      border-radius: var(--r-xl);
-    }
-    .chat-input-card.is-multiline { padding: 0.5rem; }
-    .chat-input-card.is-multiline .chat-add-menu { left: 0.5rem; }
     .chat-input-card.is-multiline .chat-input-row {
       grid-template-areas: "text text text" "add . send";
       row-gap: var(--space-xxs);
     }
-    /* Text starts where the + glyph does. */
-    .chat-input-card.is-multiline .chat-textarea { padding-inline: calc((var(--btn-h) - 16px) / 2); }
+    /* Text starts where the + glyph does. Two lines reserved: the wider row
+       only frees two buttons' width, so a one-line wrap would refill in a
+       few characters and grow again right away. */
+    .chat-input-card.is-multiline .chat-textarea {
+      padding-inline: calc((var(--btn-h) - 16px) / 2 + var(--caret-room));
+      min-height: max(2lh, var(--grow-floor, 0px));
+    }
 
     .chat-pending-images { padding: 0.2rem 0.35rem 0.4rem; }
 
@@ -1269,7 +1340,7 @@
 
     .chat-add-menu {
       position: absolute;
-      left: 0.3rem;
+      left: var(--composer-pad);
       bottom: calc(100% + 6px);
       z-index: 30;
       min-width: 9.5rem;
@@ -1299,12 +1370,11 @@
     .chat-add-item svg { width: 14px; height: 14px; flex-shrink: 0; color: var(--muted); }
     .chat-add-item:hover { background: var(--icon-hov); }
 
+    /* Shares the textarea's cell, so it lines up with typed text by construction. */
     .chat-input-hint {
-      position: absolute;
-      top: 50%;
-      left: calc(var(--btn-h) + 0.5rem);
-      right: calc(var(--btn-h) + 0.5rem);
-      transform: translateY(-50%);
+      grid-area: text;
+      align-self: center;
+      min-width: 0;
       pointer-events: none;
       user-select: none;
     }
@@ -1320,20 +1390,43 @@
     }
 
 
-    .chat-textarea {
+    /* Scrolls for the textarea, which only ever sizes to its content: then
+       the scroll range can't shrink under a transient edit, and the clip
+       (margin, not padding) falls on line boundaries. column-reverse puts
+       the scroll origin at the bottom, so lines added at the caret push
+       older text up without any scroll write. One line plus the margin is
+       exactly a button tall. */
+    .chat-input-scroll {
       min-width: 0;
+      display: flex;
+      flex-direction: column-reverse;
+      margin-block: calc((var(--btn-h) - 1lh) / 2);
+      /* Widened by the caret room on both sides, which the textarea pads back in. */
+      margin-inline: calc(-1 * var(--caret-room));
+      max-height: 6lh;
+      overflow-y: auto;
+      font-size: var(--text-md);
+      line-height: 1.4;
+      /* --fade-top (chat_view.js): the top line dims once text sits above it, but stays whole. */
+      -webkit-mask-image: linear-gradient(to bottom, rgb(0 0 0 / 0.3) 0, #000 var(--fade-top, 0px));
+      mask-image: linear-gradient(to bottom, rgb(0 0 0 / 0.3) 0, #000 var(--fade-top, 0px));
+    }
+
+    /* --grow-floor (__hyloAutoResize) holds the height while text is only
+       added, so IME pinyin wrapping a line can't bounce it on commit. */
+    .chat-textarea {
+      flex: none;
+      width: 100%;
+      field-sizing: content;
+      min-height: var(--grow-floor, 0px);
       resize: none;
       border: none;
       outline: none;
       background: transparent;
       color: var(--fg);
-      font-size: var(--text-md);
-      font-family: inherit;
-      line-height: 1.4;
-      padding: 0.45rem 0;
-      min-height: 20px;
-      max-height: 140px;
-      overflow-y: auto;
+      font: inherit;
+      padding: 0 var(--caret-room);
+      overflow: hidden;
       display: block;
     }
 
@@ -1534,6 +1627,7 @@
       }
       .seg-tool-check.is-fresh,
       .seg-note-chip.is-fresh { animation: none; }
+      .chat-reveal, .chat-fold { transition: none; }
     }
 
     ::-webkit-scrollbar {

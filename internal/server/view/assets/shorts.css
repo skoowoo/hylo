@@ -33,7 +33,7 @@
        this is a note field, not a chat bubble, so no accent color and no
        single-line-that-balloons-into-a-pill shape. Two rows tall by
        default (rows=2 in the markup); grows for longer notes the same way
-       .chat-textarea does (home.js's shared autoResize), just without ever
+       .chat-textarea does (chat_text.js's shared autoResize), just without ever
        going shorter than two lines (min-height below). Replaces the old
        short_dialog.js full-screen overlay — writing a short is now always
        inline at the top of the feed instead of behind a modal. */
@@ -44,7 +44,7 @@
       margin-bottom: var(--space-lg);
       background: var(--bg);
       border: var(--bd-w) solid var(--line-edge);
-      border-radius: var(--r-xl); /* matches .chat-input-card.is-multiline */
+      border-radius: var(--r-xl);
     }
     .shorts-compose-card:focus-within { background: var(--surface-soft); }
 
@@ -61,7 +61,7 @@
       line-height: 1.4;
       padding: var(--space-sm) var(--space-md) 0;
       min-height: calc(2.8em + var(--space-sm));
-      max-height: 200px;
+      max-height: 140px;
       overflow-y: auto;
     }
     .shorts-compose-input::placeholder { color: var(--muted-soft); }

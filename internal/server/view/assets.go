@@ -42,7 +42,7 @@ func init() {
 	modules := `window.__hyloModules = {"editor": "` + static.URL("editor.js") + `", "fenceCard": "` + static.URL("fence-card.js") + `"};` + "\n"
 	static.Bundle("bundle/home.js", modules+readAssets(
 		"home_init.js", "live.js", "note_changes.js", "keys.js", "path_ac.js",
-		"chat_reduce.js", "chat_text.js", "chat_kernel.js", "chat_view.js",
+		"chat_reduce.js", "chat_text.js", "chat_kernel.js", "chat_rows.js", "chat_view.js",
 		"list_tighten.js", "tab_fit.js", "graph_layout.js", "editor_session.js", "editor_agent.js", "content_pane.js",
 		"search_overlay.js", "confirm_dialog.js", "info_dialog.js", "servers_store.js",
 		"settings_modal.js", "settings_appearance.js", "settings_server.js", "settings_agentcli.js",
