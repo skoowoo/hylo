@@ -359,6 +359,11 @@
       display: flex;
       width: 100%;
     }
+    /* A reply re-breaks as it streams and as the split moves; pretty breaking
+       would shift earlier lines each time and is most of a reflow's cost. */
+    .chat-scroll .prose { text-wrap-style: auto; }
+    /* Out of view for a split change (chat_view.js parkOutOfView). */
+    .msg-row.is-split-parked { display: none; }
 
     .msg-row-user {
       justify-content: flex-end;

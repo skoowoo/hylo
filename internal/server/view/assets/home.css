@@ -29,14 +29,10 @@
     ::-webkit-scrollbar { display: none; }
 
     /* ── Sidebar + list shell ──────────────────────────────────── */
-    /* Two flex items: .home-side (fixed width), .home-main. --split-ratio/
-       --split-ratio-inv normally come from home.html's :style binding; a
-       live drag instead writes them straight to this element's inline
-       style every animation frame (startPaneResize), bypassing Alpine —
-       they inherit down to .home-main's children below either way.
-       Carries the sidebar's own background too — .home-side stays
-       transparent and just shows this through, so the two never need to
-       agree on a color separately (see .home-side's own rule below). */
+    /* .home-side (fixed width) + .home-main. --split-ratio is the list's
+       share of .home-main; a live drag writes it straight to this element's
+       inline style (startPaneResize), bypassing Alpine. Carries the sidebar's
+       background too, so .home-side stays transparent. */
     .home-shell {
       flex: 1;
       display: flex;
@@ -45,21 +41,19 @@
       border-radius: 0;
       --split-ratio: 0.5;
       --split-ratio-inv: 0.5;
-      --content-pane-exit-ms: 200ms;
+      /* One clock for every split change: open, close, maximize, restore.
+         Eased in as well as out: ease-out's full-speed start covers a fifth
+         of the way in the first frame and reads as a jump, not a slide. */
+      --pane-motion: var(--motion-view) var(--ease-standard);
       background: var(--surface-soft);
     }
-    /* macOS desktop only: see .home-side's own html.macos rule below for
-       why — same swap, just one level up now. */
     html.macos .home-shell {
       background: var(--sidebar-glass-bg);
     }
-    /* One parent for everything right of the sidebar, mirroring .home-side.
-       Also the opaque backstop for that whole region — #home-list-pane,
-       .home-pane-resizer and .content-pane (+.content-pane-panel) stay
-       transparent and just show this through, same idea as .home-shell/
-       .home-side above. Unlike .home-side, this one never goes translucent
-       on macOS: the editor/list content still needs to read as solid,
-       vibrancy or not (see content_pane.css's .content-pane). */
+    /* Everything right of the sidebar: #home-list-pane → .home-pane-resizer
+       → .content-pane. Opaque on macOS too, unlike the vibrant sidebar.
+       A query container so the editor sheet can size itself off this box
+       (100cqw) rather than off the pane that is animating around it. */
     .home-main {
       flex: 1;
       display: flex;
@@ -67,63 +61,34 @@
       overflow: hidden;
       border-radius: 0;
       background: var(--bg);
+      container-type: inline-size;
     }
-    /* Three flex items in document order: #home-list-pane →
-       .home-pane-resizer → .content-pane (the editor pane, see
-       content_pane.css). flex-grow itself never tweens (duration 0s
-       always, both here and on .content-pane in content_pane.css) —
-       animating flex-grow/width directly forces a synchronous layout
-       (and, worse, fires CodeMirror's ResizeObserver on every
-       intermediate frame) instead of running on the compositor. Opening
-       snaps the split to its target size in one reflow and lets
-       .content-pane-panel's transform/opacity transition (see
-       content_pane.css) fake the slide-in on top of an
-       already-correctly-sized box. Closing runs that same fade first and
-       only *then* collapses the layout, via transition-delay:
-       var(--content-pane-exit-ms) below (an instant, zero-duration
-       change, just deferred until the fade has had time to finish) — the
-       base rule (this element, not yet .content-pane-open) carries that
-       delay, and .content-pane-open resets it to 0s so opening is never
-       held up by it. */
-    .home-shell.content-pane-open #home-list-pane { flex-grow: var(--split-ratio); transition-delay: 0s; }
-    .home-shell.content-pane-open .content-pane { flex-grow: var(--split-ratio-inv); transition-delay: 0s; }
+    /* The split is one real width transition on .content-pane; the list
+       takes what is left, so the divider, the list's reflow and the editor
+       all move on the same frame by construction. The editor's own content
+       never resizes mid-motion (see .content-pane-panel). */
+    .home-shell.content-pane-open .content-pane { width: calc(100% * var(--split-ratio-inv)); }
+    .home-shell.is-resizing .content-pane { transition: none; }
 
     /* ── Pane resizer ─────────────────────────────────────────── */
-    /* A true hairline (matches every other divider in this shell — see
-       .home-side's own border-right), not a wide colored gutter — the
-       grab target is widened with a transparent ::before instead of
-       thickening the visible line itself. */
-    /* Real layout width is one hairline (var(--bd-w)) — no gutter/gap
-       between the two panes, so there's nothing here for macOS's
-       vibrancy-transparent body to leak through (unlike a wider block,
-       which needs its own opaque fill to avoid that). The grab target is
-       still comfortably wide: ::before extends it ±4px via absolute
-       positioning, which doesn't add to this element's flex-basis (out of
-       flow) but still receives mousedown/hover, so dragging works exactly
-       like it did with the wider box — only the visible line shrank. */
+    /* Only the grab target: the divider line is the editor panel's own edge
+       (content_pane.css), so it moves and clips with the pane. Zero-width in
+       flow at that edge, widened by ::before; ::after draws the accent. */
     .home-pane-resizer {
-      flex: 0 0 var(--bd-w); min-width: 0;
-      background: var(--line-hair);
+      flex: none; width: 0;
       cursor: col-resize;
       position: relative; z-index: 5;
     }
+    .home-shell:not(.content-pane-open) .home-pane-resizer { display: none; }
     .home-pane-resizer::before {
       content: ""; position: absolute; top: 0; bottom: 0; left: -4px; right: -4px;
       cursor: col-resize;
     }
-    .home-pane-resizer:hover,
-    .home-shell.is-resizing .home-pane-resizer {
-      background: var(--accent);
+    .home-pane-resizer::after {
+      content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: var(--bd-w);
     }
-    /* Editor maximized (list pane collapsed to 0, content_pane.js's
-       toggleMaximizeEditor/drag-to-edge): the resizer now sits flush
-       against .home-side's own border-right, so its hairline stacks on
-       top of the sidebar's and reads as one thicker line. Drop it —
-       .home-side's border stays the single visible divider — but keep the
-       hover/drag accent so the now-edge-flush handle is still findable. */
-    .home-shell.is-editor-maximized .home-pane-resizer { background: transparent; }
-    .home-shell.is-editor-maximized .home-pane-resizer:hover,
-    .home-shell.is-editor-maximized.is-resizing .home-pane-resizer {
+    .home-pane-resizer:hover::after,
+    .home-shell.is-resizing .home-pane-resizer::after {
       background: var(--accent);
     }
 
@@ -323,17 +288,11 @@
 
     /* ── List pane ────────────────────────────────────────────── */
     .home-list-pane {
-      flex: 1; min-width: 0;
+      flex: 1 1 0; min-width: 0;
       display: flex; flex-direction: column;
       min-height: 0; overflow: hidden;
       border-radius: 0;
-      /* Zero-duration — see .home-shell's comment above. The delay only
-         bites on close (this base rule); .content-pane-open zeroes it again. */
-      transition: flex-grow 0s linear var(--content-pane-exit-ms, 200ms);
-      /* Scopes this pane's own reflow (section swaps, grid/list toggle,
-         and the width change above) so it can't bleed into a layout pass
-         over the rest of the page — cheap insurance for a pane that's
-         frequently resized. */
+      /* Reflows every frame of a split change; keep that pass local. */
       contain: layout paint style;
       /* No own background — .home-main is the opaque backstop for this
          whole region (see its own rule above). */
@@ -914,9 +873,8 @@
     }
 
     /* ── Inbox message detail — read-only content, rendered inside the same
-       .content-pane-panel the note editor uses (content_pane.html's inbox-detail-panel);
-       the pane's own slide/fade/split-pane mechanics live in content_pane.css/
-       home.css's .content-pane-panel/.home-shell rules, not here.
+       .content-pane the note editor uses (content_pane.html's inbox-detail-panel);
+       the split motion lives in content_pane.css/home.css, not here.
 
        The top bar only holds the close button; the sender block and body
        live in the scroll area as one reading column. */

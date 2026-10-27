@@ -105,7 +105,6 @@
   function setProse(node, text, streaming) {
     if (streaming) text = Rows.streamable(text);
     var openTail = !!streaming && Rows.endsInOpenFence(text);
-    node.classList.toggle('is-streaming', !!streaming);
     if (node._raw === text && node._openTail === openTail) return;
     node._raw = text;
     node._openTail = openTail;
@@ -255,6 +254,7 @@
     var thread = rootEl.querySelector('#chat-thread');
     var scrollEl = rootEl.querySelector('#chat-scroll');
     var panel = rootEl.querySelector('#chat-input-outer');
+    var composerCol = rootEl.querySelector('.chat-ac-wrap');
     var ta = rootEl.querySelector('#chat-textarea');
     var hint = rootEl.querySelector('#chat-input-hint');
     var hintName = rootEl.querySelector('#chat-hint-name');
@@ -386,6 +386,79 @@
       else syncOrigin();
       lastTop = scrollEl.scrollTop;
       updateJump();
+    }
+
+    // A split change (content_pane.js) reflows the list every frame, and WebKit
+    // lays out every row for each one. Rows well out of view sit it out: hidden,
+    // with their span added as margin to the nearest row still shown, so nothing
+    // in view moves. An animated change also holds the column's width, so the
+    // text breaks once instead of on every frame: narrowing, at the end width
+    // from the start; widening, at the start width until the end one fits, so
+    // the one re-break happens mid-motion and the landing moves nothing.
+    var SPLIT_KEEP = 8;
+    var splitHeld = null;
+    var splitCols = [];
+    function splitMoving(d) {
+      if (!scrollEl || triggerMode || !rows.size || !thread.offsetParent) return;
+      if (!splitHeld) splitHeld = parkOutOfView();
+      if (d.listTo == null || d.listFrom == null) return;
+      var delta = d.listTo - d.listFrom;
+      splitCols = [thread, composerCol].filter(Boolean).map(function (el) {
+        var room = columnRoom(el);
+        var max = parseFloat(getComputedStyle(el).maxWidth) || Infinity;
+        var from = Math.min(max, room), to = Math.min(max, room + delta);
+        el.style.width = Math.min(from, to) + 'px';
+        return { el: el, growTo: to > from ? to : 0 };
+      });
+    }
+    // The column's container, which for the composer leaves out the scrollbar gutter.
+    function columnRoom(el) {
+      var box = el.parentElement, cs = getComputedStyle(box);
+      return box.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    }
+    function growHeldColumns() {
+      splitCols.forEach(function (c) {
+        if (c.growTo && columnRoom(c.el) >= c.growTo) { c.el.style.width = c.growTo + 'px'; c.growTo = 0; }
+      });
+    }
+    function parkOutOfView() {
+      var held = { hidden: [], spaced: [] };
+      var kids = [];
+      for (var n = thread.firstElementChild; n; n = n.nextElementSibling) kids.push(n);
+      var rects = kids.map(function (k) { return k.getBoundingClientRect(); });
+      var view = scrollEl.getBoundingClientRect();
+      var first = -1, last = -1;
+      for (var i = 0; i < kids.length; i++) {
+        if (rects[i].bottom >= view.top - view.height && rects[i].top <= view.bottom + view.height) {
+          if (first < 0) first = i;
+          last = i;
+        }
+      }
+      if (first < 0) return held;
+      first = Math.max(0, first - SPLIT_KEEP);
+      last = Math.min(kids.length - 1, last + SPLIT_KEEP);
+      var lo = first, hi = last;
+      while (lo > 0 && kids[lo - 1]._msgId) lo--;
+      while (hi < kids.length - 1 && kids[hi + 1]._msgId) hi++;
+      function space(node, side, px) {
+        node.style[side] = parseFloat(getComputedStyle(node)[side]) + px + 'px';
+        held.spaced.push([node, side]);
+      }
+      if (lo < first) space(kids[first], 'marginTop', rects[first].top - rects[lo].top);
+      if (hi > last) space(kids[last], 'marginBottom', rects[hi].bottom - rects[last].bottom);
+      for (var j = lo; j < first; j++) held.hidden.push(kids[j]);
+      for (var k = last + 1; k <= hi; k++) held.hidden.push(kids[k]);
+      held.hidden.forEach(function (node) { node.classList.add('is-split-parked'); });
+      return held;
+    }
+    // Rows may have moved or been shelved since; restore them wherever they are.
+    function splitSettled() {
+      splitCols.forEach(function (c) { c.el.style.width = ''; });
+      splitCols = [];
+      if (!splitHeld) return;
+      splitHeld.hidden.forEach(function (node) { node.classList.remove('is-split-parked'); });
+      splitHeld.spaced.forEach(function (s) { s[0].style[s[1]] = ''; });
+      splitHeld = null;
     }
 
     function jumpToBottom() {
@@ -1022,10 +1095,12 @@
         if (SCROLL_KEYS[e.key] && !(t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)))) markIntent();
       });
       if (typeof ResizeObserver !== 'undefined') {
-        contentRo = new ResizeObserver(settle);
+        contentRo = new ResizeObserver(function () { growHeldColumns(); settle(); });
         contentRo.observe(thread);
         contentRo.observe(scrollEl);
       }
+      on(window, 'hylo:split-moving', function (e) { splitMoving(e.detail || {}); });
+      on(window, 'hylo:split-settled', splitSettled);
       // Markdown's own images: the sanitizer strips every img class, so a card's (embed) never match.
       var REPLY_IMG = '.msg-body .prose img:not([class])';
       on(scrollEl, 'click', function (e) {
@@ -1323,6 +1398,7 @@
       insertWikilink: insertWikilink,
       destroy: function () {
         detaching = true;
+        splitSettled();
         setAttachOpen(false);
         endGlide();
         if (runsEl) root.__hyloReleaseFenceCards(runsEl);

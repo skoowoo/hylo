@@ -13,7 +13,7 @@
     brokenWikiLinkNames: new Set(),
     wikiLinkRevalidateSeq: 0,
     decoCompartment: null, readCompartment: null,
-    inSource: false, pendingScrollRaf: null, pendingOpenScroll: null,
+    inSource: false, pendingScrollRaf: null,
     // Heading a [[note#Heading]] click should land on once the note opens;
     // applied by __hyloEditorRestoreScroll so its scroll writes don't undo it.
     pendingHeading: null,
@@ -299,7 +299,7 @@
     await __hyloContentPaneOpenWikiLink(target);
     // No restore in flight means the open failed or bailed; don't let the
     // heading leak into whatever note opens next.
-    if (!s.pendingOpenScroll) s.pendingHeading = null;
+    if (!s.pendingScrollRaf) s.pendingHeading = null;
   }
 
   // Open a wiki-link target in the pane.  value is the raw [[…]] inner text.
@@ -692,6 +692,15 @@
   }
 
   // ── Content loaders ──────────────────────────────────────────────────────────
+  // The note's text on disk, or null with resp for the caller to report.
+  async function __hyloEditorReadNote(path) {
+    var resp = await fetch('/api/vault/read', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({path: path}),
+    });
+    return { resp: resp, text: resp.ok ? await resp.text() : null };
+  }
+
   async function __hyloContentPaneLoadNote(path, tabId, savedState) {
     var s = __hyloEditor;
     if (s.dirty && s.currentPath && s.currentPath !== path) {
@@ -700,23 +709,33 @@
     if (!__hyloEditorIsActiveTabId(tabId)) return false;
     __hyloEditorSaveStatus('');
 
-    // Load from server
-    var resp = await fetch('/api/vault/read', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({path: path}),
-    });
-    if (!resp.ok) {
-      if (resp.status === 404 && window.showError) {
+    var read = await __hyloEditorReadNote(path);
+    if (read.text === null) {
+      if (read.resp.status === 404 && window.showError) {
         window.showError('「' + path.split('/').pop().replace(/\.md$/, '') + '」 does not exist in the vault.', 'Note not found');
       }
       return false;
     }
-    var content = await resp.text();
+    var content = read.text;
     await __hyloEditorPreloadLanguages(content);
     if (!__hyloEditorIsActiveTabId(tabId)) return false;
     s.currentPath = path; s.currentMd = __hyloEditorTightenLists(content); s.dirty = false;
     // Apply state (will create new state if no saved state)
     return await __hyloEditorApplyState(savedState || { inSource: false, scrollTop: 0 }, tabId);
+  }
+
+  // Re-reads the note already showing; the doc is replaced only if the file changed.
+  async function __hyloContentPaneRefreshNote(path, tabId) {
+    var read = await __hyloEditorReadNote(path);
+    if (read.text === null) return;
+    var content = __hyloEditorTightenLists(read.text);
+    var s = __hyloEditor;
+    if (s.dirty || s.currentPath !== path || content === s.currentMd || !__hyloEditorIsActiveTabId(tabId)) return;
+    await __hyloEditorPreloadLanguages(content);
+    if (s.dirty || s.currentPath !== path || !__hyloEditorIsActiveTabId(tabId)) return;
+    __hyloEditorSaveTabState(tabId);
+    s.currentMd = content;
+    await __hyloEditorApplyState(__hyloEditorRestoreTabState(tabId), tabId);
   }
 
   async function __hyloContentPaneSetContent(content, tabId, savedState) {
@@ -766,9 +785,8 @@
     __hyloCM.forceParsing(s.view, s.view.state.doc.length, 40);
     __hyloEditorSetModeState(wantSource, wantReading);
     void __hyloEditorRevalidateWikiLinks();
-    // Sync write covers the tab-switch frame. Two more writes cover the
-    // pane slide-in tearing down a compositing layer and resetting scrollTop.
-    __hyloEditorRestoreScroll(state, { sync: true, frames: 2, afterMs: 270, tabId: expectedTabId, focus: true });
+    // Sync write covers the tab-switch frame; the next one lands after CM's measure.
+    __hyloEditorRestoreScroll(state, { sync: true, tabId: expectedTabId, focus: true });
     return true;
   }
 
@@ -791,22 +809,14 @@
       write();
       if (s.pendingHeading && s.view) __hyloCM.jumpToHeading(s.view, s.pendingHeading);
     }
-    if (s.pendingScrollRaf) { cancelAnimationFrame(s.pendingScrollRaf); s.pendingScrollRaf = null; }
-    clearTimeout(s.pendingOpenScroll);
+    if (s.pendingScrollRaf) cancelAnimationFrame(s.pendingScrollRaf);
     if (opts.sync) write();
-    var frames = opts.frames || 1;
-    function frame(n) {
-      s.pendingScrollRaf = requestAnimationFrame(function() {
-        if (n > 1) { frame(n - 1); return; }
-        s.pendingScrollRaf = null;
-        apply();
-        if (opts.focus && !__hyloFocusInsideEditor()) __hyloFocusEditor();
-      });
-    }
-    frame(frames);
-    s.pendingOpenScroll = setTimeout(function() {
-      s.pendingOpenScroll = null;
+    s.pendingScrollRaf = requestAnimationFrame(function() {
+      s.pendingScrollRaf = null;
       apply();
       s.pendingHeading = null;
-    }, opts.afterMs);
+      // A pane still closed (loading ahead of its slide) takes focus as it opens.
+      var pane = window.__hyloContentPane;
+      if (opts.focus && pane && pane.contentPaneOpen && !__hyloFocusInsideEditor()) __hyloFocusEditor();
+    });
   }

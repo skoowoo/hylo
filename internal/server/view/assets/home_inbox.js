@@ -23,11 +23,6 @@ function homeInboxMixin(boot) {
         // The note editor and the inbox detail share one pane (see
         // content_pane.html's inbox-detail-panel) — always one or the other.
         if (this.contentPaneOpen) this.contentPaneOpen = false;
-        var overlayEl = document.querySelector('.content-pane');
-        if (overlayEl) {
-          overlayEl.classList.add('content-pane-is-opening');
-          setTimeout(function () { overlayEl.classList.remove('content-pane-is-opening'); }, 320);
-        }
       });
       // The page renders with the count; the refetch only covers messages
       // created before the live feed connected.

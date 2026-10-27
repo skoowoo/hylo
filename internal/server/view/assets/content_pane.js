@@ -14,6 +14,8 @@
   var __hyloEditorTabActivitySeq = 0;
 
   var CONTENT_PANE_MAX_TABS = 10;
+  // Local reads land well inside this; it only caps a slow server.
+  var CONTENT_PANE_OPEN_WAIT_MS = 120;
   // Oldest evictable tab index, or -1. Skips the active tab and any
   // unmaterialized tab that still has real content (_pendingContent) — an
   // empty one is free to evict, or it'd sit protected forever and push out
@@ -59,11 +61,13 @@
       contentPaneOpen: false, tabs: [], activeTab: -1,
       // The agent is typing into the open note: no switching, closing or toolbar actions.
       agentWriting: false,
-      _skipNextOpenLoad: false, // see _openPane()
       renaming: false, // true while #content-pane-rename-input replaces the active tab's title
       _renameSubmitting: false, // reentrancy guard — see submitRenameActiveNote's leading comment
       _renameCheckTimer: null, // debounce handle for checkRenameNameAvailable's /api/vault/check-name call
       splitRatio: 0.5, isPaneResizing: false, _prevSplitRatio: 0.5,
+      // What the shell lays out (home.html): the open state and ratio above,
+      // committed a frame after the list has prepared for the move.
+      layoutOpen: false, layoutRatio: 0.5,
 
       // How many header tab chips currently fit. 1 until initTabstrip
       // measures; the row clips, so a short first guess can't cover the
@@ -272,25 +276,18 @@
           for (var i = 0; i < self.tabs.length; i++) widths.push(measure(self.tabs[i]));
           return __hyloFitTabCount(widths, el.clientWidth, px('--cp-tab-gap', 4), overflowWidth);
         };
-        function settleFromResize(reopening) {
-          // Reopening fades with the pane itself. Dragging the split is
-          // already a continuous width change — fading each new chip on
-          // top of that just lags the row.
-          self._settleTabstrip(!reopening && !self.isPaneResizing);
-        }
-        if (el.clientWidth > 0) settleFromResize(false);
+        // Dragging the split is already a continuous width change — fading
+        // each new chip on top of that just lags the row.
+        function settleFromResize() { self._settleTabstrip(!self.isPaneResizing); }
+        if (el.clientWidth > 0) settleFromResize();
         if (typeof ResizeObserver === 'undefined') return;
         var lastW = el.clientWidth;
+        // Settles before paint: ResizeObserver flushes microtasks first.
         var ro = new ResizeObserver(function() {
           var w = el.clientWidth;
           if (Math.abs(w - lastW) < 1) return;
-          // Closed pane is 0 wide, so every open (not just the first)
-          // arrives as 0 → width. Settle in this callback: ResizeObserver
-          // flushes microtasks before paint, so the corrected count lands
-          // before the pane's fade is visible.
-          var reopening = lastW === 0 && w > 0;
           lastW = w;
-          settleFromResize(reopening);
+          settleFromResize();
         });
         ro.observe(el);
         if (document.fonts && document.fonts.ready) {
@@ -302,10 +299,7 @@
         }
       },
 
-      // Tab-bar maximize/restore button — same spot/icon the old "focus
-      // mode" toggle used, but it just drives splitRatio to/from 0 now
-      // instead of a separate expanded state (the sidebar always stays
-      // visible; see home.css's .content-pane-open rule).
+      // Maximized is just splitRatio 0: the sidebar stays.
       toggleMaximizeEditor() {
         if (this.splitRatio > 0.02) {
           this._prevSplitRatio = this.splitRatio;
@@ -319,41 +313,29 @@
         if (this.contentPaneOpen && this.splitRatio <= 0.02) this.toggleMaximizeEditor();
       },
 
-      // Drags the divider between #home-list-pane and the editor pane.
-      // Ratio is list-pane's share of the space left over once the
-      // sidebar and resizer are accounted for (see home.css's
-      // --split-ratio/--split-ratio-inv). Dragging all the way to the
-      // sidebar collapses the list pane to 0 — the editor fills 100% of
-      // the content area (not the whole window; the sidebar stays put).
-      // Dragging the other way is capped so the editor never fully
-      // disappears while still open.
-      //
-      // Perf: mousemove can fire far faster than the display refreshes,
-      // and going through Alpine's reactive splitRatio on every one of
-      // those events would re-run the whole :style expression (string
-      // concat + reparse) well more often than needed. Instead this
-      // writes the two CSS vars straight to the element, coalesced to one
-      // update per animation frame — self.splitRatio (and its Alpine
-      // side-effects: persistence, the maximize-button icon, etc.) is
-      // synced exactly once, on mouseup. A full-viewport capture layer
-      // owns the drag's mousemove/mouseup for the same reason a native
-      // <input type=range> thumb does: without it, a fast drag can carry
-      // the pointer over CodeMirror's contenteditable mid-gesture, which
-      // would otherwise start a text selection instead of resizing.
+      // Drags the divider. Ratio is the list's share of .home-main; 0 is
+      // maximized, and the editor is capped so it never vanishes while open.
+      // The vars go straight onto the shell once per frame and splitRatio
+      // syncs on mouseup, so Alpine doesn't re-run :style per mousemove. The
+      // capture layer keeps a fast drag over CodeMirror from selecting text.
       startPaneResize(e) {
         e.preventDefault();
         var self = this;
+        // The capture layer below takes the second click, so dblclick never reaches the handle.
+        if (e.detail === 2) {
+          this.splitRatio = 0.5;
+          try { localStorage.setItem('hylo.splitRatio', '0.5'); } catch(_) {}
+          return;
+        }
         var shell = document.querySelector('.home-shell');
-        var side = document.getElementById('home-side');
-        var resizer = document.getElementById('home-pane-resizer');
-        if (!shell || !side || !resizer) return;
-        var shellRect = shell.getBoundingClientRect();
-        var sideW = side.offsetWidth;
-        var resizerW = resizer.offsetWidth;
-        var avail = shellRect.width - sideW - resizerW;
+        var main = shell && shell.querySelector('.home-main');
+        if (!main) return;
+        var mainRect = main.getBoundingClientRect();
+        var avail = mainRect.width;
         if (avail <= 0) return;
 
         self.isPaneResizing = true;
+        if (self._beginSplitMotion) self._beginSplitMotion();
         var prevCursor = document.body.style.cursor;
         var prevUserSelect = document.body.style.userSelect;
         document.body.style.cursor = 'col-resize';
@@ -371,8 +353,7 @@
           shell.style.setProperty('--split-ratio-inv', 1 - latestRatio);
         }
         function onMove(ev) {
-          var x = ev.clientX - shellRect.left - sideW - (resizerW / 2);
-          var ratio = x / avail;
+          var ratio = (ev.clientX - mainRect.left) / avail;
           latestRatio = Math.min(0.9, Math.max(0, ratio));
           if (rafId == null) rafId = requestAnimationFrame(applyRatio);
         }
@@ -383,8 +364,11 @@
           capture.remove();
           document.body.style.cursor = prevCursor;
           document.body.style.userSelect = prevUserSelect;
+          var moved = latestRatio !== self.splitRatio;
           self.isPaneResizing = false;
           self.splitRatio = latestRatio;
+          // A moved ratio settles through the watcher's commit; an unmoved one has nothing to wait for.
+          if (!moved && self._settleSplit) self._settleSplit();
           try { localStorage.setItem('hylo.splitRatio', String(latestRatio)); } catch(_) {}
         }
         document.addEventListener('mousemove', onMove);
@@ -441,8 +425,9 @@
           var savedRatio = parseFloat(localStorage.getItem('hylo.splitRatio'));
           if (!isNaN(savedRatio) && savedRatio >= 0 && savedRatio <= 0.9) this.splitRatio = savedRatio;
         } catch(_) {}
+        this.layoutRatio = this.splitRatio;
 
-        var self = this; var prevOpen = false;
+        var self = this;
         // Esc still closes whatever's layered on top of the editor (the
         // more/tabs dropdowns, CodeMirror's search panel) — it just no
         // longer closes the editor itself once those are all closed.
@@ -471,51 +456,62 @@
             return;
           }
         };
-        this.$watch('contentPaneOpen', async function(isOpen) {
+        // Built while idle, so the first open doesn't import CodeMirror mid-slide.
+        var warmEditor = function() { void __hyloEnsureContentPaneEditor(); };
+        if (window.requestIdleCallback) requestIdleCallback(warmEditor, { timeout: 2000 });
+        else setTimeout(warmEditor, 300);
+        // Every split change is one width transition on .content-pane
+        // (home.css), or a drag. As the state changes, is-pane-moving goes on
+        // and hylo:split-moving lets the list prepare (with its width at both
+        // ends); the layout follows in the next frame, so the transition's
+        // clock starts after that frame is painted, however long it took.
+        // hylo:split-settled marks the end.
+        var paneEl = document.querySelector('.content-pane');
+        var shellEl = document.querySelector('.home-shell');
+        if (paneEl && shellEl) {
+          // getAnimations() flushes style, so a transition just started counts.
+          this._settleSplit = function() {
+            if (self.isPaneResizing || paneEl.getAnimations().length || !shellEl.classList.contains('is-pane-moving')) return;
+            shellEl.classList.remove('is-pane-moving');
+            window.dispatchEvent(new CustomEvent('hylo:split-settled'));
+          };
+          this._beginSplitMotion = function(detail) {
+            shellEl.classList.add('is-pane-moving');
+            window.dispatchEvent(new CustomEvent('hylo:split-moving', { detail: detail || {} }));
+          };
+          var commitLayout = function() {
+            self.layoutOpen = self.contentPaneOpen || self.inboxSheetOpen;
+            self.layoutRatio = self.splitRatio;
+            // Settles now if the width didn't change (a drag's commit); otherwise transitionend does.
+            self.$nextTick(self._settleSplit);
+          };
+          this.$watch(function() { return (self.contentPaneOpen || self.inboxSheetOpen) + ':' + self.splitRatio; }, function() {
+            if (self.isPaneResizing) return;
+            var list = document.getElementById('home-list-pane');
+            var mainW = list ? list.parentElement.clientWidth : 0;
+            self._beginSplitMotion(list ? {
+              listFrom: list.getBoundingClientRect().width,
+              listTo: (self.contentPaneOpen || self.inboxSheetOpen) ? mainW * self.splitRatio : mainW,
+            } : null);
+            requestAnimationFrame(commitLayout);
+          });
+          paneEl.addEventListener('transitionend', function(e) { if (e.target === paneEl) self._settleSplit(); });
+          paneEl.addEventListener('transitioncancel', function(e) { if (e.target === paneEl) self._settleSplit(); });
+        }
+        this.$watch('contentPaneOpen', function(isOpen) {
           if (!isOpen) {
             if (window.__hyloEscPop) window.__hyloEscPop('content-pane');
             // Save state BEFORE blur — blur can trigger scrollIntoView which resets scrollTop
             var currentTab = self.tabs[self.activeTab];
             if (currentTab) __hyloEditorSaveTabState(currentTab.id);
             __hyloBlurActive();
-            prevOpen = false; return;
+            return;
           }
-          prevOpen = true;
           // The inbox detail panel shares this same pane (see content_pane.html's
           // inbox-detail-panel) — always one or the other.
           if (self.inboxSheetOpen) self.inboxSheetOpen = false;
-          var _paneOverlayEl = document.querySelector('.content-pane');
-          if (_paneOverlayEl) {
-            _paneOverlayEl.classList.add('content-pane-is-opening');
-            setTimeout(function() { _paneOverlayEl.classList.remove('content-pane-is-opening'); }, 320);
-          }
           if (window.__hyloEscPush) window.__hyloEscPush('content-pane', _paneEscClose, document.querySelector('.content-pane'));
-          if (self._skipNextOpenLoad) { self._skipNextOpenLoad = false; return; } // see _openPane()
-          // Refresh key-behavior config on every open so settings changes take
-          // effect immediately without restarting the app. Called before any
-          // content loading so all code paths (same note, new note) pick it
-          // up. No-op if the editor hasn't been created yet (handled later in
-          // __hyloEnsureContentPaneEditor's initPromise).
-          // Always read latest tabs from localStorage before opening — other
-          // WebContentsViews (same session, different JS context) may have
-          // added tabs since this view last called _restore().
-          self._restore();
-          var tab = self.tabs[self.activeTab];
-          if (!tab) return;
-
-          var savedState = __hyloEditorRestoreTabState(tab.id);
-          
-          if (!tab.path) {
-            await self._openUntitledTab(tab, savedState);
-            return;
-          }
-          if (__hyloEditor.currentPath !== tab.path || !__hyloEditor.dirty) {
-            void __hyloContentPaneLoadNote(tab.path, tab.id, savedState);
-          } else if (savedState) {
-            // Same note, unsaved edits: the doc is already showing, so skip
-            // the synchronous write. 250ms matches this open path's 240ms slide.
-            __hyloEditorRestoreScroll(savedState, { frames: 1, afterMs: 250, focus: true });
-          }
+          if (self.activeTab >= 0 && !__hyloFocusInsideEditor()) __hyloFocusEditor();
         });
         this.$watch('tabs', function(){ self._persist(); });
         this.$watch('activeTab', function(i) { self._persist(); });
@@ -550,12 +546,11 @@
         if (this.contentPaneOpen && prevTab) __hyloEditorSaveTabState(prevTab.id);
         this.upsertTab(path, title, isKnowledge, pinned, isIndex, canCompile);
         __hyloEditorResetCompileBtn();
-        this._openPane();
         // Already loaded with unsaved edits — don't clobber with a server fetch
-        if (__hyloEditor.currentPath === path && __hyloEditor.dirty) return;
+        if (__hyloEditor.currentPath === path && __hyloEditor.dirty) { this.contentPaneOpen = true; return; }
         var tab = this.tabs[this.activeTab];
         var savedState = tab ? __hyloEditorRestoreTabState(tab.id) : null;
-        await __hyloContentPaneLoadNote(path, tab ? tab.id : null, savedState);
+        await this._openWith(__hyloContentPaneLoadNote(path, tab ? tab.id : null, savedState));
       },
 
       // Open the pane on a brand-new, empty tab. Nothing is created
@@ -586,10 +581,9 @@
           }
         }
         this._activateTab(idx);
-        this._openPane();
 
         s.currentPath = ''; s.currentMd = ''; s.dirty = false;
-        await __hyloEditorApplyState({ inSource: false, scrollTop: 0 }, newTab.id);
+        await this._openWith(__hyloEditorApplyState({ inSource: false, scrollTop: 0 }, newTab.id));
       },
 
       // Makes tabs[idx] the active tab. A tab already inside the visible
@@ -603,35 +597,18 @@
       // hidden), and joins the visible window at its far end — the same
       // spot a brand-new tab lands (see upsertTab/openNewInContentPane).
       //
-      // _flipCapture/_flipApply wrap every path here — except while the
-      // pane itself is still closed (this.contentPaneOpen is only flipped
-      // true *after* openNoteInContentPane's upsertTab/_activateTab call,
-      // so that's a reliable "this activation is part of opening the
-      // editor, not a live interaction" signal). tabVisibleCount hasn't
-      // been measured against real layout yet at that point (the pane has
-      // zero width until it opens — see initTabstrip), so any eviction
-      // decision made here would be off a guess anyway, and animating it
-      // would just fight the panel's own open transition instead of
-      // reading as one motion. Once open, every path animates
-      // unconditionally, including the idx<cap branch — a brand-new tab
-      // can land there too (upsertTab pushes it, and if the window wasn't
-      // already full there's nothing to evict), and that's still a chip
-      // appearing for the first time, same as any other. A plain switch
-      // between two tabs that were already visible just measures the same
-      // positions twice and finds nothing to animate — cheap enough at
-      // ≤10 tabs not to bother special-casing it away.
-      // animateOverride false skips the slide — used while the pane is
-      // still closed (contentPaneOpen flips true only after this returns
-      // on the open path) and whenever a caller already captured its own
-      // before-positions.
+      // Chip moves animate only while the pane is open (or as a caller
+      // says): a tab activated on the way to opening slides in with the
+      // pane instead. animateOverride false is also for callers that
+      // captured their own before-positions.
       _activateTab(idx, animateOverride) {
         var tab = this.tabs[idx];
         if (!tab) return;
         var animate = animateOverride !== undefined ? animateOverride : this.contentPaneOpen;
         var before = animate ? this._flipCapture() : null;
         tab._lastActiveSeq = ++__hyloEditorTabActivitySeq;
-        // No real width yet (pane still closed): don't evict off the
-        // placeholder count. The open resize settles the window for real.
+        // No width (the inbox panel is showing): don't evict off the
+        // placeholder count; the strip settles when it reappears.
         var measured = this._computeFit();
         if (!(measured > 0)) {
           this.activeTab = idx;
@@ -684,16 +661,39 @@
         this._activateTab(idx);
       },
 
-      // Flips contentPaneOpen false→true while telling its $watch (in
-      // initContentPane) to skip self._restore() + reload: the caller
-      // already pushed/upserted the right tab and will load it itself.
       closeContentPane() {
         if (!this.agentWriting) this.contentPaneOpen = false;
       },
 
-      _openPane() {
-        if (!this.contentPaneOpen) this._skipNextOpenLoad = true;
+      // The closed editor is still laid out at its open width, so a note
+      // loaded first slides in already painted. A slow load doesn't hold the
+      // slide past CONTENT_PANE_OPEN_WAIT_MS; it lands in the open pane instead.
+      async _openWith(load) {
+        if (this.contentPaneOpen) return load;
+        var waited = new Promise(function(r) { setTimeout(r, CONTENT_PANE_OPEN_WAIT_MS); });
+        // A failed load still opens, as before; the caller sees the failure.
+        await Promise.race([load, waited]).catch(function() {});
         this.contentPaneOpen = true;
+        return load;
+      },
+
+      // Reopen on the active tab. A note other than the one the editor holds
+      // loads first; the one it holds slides in at once and re-reads behind it.
+      async showContentPane() {
+        if (this.contentPaneOpen) return;
+        // Other views of this vault may have changed the tabs since.
+        this._restore();
+        var tab = this.tabs[this.activeTab];
+        if (!tab) { this.contentPaneOpen = true; return; }
+        var savedState = __hyloEditorRestoreTabState(tab.id);
+        if (!tab.path) return this._openWith(this._openUntitledTab(tab, savedState));
+        if (__hyloEditor.currentPath === tab.path) {
+          if (savedState) __hyloEditorRestoreScroll(savedState, { sync: true });
+          this.contentPaneOpen = true;
+          if (!__hyloEditor.dirty) void __hyloContentPaneRefreshNote(tab.path, tab.id);
+          return;
+        }
+        return this._openWith(__hyloContentPaneLoadNote(tab.path, tab.id, savedState));
       },
 
       markTabCompiled(path) {
@@ -1173,7 +1173,7 @@
   window.__hyloHotkeys.register('toggle-editor', 'o', function() {
     var pane = window.__hyloContentPane;
     if (!pane) return;
-    if (pane.contentPaneOpen) pane.closeContentPane(); else pane.contentPaneOpen = true;
+    if (pane.contentPaneOpen) pane.closeContentPane(); else void pane.showContentPane();
   });
 
   window.__hyloHotkeys.register('new-note', 'n', function() {

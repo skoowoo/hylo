@@ -4,8 +4,6 @@
       color: var(--prose-body); font-family: var(--font-sans); font-size: var(--text-body);
       text-autospace: normal; text-wrap-style: pretty;
     }
-    /* Re-breaking earlier lines on every token makes a streaming reply jitter. */
-    .prose.is-streaming { text-wrap-style: auto; }
     .prose pre, .prose code { text-autospace: no-autospace; }
     .prose h1 {
       font-size: 1.3em; line-height: 1.3; letter-spacing: -0.012em; font-weight: 600;

@@ -1,8 +1,8 @@
   <div class="home-container">
   <!-- Sidebar + note list ─────────────────────────────────────────── -->
   <div class="home-shell"
-       :class="{'content-pane-open': (contentPaneOpen || inboxSheetOpen), 'is-resizing': isPaneResizing, 'is-editor-maximized': splitRatio <= 0.02}"
-       :style="'--split-ratio:' + splitRatio + ';--split-ratio-inv:' + (1 - splitRatio)">
+       :class="{'content-pane-open': layoutOpen, 'is-resizing': isPaneResizing, 'is-editor-maximized': layoutRatio <= 0.02}"
+       :style="'--split-ratio:' + layoutRatio + ';--split-ratio-inv:' + (1 - layoutRatio)">
     <aside class="home-side hairline" id="home-side">
       <div class="home-side-top">
         <button type="button" class="icon-btn-ghost"
@@ -20,7 +20,7 @@
         </button>
         <button type="button" class="icon-btn-ghost home-side-bottom-btn" :class="{'is-active': contentPaneOpen}"
                 :title="/Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent) ? 'Reading pane (⌘O)' : 'Reading pane (Ctrl+O)'"
-                @click="contentPaneOpen = !contentPaneOpen">
+                @click="contentPaneOpen ? closeContentPane() : showContentPane()">
           <svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
             <rect x="3" y="3" width="18" height="18" rx="2" />
             <path stroke-linecap="round" stroke-linejoin="round" d="M15 3v18" />
@@ -186,12 +186,8 @@
         {{.SectionHTML}}
       </main>
 
-      <!-- Resizer + editor pane below only show once a note is open in the
-           content pane (see content_pane.html). -->
-      <div class="home-pane-resizer" id="home-pane-resizer" x-cloak
-           x-show="contentPaneOpen || inboxSheetOpen"
+      <div class="home-pane-resizer" id="home-pane-resizer"
            @mousedown="startPaneResize($event)"
-           @dblclick="splitRatio = 0.5"
            title="Drag to resize"></div>
 {{template "content_pane.html" .}}
     </div><!-- /.home-main -->

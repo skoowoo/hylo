@@ -19,33 +19,15 @@ function homeGraphMixin() {
         var c = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
         if (c) this.cy.style().selector('node:selected').style({ 'border-color': c }).update();
       });
-      // #home-list-pane's flex-grow (and so #graph-canvas's box) changes
-      // with this class, but cytoscape caches its container size and never
-      // notices — same fixup as clicking "Fit all nodes" by hand, just
-      // automatic. Opening applies flex-grow with 0 delay (truly instant,
-      // no transition event fires for it), so rAF is enough to let that
-      // land. Closing holds flex-grow behind --content-pane-exit-ms (home.css)
-      // until the panel's own slide-out finishes — a real, if zero-duration,
-      // transition — so wait for its transitionend rather than guessing the
-      // delay in JS; a timeout is only the fallback if that event never comes.
-      this.$watch('contentPaneOpen', (isOpen) => {
-        if (!this.cy) return;
+      // cytoscape caches its container size; refit once the split has
+      // settled rather than redrawing every frame of its motion.
+      window.addEventListener('hylo:split-settled', () => {
         var cy = this.cy;
-        var run = () => {
-          if (cy !== this.cy) return;
-          cy.resize();
-          var node = this._focusedPath ? cy.getElementById(this._focusedPath) : null;
-          if (node && !node.empty()) cy.animate({ center: { eles: node } }, { duration: 150 });
-          else cy.fit(undefined, 48);
-        };
-        if (isOpen) { requestAnimationFrame(run); return; }
-        var listEl = document.getElementById('home-list-pane');
-        if (!listEl) { setTimeout(run, 220); return; }
-        var done = false;
-        var finish = () => { if (done) return; done = true; listEl.removeEventListener('transitionend', onEnd); run(); };
-        var onEnd = (e) => { if (e.target === listEl && e.propertyName === 'flex-grow') finish(); };
-        listEl.addEventListener('transitionend', onEnd);
-        setTimeout(finish, 260); // covers the rare case flex-grow was already at rest and no transition ran
+        if (!cy) return;
+        cy.resize();
+        var node = this._focusedPath ? cy.getElementById(this._focusedPath) : null;
+        if (node && !node.empty()) cy.animate({ center: { eles: node } }, { duration: 150 });
+        else cy.fit(undefined, 48);
       });
     },
     async loadGraph() {

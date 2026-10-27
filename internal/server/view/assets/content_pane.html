@@ -1,11 +1,9 @@
   <div class="content-pane"
        :class="{ open: contentPaneOpen || inboxSheetOpen }"
        @close-content-pane.document="closeContentPane()">
-    <!-- This pane is shared with the inbox message detail below — only one
-         of the two is ever visible (mutual exclusion lives in
-         homeCtrl/contentPaneCtrl's contentPaneOpen/inboxSheetOpen watchers, home.js/
-         content_pane.js), so both reuse the same .content-pane-panel slide/fade
-         choreography (content_pane.css) instead of each animating on its own. -->
+    <!-- Shared with the inbox message detail below — only one of the two
+         is ever visible (contentPaneOpen/inboxSheetOpen watchers), so both
+         ride the same split motion. -->
     <div class="content-pane-panel" x-show="!inboxSheetOpen">
 
       <!-- ① Tool bar: maximize | tab strip (+ overflow) | note actions -->

@@ -185,8 +185,6 @@
       var key = (streaming ? 's' : 'f') + text;
       if (key === last) return;
       last = key;
-      // Pretty wrapping would re-break lines the moment the reply ends.
-      if (streaming) node.classList.add('is-streaming');
       var next = root.__hyloMarkdownBlocks(text);
       var open = streaming && endsInOpenFence(text);
       var fresh = [];
