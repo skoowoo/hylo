@@ -500,6 +500,19 @@
     function cardState(snap, card) {
       return card._hyReceipt ? receiptState(snap, card) : choiceState(snap, card);
     }
+    // Only the latest reply's face blinks; a whole thread of blinking faces is noise.
+    var blinkAvatar = null;
+    function markLatestAvatar(snap) {
+      var el = null;
+      for (var i = snap.messages.length - 1; i >= 0 && !el; i--) {
+        var row = rows.get(snap.messages[i].id || ('i' + i));
+        if (row && row.avatar) el = row.avatar();
+      }
+      if (el === blinkAvatar) return;
+      if (blinkAvatar) blinkAvatar.removeAttribute('data-blink');
+      if (el) el.setAttribute('data-blink', '');
+      blinkAvatar = el;
+    }
     // Scanned rather than registered: a card mounted while the thread was out of
     // the page never got to announce itself.
     function syncChoices(snap) {
@@ -795,6 +808,7 @@
       }
       if (spacer.parentNode !== thread || (prev && prev.nextSibling !== spacer)) thread.appendChild(spacer);
       rows.forEach(function (row, id) { if (!seen[id]) retire(id); });
+      markLatestAvatar(snap);
       syncChoices(snap);
       if (returned) updateTimes();
     }

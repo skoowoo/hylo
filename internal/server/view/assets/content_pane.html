@@ -71,8 +71,8 @@
                 <template x-for="m in (window._homeData ? window._homeData.agentBots : [])" :key="m.id">
                   <button type="button" class="content-pane-bot-menu-row"
                           @click.stop="botMenuOpen = false; sendActiveNoteToAgentBot(m.id)"
-                          :title="m.name">
-                    <span class="avatar avatar--sm content-pane-bot-menu-avatar"
+                          :title="m.name" data-avatar-hover>
+                    <span class="avatar avatar--sm"
                           x-html="window._homeData.agentBotAvatar(m.name)"></span>
                     <span class="content-pane-bot-menu-name" x-text="m.name"></span>
                   </button>

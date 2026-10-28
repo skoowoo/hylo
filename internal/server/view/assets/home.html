@@ -100,8 +100,8 @@
             <div class="home-side-children-inner">
               <template x-for="m in agentBots" :key="m.id">
                 <button type="button" class="side-nav-item home-side-child" :class="{'is-active': curType() === 'chat' && selectedAgentBotId === m.id}"
-                        x-press="selectChatAgentBot(m.id)">
-                  <span class="avatar avatar--sm home-side-child-avatar"
+                        x-press="selectChatAgentBot(m.id)" data-avatar-hover>
+                  <span class="avatar avatar--sm home-side-child-avatar" data-blink
                         x-html="agentBotAvatar(m.name)"></span>
                   <span class="home-side-child-name" x-text="m.name"></span>
                 </button>

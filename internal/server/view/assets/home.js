@@ -43,14 +43,15 @@ function _agentBotHash(name) {
 // paradox: 8 buckets, a handful of bots) even with a good hash. Fed the full
 // current list, resolve that by giving every bot its hashed first choice, then
 // bumping collisions to the next free bucket — deterministic and collision-free
-// as long as the list is no longer than the 8-color palette.
-window.agentBotColorFor = function(name, bots) {
-  var palette = ['var(--bot0)', 'var(--bot1)', 'var(--bot2)', 'var(--bot3)', 'var(--bot4)', 'var(--bot5)', 'var(--bot6)', 'var(--bot7)'];
-  var n = palette.length;
-  if (!bots || !bots.length) return palette[_agentBotHash(name) % n];
+// as long as the list is no longer than the 8-color palette. Only enabled bots
+// take part, so settings (which lists disabled ones too) matches the sidebar.
+function _agentBotSlot(name, bots) {
+  var n = 8;
+  if (!bots || !bots.length) return _agentBotHash(name) % n;
   var used = new Array(n).fill(false);
   var mine = -1;
   for (var i = 0; i < bots.length; i++) {
+    if (bots[i].enabled === false) continue;
     var bn = bots[i].name || '';
     var idx = _agentBotHash(bn) % n;
     var tries = 0;
@@ -58,71 +59,79 @@ window.agentBotColorFor = function(name, bots) {
     used[idx] = true;
     if (mine === -1 && bn === name) mine = idx;
   }
-  return palette[mine === -1 ? _agentBotHash(name) % n : mine];
+  return mine === -1 ? _agentBotHash(name) % n : mine;
+}
+// Each color slot has its own cheerful face, so a bot keeps one color and one
+// face. Faces are solid rounded shapes only (dots, ovals, bowls, triangles);
+// anim names the face's one-shot move in base.css.
+var _BOT_EYES = {
+  dot: function(x) { return '<circle class="ink" cx="' + x + '" cy="0" r="4.4"/>'; },
+  oval: function(x) { return '<ellipse class="ink" cx="' + x + '" cy="-0.5" rx="3.7" ry="5.4"/>'; },
+  peak: function(x) { return '<path class="solid tri" d="M' + (x - 2.7) + ' 1.4L' + x + ' -1.9L' + (x + 2.7) + ' 1.4z"/>'; },
 };
-
-// 5×7 pixel glyphs (A–Z, 0–9), rows top to bottom. Curves are cut corners;
-// crossbars and joints sit on the middle row and diagonals span the full
-// height, so every glyph fills the cell as fully as C or D instead of a small
-// bowl on a long stem. 0 is slashed to stay distinct from O.
-var _AGENT_BOT_GLYPHS = {
-  0: '.###. #...# #..## #.#.# ##..# #...# .###.',
-  1: '..#.. .##.. ..#.. ..#.. ..#.. ..#.. #####',
-  2: '.###. #...# ....# ..##. .#... #.... #####',
-  3: '.###. #...# ....# ..##. ....# #...# .###.',
-  4: '...## ..#.# .#..# #...# ##### ....# ....#',
-  5: '##### #.... ####. ....# ....# #...# .###.',
-  6: '..##. .#... #.... ####. #...# #...# .###.',
-  7: '##### #...# ....# ...#. ..#.. ..#.. ..#..',
-  8: '.###. #...# #...# .###. #...# #...# .###.',
-  9: '.###. #...# #...# .#### ....# ...#. .##..',
-  A: '.###. #...# #...# ##### #...# #...# #...#',
-  B: '####. #...# #...# ####. #...# #...# ####.',
-  C: '.###. #...# #.... #.... #.... #...# .###.',
-  D: '####. #...# #...# #...# #...# #...# ####.',
-  E: '##### #.... #.... ####. #.... #.... #####',
-  F: '##### #.... #.... ####. #.... #.... #....',
-  G: '.###. #...# #.... #.### #...# #...# .###.',
-  H: '#...# #...# #...# ##### #...# #...# #...#',
-  I: '.###. ..#.. ..#.. ..#.. ..#.. ..#.. .###.',
-  J: '..### ....# ....# ....# #...# #...# .###.',
-  K: '#...# #..#. #.#.. ##... #.#.. #..#. #...#',
-  L: '#.... #.... #.... #.... #.... #.... #####',
-  M: '#...# ##.## #.#.# #.#.# #...# #...# #...#',
-  N: '#...# ##..# ##..# #.#.# #..## #..## #...#',
-  O: '.###. #...# #...# #...# #...# #...# .###.',
-  P: '####. #...# #...# ####. #.... #.... #....',
-  Q: '.###. #...# #...# #...# #.#.# #..#. .##.#',
-  R: '####. #...# #...# ####. #..#. #...# #...#',
-  S: '.###. #...# #.... .###. ....# #...# .###.',
-  T: '##### ..#.. ..#.. ..#.. ..#.. ..#.. ..#..',
-  U: '#...# #...# #...# #...# #...# #...# .###.',
-  V: '#...# #...# #...# #...# .#.#. .#.#. ..#..',
-  W: '#...# #...# #...# #.#.# #.#.# ##.## #...#',
-  X: '#...# #...# .#.#. ..#.. .#.#. #...# #...#',
-  Y: '#...# #...# .#.#. ..#.. ..#.. ..#.. ..#..',
-  Z: '##### ....# ...#. ..#.. .#... #.... #####',
+function _botBowl(rx, ry, y) { return 'M' + -rx + ' ' + y + 'h' + rx * 2 + 'a' + rx + ' ' + ry + ' 0 0 1 ' + -rx * 2 + ' 0z'; }
+var _BOT_MOUTHS = {
+  small: '<path class="solid" d="' + _botBowl(3.4, 3.4, 8.4) + '"/>',
+  open: '<path class="solid" d="' + _botBowl(4.6, 4.6, 8.4) + '"/>',
+  big: '<path class="solid" d="' + _botBowl(5.8, 5.8, 7.6) + '"/>',
+  grin: '<path class="solid" d="' + _botBowl(6.2, 3.4, 8.4) + '"/>',
+  vee: '<path class="solid tri" d="M-3.4 9.4h6.8L0 13z"/>',
 };
+var _BOT_FACES = [
+  { eyes: 'peak', mouth: 'grin', at: [0, 2], anim: 'squint' },
+  { eyes: 'oval', mouth: 'big', at: [6, -6], anim: 'hop' },
+  { eyes: 'dot', mouth: 'small', blush: true, at: [0, 1], anim: 'shy' },
+  { eyes: 'dot', mouth: 'big', tongue: true, at: [0, -1], anim: 'tongue' },
+  { eyes: 'oval', gap: 8, mouth: 'open', at: [-8, -6], anim: 'look' },
+  { eyes: 'peak', mouth: 'big', at: [0, 0], anim: 'laugh' },
+  { eyes: 'dot', mouth: 'vee', at: [9, 7], anim: 'kiss' },
+  { eyes: 'dot', mouth: 'open', at: [-8, -7], anim: 'wave' },
+];
+var _botClipSeq = 0;
 
-// Pixel avatar: the initial as solid 5×7 blocks on a disc, held to ~40% of
-// its height so the color field has room around it. Blocks are a
-// deep shade of the disc's own hue rather than black, merged into one path
-// so adjacent cells never show anti-aliased seams. Initials without a glyph
-// (CJK, symbols) fall back to a mirrored identicon from the name hash.
-// label overrides the drawn initial when the hash key isn't the display name.
-window.agentBotAvatarSVG = function(name, bots, label) {
-  var color = window.agentBotColorFor(name, bots);
-  var ch = (Array.from((label || name || '').trim())[0] || '?').toUpperCase();
-  var g = _AGENT_BOT_GLYPHS[ch], h = _agentBotHash(name);
-  var d = '';
-  for (var y = 0; y < 7; y++) for (var x = 0; x < 5; x++) {
-    var on = g ? g.charAt(y * 6 + x) === '#' : (h >>> (y * 3 + (x < 3 ? x : 4 - x))) & 1;
-    if (on) d += 'M' + (35 + x * 6) + ' ' + (29 + y * 6) + 'h6v6h-6z';
+window.agentBotAvatarSVG = function(name, bots) {
+  var slot = _agentBotSlot(name, bots), f = _BOT_FACES[slot], gap = f.gap || 11;
+  var color = 'var(--bot' + slot + ')', eye = _BOT_EYES[f.eyes];
+  var blush = f.blush ? '<g class="blush">' + [-1, 1].map(function(k) {
+    return '<ellipse cx="' + k * (gap + 4.5) + '" cy="7.5" rx="3.8" ry="2.5"/>';
+  }).join('') + '</g>' : '';
+  var tongue = '';
+  if (f.tongue) {
+    var id = 'bot-mouth-' + (++_botClipSeq);
+    tongue = '<clipPath id="' + id + '"><path class="solid" d="' + _botBowl(5.8, 5.8, 7.6) + '"/></clipPath>' +
+      '<circle cx="0" cy="15.2" r="4.6" clip-path="url(#' + id + ')" style="fill:color-mix(in oklab, ' + color + ' 45%, var(--inverse-canvas))"/>';
   }
-  return '<svg class="avatar-pixel" viewBox="0 0 100 100" aria-hidden="true">' +
-    '<circle cx="50" cy="50" r="50" style="fill:' + color + '"/>' +
-    '<path d="' + d + '" style="fill:color-mix(in oklab, ' + color + ' 30%, #000)"/></svg>';
+  return '<svg class="bot-face" data-anim="' + f.anim + '" data-eyes="' + f.eyes + '" style="--blink-at:' + (slot * 5 % 8) * 0.8 + 's"' +
+    ' viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="50" style="fill:' + color + '"/>' +
+    '<g transform="translate(50 50) scale(1.3) translate(' + f.at[0] + ' ' + f.at[1] + ')"><g class="face">' + blush +
+    '<g class="eyes">' + eye(-gap) + eye(gap) + '</g><g class="mouth">' + _BOT_MOUTHS[f.mouth] + tongue + '</g></g></g></svg>';
 };
+
+// Plays a face's one-shot move; the class clears itself when the move ends. A face
+// that wasn't rendered never fires animationend, so a stale class restarts.
+window.agentBotAvatarPlay = function(face) {
+  if (!face) return;
+  if (face.classList.contains('is-playing')) {
+    if (Date.now() - face._playAt < 1500) return;
+    face.classList.remove('is-playing');
+    void face.getBoundingClientRect();
+  }
+  face._playAt = Date.now();
+  face.classList.add('is-playing');
+};
+document.addEventListener('animationend', function(e) {
+  var t = e.target;
+  if (t.classList && t.classList.contains('face')) {
+    var svg = t.closest('.bot-face');
+    if (svg) svg.classList.remove('is-playing');
+  }
+});
+// Rows that carry a bot avatar play it when the pointer comes onto the row.
+document.addEventListener('pointerover', function(e) {
+  var row = e.target.closest && e.target.closest('[data-avatar-hover]');
+  if (!row || (e.relatedTarget && row.contains(e.relatedTarget))) return;
+  window.agentBotAvatarPlay(row.querySelector('.bot-face'));
+});
 
 // ── Per-section list/grid layout preference ────────────────────────────────
 // Knowledge/Memory/Pinned/Folders/Tags each get their own list-vs-grid choice

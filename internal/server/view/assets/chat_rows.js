@@ -718,8 +718,7 @@
     var mate = null;
     for (var i = 0; i < snap.mates.length; i++) if (snap.mates[i].id === msg.agentBotId) { mate = snap.mates[i]; break; }
     var colorKey = mate ? mate.name : (msg.agentBotId || '');
-    if (root.agentBotAvatarSVG) avatar.innerHTML = root.agentBotAvatarSVG(colorKey, snap.mates, name);
-    else avatar.textContent = name ? name.trim().slice(0, 1).toUpperCase() : '?';
+    if (root.agentBotAvatarSVG) avatar.innerHTML = root.agentBotAvatarSVG(colorKey, snap.mates);
     h.appendChild(avatar);
     var nameEl = el('div', 'msg-agent-name');
     nameEl.textContent = name;
@@ -915,9 +914,12 @@
 
     update(msg, snap);
     row._msgId = msg.id;
+    // A reply that starts in front of the user greets them once; history stays still.
+    if (msg.status === 'running' && root.agentBotAvatarPlay) root.agentBotAvatarPlay(head.querySelector('.bot-face'));
     return {
       node: row,
       update: update,
+      avatar: function () { return head.firstChild; },
       timeEl: footer.time,
       copyBtn: footer.copy,
       destroy: function () {

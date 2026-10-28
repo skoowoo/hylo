@@ -396,7 +396,7 @@ Full-viewport or edge-docked chrome (drawer panel and its tab bar, scrims, `<htm
 
 **`image-tile`** — Grid tile in the image gallery: `--surface-soft` background, rounded `{rounded.xl}`. Selection state uses a fixed white border + black scrim overlay (not theme tokens), since tiles sit on top of arbitrary photo content.
 
-**`avatar`** — Agent bot identity: a disc in the bot's `--bot0…7` color with its initial drawn as solid 5×7 pixel blocks in a deep shade of the same hue (30% bot color in black). The pixel face cuts corners for curves, puts crossbars and joints on the middle row and runs diagonals the full height, so every letter fills its cell as fully as C or D. The glyph spans only the middle ~half of the disc so the color has room around it. Letters A–Z and digits 0–9 have glyphs (0 carries a slash to stay distinct from O); other initials (CJK, symbols) fall back to a mirrored hash identicon. Sizes 20 / 28 / 36px.
+**`avatar`** — Agent bot identity: a cheerful face on a disc in the bot's `--bot0…7` color. Each color slot has its own face, so a bot keeps one color and one face everywhere. Faces use solid rounded shapes only (dots, tall ovals, half-disc and half-ellipse mouths, rounded triangles), in `--inverse-ink` with a thin same-ink outline that rounds every corner; accents are white blush or a lighter tint of the disc (a tongue). No lines, no sad or neutral faces. Each face has a one-shot signature move (squint, hop, shy sway, wobble, look around, chuckle, kiss, wave) played on hover of a bot row and when a new reply starts; the only loop is an occasional blink, on the sidebar and the latest reply. Sizes 20 / 28 / 36px.
 
 ## Do's and Don'ts
 

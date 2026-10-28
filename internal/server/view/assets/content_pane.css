@@ -129,7 +129,6 @@
       cursor: pointer; text-align: left;
     }
     .content-pane-bot-menu-row:hover { color: var(--fg); background: var(--icon-hov); }
-    .content-pane-bot-menu-avatar { flex-shrink: 0; }
     .content-pane-bot-menu-name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .content-pane-bot-menu-empty { padding: 0.5rem 0.55rem; font-size: var(--text-sm); color: var(--muted-soft); }
 

@@ -61,7 +61,7 @@
                     </div>
                   </template>
                   <template x-for="(m, mi) in agentBotsList" :key="m.id">
-                    <div class="list-card list-card--hover list-card--soft agent-bot-card" :class="m.enabled ? '' : 'disabled-card'">
+                    <div class="list-card list-card--hover list-card--soft agent-bot-card" :class="m.enabled ? '' : 'disabled-card'" data-avatar-hover>
                       <div class="avatar avatar--lg agent-bot-avatar"
                            x-html="window.agentBotAvatarSVG(m.name, agentBotsList)"></div>
                       <div class="agent-bot-card-body">
