@@ -91,7 +91,7 @@ const agentCaretTheme = EditorView.baseTheme({
   },
   '&.cm-agent-writing .cm-cursor-primary::after': {
     content: '"AI"', position: 'absolute', left: '-2px', bottom: '100%',
-    padding: '0 4px', borderRadius: '3px', font: "10px/14px var(--font-ui, system-ui, sans-serif)", whiteSpace: 'nowrap',
+    padding: '0 4px', borderRadius: 'var(--r-xs, 4px)', font: "10px/14px var(--font-ui, system-ui, sans-serif)", whiteSpace: 'nowrap',
     color: 'var(--accent-fg, #fff)', background: 'var(--accent, #5e6ad2)',
   },
 });

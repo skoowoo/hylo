@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+     data-base="lucide/clipboard" data-zoom="1"
+     data-changes="corners r4, tips rounded">
+  <rect width="8" height="4" x="8" y="2" rx="2" />
+  <path d="M16 4L17 4A3 3 0 0 1 20 7L20 18A4 4 0 0 1 16 22L8 22A4 4 0 0 1 4 18L4 7A3 3 0 0 1 7 4L8 4" />
+</svg>

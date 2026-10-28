@@ -113,7 +113,7 @@
   }
 
   function kbd(text) {
-    var k = el('kbd');
+    var k = el('kbd', 'kbd');
     k.textContent = text;
     return k;
   }

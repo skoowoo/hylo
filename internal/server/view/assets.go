@@ -28,7 +28,7 @@ func readAssets(names ...string) string {
 
 // Bundle order is cascade order for CSS; JS files only declare globals until Alpine starts.
 func init() {
-	static.Bundle("bundle/home.css", appTokensCSS+lineIconsCSS("file")+readAssets(
+	static.Bundle("bundle/home.css", appTokensCSS+":root{"+lineIconVar("file", "file", "")+lineIconVar("tick", "check", tickStroke)+"}\n"+readAssets(
 		"info_dialog.css", "base.css", "cselect.css", "home.css", "images.css", "graph.css", "agent_chat.css",
 		"content_pane.css", "note_frontmatter.css", "note_shared_prose.css", "shorts.css", "search_overlay.css",
 		"confirm_dialog.css",

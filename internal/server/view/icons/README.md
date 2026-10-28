@@ -25,15 +25,19 @@ pushes ink past the box edge.
 no sharp corner, no stroke end poking past another stroke, no elliptical box
 corner, no clipped ink.
 
-`make icons` writes `shared_icons_line.go` (templates) and
-`assets/shared_icons_line.js` (page scripts); a Go test keeps them equal.
+`make icons` writes `shared_icons_line.go` (templates),
+`assets/shared_icons_line.js` (page scripts) and `editor/src/line-icons.js`
+(the editor bundle); a Go test keeps the first two equal.
 
 - Templates: `{{icon "name"}}`, `{{icon "name" "class"}}`, or raw
   attributes `{{icon "name" `class="x" width="13" height="13"`}}`. A
-  `fill` or `stroke` there replaces the line defaults (a solid badge).
+  `fill`, `stroke` or `stroke-width` there replaces the line default (a
+  solid badge, the heavier checkbox tick).
 - Scripts: `hyloIcon('name', attrs)`, same rules.
-- CSS: `var(--icon-<name>)` as a mask, for names listed in
-  `lineIconsCSS(...)` in assets.go.
+- Editor: `lineIcon('name', attrs)`, same rules; `lineIconMask(name, attrs)`
+  for a CSS mask.
+- CSS: `var(--icon-<name>)` as a mask, declared with `lineIconVar(...)` in
+  assets.go (`--icon-file`, `--icon-tick`).
 
 Check `/dev/icons` after a change: navigation icons are size-checked
 against each other; the rest are shown with their measurements.

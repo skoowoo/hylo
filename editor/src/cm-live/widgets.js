@@ -2,6 +2,7 @@ import { WidgetType, EditorView } from '@codemirror/view';
 import { openImageViewer } from './image-viewer.js';
 import { imageNodeAt } from './image-nodes.js';
 import { imageBox, columnWidth, rememberImageSize, IMAGE_MAX_HEIGHT } from './image-sizes.js';
+import { lineIcon } from '../line-icons.js';
 
 // Click puts the caret `offset` chars into the source the widget replaces,
 // which flips it back to raw markdown for editing.
@@ -57,10 +58,6 @@ export class WikiLinkWidget extends WidgetType {
   }
 }
 
-const ZOOM_ICON =
-  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="m21 3-7 7"/><path d="m3 21 7-7"/></svg>';
-const BROKEN_ICON =
-  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m2 2 20 20"/><path d="M10.41 10.41a2 2 0 1 1-2.83-2.83"/><path d="M13.5 13.5 6 21"/><path d="M18 12l3 3"/><path d="M3.59 3.59A1.99 1.99 0 0 0 3 5v14a2 2 0 0 0 2 2h14c.55 0 1.052-.22 1.41-.59"/><path d="M21 15V5a2 2 0 0 0-2-2H9"/></svg>';
 
 // ![[file]] and ![alt](url). `src` is already resolved by the decorator;
 // `label` names the image in the broken-image placeholder. Double-click edits
@@ -105,7 +102,7 @@ export class ImageWidget extends WidgetType {
     img.addEventListener('error', () => {
       sizeBox(wrap, null);
       wrap.classList.add('cm-lp-image-broken');
-      wrap.innerHTML = BROKEN_ICON;
+      wrap.innerHTML = lineIcon('image-off');
       const text = document.createElement('span');
       text.textContent = 'Image not found · ' + this.label;
       wrap.appendChild(text);
@@ -117,7 +114,7 @@ export class ImageWidget extends WidgetType {
     zoom.className = 'cm-lp-image-zoom';
     zoom.title = 'View image';
     zoom.setAttribute('aria-label', 'View image');
-    zoom.innerHTML = ZOOM_ICON;
+    zoom.innerHTML = lineIcon('expand');
     zoom.addEventListener('mousedown', (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -265,10 +262,6 @@ export class ListMarkerWidget extends WidgetType {
   }
 }
 
-const COPY_ICON =
-  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>';
-const CHECK_ICON =
-  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
 
 // Opening fence line of a code block at rest: language label + copy button.
 export class CodeHeaderWidget extends WidgetType {
@@ -296,16 +289,16 @@ export class CodeHeaderWidget extends WidgetType {
     btn.className = 'cm-lp-code-copy';
     btn.title = 'Copy code';
     btn.setAttribute('aria-label', 'Copy code');
-    btn.innerHTML = COPY_ICON;
+    btn.innerHTML = lineIcon('copy');
     // Keep the caret where it is — clicking chrome shouldn't open the block for editing.
     btn.addEventListener('mousedown', (e) => e.preventDefault());
     btn.addEventListener('click', () => {
       if (!navigator.clipboard) return;
       navigator.clipboard.writeText(this.code).then(() => {
-        btn.innerHTML = CHECK_ICON;
+        btn.innerHTML = lineIcon('check');
         btn.classList.add('is-done');
         setTimeout(() => {
-          btn.innerHTML = COPY_ICON;
+          btn.innerHTML = lineIcon('copy');
           btn.classList.remove('is-done');
         }, 1200);
       }).catch(() => {});

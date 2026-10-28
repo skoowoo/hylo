@@ -110,13 +110,12 @@
       display: flex; flex-direction: column;
       padding: 0.25rem;
       background: var(--surface-soft); border: var(--bd-w) solid var(--line-edge);
-      border-radius: var(--r-md);
+      border-radius: var(--r-lg);
       box-shadow: var(--shadow-sm) var(--shadow-color);
     }
     .content-pane-bot-menu-header { padding: 0.2rem 0.55rem 0.35rem; }
     .content-pane-bot-menu-header-label {
-      font-size: var(--text-2xs); font-weight: var(--fw-medium);
-      letter-spacing: var(--ls-cap); text-transform: uppercase;
+      font-size: var(--text-xs); font-weight: var(--fw-medium);
       color: var(--muted);
     }
     .content-pane-bot-menu-list { max-height: calc(10 * var(--btn-h-xs) + 0.5rem); overflow-y: auto; }
@@ -141,7 +140,7 @@
       transform-origin: top;
       min-width: 190px; max-width: min(320px, 90vw); padding: 0.25rem;
       background: var(--surface-soft); border: var(--bd-w) solid var(--line-edge);
-      border-radius: var(--r-md);
+      border-radius: var(--r-lg);
       box-shadow: var(--shadow-sm) var(--shadow-color);
     }
     .content-pane-more-item {
@@ -154,7 +153,7 @@
     }
     .content-pane-more-item svg { width: 13px; height: 13px; flex-shrink: 0; }
     /* Shortcut-hint column — plain muted text, no box/border (unlike
-       Settings → Shortcuts' boxed .kbd; a border here would read as a
+       the boxed .kbd keycap; a border here would read as a
        second button on every row). margin-left:auto pushes it to the row's
        far end and min-width gives it a fixed starting x regardless of the
        hint's own length, so hints on different rows line up in a column
@@ -163,11 +162,8 @@
     .content-pane-more-item-kbd {
       margin-left: auto; min-width: 2.6rem; padding-left: 0.5rem;
       flex-shrink: 0; text-align: right;
-      font-family: var(--font-mono); font-size: var(--text-xs);
-      color: var(--muted-soft);
+      font-size: var(--text-xs); color: var(--muted-soft);
     }
-    /* .kbd-cmd sizing/alignment now comes from the shared .kbd-combo
-       (base.css) — see that rule for why. */
     /* Both labels share one grid cell so the row (and the shrink-to-fit menu)
        keeps the wider label's width instead of jittering on swap. */
     .content-pane-copy-label { display: inline-grid; }
@@ -319,8 +315,7 @@
        the Find row itself (below) so that row stays pure search actions. */
     .hylo-sr-header { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
     .hylo-sr-header-label {
-      font-size: var(--text-2xs); font-weight: var(--fw-medium);
-      letter-spacing: var(--ls-cap); text-transform: uppercase;
+      font-size: var(--text-xs); font-weight: var(--fw-medium);
       color: var(--muted);
     }
     .hylo-sr-row { display: flex; align-items: center; gap: 0.45rem; }
@@ -381,7 +376,7 @@
     }
     /* Replace/Replace All — short text labels (below), not a second icon
        vocabulary; same size/weight family as the Aa toggle above so the
-       panel reads as one consistent "small caps label" language rather
+       panel reads as one consistent label language rather
        than icons-plus-text. Plain buttons, not toggles, so no .active. */
     .hylo-sr-text {
       width: auto; padding: 0 5px;

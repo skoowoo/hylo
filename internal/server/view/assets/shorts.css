@@ -155,10 +155,8 @@
       margin-bottom: var(--space-xs);
     }
     .shorts-entry-date {
-      font-size: var(--text-2xs);
+      font-size: var(--text-xs);
       font-weight: var(--fw-medium);
-      letter-spacing: var(--ls-cap);
-      text-transform: uppercase;
       color: var(--muted);
       user-select: none;
     }
@@ -181,10 +179,8 @@
        just a tie won by load order. */
     .prose.shorts-entry-prose :is(h1, h2, h3, h4, h5, h6) {
       font-size: var(--text-xs);
-      font-weight: var(--fw-medium);
+      font-weight: var(--fw-semibold);
       line-height: var(--lh-relaxed);
-      letter-spacing: var(--ls-cap);
-      text-transform: uppercase;
       color: var(--muted);
       margin: 0.7em 0 0.2em;
     }

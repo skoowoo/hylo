@@ -14,8 +14,9 @@ const DIR = path.join(__dirname, '..', 'icons');
 const ARGS = { M: 2, L: 2, H: 1, V: 1, C: 6, S: 4, Q: 4, T: 2, A: 7, Z: 0 };
 
 // Corners that read as round anyway: the half-moon's inner corners sit on the
-// outer ring, and the book's spine points are covered by the spine's caps.
-const CUSPS_OK = new Set(['appearance', 'book-open', 'knowledge']);
+// outer ring, the book's spine points are covered by the spine's caps, and a
+// brace's nose turns back on itself, which a round join draws as a round end.
+const CUSPS_OK = new Set(['appearance', 'braces', 'knowledge']);
 
 function parse(d) {
   const toks = d.match(/[MmLlHhVvCcSsQqTtAaZz]|[-+]?(?:\d+\.\d*|\.\d+|\d+)(?:[eE][-+]?\d+)?/g) || [];

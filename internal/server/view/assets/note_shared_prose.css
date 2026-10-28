@@ -74,7 +74,7 @@
       top: 0.28em;
       bottom: 0.28em;
       width: 2px;
-      border-radius: 1px;
+      border-radius: var(--r-full);
       background: var(--bq-bd);
     }
     .prose blockquote > :first-child { margin-top: 0; }
@@ -173,8 +173,8 @@
     .prose li > input[type="checkbox"]:checked::after {
       content: ''; position: absolute; inset: 0; border-radius: 0;
       background-color: var(--bg);
-      -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpolyline points='2,6 5,9 10,3' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='square' stroke-linejoin='miter'/%3E%3C/svg%3E");
-      mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpolyline points='2,6 5,9 10,3' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='square' stroke-linejoin='miter'/%3E%3C/svg%3E");
+      /* The check line icon, drawn heavier (--icon-tick, assets.go). */
+      -webkit-mask-image: var(--icon-tick); mask-image: var(--icon-tick);
       -webkit-mask-size: 100% 100%; mask-size: 100% 100%;
       -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
     }

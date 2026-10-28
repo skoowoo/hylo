@@ -282,7 +282,7 @@ Dark is the shipped default (bare `:root`). Light is Hylo's own from-scratch ada
 ### Principles
 - **One family, every weight.** Inter at 400/500/600 covers the whole app; there's no separate display cut.
 - **Chrome type stays tight** (line-height 1.0–1.5); **prose opens up** (1.75) — the editor and reading surfaces are the one place optimized for sustained reading rather than scanning.
-- **Uppercase/caps labels** (section headers, badge text) get a small positive tracking (`--ls-cap`, 0.08em) to stay legible at small sizes; everything else holds 0 letter-spacing — negative tracking on display type isn't part of this system since there's no display tier.
+- **No caps labels in chrome.** Section headers, menu headers and meta labels are sentence case at 0 letter-spacing; weight and color carry the hierarchy, in the same soft voice as the rounded line icons. Prose H6 keeps its uppercase as content typography.
 - **Mono only in code contexts** — code fences, inline code spans, and note-editor code blocks.
 
 ## Layout
@@ -331,9 +331,11 @@ Everything that doesn't explicitly opt into level 5 stays flat, matching the sur
 | `{rounded.xs}`   | 4px   | Chips, status badges, small icon buttons                                                    |
 | `{rounded.sm}`   | 6px   | Inline tags, inline code, prose images                                                      |
 | `{rounded.md}`   | 8px   | Default for buttons and form inputs — and the baseline every element gets unless overridden |
-| `{rounded.lg}`   | 12px  | List cards, image grid tiles                                                                |
+| `{rounded.lg}`   | 12px  | List cards, image grid tiles, dropdown menus                                                |
 | `{rounded.xl}`   | 16px  | Dialogs, modals, the search overlay panel, image lightbox tiles                             |
 | `{rounded.full}` | 999px | Pills, avatars, unread dots, agent-bot-color swatches                                       |
+
+A surface that holds rounded rows close to its edge takes the row radius plus the gap between them: a menu with `{rounded.sm}` rows, 4px padding and a 1px border is `{rounded.lg}`, so the inner and outer corners run parallel.
 
 Full-viewport or edge-docked chrome (drawer panel and its tab bar, scrims, `<html>`/`<body>`, SVG icons, and replaced elements like the graph's canvas) explicitly resets to 0 — these are structural surfaces flush to real viewport edges, never a "card" shape.
 

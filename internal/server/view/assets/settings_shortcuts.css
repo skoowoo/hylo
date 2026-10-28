@@ -8,14 +8,7 @@
     .shortcuts-label { font-size: var(--text-sm); font-weight: 600; color: var(--fg); display: block; }
     .shortcuts-desc { font-size: var(--text-xs); color: var(--muted); margin-top: 0.1rem; }
     .shortcuts-keys { display: flex; gap: 0.3rem; align-items: center; flex-shrink: 0; }
-    .kbd {
-      display: inline-flex; align-items: center;
-      padding: 0.18rem 0.42rem;
-      border-radius: var(--r-xs);
-      background: var(--btn-bg); border: var(--bd-w) solid transparent;
-      font-family: var(--font-mono);
-      font-size: var(--text-xs); color: var(--fg); white-space: nowrap; line-height: 1.4;
-    }
+    .shortcuts-keys .kbd { font-size: var(--text-xs); padding: 0.18rem 0.42rem; }
     button.kbd { cursor: pointer; }
     button.kbd:hover { background: var(--btn-bg-hov); }
     .kbd-recording { border-color: var(--accent, var(--fg)); color: var(--muted); }

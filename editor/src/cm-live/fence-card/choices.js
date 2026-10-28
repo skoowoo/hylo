@@ -1,6 +1,6 @@
 // Chat-only options card; `- [ ]` items allow several picks. Static until a host
 // calls el._hyChoices.setState({ mode, picked }); picks bubble as `hylo:choice`.
-import { icon } from './icons.js';
+import { lineIcon } from '../../line-icons.js';
 
 const STYLE_ID = 'hy-choices-style';
 
@@ -18,7 +18,7 @@ const CSS = `
 .hy-choices-active .hy-choice:hover{background:var(--btn-bg-hov,rgba(24,24,27,.1))}
 .hy-choice:focus-visible{outline:2px solid rgba(var(--accent-rgb,94,106,210),.5);outline-offset:1px}
 .hy-choice-box{flex:none;display:flex;opacity:.55}
-.hy-choice-box svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.hy-choice-box svg{width:16px;height:16px}
 .hy-choice-box svg+svg,.hy-choice-on .hy-choice-box svg:first-child{display:none}
 .hy-choice-on .hy-choice-box svg+svg{display:block}
 .hy-choices .hy-choice-on{background:var(--btn-bg-on,rgba(24,24,27,.15))}
@@ -96,7 +96,7 @@ export function mount(el, source, ctx = {}) {
         const box = document.createElement('span');
         box.className = 'hy-choice-box';
         // Both glyphs share one frame, so toggling in place never shifts the label.
-        box.innerHTML = icon('square') + icon('square-check');
+        box.innerHTML = lineIcon('square') + lineIcon('select');
         b.appendChild(box);
         if (active) b.setAttribute('aria-pressed', String(picked.has(text)));
       }

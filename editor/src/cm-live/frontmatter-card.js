@@ -10,6 +10,7 @@ import { parseFrontmatter } from './frontmatter-yaml.js';
 import { wikiLinksRevalidated } from './live-preview.js';
 import { splitWikiLinkInner } from './wiki-syntax.js';
 import { WikiLinkWidget } from './widgets.js';
+import { lineIcon } from '../line-icons.js';
 import { ensureStyle, iconButton } from './fence-card/shell.js';
 import { heldBlocks, blockHold, blockSpacer } from './block-hold.js';
 
@@ -102,39 +103,19 @@ const NUMBER_RE = /^-?\d+(\.\d+)?$/;
 const BOOL_RE = /^(true|false)$/i;
 const DATE_RE = /^(\d{4}-\d{2}-\d{2})(?:[T ](\d{2}:\d{2})(?::\d{2}(?:\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?)?$/;
 
-// Lucide glyphs. System keys get a fixed icon; everything else is picked by value shape.
-const ICONS = {
-  tag: '<path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42Z"/><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/>',
-  list: '<path d="M3 12h.01"/><path d="M3 18h.01"/><path d="M3 6h.01"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M8 6h13"/>',
-  number: '<path d="M4 9h16"/><path d="M4 15h16"/><path d="M10 3 8 21"/><path d="M16 3 14 21"/>',
-  text: '<path d="M17 6.1H3"/><path d="M21 12.1H3"/><path d="M15.1 18H3"/>',
-  heading: '<path d="M6 12h12"/><path d="M6 20V4"/><path d="M18 20V4"/>',
-  layers: '<path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/>',
-  user: '<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
-  link: '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
-  clock: '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
-  calendar: '<path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/>',
-  check: '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="m9 12 2 2 4-4"/>',
-  braces: '<path d="M8 3H7a2 2 0 0 0-2 2v5a2 2 0 0 1-2 2 2 2 0 0 1 2 2v5c0 1.1.9 2 2 2h1"/><path d="M16 21h1a2 2 0 0 0 2-2v-5c0-1.1.9-2 2-2a2 2 0 0 1-2-2V5a2 2 0 0 0-2-2h-1"/>',
-  chevron: '<path d="m6 9 6 6 6-6"/>',
-};
-
+// System keys get a fixed icon; everything else is picked by value shape.
 const KEY_ICONS = {
   title: 'heading',
   kind: 'layers',
-  tags: 'tag',
+  tags: 'tags',
   author: 'user',
   source: 'link',
   source_notes: 'link',
-  clipped: 'clock',
-  clipped_at: 'clock',
-  created_at: 'clock',
-  last_compiled_at: 'clock',
+  clipped: 'recent',
+  clipped_at: 'recent',
+  created_at: 'recent',
+  last_compiled_at: 'recent',
 };
-
-function svg(name) {
-  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name]}</svg>`;
-}
 
 function el(tag, className, text) {
   const node = document.createElement(tag);
@@ -155,9 +136,9 @@ function iconFor(field) {
   const fixed = KEY_ICONS[field.key.trim().toLowerCase()];
   if (fixed) return fixed;
   const { value } = field;
-  if (value.type === 'list') return 'list';
+  if (value.type === 'list') return 'bullet-list';
   if (value.type === 'map') return 'braces';
-  return { bool: 'check', number: 'number', date: 'calendar', url: 'link' }[scalarKind(value)] || 'text';
+  return { bool: 'select', number: 'hash', date: 'calendar', url: 'link' }[scalarKind(value)] || 'text';
 }
 
 // Local time without seconds; the raw value stays in the tooltip.
@@ -296,7 +277,7 @@ class FrontmatterCardWidget extends WidgetType {
     head.setAttribute('role', 'button');
     head.tabIndex = -1;
     head.title = this.collapsed ? 'Expand metadata' : 'Collapse metadata';
-    head.innerHTML = `<span class="cm-fm-chevron">${svg('chevron')}</span>`;
+    head.innerHTML = `<span class="cm-fm-chevron">${lineIcon('chevron-down')}</span>`;
     head.appendChild(el('span', 'cm-fm-title', 'Metadata'));
     if (this.collapsed) head.appendChild(el('span', 'cm-fm-count', String(this.fields.length)));
     head.addEventListener('click', () => view.dispatch({ effects: setFrontmatterCollapsed.of(!this.collapsed) }));
@@ -306,7 +287,7 @@ class FrontmatterCardWidget extends WidgetType {
       const grid = el('div', 'cm-fm-grid');
       for (const field of this.fields) {
         const key = el('div', 'cm-fm-key');
-        key.innerHTML = `<span class="cm-fm-icon">${svg(iconFor(field))}</span>`;
+        key.innerHTML = `<span class="cm-fm-icon">${lineIcon(iconFor(field))}</span>`;
         key.appendChild(el('span', 'cm-fm-name', field.key));
         key.title = field.key;
         grid.append(key, this.value(view, field));
@@ -317,7 +298,7 @@ class FrontmatterCardWidget extends WidgetType {
     if (this.canEdit) {
       const bar = el('div', 'hy-card-bar');
       bar.appendChild(
-        iconButton('code-xml', 'Edit source', () => {
+        iconButton('code', 'Edit source', () => {
           view.dispatch({ selection: { anchor: editPos(view.state) }, effects: editFrontmatter.of(true), scrollIntoView: true });
           view.focus();
         })

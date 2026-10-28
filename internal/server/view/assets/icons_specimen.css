@@ -13,7 +13,7 @@ body { background: var(--bg); color: var(--fg); overflow: hidden; }
 .spec-meta { margin: 6px 0 0; font-size: var(--text-sm); color: var(--muted); }
 .spec-meta code, .spec-src { font-family: var(--font-mono); font-size: var(--text-xs); }
 .spec-section { display: flex; flex-direction: column; gap: var(--space-sm); }
-.spec-h2 { margin: 0; font-size: var(--text-xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.spec-h2 { margin: 0; font-size: var(--text-xs); font-weight: 600; color: var(--muted); }
 .spec-note { margin: 0; max-width: 64ch; font-size: var(--text-sm); color: var(--muted); line-height: 1.5; }
 
 /* A sidebar column at the real width and fill. */

@@ -9,6 +9,7 @@ import { rangeTouchesCode, rangeTouchesCodeBlock, rangeCrossesBlock, trimWhitesp
 import { FORMAT_KEYS } from './format-keymap.js';
 import { charPosAtCoords, wordRangeAt } from './cjk-words.js';
 import { touchedLines } from './selection-lines.js';
+import { lineIcon } from '../line-icons.js';
 
 // Right-click formatting menu. There's no native context menu to coexist
 // with here — the desktop shell never wires up `webContents.on('context-
@@ -44,7 +45,7 @@ function ensureStyles() {
   padding: 0.25rem;
   background: var(--surface-soft, #ffffff);
   border: var(--bd-w, 1px) solid var(--line-edge, rgba(24,24,27,0.16));
-  border-radius: var(--r-md, 10px);
+  border-radius: var(--r-lg, 12px);
   box-shadow: var(--shadow-sm, 0 4px 16px) var(--shadow-color, rgba(0,0,0,0.16));
   font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);
 }
@@ -76,30 +77,19 @@ function ensureStyles() {
   document.head.appendChild(style);
 }
 
-// Real Lucide icon paths (fetched from lucide-static, not hand-drawn) at
-// 24x24 viewBox / round caps — same source content_pane.html's own inlined
-// icons (Find/Pin/Rename/...) come from, and same "<!-- lucide "name" -->"
-// provenance comment convention as home.html/content_pane.html. Weight is
-// overridden to 1.7 (Lucide's own default is 2) to match this app's
-// existing icon set, not Lucide's stock weight.
-function lucideIcon(name, inner) {
-  return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">' +
-    '<!-- lucide "' + name + '" -->' + inner + '</svg>';
-}
-
 const ICONS = {
-  bold: lucideIcon('bold', '<path d="M6 12h9a4 4 0 0 1 0 8H7a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h7a4 4 0 0 1 0 8"/>'),
-  italic: lucideIcon('italic', '<line x1="19" x2="10" y1="4" y2="4"/><line x1="14" x2="5" y1="20" y2="20"/><line x1="15" x2="9" y1="4" y2="20"/>'),
-  strike: lucideIcon('strikethrough', '<path d="M16 4H9a3 3 0 0 0-2.83 4"/><path d="M14 12a4 4 0 0 1 0 8H6"/><line x1="4" x2="20" y1="12" y2="12"/>'),
-  bullet: lucideIcon('list', '<path d="M3 5h.01"/><path d="M3 12h.01"/><path d="M3 19h.01"/><path d="M8 5h13"/><path d="M8 12h13"/><path d="M8 19h13"/>'),
-  ordered: lucideIcon('list-ordered', '<path d="M11 5h10"/><path d="M11 12h10"/><path d="M11 19h10"/><path d="M4 4h1v5"/><path d="M4 9h2"/><path d="M6.5 20H3.4c0-1 2.6-1.925 2.6-3.5a1.5 1.5 0 0 0-2.6-1.02"/>'),
-  task: lucideIcon('list-todo', '<path d="M13 5h8"/><path d="M13 12h8"/><path d="M13 19h8"/><path d="m3 17 2 2 4-4"/><rect x="3" y="4" width="6" height="6" rx="1"/>'),
-  cut: lucideIcon('scissors', '<circle cx="6" cy="6" r="3"/><path d="M8.12 8.12 12 12"/><path d="M20 4 8.12 15.88"/><circle cx="6" cy="18" r="3"/><path d="M14.8 14.8 20 20"/>'),
-  copy: lucideIcon('copy', '<rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>'),
-  paste: lucideIcon('clipboard', '<rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>'),
-  code: lucideIcon('code', '<path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/>'),
-  link: lucideIcon('link', '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>'),
-  quote: lucideIcon('quote', '<path d="M16 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z"/><path d="M5 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z"/>'),
+  bold: lineIcon('bold'),
+  italic: lineIcon('italic'),
+  strike: lineIcon('strikethrough'),
+  bullet: lineIcon('bullet-list'),
+  ordered: lineIcon('ordered-list'),
+  task: lineIcon('task-list'),
+  cut: lineIcon('cut'),
+  copy: lineIcon('copy'),
+  paste: lineIcon('paste'),
+  code: lineIcon('code'),
+  link: lineIcon('link'),
+  quote: lineIcon('quote'),
 };
 
 const IS_MAC = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);

@@ -26,7 +26,7 @@
 .cselect-dropdown {
   position: absolute; top: calc(100% + 3px); left: 0; right: 0; z-index: 120;
   background: var(--surface-soft); border: var(--bd-w) solid var(--line-edge);
-  border-radius: var(--r-md);
+  border-radius: var(--r-lg);
   box-shadow: var(--shadow-sm) var(--shadow-color);
   overflow: hidden;
   max-height: 220px; overflow-y: auto;

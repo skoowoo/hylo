@@ -335,19 +335,6 @@
       flex-wrap: wrap;
     }
 
-    .chat-empty-hint-val kbd {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      padding: 0.15rem 0.4rem;
-      background: var(--btn-bg);
-      border-radius: var(--r-xs);
-      font-size: 0.68rem;
-      font-family: var(--font-mono);
-      line-height: 1.4;
-      color: var(--fg);
-    }
-
     .chat-empty-hint-arrow {
       color: var(--muted);
       opacity: 0.5;
@@ -1352,7 +1339,7 @@
       padding: 0.25rem;
       background: var(--surface-soft);
       border: var(--bd-w) solid var(--line-edge);
-      border-radius: var(--r-md);
+      border-radius: var(--r-lg);
       box-shadow: var(--shadow-sm) var(--shadow-color);
     }
     .chat-add-menu[hidden] { display: none; }
@@ -1679,7 +1666,7 @@
       flex-shrink: 0;
       width: 16px;
       height: 16px;
-      border-radius: 3px;
+      border-radius: var(--r-xs);
       padding: 0;
       border: none;
       background: transparent;
@@ -1699,18 +1686,6 @@
     .run-toast-dismiss svg {
       width: 9px;
       height: 9px;
-    }
-
-    /* ── Agent / model select — strip native chrome, pixel arrow ─── */
-    .chat-select {
-      -webkit-appearance: none;
-      appearance: none;
-      background-color: var(--code-bg);
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='6' height='4' viewBox='0 0 6 4'%3E%3Crect x='0' y='0' width='2' height='2' fill='currentColor'/%3E%3Crect x='4' y='0' width='2' height='2' fill='currentColor'/%3E%3Crect x='2' y='2' width='2' height='2' fill='currentColor'/%3E%3C/svg%3E");
-      background-repeat: no-repeat;
-      background-position: right 0.4rem center;
-      background-size: 6px 4px;
-      padding-right: 1.2rem;
     }
 
     /* ── Conversation sidebar ──────────────────────────────────── */

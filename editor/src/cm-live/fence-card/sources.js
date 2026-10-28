@@ -1,18 +1,18 @@
 // Chat-only line naming the notes and skill a reply drew on. The skill is a
 // button only while the reply can still be answered, like a choices card.
 import { parseFields, injectStyle, noteName, noteLink } from './fields.js';
-import { icon } from './icons.js';
+import { lineIcon } from '../../line-icons.js';
 
 const CSS = `
 .hy-sources{display:flex;flex-wrap:wrap;align-items:center;gap:2px var(--space-xs,8px);font:var(--text-xs,.75rem)/1.6 var(--font-ui,system-ui,sans-serif);color:var(--muted,#6d7080)}
 .hy-sources-group{display:inline-flex;flex-wrap:wrap;align-items:center;gap:0 6px}
-.hy-sources svg{width:12px;height:12px;flex:none;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.hy-sources svg{width:12px;height:12px;flex:none}
 .hy-sources a{color:inherit;text-decoration:none}
 .hy-sources a:hover{color:var(--fg,#18181b);text-decoration:underline}
 .hy-sources-sep{opacity:.6}
 .hy-sources-skill{all:unset;cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px}
 .hy-sources-skill:hover{color:var(--fg,#18181b)}
-.hy-sources-skill:focus-visible{outline:2px solid rgba(var(--accent-rgb,94,106,210),.5);outline-offset:1px;border-radius:2px}
+.hy-sources-skill:focus-visible{outline:2px solid rgba(var(--accent-rgb,94,106,210),.5);outline-offset:1px;border-radius:var(--r-xs,4px)}
 `;
 
 export function mount(el, source) {
@@ -26,7 +26,7 @@ export function mount(el, source) {
     line.className = 'hy-sources';
     const notes = parsed.all('note').map(noteName).filter(Boolean);
     if (notes.length) {
-      const g = group('file-text');
+      const g = group('note');
       notes.forEach((n, i) => {
         if (i) g.appendChild(sep());
         g.appendChild(noteLink(n));
@@ -77,7 +77,7 @@ export function mount(el, source) {
 function group(name) {
   const g = document.createElement('span');
   g.className = 'hy-sources-group';
-  g.innerHTML = icon(name);
+  g.innerHTML = lineIcon(name);
   return g;
 }
 

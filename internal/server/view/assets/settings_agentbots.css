@@ -42,7 +42,7 @@
     .bot-setup-agent.is-selected .bot-setup-agent-name { color: var(--fg); }
     .bot-setup-logo {
       display: grid; place-items: center; width: 36px; height: 36px; flex-shrink: 0;
-      overflow: hidden; border-radius: 10px; background: var(--btn-bg); color: var(--fg);
+      overflow: hidden; border-radius: var(--r-md); background: var(--btn-bg); color: var(--fg);
       font-size: var(--text-sm); font-weight: var(--fw-semibold);
     }
     .bot-setup-logo img { width: 22px; height: 22px; border-radius: 0; }
@@ -52,7 +52,7 @@
       width: 18px; height: 18px; border-radius: 0; background: currentColor;
       -webkit-mask: var(--src) center / contain no-repeat; mask: var(--src) center / contain no-repeat;
     }
-    .bot-setup-logo--sm { width: 28px; height: 28px; border-radius: 8px; }
+    .bot-setup-logo--sm { width: 28px; height: 28px; border-radius: var(--r-sm); }
     .bot-setup-logo--sm img { width: 17px; height: 17px; }
     .bot-setup-logo--sm .bot-setup-glyph { width: 14px; height: 14px; }
     .bot-setup-on-light { display: none; }
@@ -83,7 +83,7 @@
     }
     .bot-setup-caret {
       display: inline-block; width: 2px; height: 1em; margin-left: 1px; vertical-align: -2px;
-      border-radius: 1px; background: var(--accent); animation: bot-setup-caret 1s steps(1) infinite;
+      border-radius: var(--r-full); background: var(--accent); animation: bot-setup-caret 1s steps(1) infinite;
     }
     @keyframes bot-setup-rise { from { opacity: 0; transform: translateY(6px); } }
     @keyframes bot-setup-shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
@@ -130,7 +130,7 @@
     .agent-bot-var-panel { margin-bottom: 0.5rem; }
     .agent-bot-var-panel-label {
       display: block; font-size: var(--text-xs); font-weight: 600;
-      letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.4rem;
+      color: var(--muted); margin-bottom: 0.4rem;
     }
     .agent-bot-var-chips { display: flex; flex-wrap: wrap; gap: 0.35rem; }
     .agent-bot-var-chip {

@@ -110,7 +110,6 @@
       background: var(--entity-type-bg);
       color: var(--fg);
       text-transform: lowercase;
-      letter-spacing: var(--ls-cap);
     }
 
     .graph-node-panel-edges {

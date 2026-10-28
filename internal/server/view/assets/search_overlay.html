@@ -52,10 +52,10 @@
                  class="srch-input flex-1 bg-transparent outline-none">
           <span class="srch-hint flex items-center gap-1.5 shrink-0">
             <span x-show="!mode.field && !mode.kind && !hasQuery" class="flex items-center gap-1.5">
-              <kbd>/</kbd> mode
+              <kbd class="kbd">/</kbd> mode
               <span class="srch-hint-sep">·</span>
             </span>
-            <kbd>esc</kbd> close
+            <kbd class="kbd">esc</kbd> close
           </span>
         </div>
 
@@ -80,9 +80,9 @@
             </template>
           </div>
           <div class="srch-mode-footer flex items-center gap-4 px-4 border-t" style="height:var(--btn-h-sm)">
-            <span class="srch-hint flex items-center gap-1.5"><kbd>↑</kbd><kbd>↓</kbd> navigate</span>
-            <span class="srch-hint flex items-center gap-1.5"><kbd>↵</kbd> select</span>
-            <span class="srch-hint flex items-center gap-1.5"><kbd>esc</kbd> cancel</span>
+            <span class="srch-hint flex items-center gap-1.5"><kbd class="kbd">↑</kbd><kbd class="kbd">↓</kbd> navigate</span>
+            <span class="srch-hint flex items-center gap-1.5"><kbd class="kbd">↵</kbd> select</span>
+            <span class="srch-hint flex items-center gap-1.5"><kbd class="kbd">esc</kbd> cancel</span>
           </div>
         </div>
 
@@ -109,13 +109,13 @@
         <!-- Footer hints — shown only when body is visible -->
         <div class="srch-footer flex items-center gap-4 px-4 border-t" x-show="hasQuery" style="height:var(--btn-h-sm)">
           <span class="srch-hint flex items-center gap-1.5">
-            <kbd>↑↓</kbd> navigate
+            <kbd class="kbd">↑↓</kbd> navigate
           </span>
           <span class="srch-hint flex items-center gap-1.5">
-            <kbd>↵</kbd> open
+            <kbd class="kbd">↵</kbd> open
           </span>
           <span class="srch-hint flex items-center gap-1.5">
-            <kbd x-text="isMac ? '⌘↵' : 'Ctrl+↵'"></kbd> copy path
+            <kbd class="kbd" x-text="isMac ? '⌘↵' : 'Ctrl+↵'"></kbd> copy path
           </span>
         </div>
       </div>

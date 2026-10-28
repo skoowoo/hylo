@@ -13,11 +13,11 @@
                       <template x-if="s.editable && customKeys[s.id] && recordingId !== s.id">
                         <button type="button" class="shortcuts-btn" @click="resetCombo(s)">Reset</button>
                       </template>
-                      <button type="button" class="kbd kbd-combo" x-show="s.editable"
+                      <button type="button" class="kbd" x-show="s.editable"
                               :class="{ 'kbd-recording': recordingId === s.id }"
                               @click="recordingId === s.id ? cancelRecord() : startRecord(s)"
-                              x-html="recordingId === s.id ? 'Press shortcut…' : hyloKbdHTML(fmtCombo(getCombo(s)))"></button>
-                      <span class="kbd kbd-combo" x-show="!s.editable" x-html="hyloKbdHTML(fmtCombo(getCombo(s)))"></span>
+                              x-text="recordingId === s.id ? 'Press shortcut…' : fmtCombo(getCombo(s))"></button>
+                      <span class="kbd" x-show="!s.editable" x-text="fmtCombo(getCombo(s))"></span>
                     </div>
                     <div class="shortcuts-error" x-show="recordingId === s.id && shortcutError" x-text="shortcutError"></div>
                   </div>

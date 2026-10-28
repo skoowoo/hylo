@@ -7,6 +7,10 @@
 import { EditorView } from '@codemirror/view';
 import { HighlightStyle } from '@codemirror/language';
 import { tags } from '@lezer/highlight';
+import { lineIconMask, TICK_STROKE } from '../line-icons.js';
+
+const TICK_MASK = lineIconMask('check', TICK_STROKE);
+const FILE_MASK = lineIconMask('file');
 
 export const livePreviewTheme = EditorView.theme({
   '.cm-content': {
@@ -230,10 +234,8 @@ export const livePreviewTheme = EditorView.theme({
     position: 'absolute',
     inset: '0',
     backgroundColor: 'var(--bg, #ffffff)',
-    WebkitMaskImage:
-      "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpolyline points='2,6 5,9 10,3' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='square' stroke-linejoin='miter'/%3E%3C/svg%3E\")",
-    maskImage:
-      "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpolyline points='2,6 5,9 10,3' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='square' stroke-linejoin='miter'/%3E%3C/svg%3E\")",
+    WebkitMaskImage: TICK_MASK,
+    maskImage: TICK_MASK,
     WebkitMaskSize: '100% 100%',
     maskSize: '100% 100%',
     WebkitMaskRepeat: 'no-repeat',
@@ -292,10 +294,8 @@ export const livePreviewTheme = EditorView.theme({
   },
   '.cm-lp-code-lang': {
     color: 'var(--muted, #6d7080)',
-    fontSize: '0.6875rem',
+    fontSize: 'var(--text-xs, 0.75rem)',
     lineHeight: '1',
-    textTransform: 'uppercase',
-    letterSpacing: '0.04em',
   },
   '.cm-lp-code-copy': {
     display: 'inline-flex',
@@ -334,10 +334,8 @@ export const livePreviewTheme = EditorView.theme({
     verticalAlign: 'middle',
     marginTop: '-0.1em',
     backgroundColor: 'var(--muted, #6d7080)',
-    WebkitMaskImage:
-      'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'black\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'%3E%3Cpath d=\'M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z\'/%3E%3Cpath d=\'M14 2v4a2 2 0 0 0 2 2h4\'/%3E%3C/svg%3E")',
-    maskImage:
-      'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'black\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'%3E%3Cpath d=\'M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z\'/%3E%3Cpath d=\'M14 2v4a2 2 0 0 0 2 2h4\'/%3E%3C/svg%3E")',
+    WebkitMaskImage: FILE_MASK,
+    maskImage: FILE_MASK,
     WebkitMaskSize: '100% 100%',
     maskSize: '100% 100%',
     WebkitMaskRepeat: 'no-repeat',
@@ -438,10 +436,8 @@ export const livePreviewTheme = EditorView.theme({
     padding: '0.25rem 0',
     cursor: 'pointer',
     userSelect: 'none',
-    fontSize: 'var(--text-2xs, 0.6875rem)',
+    fontSize: 'var(--text-xs, 0.75rem)',
     fontWeight: 'var(--fw-semibold, 600)',
-    letterSpacing: 'var(--ls-cap, 0.07em)',
-    textTransform: 'uppercase',
     color: 'var(--muted-soft, #9b9eac)',
     transition: 'color var(--motion-fast, 100ms)',
   },

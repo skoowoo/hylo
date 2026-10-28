@@ -44,8 +44,7 @@
           <button type="button" class="icon-btn-ghost content-pane-reading-btn"
                   @click.stop="editorMode.toggleReading()"
                   :title="'Reading view (' + (isMac ? '⌘L' : 'Ctrl+L') + ')'">
-            <!-- lucide "book-open" -->
-            {{icon "book-open"}}
+            {{icon "reading"}}
           </button>
           <div class="content-pane-bot-wrap" x-data="{ botMenuOpen: false }"
                x-show="tabs[activeTab] && tabs[activeTab].path"
@@ -114,7 +113,7 @@
                       :title="'Find (' + (isMac ? '⌘F' : 'Ctrl+F') + ')'">
                 {{icon "search"}}
                 <span>Find</span>
-                <span class="content-pane-more-item-kbd kbd-combo" x-html="hyloKbdHTML(isMac ? '⌘F' : 'Ctrl+F')"></span>
+                <span class="content-pane-more-item-kbd" x-text="isMac ? '⌘F' : 'Ctrl+F'"></span>
               </button>
               <button type="button" class="content-pane-more-item content-pane-source-toggle-btn"
                       @click.stop="moreOpen = false; editorMode.toggle()"

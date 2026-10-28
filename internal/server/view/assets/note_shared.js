@@ -1,13 +1,6 @@
 var fmIconDown = hyloIcon('chevrons-down');
 var fmIconUp   = hyloIcon('chevrons-up');
 
-// Renders a key-combo hint (e.g. "⌘K") for the shared .kbd-combo component
-// (base.css) — wraps modifier symbols (⌘⇧⌥⌃) in .kbd-cmd so its fallback-font glyph can be
-// rescaled independently of the surrounding mono text.
-window.hyloKbdHTML = function(str) {
-  return str.replace(/[⌘⇧⌥⌃]/g, '<span class="kbd-cmd">$&</span>');
-};
-
 window.fmToggleGrid = function(btn) {
   var details = btn.closest('details');
   var grid = details && details.querySelector('.fm-grid');

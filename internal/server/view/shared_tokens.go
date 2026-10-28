@@ -85,7 +85,6 @@ const appTokensShared = `
       /* ═══ Layer 4: component-scoped ═══ */
       --srch-ic:var(--muted); --srch-ph:var(--muted-soft); --srch-av:var(--control-active-bg); --srch-backdrop:var(--overlay-bg);
       --sr-dir:var(--cover-dir); --sr-tm:var(--muted); --sr-ic:var(--muted); --sr-em:var(--muted);
-      --srch-kbd-fg:var(--fg);
       --srch-panel-bd:var(--line-edge); --srch-row-bd:var(--line-hair);
 
       /* Lightbox/images — fixed veil over arbitrary photos. */
@@ -102,7 +101,6 @@ const appTokensShared = `
       --text-2xs:0.6875rem; --text-3xs:0.625rem;
       --fw-regular:400; --fw-medium:500; --fw-semibold:600;
       --lh-tight:1.2; --lh-snug:1.3; --lh-normal:1.4; --lh-relaxed:1.5;
-      --ls-cap:0.08em;
       --space-xxs:4px; --space-xs:8px; --space-sm:12px; --space-md:16px; --space-lg:24px;
       --space-xl:32px; --space-xxl:48px;
       --topbar-h:40px; --toolbar-h:52px; --action-btn-sz:28px;

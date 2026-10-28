@@ -9,7 +9,7 @@ const CSS = `
 .hy-proposal-summary{color:var(--prose-body,#27272a)}
 .hy-proposal-more{all:unset;cursor:pointer;align-self:flex-start;font-size:var(--text-xs,.75rem);color:var(--muted,#6d7080)}
 .hy-proposal-more:hover{color:var(--fg,#18181b)}
-.hy-proposal-more:focus-visible{outline:2px solid rgba(var(--accent-rgb,94,106,210),.5);outline-offset:1px;border-radius:2px}
+.hy-proposal-more:focus-visible{outline:2px solid rgba(var(--accent-rgb,94,106,210),.5);outline-offset:1px;border-radius:var(--r-xs,4px)}
 .hy-proposal-details{font-size:var(--text-xs,.75rem);color:var(--muted,#6d7080)}
 .hy-proposal-details[hidden]{display:none}
 .hy-proposal .hy-choices{padding-top:4px}

@@ -1,5 +1,5 @@
 // Chrome shared by every fence renderer: sizing, toolbar, fullscreen overlay, theme tokens.
-import { icon } from './icons.js';
+import { lineIcon } from '../../line-icons.js';
 
 const STYLE_ID = 'hy-card-style';
 
@@ -23,13 +23,13 @@ const CSS = `
 .hy-card .markmap-node[data-depth="1"] .markmap-foreign>div>div{padding:6px 14px;background:var(--fg,#18181b);color:var(--bg,#fff);font-weight:var(--fw-semibold,600);font-size:var(--text-md,.9375rem)}
 .hy-card .markmap-node[data-depth="2"] .markmap-foreign>div>div{padding:3px 10px;background:var(--btn-bg-hov,rgba(24,24,27,.1));color:var(--fg,#18181b);font-weight:var(--fw-medium,500)}
 .hy-card .markmap-node:not([data-depth="1"],[data-depth="2"],[data-depth="3"]) .markmap-foreign>div>div{color:var(--muted,#6d7080);font-size:var(--text-sm,.8125rem)}
-.hy-card .markmap-foreign code{font:.85em var(--font-mono,ui-monospace,monospace);padding:.1em .35em;border-radius:4px}
+.hy-card .markmap-foreign code{font:.85em var(--font-mono,ui-monospace,monospace);padding:.1em .35em;border-radius:var(--r-xs,4px)}
 .hy-card-body{width:100%}
 .hy-card-body svg{width:100%;height:100%;display:block}
 .hy-card-bar{position:absolute;top:8px;right:8px;display:flex;gap:4px;opacity:0;transition:opacity var(--motion-base,160ms);will-change:opacity;z-index:1}
 .hy-card:hover .hy-card-bar,.hy-card:focus-within .hy-card-bar{opacity:1}
 .hy-btn{all:unset;box-sizing:border-box;cursor:pointer;display:flex;align-items:center;justify-content:center;width:24px;height:24px;color:var(--muted,#6d7080);border-radius:var(--r-sm,6px);transition:background-color var(--motion-fast,100ms),color var(--motion-fast,100ms)}
-.hy-btn svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.hy-btn svg{width:14px;height:14px}
 .hy-btn:hover{color:var(--fg,#18181b);background:var(--btn-bg-hov,rgba(24,24,27,.1))}
 .hy-btn:focus-visible{outline:2px solid rgba(var(--accent-rgb,94,106,210),.5);outline-offset:1px}
 .hy-card-bar .hy-btn:not(:hover){background:var(--btn-bg,rgba(24,24,27,.06))}
@@ -43,7 +43,7 @@ const CSS = `
 .hy-card-full .hy-card-bar{opacity:1;top:12px;right:12px}
 .hy-card-full .markmap{--markmap-circle-open-bg:var(--surface-soft,#f5f5f7)}
 .hy-pip{position:absolute;z-index:20;display:flex;flex-direction:column;min-width:240px;min-height:160px;background:var(--surface-soft,#f5f5f7);border:1px solid var(--line-edge,rgba(24,24,27,.16));border-radius:var(--r-lg,12px);box-shadow:var(--shadow-md,0 5px 14px) var(--shadow-color,rgba(15,15,25,.1));overflow:hidden}
-.hy-pip-head{flex:none;display:flex;align-items:center;justify-content:space-between;gap:var(--space-xs,8px);height:32px;padding:0 4px 0 var(--space-sm,12px);font:var(--fw-medium,500) var(--text-2xs,.6875rem)/1 var(--font-ui,system-ui,sans-serif);letter-spacing:.04em;text-transform:uppercase;color:var(--muted,#6d7080);cursor:grab;user-select:none;touch-action:none}
+.hy-pip-head{flex:none;display:flex;align-items:center;justify-content:space-between;gap:var(--space-xs,8px);height:32px;padding:0 4px 0 var(--space-sm,12px);font:var(--fw-medium,500) var(--text-xs,.75rem)/1 var(--font-ui,system-ui,sans-serif);color:var(--muted,#6d7080);cursor:grab;user-select:none;touch-action:none}
 .hy-pip-head:active{cursor:grabbing}
 .hy-pip-sep{flex:none;height:1px;background:var(--line-hair,rgba(24,24,27,.09))}
 .hy-pip-grip{position:absolute;right:0;bottom:0;width:16px;height:16px;z-index:2;cursor:nwse-resize;touch-action:none;color:var(--muted-soft,#9b9eac);background:linear-gradient(135deg,transparent 55%,currentColor 55%,currentColor 62%,transparent 62%,transparent 75%,currentColor 75%,currentColor 82%,transparent 82%);opacity:.7}
@@ -69,7 +69,7 @@ export function iconButton(name, title, fn) {
   const b = document.createElement('button');
   b.type = 'button';
   b.className = 'hy-btn';
-  b.innerHTML = icon(name);
+  b.innerHTML = lineIcon(name);
   b.title = title;
   b.setAttribute('aria-label', title);
   // Keep the editor's selection (and the pip open) while clicking chrome.
@@ -117,8 +117,8 @@ function openOverlay({ lang, source, renderer, onClose, returnFocus }) {
     if (prevFocus && prevFocus.isConnected && !(returnFocus && returnFocus(prevFocus))) prevFocus.focus({ preventScroll: true });
     onClose();
   };
-  const fit = iconButton('scan', 'Fit to view', () => inst && inst.fit && inst.fit());
-  const shut = iconButton('x', 'Close (Esc)', close);
+  const fit = iconButton('fit', 'Fit to view', () => inst && inst.fit && inst.fit());
+  const shut = iconButton('close', 'Close (Esc)', close);
   bar.append(...zoomButtons(() => inst), fit, shut);
   panel.append(body, bar);
   overlay.appendChild(panel);
@@ -180,12 +180,12 @@ export function mountShell({ into, lang, source, renderer, minHeight, onEdit, re
   bar.className = 'hy-card-bar';
   bar.append(
     ...zoomButtons(() => inst),
-    iconButton('scan', 'Fit to view', () => inst && inst.fit && inst.fit()),
-    iconButton('maximize-2', 'Fullscreen', () => {
+    iconButton('fit', 'Fit to view', () => inst && inst.fit && inst.fit()),
+    iconButton('expand', 'Fullscreen', () => {
       if (!closeOverlay) closeOverlay = openOverlay({ lang, source: current, renderer, returnFocus, onClose: () => { closeOverlay = null; } });
     }),
   );
-  if (onEdit) bar.append(iconButton('code-xml', 'Edit source', () => onEdit()));
+  if (onEdit) bar.append(iconButton('code', 'Edit source', () => onEdit()));
   root.appendChild(bar);
   into.replaceChildren(root);
 
@@ -233,7 +233,7 @@ export function mountInline({ into, lang, source, renderer, onEdit, mode = 'card
   if (onEdit) {
     const bar = document.createElement('div');
     bar.className = 'hy-card-bar';
-    bar.append(iconButton('code-xml', 'Edit source', () => onEdit()));
+    bar.append(iconButton('code', 'Edit source', () => onEdit()));
     root.appendChild(bar);
   }
   into.replaceChildren(root);

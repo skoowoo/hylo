@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+     data-base="lucide/image-off" data-zoom="1"
+     data-changes="corners r4, joints follow corners">
+  <path d="M10.41 10.41a2 2 0 1 1-2.83-2.83" />
+  <path d="M13.5 13.5 6.102 20.898" />
+  <path d="M18 12l3 3" />
+  <path d="m2 2 20 20" />
+  <path d="M4.172 4.172A4 4 0 0 0 3 7L3 17A4 4 0 0 0 7 21L17 21A4 4 0 0 0 19.828 19.828" />
+  <path d="M21 15L21 7A4 4 0 0 0 17 3L9 3" />
+</svg>

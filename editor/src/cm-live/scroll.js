@@ -449,7 +449,7 @@ export const editorScroll = owned
         top: '0',
         right: '2px',
         width: '7px',
-        borderRadius: '999px',
+        borderRadius: 'var(--r-full, 999px)',
         background: 'var(--scrollbar-thumb, rgba(0, 0, 0, 0.3))',
       },
       '.cm-scrollbar:hover .cm-scrollbar-thumb, .cm-scrollbar-dragging .cm-scrollbar-thumb': {

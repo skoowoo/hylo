@@ -353,16 +353,17 @@
     .dot--accent { background: var(--accent); }
     .dot--fg     { background: var(--fg); }
 
-    /* ── Shared key-combo glyph — renders a "⌘K"/"Ctrl+K"-style hint via
-       hyloKbdHTML() (note_shared.js), which wraps ⌘ in .kbd-cmd. ⌘ isn't
-       in the mono font so it falls back to a symbol font that renders
-       smaller than the mono letters beside it; .kbd-cmd scales it back up,
-       and the inline-flex here re-centers the row on its own baseline so
-       that upscaled glyph doesn't throw off vertical alignment the way
-       plain inline text would. One recipe backs both the content pane's
-       Find hint and Settings → Shortcuts' key list. ── */
-    .kbd-combo { display: inline-flex; align-items: center; line-height: 1; }
-    .kbd-combo .kbd-cmd { font-size: 1.3em; line-height: 1; }
+    /* ── Shared keycap — a flat chip in the UI font, so keys read in the
+       same soft voice as the icons; ⌘⇧⌥ fall back to the CJK face at the
+       letters' size. ── */
+    .kbd {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-width: 1.6em; padding: 0.1rem 0.35rem;
+      border: var(--bd-w) solid transparent; border-radius: var(--r-xs);
+      background: var(--btn-bg); color: var(--fg);
+      font-family: var(--font-ui); font-size: var(--text-2xs); font-weight: var(--fw-medium);
+      line-height: 1.4; white-space: nowrap;
+    }
 
     /* ── Agent bot avatar — the initial as 5×7 pixel blocks on a disc in
        the bot's color, drawn by agentBotAvatarSVG (home.js). The disc is

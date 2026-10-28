@@ -55,7 +55,7 @@ const completionTheme = EditorView.theme({
     padding: '0.25rem',
     background: 'var(--surface-soft, #ffffff)',
     border: 'var(--bd-w, 1px) solid var(--line-edge, rgba(24,24,27,0.16))',
-    borderRadius: 'var(--r-md, 10px)',
+    borderRadius: 'var(--r-lg, 12px)',
     boxShadow: 'var(--shadow-sm, 0 4px 16px) var(--shadow-color, rgba(0,0,0,0.16))',
     fontFamily: 'var(--font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif)',
   },
