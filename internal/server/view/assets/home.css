@@ -104,31 +104,11 @@
       min-height: 0; overflow: hidden;
       padding: 0;
       border-right: var(--bd-w) solid var(--line-hair);
-      /* Every "currently active" row in here (.home-side-item.is-active,
-         .home-side-child.is-active, the content-pane-toggle icon button) just
-         consumes the generic --control-active-bg, same as any other
-         selected-state control app-wide — but since what's behind this
-         container is --surface-soft rather than --bg (.home-shell above),
-         that generic token is locally repointed at --control-active-bg-on-soft
-         (shared_tokens.go) so it still reads as a clear lift instead of
-         nearly disappearing into the surface it sits on. */
-      --control-active-bg: var(--control-active-bg-on-soft);
     }
     /* macOS desktop only: the fill itself now lives on .home-shell
        (html.macos .home-shell above); this just swaps the border to match. */
     html.macos .home-side {
       border-right-color: var(--sidebar-glass-border);
-    }
-    html.macos .home-side-sep { background: var(--sidebar-glass-border); }
-    /* Active-row lift: a translucent wash instead of --control-active-bg's
-       flat hex, so a selected row reads as part of the glass rather than an
-       opaque chip pasted on top of it. Overrides the background only —
-       --control-active-bg itself stays untouched since .home-side-item's
-       count badge also reads it as a (necessarily opaque) text colour. */
-    html.macos .home-side-item.is-active,
-    html.macos .home-side-child.is-active,
-    html.macos .home-side-bottom-btn.is-active {
-      background: var(--sidebar-glass-active);
     }
     /* Top row holds Search + the reading-pane toggle, right-aligned — it
        shares the window's true top edge with the macOS traffic lights
@@ -154,15 +134,8 @@
       cursor: default;
     }
     html.macos .home-side-top button { -webkit-app-region: no-drag; }
-    /* The reading-pane toggle's open state reuses the same surface-2 lift as every
-       other "currently active" indicator app-wide (no border — matches
-       .home-side-child.is-active below), scoped by its own class rather
-       than added to the shared component. (--control-active-bg resolves to
-       the stronger --control-active-bg-on-soft value here — see .home-side's
-       own rule above.) */
-    .home-side-bottom-btn.is-active {
-      background: var(--control-active-bg); color: var(--control-active-fg);
-    }
+    /* The reading-pane toggle's open state: the same wash as a selected nav row. */
+    .home-side-bottom-btn.is-active { background: var(--nav-act); color: var(--fg); }
     /* One size step up from .icon-btn-ghost's default 14px — Settings and
        ContentPane are the only controls carrying this class, so they can
        afford a touch more presence than a dense toolbar's icons would. */
@@ -177,35 +150,25 @@
       border-radius: 0; /* scrolling chrome strip — never rounds (the global
         reset was clipping its own content into rounded corners) */
     }
-    /* flex-shrink:0 on every direct child of .home-side-nav below — a flex
-       container with overflow other than visible (this one is
-       overflow-y:auto, to let a long note/folder list scroll) resets its
-       children's automatic minimum size to 0 per spec, so once content
-       actually overflows, the browser silently compresses these rows
-       (proportionally, not just clipping the last one) instead of just
-       scrolling: 30px item rows measured as low as 21.5px, and this 1px
-       divider was crushed to a true 0 — not a color/contrast issue, a real
-       layout bug. .home-side-child rows never hit this because they're
-       nested inside .home-side-group, whose own overflow is the default
-       (visible), so it never resets their minimum size. */
-    .home-side-sep {
-      flex-shrink: 0;
-      height: var(--bd-w); background: var(--line-hair); margin: 11px 8px;
+    /* flex-shrink:0 on every direct child of .home-side-nav: its overflow
+       resets their min size to 0, so an overflowing list would crush rows
+       instead of scrolling. */
+    .home-side-heading {
+      flex-shrink: 0; padding: 14px 10px 4px;
+      font-size: var(--text-2xs); font-weight: var(--fw-medium); line-height: var(--lh-normal);
+      color: var(--muted-soft); opacity: 0.8;
+      cursor: default; user-select: none;
     }
-    /* Row/hover/active/icon now come from the shared .side-nav-item /
-       .side-nav-icon (base.css) — --control-active-bg still resolves to
-       the stronger --control-active-bg-on-soft value here (see
-       .home-side's own rule above), same as before. */
+    .home-side-heading:first-child { padding-top: 0; }
     .home-side-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .home-side-count {
       flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
       min-width: 18px; height: 18px; padding: 0 5px; box-sizing: border-box;
       font-size: 10.5px; font-weight: var(--fw-semibold); line-height: 1;
-      color: var(--bg); background: var(--fg);
+      color: var(--accent-text); background: var(--tint-strong);
       border-radius: var(--r-full); /* a circle at one digit, a pill past it */
       font-variant-numeric: tabular-nums;
     }
-    .home-side-item.is-active .home-side-count { color: var(--control-active-bg); background: var(--control-active-fg); }
 
     /* ── Groups (expand/collapse) ─────────────────────────────── */
     .home-side-group { flex-shrink: 0; display: flex; flex-direction: column; }
@@ -232,18 +195,27 @@
     .home-side-children-inner {
       min-height: 0; overflow: hidden;
       display: flex; flex-direction: column; gap: 1px;
-      padding: 2px 0 4px 12px;
+      padding-left: 12px;
       opacity: 0; transition: opacity var(--motion-base) var(--ease-standard);
       border-radius: 0; /* clips its rows; the global radius would cut their corners */
     }
+    /* Vertical breathing room as clipped content, not padding: a 0fr row can't
+       shrink padding, so a collapsed group would keep it. 2px above, 4px below. */
+    .home-side-children-inner::before { content: ""; flex: none; height: 1px; }
+    .home-side-children-inner::after { content: ""; flex: none; height: 3px; }
     .home-side-children.is-open > .home-side-children-inner { opacity: 1; }
     /* Rows that render after first paint (open tabs from localStorage, bots
        before Alpine) hold their final height until they arrive. 31px is a
-       30px row plus the 1px gap; 6px is the inner padding. */
+       30px row plus the 1px gap; 6px is the ::before/::after spacing. */
     .home-side-children[data-reserve] > .home-side-children-inner {
       min-height: calc(var(--reserve-rows) * 31px - 1px + 6px);
     }
-    .home-side-child-icon { flex-shrink: 0; width: 13px; height: 13px; opacity: 0.6; }
+    /* One leading column for every child row (tab status, avatar, icon), so all titles line up. */
+    .home-side-child-lead {
+      flex-shrink: 0; width: 20px; height: 20px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .home-side-child-icon { flex-shrink: 0; width: 14px; height: 14px; opacity: 0.5; }
     .home-side-child-icon > svg { display: block; width: 100%; height: 100%; }
     .home-side-child.is-active .home-side-child-icon { opacity: 1; }
     .home-side-child-name {
@@ -254,21 +226,17 @@
     .home-side-count--plain { background: transparent; padding: 0; color: var(--muted-soft); font-weight: var(--fw-medium); }
 
     /* ── Open tabs ───────────────────────────────────────────── */
-    /* Holds the first tab's slot; a label, not a control. */
+    /* Holds the first tab's slot, text on the child-title column (padding + lead + gap); a label, not a control. */
     .home-side-open-none {
-      color: var(--muted-soft); font-weight: 400; cursor: default; padding-left: 30px;
+      color: var(--muted-soft); cursor: default; padding-left: 39px;
     }
     .home-side-open-none:hover { background: transparent; color: var(--muted-soft); }
     .home-side-open-none[hidden] { display: none; }
     /* Every slot is always laid out — hover and activation only change
        opacity — so a title never re-truncates under the pointer. */
     .home-side-tab { transition: background var(--motion-fast) ease, opacity var(--motion-base) ease; }
-    .home-side-tab-status {
-      flex-shrink: 0; width: 13px; height: 13px;
-      display: flex; align-items: center; justify-content: center;
-    }
-    .home-side-tab-status .note-draft-icon { width: 13px; height: 13px; }
-    .home-side-tab-status .ssi-pending { color: var(--accent-text); }
+    .home-side-tab .note-draft-icon { width: 14px; height: 14px; }
+    .home-side-tab .ssi-pending { color: var(--accent-text); }
     .home-side-tab-hint {
       flex-shrink: 1; min-width: 0; max-width: 40%;
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap;

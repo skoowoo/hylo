@@ -322,25 +322,26 @@
        convention is both the original and the one covering by far the
        most surface. .is-active (not .active) matches every dependent
        selector already layered on .home-side-item/.home-side-child
-       elsewhere in home.css (icon opacity, count-badge recolor, etc). ── */
+       elsewhere in home.css (icon opacity, count color, etc). ── */
     .side-nav-item {
       display: flex; align-items: center; gap: 9px; flex-shrink: 0;
-      width: 100%; height: 30px; padding: 0 8px;
-      border: var(--bd-w) solid transparent; background: transparent; border-radius: var(--r-sm);
+      width: 100%; height: 30px; padding: 0 10px;
+      border: var(--bd-w) solid transparent; background: transparent; border-radius: var(--r-md);
       color: var(--nav-fg); cursor: pointer; text-align: left; text-decoration: none;
-      font-family: inherit; font-size: var(--text-sm); font-weight: 500;
+      font-family: inherit; font-size: var(--text-sm); font-weight: var(--fw-regular);
       transition: background var(--motion-fast) ease;
     }
-    .side-nav-item:hover { background: var(--card-hov); color: var(--fg); }
-    /* Same weight as at rest: a bolder label re-truncates and shifts its glyphs on select. */
+    .side-nav-item:hover { background: var(--nav-hov); color: var(--fg); }
+    /* Same weight as at rest: a bolder label re-truncates and shifts its glyphs on select.
+       A translucent wash, not --control-active-bg: nav columns sit on soft or glass surfaces. */
     .side-nav-item.is-active {
-      background: var(--control-active-bg); border-color: transparent; color: var(--control-active-fg);
+      background: var(--nav-act); border-color: transparent; color: var(--fg);
     }
     /* Icon tier for a FLAT nav row (home's top-level items, settings'
        tab list) — a nested/indented row dims its icon further and sizes
        it down a notch as a depth cue; that one stays its own
        .home-side-child-icon rather than joining this. */
-    .side-nav-icon { flex-shrink: 0; width: 15px; height: 15px; opacity: 0.68; }
+    .side-nav-icon { flex-shrink: 0; width: 15px; height: 15px; opacity: 0.6; }
     .side-nav-item.is-active .side-nav-icon { opacity: 1; }
 
     /* ── Shared small status dot — a solid circle, color carries the

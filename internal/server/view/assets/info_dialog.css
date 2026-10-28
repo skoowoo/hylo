@@ -19,7 +19,7 @@
     .info-body li { margin-bottom: 0.3rem; }
     .info-body code {
       font-family: var(--font-mono);
-      font-size: var(--text-xs); background: var(--nav-act);
+      font-size: var(--text-xs); background: var(--btn-bg-hov);
       padding: 0.1em 0.35em; color: var(--fg);
     }
     .info-body strong { color: var(--fg); font-weight: 600; }

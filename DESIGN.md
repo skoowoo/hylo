@@ -237,12 +237,13 @@ Dark is the shipped default (bare `:root`). Light is Hylo's own from-scratch ada
 - **Customizable**: `{colors.accent}` is the default (indigo), not a constant. Settings → Appearance offers 8 luminance-matched presets (`internal/server/view/shared_accent.go`), applied as inline `--accent`/`--accent-rgb`/`--accent-hov` on `<html>` before first paint. Components must consume only these tokens (or `rgba(var(--accent-rgb), …)`) — never a literal accent hex — or the preset won't reach them. A new preset needs white text ≥4.5:1 on its accent.
 - **Accent Text** (`--accent-text`): Accent used as *text or icon color* on the canvas (links, active tab/row labels, badges). Equals `--accent` on light; on dark it is lifted to ≈4.6:1 (presets carry a `TextDark`), because the resting accent is tuned for white-on-fill (≥4.5:1) and reads dim as small text. Use `--accent` for fills, borders and rings, `--accent-text` for `color:`.
 - **Accent Focus** (`{colors.accent-focus}`, always `var(--accent)`): The literal ring color for `:focus-visible` — 2px outline at 50% opacity, offset 1px. The one place the system uses anything resembling a glow.
-- **Selected surface** (`--control-active-bg` / `-fg`): Not an accent fill — steps up to `--surface-2` with full `--fg` text. This is the single treatment for "this tab/segment/row/toggle is currently selected" everywhere in the app (sidebar items, drawer tabs, segmented controls, search results, icon-toggle buttons). Primary-action buttons (compose, publish, save, send) use accent directly instead — never this pair.
+- **Selected surface** (`--control-active-bg` / `-fg`): Not an accent fill — steps up to `--surface-2` with full `--fg` text. This is the single treatment for "this tab/segment/row/toggle is currently selected" everywhere in the app (drawer tabs, segmented controls, search results, icon-toggle buttons). Primary-action buttons (compose, publish, save, send) use accent directly instead — never this pair.
+- **Nav row wash** (`--nav-hov` / `--nav-act`, ink at 3% / 6%): the one exception — sidebar nav rows (`.side-nav-item`: home sidebar, settings tab list) and the reading-pane toggle. Translucent, so the same rows read alike on `--surface-soft` and on macOS sidebar glass; the selected row also carries full `--fg` text and a full-opacity icon.
 
 ### Surface
 - **Bg** (`{colors.bg-dark}` / `{colors.bg-light}`): The page canvas.
 - **Surface Soft**: One step up from bg — sidebars, dropdowns, floating toolbars, unread-cleared inbox cards.
-- **Surface 2**: Two steps up — selected rows/tabs, featured/active states, settings sidebar hover.
+- **Surface 2**: Two steps up — selected tabs, featured/active states.
 - **Border** / **Border Strong**: 1px hairlines for cards, dividers, and input outlines; "strong" is used where the border itself needs to read as structure (icon-btn outline, drawer tab-bar-start divider) rather than a quiet separator.
 - **Canvas** (`{colors.canvas}` #ffffff, fixed in both themes): A theme-invariant white used only where an element must stay white regardless of mode (e.g. the drawer's expand-button icon against a filled accent-adjacent chrome bar).
 
@@ -416,7 +417,7 @@ Full-viewport or edge-docked chrome (drawer panel and its tab bar, scrims, `<htm
 - Don't introduce a second chromatic brand accent.
 - Don't reach for a display-scale font size — this system tops out at `{typography.title-lg}` (22px); there's no marketing-hero tier.
 - Don't hardcode a theme-specific hex in component CSS — reference the semantic token (`--bg`, `--fg`, `--accent`, etc.) so it re-themes automatically.
-- Don't let a new "selected" state invent its own fill — reuse `--control-active-bg`/`-fg` (or `--control-active-bg-on-soft` inside a `--surface-soft` container, where the plain surface-2 jump is too faint to read).
+- Don't let a new "selected" state invent its own fill — reuse `--control-active-bg`/`-fg` (or `--control-active-bg-on-soft` inside a `--surface-soft` container, where the plain surface-2 jump is too faint to read); a sidebar nav row uses `--nav-act`.
 
 ## Motion
 

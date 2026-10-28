@@ -22,6 +22,7 @@
       </div>
 
       <nav class="home-side-nav" x-init="initSideFade($el)" @scroll.passive="sideFade($el)">
+        <div class="home-side-heading">Editor</div>
 
         <!-- The editor's open tabs. They come from localStorage, so the script
              below swaps the placeholder for their reserved height before first
@@ -46,7 +47,7 @@
                      :title="tab.path || 'Untitled'"
                      x-press="selectTab(i)"
                      @mousedown.middle.prevent @auxclick="$event.button === 1 && contentPaneCloseTab(i)">
-                  <span class="home-side-tab-status">
+                  <span class="home-side-child-lead">
                     <span class="note-draft-icon" x-show="!tab.path">{{icon "draft"}}</span>
                     <span class="home-side-child-icon" x-show="tab.path && !(agentWriting && i === activeTab)">{{icon "note"}}</span>
                     <svg class="ssi-pending" x-show="agentWriting && i === activeTab" width="8" height="8" viewBox="0 0 8 8" fill="currentColor"><circle cx="4" cy="4" r="3.5"/></svg>
@@ -62,7 +63,7 @@
             </div>
           </div>
         </div>
-        <div class="home-side-sep hairline"></div>
+        <div class="home-side-heading">AI</div>
         <script>
           (function () {
             try {
@@ -87,11 +88,12 @@
 
         <div class="home-side-group">
           <button type="button" class="side-nav-item home-side-item home-side-item--parent"
-                  :class="{'is-active': curType() === 'chat' && !selectedAgentBotId}"
-                  x-press="go('/home/section?type=chat')">
+                  :class="{'is-active': botsEmpty() && curType() === 'chat'}"
+                  x-press="botsEmpty() ? go('/home/section?type=chat') : (chatsOpen = !chatsOpen)">
             {{sideIcon "bot"}}
             <span class="home-side-label">Bots</span>
-            <span class="home-side-chevron is-open" :class="{'is-open': chatsOpen}" x-show="!botsEmpty()" {{xshow (gt (len .Boot.Bots) 0)}} @pointerdown.stop @click.stop="chatsOpen = !chatsOpen">{{icon "chevron-right"}}</span>
+            <span class="home-side-count home-side-count--plain" x-show="!chatsOpen && agentBots.length" x-cloak x-text="agentBots.length"></span>
+            <span class="home-side-chevron is-open" :class="{'is-open': chatsOpen}" x-show="!botsEmpty()" {{xshow (gt (len .Boot.Bots) 0)}}>{{icon "chevron-right"}}</span>
           </button>
           {{/* Open with the boot's row count reserved, so nothing below moves when the rows render. */}}
           <div class="home-side-children{{if .Boot.Bots}} is-open{{end}}" id="home-side-chats-body" :class="{'is-open': chatsOpen && !botsEmpty()}"
@@ -101,7 +103,7 @@
               <template x-for="m in agentBots" :key="m.id">
                 <button type="button" class="side-nav-item home-side-child" :class="{'is-active': curType() === 'chat' && selectedAgentBotId === m.id}"
                         x-press="selectChatAgentBot(m.id)" data-avatar-hover>
-                  <span class="avatar avatar--sm home-side-child-avatar" data-blink
+                  <span class="avatar avatar--sm home-side-child-lead" data-blink
                         x-html="agentBotAvatar(m.name)"></span>
                   <span class="home-side-child-name" x-text="m.name"></span>
                 </button>
@@ -116,6 +118,7 @@
                   x-press="sideEmpty.knowledge ? selectKnowledgeIndex('') : (knowledgeOpen = !knowledgeOpen)">
             {{sideIcon "knowledge"}}
             <span class="home-side-label">Knowledge</span>
+            <span class="home-side-count home-side-count--plain" x-show="!knowledgeOpen && sideCount.knowledge" {{xshow (gt .KnowledgeCount 0)}} x-text="sideCount.knowledge">{{.KnowledgeCount}}</span>
             <span class="home-side-chevron" :class="{'is-open': knowledgeOpen}" x-show="!sideEmpty.knowledge" {{xshow .HasKnowledge}}>{{icon "chevron-right"}}</span>
           </button>
           <div class="home-side-children" id="home-side-knowledge-body" x-bind:class="{'is-open': knowledgeOpen && !sideEmpty.knowledge}">
@@ -138,7 +141,7 @@
           <span class="home-side-label">Memory</span>
         </button>
 
-        <div class="home-side-sep hairline"></div>
+        <div class="home-side-heading">Notes</div>
 
         <button type="button" class="side-nav-item home-side-item" :class="{'is-active': curType() === 'pinned'}"
                 x-press="go('/home/section?type=pinned')">
@@ -170,6 +173,7 @@
                   x-press="sideEmpty.folders ? go('/home/section?type=folder&path=%2F') : (foldersOpen = !foldersOpen)">
             {{sideIcon "folders"}}
             <span class="home-side-label">Folders</span>
+            <span class="home-side-count home-side-count--plain" x-show="!foldersOpen && sideCount.folders" {{xshow .HasFolders}} x-text="sideCount.folders">{{len .Folders}}</span>
             <span class="home-side-chevron" :class="{'is-open': foldersOpen}" x-show="!sideEmpty.folders" {{xshow .HasFolders}}>{{icon "chevron-right"}}</span>
           </button>
           <div class="home-side-children" id="home-side-folders-body" x-bind:class="{'is-open': foldersOpen && !sideEmpty.folders}">

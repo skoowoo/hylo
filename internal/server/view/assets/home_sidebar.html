@@ -3,26 +3,29 @@
     <button type="button" class="side-nav-item home-side-child home-drop-target" x-bind:class="{'is-active': curType() === 'folder' && curParam('path') === '{{.Dir}}'}"
             data-drop-dir="{{.Dir}}"
             x-press="foldersOpen = true; go('/home/section?type=folder&path={{encdir .Dir}}')">
-      {{icon "folder" "home-side-child-icon"}}
+      <span class="home-side-child-lead">{{icon "folder" "home-side-child-icon"}}</span>
       <span class="home-side-child-name">{{folderLabel .Dir}}</span>
     </button>
     {{end}}
-    {{if not .Folders}}<i class="home-side-none" hidden></i>{{end}}
+    <i class="home-side-meta" hidden data-count="{{len .Folders}}"{{if not .Folders}} data-empty{{end}}></i>
 {{end}}
 
 {{define "home-side-knowledge-inner"}}
     {{if or .KnowledgeCount .IndexNotes}}
     <button type="button" class="side-nav-item home-side-child" x-bind:class="{'is-active': curType() === 'knowledge' && !curParam('index')}"
             x-press="selectKnowledgeIndex('')">
+      <span class="home-side-child-lead">{{icon "layers" "home-side-child-icon"}}</span>
       <span class="home-side-child-name">All</span>
       <span class="home-side-count">{{.KnowledgeCount}}</span>
     </button>
     {{range .IndexNotes}}
     <button type="button" class="side-nav-item home-side-child" x-bind:class="{'is-active': curType() === 'knowledge' && curParam('index') === '{{.Path}}'}"
             x-press="selectKnowledgeIndex('{{.Path}}')">
+      <span class="home-side-child-lead">{{icon "index" "home-side-child-icon"}}</span>
       <span class="home-side-child-name">{{label .}}</span>
       <span class="home-side-count">{{.DepCount}}</span>
     </button>
     {{end}}
-    {{else}}<i class="home-side-none" hidden></i>{{end}}
+    {{end}}
+    <i class="home-side-meta" hidden data-count="{{.KnowledgeCount}}"{{if not (or .KnowledgeCount .IndexNotes)}} data-empty{{end}}></i>
 {{end}}

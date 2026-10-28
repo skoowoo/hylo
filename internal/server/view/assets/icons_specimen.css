@@ -21,7 +21,6 @@ body { background: var(--bg); color: var(--fg); overflow: hidden; }
   width: var(--home-side-w); box-sizing: border-box; padding: 0 14px 0;
   display: flex; flex-direction: column; gap: 3px;
   background: var(--surface-soft); border: var(--bd-w) solid var(--line-hair);
-  --control-active-bg: var(--control-active-bg-on-soft);
 }
 .spec-side-top, .spec-side-bottom { height: var(--topbar-h); display: flex; align-items: center; gap: 4px; }
 .spec-side-top { justify-content: flex-end; }

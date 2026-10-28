@@ -41,10 +41,12 @@ const appTokensShared = `
       --line-hair:rgba(var(--ink-rgb),0.09);
       --line-edge:rgba(var(--ink-rgb),0.16);
       --nav-fg:rgba(var(--ink-rgb),0.82);
+      /* Nav rows: translucent ink, so hover/selected read the same on any surface or glass. */
+      --nav-hov:rgba(var(--ink-rgb),0.03);
       --cm-active-line:rgba(var(--ink-rgb),0.04);
       --cnt-bg:rgba(var(--ink-rgb),0.07);
       --scrollbar-thumb:rgba(var(--ink-rgb),0.12); --scrollbar-thumb-hov:rgba(var(--ink-rgb),0.26);
-      --nav-act:rgba(var(--ink-rgb),0.1);
+      --nav-act:rgba(var(--ink-rgb),0.06);
       /* Content-identity chips — theme-invariant. */
       --p0:#22d3ee; --p1:#f472b6; --p2:#a78bfa; --p3:#34d399;
       --entity-type-bg:var(--p2);
@@ -120,7 +122,6 @@ const appTokensDark = `
       --seg-thumb:var(--control-active-bg-on-soft);
       /* macOS vibrancy wash — pull native material toward --surface-soft. */
       --sidebar-glass-bg:rgba(33,34,41,0.6); --sidebar-glass-border:rgba(255,255,255,0.1);
-      --sidebar-glass-active:rgba(255,255,255,0.08);
       --canvas:#ffffff; --muted-soft:#656a78; --body:#d0d6e0;
             --accent-hov:#7b86e8;
       /* Accent as text on the canvas (links, active labels): lifted for dark; fills keep --accent. */
@@ -145,7 +146,6 @@ const appTokensLight = `
       --scrollbar-thumb:rgba(var(--ink-rgb),0.16); --scrollbar-thumb-hov:rgba(var(--ink-rgb),0.30);
       /* Vibrancy reads dull alone — lean lighter while staying translucent. */
       --sidebar-glass-bg:rgba(250,250,251,0.72); --sidebar-glass-border:rgba(0,0,0,0.08);
-      --sidebar-glass-active:rgba(0,0,0,0.06);
       --canvas:#ffffff; --muted-soft:#9b9eac; --body:#3f4147;
             --accent-hov:#4c56c8;
       --accent-text:var(--accent);

@@ -149,7 +149,7 @@ function __hyloSectionFetch(url) {
 function __hyloRefreshSidebar() {
   var snap = __hyloSideFlipCapture();
   Promise.resolve(htmx.ajax('GET', '/home/refresh', { target: document.body, swap: 'none' })).then(function () {
-    if (window._homeData) window._homeData.syncSideEmpty();
+    if (window._homeData) window._homeData.syncSideGroups();
     __hyloSideFlipPlay(snap);
   }, function () {});
 }

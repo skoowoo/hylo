@@ -253,6 +253,8 @@ function homeCtrl() {
     agentBotsLoaded: !!boot.bots,
     // A group with nothing in it has no chevron and opens its section instead.
     sideEmpty: { folders: false, knowledge: false },
+    // Shown beside a collapsed group's label.
+    sideCount: { folders: 0, knowledge: 0 },
     selectedAgentBotId: '',
     isMac: /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent),
     toastText: '',
@@ -265,7 +267,7 @@ function homeCtrl() {
       this.initGraph();
       this.initInbox();
       window._homeData = this;
-      this.syncSideEmpty();
+      this.syncSideGroups();
       window.__hyloHotkeys.register('refresh', 'r', doHomeRefresh);
       // Bot list lives in the sidebar, so it loads even when Chats is closed.
       // The kernel keeps a run alive if the pane is swapped away.
@@ -297,11 +299,14 @@ function homeCtrl() {
     },
     botsEmpty() { return this.agentBotsLoaded && this.agentBots.length === 0; },
 
-    // The groups' bodies are server-rendered and morphed by /home/refresh,
-    // which marks an empty one with .home-side-none.
-    syncSideEmpty() {
-      this.sideEmpty.folders = !!document.querySelector('#home-side-folders-body .home-side-none');
-      this.sideEmpty.knowledge = !!document.querySelector('#home-side-knowledge-body .home-side-none');
+    // The groups' bodies are server-rendered and morphed by /home/refresh;
+    // each carries a .home-side-meta with its count and emptiness.
+    syncSideGroups() {
+      for (var k of ['folders', 'knowledge']) {
+        var meta = document.querySelector('#home-side-' + k + '-body .home-side-meta');
+        this.sideEmpty[k] = !!meta && meta.hasAttribute('data-empty');
+        this.sideCount[k] = meta ? Number(meta.dataset.count) || 0 : 0;
+      }
     },
 
     // One list/grid bucket per section type, so every folder (and every tag) shares one.

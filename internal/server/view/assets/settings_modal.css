@@ -53,12 +53,6 @@
       background: var(--surface-soft);
       padding: 0 0.5rem 1rem; display: flex; flex-direction: column;
       gap: 2px; user-select: none;
-      /* .side-nav-item.is-active (base.css) just consumes the generic
-         --control-active-bg — but since this container's own background is
-         --surface-soft rather than --bg, the token is locally repointed at
-         --control-active-bg-on-soft (shared_tokens.go) so the selected item
-         still reads as a clear lift. Same fix as .home-side (home.css). */
-      --control-active-bg: var(--control-active-bg-on-soft);
     }
 
     /* Same height and type as the content pane's title row, so both sit on one line. */
