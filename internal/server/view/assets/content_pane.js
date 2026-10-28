@@ -6,13 +6,6 @@
     return Date.now() * 1000 + __hyloEditorTabSeq;
   }
 
-  // Monotonic "when was this tab last active" clock — a plain counter
-  // rather than Date.now() since all that ever matters is relative order
-  // (who's older), and a counter can't collide within the same tick the
-  // way two Date.now() reads sometimes do. Stamped onto tab._lastActiveSeq
-  // by _activateTab below.
-  var __hyloEditorTabActivitySeq = 0;
-
   var CONTENT_PANE_MAX_TABS = 10;
   // Local reads land well inside this; it only caps a slow server.
   var CONTENT_PANE_OPEN_WAIT_MS = 120;
@@ -45,6 +38,13 @@
     return (name || '').replace(/\.(md|markdown)$/i, '');
   }
 
+  // "/a/b/Note.md" -> "a/b"; "" at the vault root.
+  function __hyloNoteDir(path) {
+    var p = String(path || '').replace(/^\/+/, '');
+    var slash = p.lastIndexOf('/');
+    return slash > 0 ? p.slice(0, slash) : '';
+  }
+
   // Vault-relative path -> filename stem (no directory, no extension) — the
   // wikilink target format (internal/util/mdhtml.go's wikilinkRe resolves by
   // stem, not full path), so this can't just reuse tab.title: a knowledge
@@ -68,236 +68,6 @@
       // What the shell lays out (home.html): the open state and ratio above,
       // committed a frame after the list has prepared for the move.
       layoutOpen: false, layoutRatio: 0.5,
-
-      // How many header tab chips currently fit. 1 until initTabstrip
-      // measures; the row clips, so a short first guess can't cover the
-      // toolbar actions.
-      tabVisibleCount: 1,
-      // tab ids that should paint at opacity 0 on the next render, then
-      // fade in. Has to be set in the same turn as the DOM insert.
-      tabEntering: {},
-      _enteringFrame: 0,
-      // tabs' first tabVisibleCount entries are the "visible window", kept
-      // in stable (open-order) position by _activateTab below — switching
-      // between tabs already on screen never reorders them. The rest
-      // (tabs.slice(tabVisibleCount)) is the overflow tail, MRU-ordered
-      // (most recently evicted from the window sits first) — same order
-      // the tabs-menu dropdown below lists everything in.
-      visibleTabs() {
-        return this.tabs.slice(0, Math.min(this.tabVisibleCount, this.tabs.length));
-      },
-      hiddenTabCount() {
-        return this.tabs.length - this.visibleTabs().length;
-      },
-      // ── Header tab strip motion (FLIP) ──────────────────────────────
-      // Flexbox has no CSS-native way to animate a reflow — a plain
-      // transition can't tween "left" on a flex item, and (contrary to
-      // the first instinct) neither does Alpine's own x-transition: that
-      // directive only ever plays when something toggles via x-show/x-if,
-      // and x-for's insertion path just splices a new node straight into
-      // the DOM without going through that machinery — x-transition:enter
-      // on an x-for child is silently inert. So both the reposition slide
-      // *and* the new-chip pop-in are done by hand here, the same way:
-      // grab each chip's position before a mutation (_flipCapture), let
-      // Alpine re-render, then after the DOM has caught up
-      // (_flipApply) — a chip that was already there gets snapped back to
-      // its old spot with an instant transform and transitioned to zero
-      // (reads as sliding to its new position); a chip that's new (not in
-      // the "before" set at all) starts from scaled-down/transparent and
-      // transitions to its resting state instead. Alpine's :key="tab.id"
-      // (content_pane.html) keeps the same DOM node for a tab that
-      // survives a re-render, so capturing by element reference and
-      // re-measuring the *same* elements afterward is enough; a tab
-      // that's gone (closed, or pushed into the hidden tail) just isn't
-      // found again in the "after" pass and is skipped — no leave
-      // animation (see the comment on the x-for template, content_pane.html).
-      _tabstripMovers() {
-        var row = document.getElementById('content-pane-tabstrip-row');
-        if (!row) return [];
-        return row.querySelectorAll('.content-pane-tab, .content-pane-tabs-overflow');
-      },
-      _flipCapture() {
-        var rects = new Map();
-        this._tabstripMovers().forEach(function(child) {
-          if (!child.offsetParent) return; // display:none — no position to keep
-          // Clear a transform left mid-flight so this read isn't the
-          // in-between x of an earlier slide.
-          child.style.transition = 'none';
-          child.style.transform = '';
-          rects.set(child, child.getBoundingClientRect().left);
-        });
-        return rects;
-      },
-      _flipApply(before) {
-        if (!before) return;
-        var self = this;
-        requestAnimationFrame(function() {
-          self._tabstripMovers().forEach(function(child) {
-            if (!before.has(child)) return;
-            var dx = before.get(child) - child.getBoundingClientRect().left;
-            if (Math.abs(dx) < 0.5) { child.style.transition = ''; return; }
-            child.style.transition = 'none';
-            child.style.transform = 'translateX(' + dx + 'px)';
-            requestAnimationFrame(function() {
-              child.style.transition = 'transform var(--motion-view) var(--ease-out)';
-              child.style.transform = '';
-              child.addEventListener('transitionend', function te(ev) {
-                if (ev.propertyName !== 'transform') return;
-                child.style.transition = '';
-                child.removeEventListener('transitionend', te);
-              });
-            });
-          });
-        });
-      },
-      _domTabIds() {
-        var have = {};
-        var row = document.getElementById('content-pane-tabstrip-row');
-        if (!row) return have;
-        var nodes = row.querySelectorAll('.content-pane-tab[data-tab-id]');
-        for (var i = 0; i < nodes.length; i++) have[nodes[i].getAttribute('data-tab-id')] = true;
-        return have;
-      },
-      // Mark chips that will be in the window after this turn's Alpine
-      // flush but aren't in the DOM yet. The class is opacity 0 with no
-      // extra frame of the chip at full strength.
-      _prepareEntering() {
-        if (!this.contentPaneOpen) return;
-        var have = this._domTabIds();
-        var n = Math.min(this.tabVisibleCount, this.tabs.length);
-        var ids = [];
-        for (var i = 0; i < n; i++) {
-          var id = this.tabs[i].id;
-          if (!have[String(id)]) ids.push(id);
-        }
-        if (!ids.length) return;
-        var map = {};
-        for (var k in this.tabEntering) if (this.tabEntering[k]) map[k] = true;
-        for (var j = 0; j < ids.length; j++) map[String(ids[j])] = true;
-        this.tabEntering = map;
-        var self = this;
-        if (self._enteringFrame) cancelAnimationFrame(self._enteringFrame);
-        // Two frames: the first rAF can still be before the paint that
-        // shows opacity 0, and clearing there would skip the fade.
-        self._enteringFrame = requestAnimationFrame(function() {
-          self._enteringFrame = requestAnimationFrame(function() {
-            self._enteringFrame = 0;
-            self.tabEntering = {};
-          });
-        });
-      },
-      // After a promotion, the incoming chip can be wider than the one it
-      // replaced. Recompute until the active tab sits inside a prefix that
-      // actually fits. Widths are cached, so the extra passes are arithmetic.
-      _refitAroundActive() {
-        for (var pass = 0; pass < 10; pass++) {
-          var fitted = this._computeFit();
-          if (!fitted) return;
-          if (this.activeTab < fitted && fitted === this.tabVisibleCount) return;
-          var active = this.tabs[this.activeTab];
-          if (!active) return;
-          this.tabVisibleCount = fitted;
-          if (this.activeTab < fitted) return;
-          this.tabs.splice(this.activeTab, 1);
-          this.tabs.splice(fitted - 1, 0, active);
-          this.activeTab = fitted - 1;
-        }
-      },
-      // Count (+ active-tab placement) only. Callers that want a slide
-      // capture before this and _flipApply after.
-      _syncFit() {
-        var fitted = this._computeFit();
-        if (!fitted) return;
-        this.tabVisibleCount = fitted;
-        if (this.activeTab >= fitted && this.tabs[this.activeTab]) this._refitAroundActive();
-      },
-      // Width changed. A pure count change doesn't move the chips that
-      // stay, so it doesn't slide — new chips fade via _prepareEntering.
-      // A shrink that drops the active tab past the window does reorder,
-      // and that one slide is the motion.
-      _settleTabstrip(fade) {
-        var fitted = this._computeFit();
-        if (!fitted) return;
-        var reorder = this.activeTab >= fitted && !!this.tabs[this.activeTab];
-        if (fitted === this.tabVisibleCount && !reorder) return;
-        var before = (fade && reorder) ? this._flipCapture() : null;
-        this.tabVisibleCount = fitted;
-        if (reorder) this._refitAroundActive();
-        if (fade) this._prepareEntering();
-        if (before) this._flipApply(before);
-      },
-      // Chip widths are a function of the title, measured on a hidden
-      // probe (same classes, out of the row) and cached. __hyloFitTabCount
-      // then picks the count in one shot — the live row is never used as
-      // a probe, so opening and resizing don't paint intermediate counts.
-      _computeFit() { return 0; },
-      initTabstrip(el) {
-        var self = this;
-        function px(name, fallback) {
-          var v = parseFloat(getComputedStyle(el).getPropertyValue(name));
-          return isNaN(v) ? fallback : v;
-        }
-        var chip = document.createElement('div');
-        chip.className = 'content-pane-tab content-pane-tab-measure';
-        chip.setAttribute('aria-hidden', 'true');
-        chip.innerHTML = '<span class="content-pane-tab-draft-icon"></span><span class="content-pane-tab-status-slot"></span><span class="content-pane-tab-title"></span><button type="button" class="content-pane-tab-close" tabindex="-1"></button>';
-        var ov = document.createElement('button');
-        ov.type = 'button';
-        ov.tabIndex = -1;
-        ov.className = 'content-pane-tabs-overflow content-pane-tab-measure';
-        ov.setAttribute('aria-hidden', 'true');
-        ov.innerHTML = '<span></span><svg viewBox="0 0 24 24"></svg>';
-        el.appendChild(chip);
-        el.appendChild(ov);
-        var titleEl = chip.querySelector('.content-pane-tab-title');
-        var draftEl = chip.querySelector('.content-pane-tab-draft-icon');
-        var ovLabel = ov.querySelector('span');
-        var ovCache = {};
-        function overflowWidth(hidden) {
-          var label = '+' + hidden;
-          if (ovCache[label]) return ovCache[label];
-          ovLabel.textContent = label;
-          ovCache[label] = ov.offsetWidth;
-          return ovCache[label];
-        }
-        function measure(tab) {
-          var key = (tab.path ? '1' : '0') + '\n' + (tab.title || '');
-          if (tab._chipWKey === key && tab._chipW) return tab._chipW;
-          titleEl.textContent = tab.title || '';
-          draftEl.style.display = tab.path ? 'none' : '';
-          var w = chip.offsetWidth;
-          tab._chipW = w;
-          tab._chipWKey = key;
-          return w;
-        }
-        this._computeFit = function() {
-          if (el.clientWidth <= 0 || !self.tabs.length) return 0;
-          var widths = [];
-          for (var i = 0; i < self.tabs.length; i++) widths.push(measure(self.tabs[i]));
-          return __hyloFitTabCount(widths, el.clientWidth, px('--cp-tab-gap', 4), overflowWidth);
-        };
-        // Dragging the split is already a continuous width change — fading
-        // each new chip on top of that just lags the row.
-        function settleFromResize() { self._settleTabstrip(!self.isPaneResizing); }
-        if (el.clientWidth > 0) settleFromResize();
-        if (typeof ResizeObserver === 'undefined') return;
-        var lastW = el.clientWidth;
-        // Settles before paint: ResizeObserver flushes microtasks first.
-        var ro = new ResizeObserver(function() {
-          var w = el.clientWidth;
-          if (Math.abs(w - lastW) < 1) return;
-          lastW = w;
-          settleFromResize();
-        });
-        ro.observe(el);
-        if (document.fonts && document.fonts.ready) {
-          document.fonts.ready.then(function() {
-            ovCache = {};
-            for (var i = 0; i < self.tabs.length; i++) self.tabs[i]._chipWKey = '';
-            self._settleTabstrip(false);
-          });
-        }
-      },
 
       // Maximized is just splitRatio 0: the sidebar stays.
       toggleMaximizeEditor() {
@@ -390,9 +160,18 @@
             tabs: this.tabs.filter(function(t){ return !!t.path; }).map(function(t){
               return {id:t.id, title:t.title, path:t.path, isKnowledge:!!t.isKnowledge, pinned:!!t.pinned, isIndex:!!t.isIndex, canCompile:!!t.canCompile};
             }),
+            // By id: drafts are left out above, so an index would point at the wrong tab.
+            activeId: this.tabs[this.activeTab] ? this.tabs[this.activeTab].id : null,
             activeTab: this.activeTab,
           }));
         } catch(_) {}
+      },
+
+      // The sidebar lists every tab: changes to the list slide its rows (home.js).
+      _sideReflow() {
+        if (!this._sideLive || typeof __hyloSideFlipCapture !== 'function') return;
+        var snap = __hyloSideFlipCapture();
+        this.$nextTick(function() { __hyloSideFlipPlay(snap); });
       },
 
       _restore() {
@@ -401,19 +180,27 @@
           var data = JSON.parse(raw);
           if (!data || !Array.isArray(data.tabs) || !data.tabs.length) return;
           var tabs = data.tabs;
-          if (tabs.length > CONTENT_PANE_MAX_TABS) {
+          // Drafts live only in memory; keep this view's where they were, the store never had them.
+          var drafts = [];
+          this.tabs.forEach(function(t, i){ if (!t.path) drafts.push({ at: i, tab: t }); });
+          var cap = Math.max(CONTENT_PANE_MAX_TABS - drafts.length, 0);
+          if (tabs.length > cap) {
             var byAge = tabs.slice().sort(function(a,b){return a.id-b.id;});
-            var remove = new Set(byAge.slice(0, tabs.length-CONTENT_PANE_MAX_TABS).map(function(t){return t.id;}));
+            var remove = new Set(byAge.slice(0, tabs.length-cap).map(function(t){return t.id;}));
             tabs = tabs.filter(function(t){return !remove.has(t.id);});
           }
+          this._sideReflow();
           this.tabs = tabs.map(function(t) {
             var path = t.path || '';
             if (!path && t.fragmentUrl) { try { path = new URL(t.fragmentUrl, location.origin).searchParams.get('path') || ''; } catch(_){} }
             if (!path && t.pageUrl)     { try { path = new URL(t.pageUrl,     location.origin).searchParams.get('path') || ''; } catch(_){} }
             return {id:t.id, title:t.title||'Note', path:path, isKnowledge:!!t.isKnowledge, pinned:!!t.pinned, isIndex:!!t.isIndex, canCompile:!!t.canCompile};
           }).filter(function(t){ return !!t.path; });
+          var merged = this.tabs;
+          drafts.forEach(function(d){ merged.splice(Math.min(d.at, merged.length), 0, d.tab); });
           if (!this.tabs.length) return;
-          this.activeTab = Math.min(Math.max(data.activeTab||0, 0), this.tabs.length-1);
+          var at = this.tabs.findIndex(function(t){ return t.id === data.activeId; });
+          this.activeTab = at >= 0 ? at : Math.min(Math.max(data.activeTab||0, 0), this.tabs.length-1);
         } catch(_) {}
       },
 
@@ -421,6 +208,7 @@
         window.__hyloContentPane = this;
         try { this._storeKey += ':' + JSON.parse(document.getElementById('home-boot').textContent).vault; } catch(_) {}
         this._restore();
+        this._sideLive = true;
         try {
           var savedRatio = parseFloat(localStorage.getItem('hylo.splitRatio'));
           if (!isNaN(savedRatio) && savedRatio >= 0 && savedRatio <= 0.9) this.splitRatio = savedRatio;
@@ -429,7 +217,7 @@
 
         var self = this;
         // Esc still closes whatever's layered on top of the editor (the
-        // more/tabs dropdowns, CodeMirror's search panel) — it just no
+        // more/bot dropdowns, CodeMirror's search panel) — it just no
         // longer closes the editor itself once those are all closed.
         var _paneEscClose = function() {
           var moreMenu = document.querySelector('.content-pane-more-menu');
@@ -441,12 +229,6 @@
           var botMenu = document.querySelector('.content-pane-bot-menu');
           if (botMenu && botMenu.style.display !== 'none') {
             document.dispatchEvent(new CustomEvent('content-pane:close-bot'));
-            __hyloBlurActive();
-            return;
-          }
-          var tabsMenu = document.querySelector('.content-pane-tabs-menu');
-          if (tabsMenu && tabsMenu.style.display !== 'none') {
-            document.dispatchEvent(new CustomEvent('content-pane:close-tabs'));
             __hyloBlurActive();
             return;
           }
@@ -568,6 +350,7 @@
         __hyloEditorSaveStatus('');
 
         var newTab = {id:__hyloEditorNewTabId(), title:'Untitled', path:'', isKnowledge:false, pinned:false};
+        this._sideReflow();
         this.tabs.push(newTab);
         var idx = this.tabs.length - 1;
 
@@ -580,60 +363,10 @@
             if (oldestIdx < idx) idx--;
           }
         }
-        this._activateTab(idx);
+        this.activeTab = idx;
 
         s.currentPath = ''; s.currentMd = ''; s.dirty = false;
         await this._openWith(__hyloEditorApplyState({ inSource: false }, newTab.id));
-      },
-
-      // Makes tabs[idx] the active tab. A tab already inside the visible
-      // window (idx < tabVisibleCount) just gets the pointer moved to it —
-      // its position, and every other visible tab's, is left alone, so
-      // switching between tabs you can already see never reshuffles the
-      // header. A tab arriving from the hidden/overflow tail has to make
-      // room instead: it evicts whichever visible tab has gone longest
-      // without being active (_lastActiveSeq), drops that one to the
-      // front of the hidden tail (now the most-recently-relevant thing
-      // hidden), and joins the visible window at its far end — the same
-      // spot a brand-new tab lands (see upsertTab/openNewInContentPane).
-      //
-      // Chip moves animate only while the pane is open (or as a caller
-      // says): a tab activated on the way to opening slides in with the
-      // pane instead. animateOverride false is also for callers that
-      // captured their own before-positions.
-      _activateTab(idx, animateOverride) {
-        var tab = this.tabs[idx];
-        if (!tab) return;
-        var animate = animateOverride !== undefined ? animateOverride : this.contentPaneOpen;
-        var before = animate ? this._flipCapture() : null;
-        tab._lastActiveSeq = ++__hyloEditorTabActivitySeq;
-        // No width (the inbox panel is showing): don't evict off the
-        // placeholder count; the strip settles when it reappears.
-        var measured = this._computeFit();
-        if (!(measured > 0)) {
-          this.activeTab = idx;
-        } else if (idx < measured) {
-          this.tabVisibleCount = measured;
-          this.activeTab = idx;
-        } else {
-          this.tabVisibleCount = measured;
-          this.tabs.splice(idx, 1);
-          var cap = measured;
-          var evictIdx = 0, evictSeq = Infinity;
-          for (var j = 0; j < cap && j < this.tabs.length; j++) {
-            var seq = this.tabs[j]._lastActiveSeq || 0;
-            if (seq < evictSeq) { evictSeq = seq; evictIdx = j; }
-          }
-          var evicted = this.tabs.splice(evictIdx, 1)[0];
-          this.tabs.splice(cap - 1, 0, evicted);
-          this.tabs.splice(cap - 1, 0, tab);
-          this.activeTab = cap - 1;
-          this._refitAroundActive();
-        }
-        if (animate) {
-          this._prepareEntering();
-          this._flipApply(before);
-        }
       },
 
       upsertTab(path, title, isKnowledge, pinned, isIndex, canCompile) {
@@ -646,6 +379,7 @@
           if (isIndex !== undefined) this.tabs[idx].isIndex = !!isIndex;
           if (canCompile !== undefined) this.tabs[idx].canCompile = !!canCompile;
         } else {
+          this._sideReflow();
           this.tabs.push({id:__hyloEditorNewTabId(), title:title||'Note', path:path, isKnowledge:!!isKnowledge, pinned:!!pinned, isIndex:!!isIndex, canCompile:!!canCompile});
           idx = this.tabs.length - 1;
           if (this.tabs.length > CONTENT_PANE_MAX_TABS) {
@@ -658,7 +392,7 @@
             }
           }
         }
-        this._activateTab(idx);
+        this.activeTab = idx;
       },
 
       closeContentPane() {
@@ -677,12 +411,15 @@
         return load;
       },
 
-      // Reopen on the active tab. A note other than the one the editor holds
-      // loads first; the one it holds slides in at once and re-reads behind it.
-      async showContentPane() {
+      // Reopen on the active tab, or on tabId. A note other than the one the
+      // editor holds loads first; the one it holds slides in at once and
+      // re-reads behind it.
+      async showContentPane(tabId) {
         if (this.contentPaneOpen) return;
         // Other views of this vault may have changed the tabs since.
         this._restore();
+        var picked = this.tabs.findIndex(function(t) { return t.id === tabId; });
+        if (picked >= 0) this.activeTab = picked;
         var tab = this.tabs[this.activeTab];
         if (!tab) { this.contentPaneOpen = true; return; }
         var savedState = __hyloEditorRestoreTabState(tab.id);
@@ -710,10 +447,29 @@
         await __hyloContentPaneSetContent(tab._pendingContent || '', tab.id, savedState);
       },
 
+      // A sidebar row works with the pane closed too: it opens on that tab.
+      selectTab(i) {
+        var tab = this.tabs[i];
+        if (!tab || this.agentWriting) return;
+        if (this.contentPaneOpen) return this.contentPaneSwitchTab(i);
+        return this.showContentPane(tab.id);
+      },
+
+      activeTabDir() {
+        var tab = this.tabs[this.activeTab];
+        return tab ? __hyloNoteDir(tab.path) : '';
+      },
+
+      // Parent folder, shown only when another open tab has the same title.
+      tabHint(tab) {
+        if (!tab.path || !this.tabs.some(function(t) { return t !== tab && t.title === tab.title; })) return '';
+        return __hyloNoteDir(tab.path).split('/').pop() || '/';
+      },
+
       async contentPaneSwitchTab(i) {
         if (this.agentWriting) return;
         this.cancelRenameActiveNote(); // see openNoteInContentPane
-        // A chip or menu keeps no focus. The editor keeps its own: regaining it would make
+        // A sidebar row keeps no focus. The editor keeps its own: regaining it would make
         // WebKit scroll to the caret (cm-live/focus.js).
         if (!__hyloFocusInsideEditor()) __hyloBlurActive();
         if (i === this.activeTab) return;
@@ -728,7 +484,7 @@
         }
 
         // Switch active tab
-        this._activateTab(i);
+        this.activeTab = i;
         __hyloEditorResetCompileBtn();
 
         // Load next tab's content with saved state
@@ -760,14 +516,7 @@
       _removeTab(i) {
         var wasActive = (i === this.activeTab);
         __hyloEditorClearTabState(this.tabs[i].id);
-
-        // Captured before the splice below — if closing this tab shifts or
-        // backfills any visible chip, the survivors slide into their new
-        // spots instead of snapping (_flipApply at the bottom). Skipped
-        // outright when the pane's about to close entirely (nothing left
-        // to animate).
-        var before = this.tabs.length > 1 ? this._flipCapture() : null;
-
+        this._sideReflow();
         this.tabs.splice(i, 1);
 
         if (this.tabs.length === 0) {
@@ -785,20 +534,9 @@
         if (i < this.activeTab) {
           this.activeTab -= 1;
         } else if (wasActive) {
-          // Whichever tab now sits where the closed one was (or the last
-          // one, if it was rightmost) inherits activation — same "next tab
-          // over" convention browsers use on tab close. It was already
-          // visible (closing a window member always backfills the window
-          // from the hidden tail's MRU head — see _activateTab's comment),
-          // so no eviction dance here, just the recency stamp so it isn't
-          // the very next thing evicted for having gone "longest" untouched.
+          // The next one down inherits activation, as browsers do on close.
           this.activeTab = Math.min(i, this.tabs.length-1);
-          var stamped = this.tabs[this.activeTab];
-          if (stamped) stamped._lastActiveSeq = ++__hyloEditorTabActivitySeq;
         }
-        // Fit before loading: a wider backfill can shrink the window and
-        // move which tab is active.
-        this._syncFit();
         // A closed pane loads its active tab when it opens.
         if (wasActive && this.contentPaneOpen) {
           var t = this.tabs[this.activeTab];
@@ -810,8 +548,6 @@
             void this._openUntitledTab(t, savedState);
           }
         }
-        if (this.contentPaneOpen) this._prepareEntering();
-        this._flipApply(before);
       },
 
       // Opens the given mate's chat panel with a brand-new conversation
@@ -1024,9 +760,7 @@
         if (!tab) return;
         tab.path = newPath;
         tab.title = __hyloStripMdExt(newPath.split('/').pop()) || newPath;
-        tab._chipWKey = '';
         if (__hyloEditor.currentPath === oldPath) __hyloEditor.currentPath = newPath;
-        this._settleTabstrip(this.contentPaneOpen);
       },
     };
   }
@@ -1307,53 +1041,51 @@
     __hyloEditorOpenFind();
   });
 
-  // The tabs dropdown's own open/highlight state lives in its local x-data
-  // (content_pane.html's #content-pane-tabs-wrap) rather than on window.__hyloContentPane —
-  // same "small local x-data for a popover" pattern as .content-pane-more-wrap.
-  // Alpine.$data bridges into it for these plain-JS hotkey handlers.
-  function __hyloContentPaneTabsMenuScope() {
-    var el = document.getElementById('content-pane-tabs-wrap');
-    return (el && window.Alpine) ? window.Alpine.$data(el) : null;
+  function __hyloOpenTabRows() {
+    return Array.prototype.slice.call(document.querySelectorAll('#home-side-open .home-side-tab'));
   }
 
-  // Mod-T opens/closes the tabs dropdown (mirrors the "switch tabs" meaning
-  // Cmd/Ctrl+T carries in most apps).
-  window.__hyloHotkeys.registerRaw('content-pane-tabs-menu-toggle', function(e, mod) {
+  // Mod-T moves focus to the sidebar's open tabs (and back to the editor).
+  window.__hyloHotkeys.registerRaw('open-tabs-focus', function(e, mod) {
     if (!mod || e.shiftKey || e.altKey || e.key.toLowerCase() !== 't') return;
     var _pane = window.__hyloContentPane;
-    if (!_pane || !_pane.contentPaneOpen || _pane.agentWriting) return;
-    var scope = __hyloContentPaneTabsMenuScope();
-    if (!scope) return;
+    if (!_pane || !_pane.tabs.length || _pane.agentWriting) return;
     e.preventDefault();
-    scope.toggleTabsMenu();
-    if (!scope.tabsMenuOpen) document.dispatchEvent(new CustomEvent('content-pane:close-tabs'));
+    var rows = __hyloOpenTabRows();
+    if (rows.indexOf(document.activeElement) >= 0) {
+      if (_pane.contentPaneOpen) __hyloFocusEditor(); else __hyloBlurActive();
+      return true;
+    }
+    var focusRow = function() {
+      var row = __hyloOpenTabRows()[Math.max(_pane.activeTab, 0)];
+      if (row) row.focus();
+    };
+    // A collapsed group is visibility:hidden, so open it and focus once it has rendered.
+    if (window._homeData && !window._homeData.openTabsOpen) {
+      window._homeData.openTabsOpen = true;
+      window.Alpine.nextTick(focusRow);
+    } else {
+      focusRow();
+    }
     return true;
   });
 
-  // While the tabs dropdown is open: ↑/↓ move the highlighted row, Enter
-  // switches to it. Registered after content-pane-scroll (below) so it's checked
-  // first — see keys.js's reverse-registration-order dispatch — and takes
-  // over plain arrow keys instead of letting them scroll the editor.
-  window.__hyloHotkeys.registerRaw('content-pane-tabs-menu-nav', function(e, mod) {
+  // While a row has focus: ↑/↓ move, Enter opens it, Esc returns to the editor.
+  // Raw, so the editor's own arrow scrolling and the Esc stack don't see it.
+  window.__hyloHotkeys.registerRaw('open-tabs-nav', function(e, mod) {
     if (mod || e.shiftKey || e.altKey) return;
-    if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown' && e.key !== 'Enter') return;
-    var menu = document.querySelector('.content-pane-tabs-menu');
-    if (!menu || menu.style.display === 'none') return;
-    var scope = __hyloContentPaneTabsMenuScope();
+    if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown' && e.key !== 'Enter' && e.key !== 'Escape') return;
+    var rows = __hyloOpenTabRows();
+    var at = rows.indexOf(document.activeElement);
     var _pane = window.__hyloContentPane;
-    if (!scope || !scope.tabsMenuOpen || !_pane) return;
-    var n = _pane.tabs.length;
-    if (!n) return;
+    if (at < 0 || !_pane) return;
     e.preventDefault();
-    if (e.key === 'ArrowDown') {
-      scope.tabsMenuActiveIndex = (scope.tabsMenuActiveIndex + 1 + n) % n;
-    } else if (e.key === 'ArrowUp') {
-      scope.tabsMenuActiveIndex = (scope.tabsMenuActiveIndex - 1 + n) % n;
-    } else {
-      var idx = scope.tabsMenuActiveIndex;
-      if (idx >= 0 && idx < n) void _pane.contentPaneSwitchTab(idx);
-      scope.tabsMenuOpen = false;
-    }
+    e.stopImmediatePropagation();
+    var n = rows.length;
+    if (e.key === 'ArrowDown') rows[(at + 1) % n].focus();
+    else if (e.key === 'ArrowUp') rows[(at - 1 + n) % n].focus();
+    else if (e.key === 'Escape') { if (_pane.contentPaneOpen) __hyloFocusEditor(); else __hyloBlurActive(); }
+    else Promise.resolve(_pane.selectTab(at)).then(function() { __hyloFocusEditor(); });
     return true;
   });
 

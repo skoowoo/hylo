@@ -42,9 +42,10 @@ test-js:
 	node --test "internal/server/view/assets/**/*.test.js"
 	cd editor && npm run test:e2e
 
-## icons: regenerate internal/server/view/shared_icons_neo.go from pixelarticons
+## icons: regenerate shared_icons_neo.go (pixelarticons) and shared_icons_line.go (view/icons/*.svg)
 icons:
 	cd editor && node gen-icons.mjs
+	gofmt -w internal/server/view/shared_icons_line.go
 
 ## editor: bundle editor JS into internal/server/static/editor.js
 editor:

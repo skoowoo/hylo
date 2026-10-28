@@ -30,8 +30,8 @@
   box-shadow: var(--shadow-sm) var(--shadow-color);
   overflow: hidden;
   max-height: 220px; overflow-y: auto;
-  /* Inset padding — matches the content-pane tabs/more menus' recipe
-     (content_pane.css's .content-pane-tabs-menu): an option row's
+  /* Inset padding — matches the content-pane more menu's recipe
+     (content_pane.css's .content-pane-more-menu): an option row's
      highlight is only as wide as the dropdown minus this padding, so it
      reads as a floating rounded chip instead of a flush-edge bar touching
      the dropdown's own (rounded) border. */

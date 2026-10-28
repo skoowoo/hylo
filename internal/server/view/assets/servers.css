@@ -7,8 +7,6 @@
 .srv-dot.is-offline { background: var(--s-err); }
 .srv-dot.is-auth_required { background: var(--s-warn); }
 
-/* Bottom row: switcher on the left, Settings on the right. */
-.home-side-bottom { justify-content: space-between; }
 .server-switcher { min-width: 0; }
 .server-switcher .cselect-btn--ghost { max-width: 170px; gap: 6px; }
 /* Opens upward: the trigger sits at the bottom edge of the sidebar. */

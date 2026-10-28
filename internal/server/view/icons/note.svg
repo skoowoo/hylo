@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+     data-base="lucide/file-text" data-zoom="1"
+     data-changes="corners r4">
+  <path d="M15 2L8 2A4 4 0 0 0 4 6L4 18A4 4 0 0 0 8 22L16 22A4 4 0 0 0 20 18L20 7Z" />
+  <path d="M14 2L14 4A4 4 0 0 0 18 8L20 8" />
+  <path d="M16 13H8" />
+  <path d="M16 17H8" />
+</svg>

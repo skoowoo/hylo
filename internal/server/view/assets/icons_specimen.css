@@ -1,0 +1,59 @@
+/* /dev/icons — the line icon specimen. Sidebar rows reuse base.css's
+   .side-nav-item / .side-nav-icon, so what shows here is what ships. */
+*, *::before, *::after { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body { background: var(--bg); color: var(--fg); overflow: hidden; }
+.spec {
+  height: 100%; overflow-y: auto; box-sizing: border-box; border-radius: 0;
+  padding: var(--space-xl) var(--space-lg) var(--space-xxl);
+  display: flex; flex-direction: column; gap: var(--space-xl);
+}
+.spec-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-md); flex-wrap: wrap; }
+.spec-title { margin: 0; font-size: 22px; font-weight: 600; letter-spacing: -0.014em; }
+.spec-meta { margin: 6px 0 0; font-size: var(--text-sm); color: var(--muted); }
+.spec-meta code, .spec-src { font-family: var(--font-mono); font-size: var(--text-xs); }
+.spec-section { display: flex; flex-direction: column; gap: var(--space-sm); }
+.spec-h2 { margin: 0; font-size: var(--text-xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.spec-note { margin: 0; max-width: 64ch; font-size: var(--text-sm); color: var(--muted); line-height: 1.5; }
+
+/* A sidebar column at the real width and fill. */
+.spec-side {
+  width: var(--home-side-w); box-sizing: border-box; padding: 0 14px 0;
+  display: flex; flex-direction: column; gap: 3px;
+  background: var(--surface-soft); border: var(--bd-w) solid var(--line-hair);
+  --control-active-bg: var(--control-active-bg-on-soft);
+}
+.spec-side-top, .spec-side-bottom { height: var(--topbar-h); display: flex; align-items: center; gap: 4px; }
+.spec-side-top { justify-content: flex-end; }
+.spec-side-bottom { justify-content: flex-end; }
+.spec-settings svg { width: 16px; height: 16px; }
+.spec-side-sep { height: var(--bd-w); background: var(--line-hair); margin: 11px 8px; }
+.spec-side-children { display: flex; flex-direction: column; gap: 1px; padding: 2px 0 4px 12px; }
+.spec-child-icon { flex-shrink: 0; width: 13px; height: 13px; opacity: 0.6; }
+
+.spec-table-wrap { overflow-x: auto; border-radius: 0; }
+.spec-table { border-collapse: collapse; font-size: var(--text-sm); }
+.spec-table th, .spec-table td {
+  padding: 8px 14px; text-align: left; vertical-align: middle; white-space: nowrap;
+  border-bottom: var(--bd-w) solid var(--line-hair); border-radius: 0;
+}
+.spec-table thead th { font-size: var(--text-xs); font-weight: 500; color: var(--muted); }
+.spec-name { font-weight: 500; }
+.spec-glyph { display: inline-flex; color: var(--nav-fg); }
+.spec-glyph svg { width: var(--s); height: var(--s); display: block; }
+/* 72px = 3px per box unit; dashed square is Lucide's 1-unit padding line. */
+.spec-grid {
+  position: relative; display: block; width: 72px; height: 72px; color: var(--fg);
+  background:
+    linear-gradient(to right, var(--line-hair) 1px, transparent 1px) 0 0 / 3px 3px,
+    linear-gradient(to bottom, var(--line-hair) 1px, transparent 1px) 0 0 / 3px 3px;
+  outline: var(--bd-w) solid var(--line-edge); border-radius: 0;
+}
+.spec-grid::after {
+  content: ""; position: absolute; inset: 3px; border: 1px dashed var(--accent); opacity: 0.45; border-radius: 0;
+}
+.spec-grid svg { width: 72px; height: 72px; display: block; position: relative; }
+.spec-num { font-family: var(--font-mono); font-size: var(--text-xs); font-variant-numeric: tabular-nums; }
+.spec-num.is-off { color: var(--s-warn); font-weight: 600; }
+.spec-src { color: var(--muted); }
+.spec-changes { display: block; color: var(--muted-soft); font-family: var(--font-ui); margin-top: 2px; }

@@ -136,6 +136,7 @@ func newRouter(
 		mux.HandleFunc("DELETE /api/conversations/{id}", ch.ConversationDELETE)
 		mux.HandleFunc("PATCH /api/conversations/{id}/title", ch.ConversationTitlePATCH)
 
+		vh.SetMates(mateStore)
 		mh := handler.NewMateAPI(logger, mateStore, skillsMgr)
 		mux.HandleFunc("GET /api/mate-events", mh.MateEventsGET)
 
@@ -184,6 +185,7 @@ func newRouter(
 	// Website routes
 	mux.HandleFunc("GET /notes/search", vh.SearchFragment)
 	mux.HandleFunc("GET /home", vh.Home)
+	mux.HandleFunc("GET /dev/icons", vh.IconSpecimen)
 	mux.HandleFunc("GET /home/refresh", vh.HomeRefresh)
 	mux.HandleFunc("GET /home/section", vh.HomeSection)
 	mux.HandleFunc("GET /home/section/more", vh.HomeSectionMore)

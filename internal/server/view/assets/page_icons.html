@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+{{template "head" "Icons — Hylo"}}
+  <link rel="stylesheet" href="{{asset "bundle/icons.css"}}">
+</head>
+<body>
+<div class="spec">
+  <header class="spec-head">
+    <div>
+      <h1 class="spec-title">Line icons</h1>
+      <p class="spec-meta">{{.Count}} icons · stroke {{.Stroke}} · Lucide-based · sources in <code>internal/server/view/icons/</code>, compiled by <code>make icons</code></p>
+    </div>
+    <div class="seg" role="group" aria-label="Theme">
+      <button type="button" class="seg-btn" data-theme-set="light">Light</button>
+      <button type="button" class="seg-btn" data-theme-set="dark">Dark</button>
+    </div>
+  </header>
+
+  <section class="spec-section">
+    <h2 class="spec-h2">In the sidebar</h2>
+    <div class="spec-side">
+      <div class="spec-side-top">
+        <span class="icon-btn-ghost">{{icon "search"}}</span>
+        <span class="icon-btn-ghost">{{icon "new-note"}}</span>
+        <span class="icon-btn-ghost">{{icon "reading-pane"}}</span>
+      </div>
+      {{range $gi, $g := .Nav}}
+      {{if $gi}}<div class="spec-side-sep hairline"></div>{{end}}
+      {{range $g}}
+      <div class="side-nav-item{{if eq .Icon "inbox"}} is-active{{end}}">{{sideIcon .Icon}}<span>{{.Label}}</span></div>
+      {{if eq .Icon "open-tabs"}}
+      <div class="spec-side-children">
+        {{range $.Children}}<div class="side-nav-item spec-side-child">{{icon .Icon "spec-child-icon"}}<span>{{.Label}}</span></div>{{end}}
+      </div>
+      {{end}}
+      {{end}}
+      {{end}}
+      <div class="spec-side-bottom"><span class="icon-btn-ghost spec-settings">{{icon "settings"}}</span></div>
+    </div>
+  </section>
+
+  {{range .Tables}}
+  <section class="spec-section">
+    <h2 class="spec-h2">{{.Title}}</h2>
+    <p class="spec-note">{{.Note}}</p>
+    <div class="spec-table-wrap">
+      <table class="spec-table">
+        <thead><tr><th>Name</th><th>13</th><th>15</th><th>16</th><th>24</th><th>Grid</th><th>Optical</th><th>Offset</th><th>Zoom</th><th>Source</th></tr></thead>
+        <tbody>
+        {{$check := .Check}}
+        {{range .Icons}}
+          <tr data-icon="{{.Name}}"{{if $check}} data-check{{end}}>
+            <th scope="row" class="spec-name">{{.Name}}</th>
+            <td><span class="spec-glyph" style="--s:13px">{{.SVG}}</span></td>
+            <td><span class="spec-glyph" style="--s:15px">{{.SVG}}</span></td>
+            <td><span class="spec-glyph" style="--s:16px">{{.SVG}}</span></td>
+            <td><span class="spec-glyph spec-glyph-24" style="--s:24px">{{.SVG}}</span></td>
+            <td><span class="spec-grid">{{.SVG}}</span></td>
+            <td class="spec-num" data-metric="optical">…</td>
+            <td class="spec-num" data-metric="offset">…</td>
+            <td class="spec-num">{{if ne .Zoom 1.0}}{{.Zoom}}×{{else}}—{{end}}</td>
+            <td class="spec-src">{{.Base}}{{if .Changes}}<span class="spec-changes">{{.Changes}}</span>{{end}}</td>
+          </tr>
+        {{end}}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  {{end}}
+</div>
+<script src="{{asset "bundle/icons.js"}}"></script>
+</body>
+</html>

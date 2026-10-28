@@ -3,10 +3,7 @@
     <button type="button" class="side-nav-item home-side-child home-drop-target" x-bind:class="{'is-active': curType() === 'folder' && curParam('path') === '{{.Dir}}'}"
             data-drop-dir="{{.Dir}}"
             x-press="foldersOpen = true; go('/home/section?type=folder&path={{encdir .Dir}}')">
-      <svg class="home-side-child-icon" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"
-           stroke-linejoin="round" viewBox="0 0 24 24">
-        <path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" />
-      </svg>
+      {{icon "folder" "home-side-child-icon"}}
       <span class="home-side-child-name">{{folderLabel .Dir}}</span>
     </button>
     {{end}}

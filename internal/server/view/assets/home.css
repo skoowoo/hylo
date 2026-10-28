@@ -144,11 +144,10 @@
     .home-side-bottom {
       flex-shrink: 0; display: flex; align-items: center;
       height: var(--topbar-h); padding: 0 14px;
-      border-radius: 0; /* flush divider row — the global rounded-corner
-        reset (base.css) was clipping the border-top/bottom short of the
-        sidebar's edges, reading as a doubled/thicker line at the corner. */
-      /* border-top removed for cleaner visual integration */
+      border-radius: 0;
     }
+    /* Pinned right, so the server switcher appearing after load can't move it. */
+    .home-side-bottom > .home-side-bottom-btn { margin-left: auto; }
     html.macos .home-side-top {
       padding-left: 76px;
       -webkit-app-region: drag;
@@ -172,9 +171,9 @@
       flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none;
       display: flex; flex-direction: column; gap: 3px;
       padding: 14px;
-      /* --fade-top follows scrollTop (capped at 24px), so the top edge fades in once content scrolls out. */
-      -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 var(--fade-top, 0px));
-      mask-image: linear-gradient(to bottom, transparent 0, #000 var(--fade-top, 0px));
+      /* Each edge fades by how much content is hidden past it (capped at 24px). */
+      -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 var(--fade-top, 0px), #000 calc(100% - var(--fade-bottom, 0px)), transparent 100%);
+      mask-image: linear-gradient(to bottom, transparent 0, #000 var(--fade-top, 0px), #000 calc(100% - var(--fade-bottom, 0px)), transparent 100%);
       border-radius: 0; /* scrolling chrome strip — never rounds (the global
         reset was clipping its own content into rounded corners) */
     }
@@ -203,65 +202,92 @@
       min-width: 18px; height: 18px; padding: 0 5px; box-sizing: border-box;
       font-size: 10.5px; font-weight: var(--fw-semibold); line-height: 1;
       color: var(--bg); background: var(--fg);
-      border-radius: 50%;
+      border-radius: 9px; /* a circle at one digit, a pill past it */
       font-variant-numeric: tabular-nums;
     }
     .home-side-item.is-active .home-side-count { color: var(--control-active-bg); background: var(--control-active-fg); }
 
-    /* ── Folders group (expand/collapse) ─────────────────────── */
-    /* No margin-top here — .home-side-nav's own flex `gap` already spaces
-       every direct child uniformly (items, groups, dividers alike); an
-       extra margin on top of that gap was stacking to a visibly bigger
-       gap before every collapsible group than between two plain items. */
+    /* ── Groups (expand/collapse) ─────────────────────────────── */
     .home-side-group { flex-shrink: 0; display: flex; flex-direction: column; }
-    /* cursor:pointer already comes from the shared .side-nav-item every
-       row has — .home-side-item--parent exists only as a hook for the
-       chevron-hover rule below. */
     .home-side-chevron {
-      flex-shrink: 0; width: 12px; height: 12px; opacity: 0.5;
-      transition: transform var(--motion-base) ease;
+      flex-shrink: 0; display: block; width: 12px; height: 12px; opacity: 0.5;
+      transition: transform var(--motion-base) var(--ease-standard), opacity var(--motion-fast);
     }
     .home-side-item--parent:hover .home-side-chevron { opacity: 0.8; }
     .home-side-chevron.is-open { transform: rotate(90deg); }
-    /* Disclosure animation via the grid-rows 0fr/1fr trick — animates to the
-       content's own intrinsic height with no JS measurement, unlike x-show's
-       instant display:none/flex toggle (which used to make this content pop
-       open/closed with no transition at all, out of step with the chevron
-       rotating smoothly right next to it). x-cloak (home.html/home.go) still
-       hides this pre-hydration so there's no flash-of-wrong-state before
-       Alpine applies the real is-open class on init. */
+    .home-side-chevron > svg { display: block; width: 100%; height: 100%; }
+    /* Height animates through grid rows 0fr↔1fr, both ways; the rows fade
+       with it. visibility flips at the end of a close, so a collapsed body
+       can't be hovered, focused or show a sub-pixel sliver. */
     .home-side-children {
-      display: grid; grid-template-rows: 1fr;
-      overflow: hidden;
-      transition: grid-template-rows var(--motion-base) ease;
+      display: grid; grid-template-rows: 0fr;
+      visibility: hidden;
+      transition: grid-template-rows var(--motion-slow) var(--ease-standard),
+                  visibility 0s linear var(--motion-slow);
     }
-    /* max-height:0 + pointer-events:none, not just grid-template-rows:0fr
-       alone — the 0fr row's actual rendered height can round to a
-       sub-pixel sliver instead of a true 0 (Chromium grid rounding), and
-       a collapsed group's hidden row was still hoverable/visible through
-       that sliver: a stray highlighted box right below the group header.
-       max-height:0 is a hard, non-grid-dependent ceiling that can't
-       round to anything but 0, so it closes the leak the 0fr trick alone
-       didn't; pointer-events:none is the second layer, for anything that
-       still somehow has nonzero rendered size. Neither touches the
-       open-state animation, both scoped to :not(.is-open). */
-    .home-side-children:not(.is-open) { grid-template-rows: 0fr; max-height: 0; pointer-events: none; }
+    .home-side-children.is-open {
+      grid-template-rows: 1fr; visibility: visible;
+      transition: grid-template-rows var(--motion-slow) var(--ease-standard), visibility 0s;
+    }
     .home-side-children-inner {
       min-height: 0; overflow: hidden;
       display: flex; flex-direction: column; gap: 1px;
       padding: 2px 0 4px 12px;
+      opacity: 0; transition: opacity var(--motion-base) var(--ease-standard);
+      border-radius: 0; /* clips its rows; the global radius would cut their corners */
     }
-    /* Row/hover/active now come from the shared .side-nav-item (base.css)
-       — its 9px gap replaces this row's own 8px, a 1px difference with
-       no real reason to keep. The icon stays its own smaller/dimmer tier
-       (13px vs .side-nav-icon's 15px) as this group's depth cue. */
+    .home-side-children.is-open > .home-side-children-inner { opacity: 1; }
+    /* Rows that render after first paint (open tabs from localStorage, bots
+       before Alpine) hold their final height until they arrive. 31px is a
+       30px row plus the 1px gap; 6px is the inner padding. */
+    .home-side-children[data-reserve] > .home-side-children-inner {
+      min-height: calc(var(--reserve-rows) * 31px - 1px + 6px);
+    }
     .home-side-child-icon { flex-shrink: 0; width: 13px; height: 13px; opacity: 0.6; }
+    .home-side-child-icon > svg { display: block; width: 100%; height: 100%; }
     .home-side-child.is-active .home-side-child-icon { opacity: 1; }
     .home-side-child-name {
       flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
     .home-side-child .home-side-count { background: transparent; padding: 0; color: var(--muted-soft); }
     .home-side-child.is-active .home-side-count { color: inherit; }
+    .home-side-count--plain { background: transparent; padding: 0; color: var(--muted-soft); font-weight: var(--fw-medium); }
+
+    /* ── Open tabs ───────────────────────────────────────────── */
+    /* Holds the first tab's slot; a label, not a control. */
+    .home-side-open-none {
+      color: var(--muted-soft); font-weight: 400; cursor: default; padding-left: 30px;
+    }
+    .home-side-open-none:hover { background: transparent; color: var(--muted-soft); }
+    .home-side-open-none[hidden] { display: none; }
+    /* Every slot is always laid out — hover and activation only change
+       opacity — so a title never re-truncates under the pointer. */
+    .home-side-tab { transition: background var(--motion-fast) ease, opacity var(--motion-base) ease; }
+    .home-side-tab-status {
+      flex-shrink: 0; width: 13px; height: 13px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .home-side-tab-status .note-draft-icon { width: 13px; height: 13px; }
+    .home-side-tab-status .ssi-pending { color: var(--accent-text); }
+    .home-side-tab-hint {
+      flex-shrink: 1; min-width: 0; max-width: 40%;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      font-size: var(--text-xs); font-weight: 400; color: var(--muted-soft);
+    }
+    .home-side-tab-close {
+      flex-shrink: 0; width: 18px; height: 18px; margin-right: -4px;
+      display: flex; align-items: center; justify-content: center;
+      border: none; background: transparent; color: inherit; padding: 0;
+      border-radius: var(--r-xs); cursor: pointer;
+      opacity: 0; pointer-events: none;
+      transition: opacity var(--motion-fast) ease, background var(--motion-fast) ease;
+    }
+    .home-side-tab:hover .home-side-tab-close,
+    .home-side-tab.is-active .home-side-tab-close { opacity: 0.6; pointer-events: auto; }
+    .home-side-tab .home-side-tab-close:hover { opacity: 1; background: var(--tint-strong); }
+    .home-side-tab-close svg { width: 10px; height: 10px; }
+    .home-side-tab:focus-visible { outline: none; box-shadow: inset 0 0 0 var(--bd-w) var(--accent); }
+    .home-side-open [inert] .home-side-tab:not(.is-active) { opacity: 0.45; }
     /* Drag-to-move drop target (home.js toggles .drag-over on dragenter/leave).
        Static, not a breathing/looping glow — an ambient animation here would
        be exactly the kind of "motion for its own sake" the app's restrained

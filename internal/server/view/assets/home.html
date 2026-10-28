@@ -8,29 +8,75 @@
         <button type="button" class="icon-btn-ghost"
                 :title="/Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent) ? 'Search (⌘K)' : 'Search (Ctrl+K)'"
                 @click="window.dispatchEvent(new CustomEvent('open-search'))">
-          <svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
-            <circle cx="11" cy="11" r="8" /><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-4.34-4.34" />
-          </svg>
+          {{icon "search"}}
         </button>
         <button type="button" class="icon-btn-ghost" title="New note (Ctrl+N)"
                 onclick="window.__hyloContentPane && void window.__hyloContentPane.openNewInContentPane()">
-          <svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M12 5v14M5 12h14" />
-          </svg>
+          {{icon "new-note"}}
         </button>
         <button type="button" class="icon-btn-ghost home-side-bottom-btn" :class="{'is-active': contentPaneOpen}"
                 :title="/Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent) ? 'Reading pane (⌘O)' : 'Reading pane (Ctrl+O)'"
                 @click="contentPaneOpen ? closeContentPane() : showContentPane()">
-          <svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
-            <rect x="3" y="3" width="18" height="18" rx="2" />
-            <path stroke-linecap="round" stroke-linejoin="round" d="M15 3v18" />
-            <path stroke-linecap="round" stroke-linejoin="round" d="m10 15-3-3 3-3" />
-          </svg>
+          {{icon "reading-pane"}}
         </button>
       </div>
 
-      <nav class="home-side-nav"
-           @scroll.passive="$el.style.setProperty('--fade-top', Math.min($el.scrollTop, 24) + 'px')">
+      <nav class="home-side-nav" x-init="initSideFade($el)" @scroll.passive="sideFade($el)">
+
+        <!-- The editor's open tabs. They come from localStorage, so the script
+             below swaps the placeholder for their reserved height before first
+             paint (data-reserve). The placeholder is one row tall, so the first
+             tab opening or the last closing moves nothing. :hidden, not x-show:
+             x-show applies a frame late, after the reflow motion has measured. -->
+        <div class="home-side-group home-side-open" id="home-side-open">
+          <button type="button" class="side-nav-item home-side-item home-side-item--parent"
+                  x-press="openTabsOpen = !openTabsOpen">
+            {{sideIcon "open-tabs"}}
+            <span class="home-side-label">Open</span>
+            <span class="home-side-count home-side-count--plain" x-show="!openTabsOpen && tabs.length" x-cloak x-text="tabs.length"></span>
+            <span class="home-side-chevron is-open" :class="{'is-open': openTabsOpen}">{{icon "chevron-right"}}</span>
+          </button>
+          <div class="home-side-children is-open" id="home-side-open-body" :class="{'is-open': openTabsOpen}"
+               x-init="$nextTick(() => $el.removeAttribute('data-reserve'))">
+            <div class="home-side-children-inner" :inert="agentWriting">
+              <div class="side-nav-item home-side-child home-side-open-none" id="home-side-open-none" :hidden="tabs.length > 0">No open notes</div>
+              <template x-for="(tab, i) in tabs" :key="tab.id">
+                <div class="side-nav-item home-side-child home-side-tab" role="button" tabindex="-1"
+                     :class="{'is-active': contentPaneOpen && i === activeTab}"
+                     :title="tab.path || 'Untitled'"
+                     x-press="selectTab(i)"
+                     @mousedown.middle.prevent @auxclick="$event.button === 1 && contentPaneCloseTab(i)">
+                  <span class="home-side-tab-status">
+                    <span class="note-draft-icon" x-show="!tab.path">{{icon "draft"}}</span>
+                    <span class="home-side-child-icon" x-show="tab.path && !(agentWriting && i === activeTab)">{{icon "note"}}</span>
+                    <svg class="ssi-pending" x-show="agentWriting && i === activeTab" width="8" height="8" viewBox="0 0 8 8" fill="currentColor"><circle cx="4" cy="4" r="3.5"/></svg>
+                  </span>
+                  <span class="home-side-child-name" x-text="tab.title"></span>
+                  <span class="home-side-tab-hint" x-show="tabHint(tab)" x-text="tabHint(tab)"></span>
+                  <button type="button" class="home-side-tab-close" title="Close tab" tabindex="-1"
+                          @pointerdown.stop @click.stop="contentPaneCloseTab(i)">
+                    {{icon "close"}}
+                  </button>
+                </div>
+              </template>
+            </div>
+          </div>
+        </div>
+        <div class="home-side-sep hairline"></div>
+        <script>
+          (function () {
+            try {
+              var vault = JSON.parse(document.getElementById('home-boot').textContent).vault;
+              var data = JSON.parse(localStorage.getItem('hylo.content-pane:' + vault) || 'null');
+              var n = Math.min(data && Array.isArray(data.tabs) ? data.tabs.filter(function (t) { return t.path; }).length : 0, 10);
+              if (!n) return;
+              document.getElementById('home-side-open-none').hidden = true;
+              var body = document.getElementById('home-side-open-body');
+              body.setAttribute('data-reserve', '');
+              body.style.setProperty('--reserve-rows', n);
+            } catch (_) {}
+          })();
+        </script>
 
         <button type="button" class="side-nav-item home-side-item" :class="{'is-active': curType() === 'inbox'}"
                 x-press="go('/home/section?type=inbox')">
@@ -45,12 +91,12 @@
                   x-press="go('/home/section?type=chat')">
             {{sideIcon "bot"}}
             <span class="home-side-label">Bots</span>
-            <svg class="home-side-chevron" :class="{'is-open': chatsOpen}" x-show="!botsEmpty()" @pointerdown.stop @click.stop="chatsOpen = !chatsOpen"
-                 fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" d="m9 18 6-6-6-6" />
-            </svg>
+            <span class="home-side-chevron is-open" :class="{'is-open': chatsOpen}" x-show="!botsEmpty()" {{xshow (gt (len .Boot.Bots) 0)}} @pointerdown.stop @click.stop="chatsOpen = !chatsOpen">{{icon "chevron-right"}}</span>
           </button>
-          <div class="home-side-children" id="home-side-chats-body" :class="{'is-open': chatsOpen && !botsEmpty()}" x-cloak>
+          {{/* Open with the boot's row count reserved, so nothing below moves when the rows render. */}}
+          <div class="home-side-children{{if .Boot.Bots}} is-open{{end}}" id="home-side-chats-body" :class="{'is-open': chatsOpen && !botsEmpty()}"
+               {{if .Boot.Bots}}data-reserve style="--reserve-rows: {{len .Boot.Bots}}"{{end}}
+               x-init="$nextTick(() => $el.removeAttribute('data-reserve'))">
             <div class="home-side-children-inner">
               <template x-for="m in agentBots" :key="m.id">
                 <button type="button" class="side-nav-item home-side-child" :class="{'is-active': curType() === 'chat' && selectedAgentBotId === m.id}"
@@ -64,20 +110,15 @@
           </div>
         </div>
 
-        <div class="home-side-sep hairline"></div>
-
         <div class="home-side-group">
           <button type="button" class="side-nav-item home-side-item home-side-item--parent"
                   :class="{'is-active': sideEmpty.knowledge && curType() === 'knowledge'}"
                   x-press="sideEmpty.knowledge ? selectKnowledgeIndex('') : (knowledgeOpen = !knowledgeOpen)">
             {{sideIcon "knowledge"}}
             <span class="home-side-label">Knowledge</span>
-            <svg class="home-side-chevron" :class="{'is-open': knowledgeOpen}" x-show="!sideEmpty.knowledge"
-                 fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" d="m9 18 6-6-6-6" />
-            </svg>
+            <span class="home-side-chevron" :class="{'is-open': knowledgeOpen}" x-show="!sideEmpty.knowledge" {{xshow .HasKnowledge}}>{{icon "chevron-right"}}</span>
           </button>
-          <div class="home-side-children" id="home-side-knowledge-body" x-bind:class="{'is-open': knowledgeOpen && !sideEmpty.knowledge}" x-cloak>
+          <div class="home-side-children" id="home-side-knowledge-body" x-bind:class="{'is-open': knowledgeOpen && !sideEmpty.knowledge}">
             <div class="home-side-children-inner">
 {{template "home-side-knowledge-inner" .}}
             </div>
@@ -101,7 +142,7 @@
 
         <button type="button" class="side-nav-item home-side-item" :class="{'is-active': curType() === 'pinned'}"
                 x-press="go('/home/section?type=pinned')">
-          {{sideIcon "star"}}
+          {{sideIcon "pinned"}}
           <span class="home-side-label">Pinned</span>
         </button>
 
@@ -129,12 +170,9 @@
                   x-press="sideEmpty.folders ? go('/home/section?type=folder&path=%2F') : (foldersOpen = !foldersOpen)">
             {{sideIcon "folders"}}
             <span class="home-side-label">Folders</span>
-            <svg class="home-side-chevron" :class="{'is-open': foldersOpen}" x-show="!sideEmpty.folders" fill="none" stroke="currentColor"
-                 stroke-width="1.7" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" d="m9 18 6-6-6-6" />
-            </svg>
+            <span class="home-side-chevron" :class="{'is-open': foldersOpen}" x-show="!sideEmpty.folders" {{xshow .HasFolders}}>{{icon "chevron-right"}}</span>
           </button>
-          <div class="home-side-children" id="home-side-folders-body" x-bind:class="{'is-open': foldersOpen && !sideEmpty.folders}" x-cloak>
+          <div class="home-side-children" id="home-side-folders-body" x-bind:class="{'is-open': foldersOpen && !sideEmpty.folders}">
             <div class="home-side-children-inner">
 {{template "home-side-folders-inner" .}}
             </div>
@@ -150,7 +188,7 @@
                   @click="open = !open; if (open) $store.servers.refresh()">
             <span class="srv-dot" :class="'is-' + $store.servers.state($store.servers.activeId)"></span>
             <span class="cselect-btn-text" x-text="$store.servers.active() ? $store.servers.active().name : 'Server'"></span>
-            <svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+            {{icon "chevron-down"}}
           </button>
           <div class="cselect-dropdown" x-show="open" x-cloak>
             <template x-for="s in $store.servers.items" :key="s.id">
@@ -171,10 +209,7 @@
         </div>
         <button type="button" class="icon-btn-ghost home-side-bottom-btn" title="Settings"
                 @click="$store.settingsModal.open = true; $el.blur()">
-          <svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915" />
-            <circle cx="12" cy="12" r="3" />
-          </svg>
+          {{icon "settings"}}
         </button>
       </div>
     </aside>

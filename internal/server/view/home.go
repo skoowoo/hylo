@@ -29,17 +29,36 @@ type homePageData struct {
 // from it and homeCtrl starts from it (#home-boot), so first paint already
 // matches what Alpine will show.
 type homeBoot struct {
-	UnreadCount int    `json:"unreadCount"`
-	Vault       string `json:"vault"`
+	UnreadCount int       `json:"unreadCount"`
+	Vault       string    `json:"vault"`
+	Bots        []bootBot `json:"bots"`
+}
+
+// bootBot is what a sidebar bot row draws; /api/mates fills in the rest.
+type bootBot struct {
+	ID    string `json:"id"`
+	Name  string `json:"name"`
+	Color string `json:"color"`
 }
 
 func (vh *ViewHandler) homeBoot() homeBoot {
-	b := homeBoot{Vault: vh.vault.Root()}
+	b := homeBoot{Vault: vh.vault.Root(), Bots: []bootBot{}}
 	if vh.inbox != nil {
 		b.UnreadCount, _ = vh.inbox.UnreadCount()
 	}
+	if vh.mates != nil {
+		list, _ := vh.mates.ListMates()
+		for _, m := range list {
+			if m.Enabled {
+				b.Bots = append(b.Bots, bootBot{ID: m.ID, Name: m.Name, Color: m.Color})
+			}
+		}
+	}
 	return b
 }
+
+func (d homePageData) HasFolders() bool   { return len(d.Folders) > 0 }
+func (d homePageData) HasKnowledge() bool { return d.KnowledgeCount > 0 || len(d.IndexNotes) > 0 }
 
 // homeSectionData drives the right-hand note list — the content shown for
 // whichever sidebar item (Pinned / a folder) is active. Shorts is

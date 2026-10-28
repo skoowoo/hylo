@@ -139,6 +139,56 @@ function loadListViewModes() {
   }
 }
 
+// ── Sidebar reflow motion ────────────────────────────────────────────────
+// When rows are added or removed (a tab opens or closes, a refresh lands),
+// everything that stays slides from where it was instead of jumping, and
+// what is new fades in. Capture before the change, play after it renders.
+var __hyloSideFlipGen = 0;
+function __hyloSideFlipTargets(nav) {
+  return Array.prototype.filter.call(
+    nav.querySelectorAll(':scope > :not(script), .home-side-child'),
+    function (el) { return el.getClientRects().length > 0; });
+}
+// Content-relative, so a scroll in between doesn't read as movement.
+function __hyloSideFlipTops(nav, els) {
+  var base = nav.getBoundingClientRect().top - nav.scrollTop;
+  var tops = new Map();
+  els.forEach(function (el) { tops.set(el, el.getBoundingClientRect().top - base); });
+  return tops;
+}
+function __hyloSideFlipFrame(el) {
+  return el.classList.contains('home-side-child') ? el.closest('.home-side-nav > *') : null;
+}
+function __hyloSideFlipCapture() {
+  var nav = document.querySelector('.home-side-nav');
+  if (!nav) return null;
+  var els = __hyloSideFlipTargets(nav);
+  return { nav: nav, gen: ++__hyloSideFlipGen, before: __hyloSideFlipTops(nav, els) };
+}
+function __hyloSideFlipPlay(snap) {
+  // A newer capture owns the motion; this one's "before" is stale.
+  if (!snap || snap.gen !== __hyloSideFlipGen) return;
+  var nav = snap.nav;
+  var els = __hyloSideFlipTargets(nav);
+  els.forEach(function (el) { if (el._flip) { el._flip.cancel(); el._flip = null; } });
+  var after = __hyloSideFlipTops(nav, els);
+  var cs = getComputedStyle(document.documentElement);
+  var ms = parseFloat(cs.getPropertyValue('--motion-slow')) || 0;
+  var ease = cs.getPropertyValue('--ease-out').trim() || 'ease-out';
+  els.forEach(function (el) {
+    var frame = __hyloSideFlipFrame(el);
+    var b = snap.before.get(el);
+    var fb = frame ? snap.before.get(frame) : 0;
+    if (b === undefined || fb === undefined) {
+      el._flip = el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: ms, easing: ease });
+      return;
+    }
+    var dy = (b - fb) - (after.get(el) - (frame ? after.get(frame) : 0));
+    if (Math.abs(dy) < 0.5) return;
+    el._flip = el.animate([{ transform: 'translateY(' + dy + 'px)' }, { transform: 'none' }], { duration: ms, easing: ease });
+  });
+}
+
 // ── x-press ───────────────────────────────────────────────────────────────
 // x-press="expr" runs on a left mouse press instead of waiting ~80ms for the
 // release, like native sidebars and tab strips. Keyboard activation (a click
@@ -185,11 +235,13 @@ function homeCtrl() {
     listViewModes: loadListViewModes(),
     foldersOpen: false,
     knowledgeOpen: false,
+    openTabsOpen: true,
     chatsOpen: true,
     // Chat transcript lives on this._chat (chat_kernel.js). These fields are
     // what the sidebar and the run-completion toast still bind to.
-    agentBots: [],
-    agentBotsLoaded: false,
+    // Seeded from the server so the rows render with the page; /api/mates refreshes them.
+    agentBots: boot.bots || [],
+    agentBotsLoaded: !!boot.bots,
     // A group with nothing in it has no chevron and opens its section instead.
     sideEmpty: { folders: false, knowledge: false },
     selectedAgentBotId: '',
@@ -219,6 +271,20 @@ function homeCtrl() {
       this._chat.start();
       // The first render isn't an htmx swap, but arrives like one.
       __hyloSectionArrived(__hyloInitialSectionURL(), null);
+    },
+    sideFade(nav) {
+      var below = nav.scrollHeight - nav.clientHeight - nav.scrollTop;
+      nav.style.setProperty('--fade-top', Math.min(nav.scrollTop, 24) + 'px');
+      nav.style.setProperty('--fade-bottom', Math.min(Math.max(below, 0), 24) + 'px');
+    },
+    // Content height changes without a scroll (groups opening, tabs), so watch it too.
+    initSideFade(nav) {
+      var self = this;
+      self.sideFade(nav);
+      if (typeof ResizeObserver === 'undefined') return;
+      var ro = new ResizeObserver(function () { self.sideFade(nav); });
+      ro.observe(nav);
+      Array.prototype.forEach.call(nav.children, function (c) { if (c.tagName !== 'SCRIPT') ro.observe(c); });
     },
     botsEmpty() { return this.agentBotsLoaded && this.agentBots.length === 0; },
 

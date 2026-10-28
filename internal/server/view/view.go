@@ -6,6 +6,7 @@ import (
 	"path"
 
 	"github.com/hardhacker/hylo/internal/config"
+	"github.com/hardhacker/hylo/internal/mate"
 	"github.com/hardhacker/hylo/internal/plugins/search"
 	"github.com/hardhacker/hylo/internal/storage"
 	"github.com/hardhacker/hylo/internal/util"
@@ -17,6 +18,11 @@ type ViewHandler struct {
 	searcher search.Searcher
 	cfg      *config.Config
 	inbox    unreadCounter
+	mates    mateLister
+}
+
+type mateLister interface {
+	ListMates() ([]mate.Mate, error)
 }
 
 type unreadCounter interface {
@@ -30,6 +36,9 @@ func NewView(v *storage.Vault, s search.Searcher, cfg *config.Config) *ViewHandl
 
 // SetInbox lets pages render the unread count; the inbox store opens after the view.
 func (vh *ViewHandler) SetInbox(c unreadCounter) { vh.inbox = c }
+
+// SetMates lets the sidebar render the bot list before its first fetch.
+func (vh *ViewHandler) SetMates(m mateLister) { vh.mates = m }
 
 // writeVaultError maps storage sentinel errors to appropriate HTTP status codes.
 func writeVaultError(w http.ResponseWriter, err error) {

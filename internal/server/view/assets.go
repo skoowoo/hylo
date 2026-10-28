@@ -43,7 +43,7 @@ func init() {
 	static.Bundle("bundle/home.js", modules+readAssets(
 		"home_init.js", "live.js", "note_changes.js", "keys.js", "path_ac.js",
 		"chat_reduce.js", "chat_text.js", "chat_kernel.js", "chat_rows.js", "chat_view.js",
-		"list_tighten.js", "tab_fit.js", "graph_layout.js", "editor_session.js", "editor_agent.js", "content_pane.js",
+		"list_tighten.js", "graph_layout.js", "editor_session.js", "editor_agent.js", "content_pane.js",
 		"search_overlay.js", "confirm_dialog.js", "info_dialog.js", "servers_store.js",
 		"settings_modal.js", "settings_appearance.js", "settings_server.js", "settings_agentcli.js",
 		"settings_notifications.js", "settings_shortcuts.js", "settings_agentbots.js", "settings_skills.js",
@@ -52,4 +52,6 @@ func init() {
 	))
 
 	static.Bundle("bundle/login.css", appTokensCSS+readAssets("base.css", "login.css"))
+	static.Bundle("bundle/icons.css", appTokensCSS+readAssets("base.css", "icons_specimen.css"))
+	static.Bundle("bundle/icons.js", readAssets("icons_specimen.js"))
 }

@@ -71,7 +71,7 @@
     }
     /* Control labels aren't content; double-click/drag shouldn't select them. */
     button, [role="button"], [role="tab"], summary, .seg, .seg-btn, .icon-btn, .icon-btn-ghost,
-    .content-pane-tabstrip, .home-list-head, .home-side-top {
+    .content-pane-title, .home-list-head, .home-side-top {
       -webkit-user-select: none; user-select: none;
     }
 
@@ -332,9 +332,9 @@
       transition: background var(--motion-fast) ease;
     }
     .side-nav-item:hover { background: var(--card-hov); color: var(--fg); }
+    /* Same weight as at rest: a bolder label re-truncates and shifts its glyphs on select. */
     .side-nav-item.is-active {
       background: var(--control-active-bg); border-color: transparent; color: var(--control-active-fg);
-      font-weight: 600;
     }
     /* Icon tier for a FLAT nav row (home's top-level items, settings'
        tab list) — a nested/indented row dims its icon further and sizes

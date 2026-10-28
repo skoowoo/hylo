@@ -73,6 +73,7 @@ var viewFuncs = template.FuncMap{
 	},
 	"encdir":   url.QueryEscape,
 	"sideIcon": sideIcon,
+	"icon":     icon,
 	"coverURL": func(name string) string {
 		if name == "" {
 			return ""
