@@ -86,6 +86,85 @@ test('the caret revealing any line leaves the lines below in place', async (t) =
   }
 });
 
+// A row's source wraps nothing like its cells, so rows stay drawn as cells
+// under the caret: entering any row leaves every cell's box where it was.
+test('a caret in a table row keeps every cell in place', async (t) => {
+  if (launchError) return skip(t);
+  const { page } = await open('stability.md');
+  try {
+    const changed = await page.evaluate(async () => {
+      const v = window.view;
+      const doc = v.state.doc;
+      const boxes = () => [...v.contentDOM.querySelectorAll('.cm-lp-table-cell')]
+        .map((c) => { const b = c.getBoundingClientRect(); return [b.left, b.top, b.width, b.height].map(Math.round).join(','); }).join(' ');
+      const rows = [];
+      for (let n = 1; n <= doc.lines; n++) if (doc.line(n).text.startsWith('| ')) rows.push(n);
+      v.dispatch({ selection: { anchor: doc.line(rows[0] - 1).from }, effects: window.cm.EditorView.scrollIntoView(doc.line(rows[0]).from, { y: 'start' }) });
+      await window.settle();
+      const base = boxes();
+      const out = [];
+      for (const n of rows) {
+        const line = doc.line(n);
+        for (const pos of [line.from, line.from + 3, line.to]) {
+          v.dispatch({ selection: { anchor: pos } });
+          await window.settle();
+          if (boxes() !== base) out.push(`L${n}@${pos - line.from}`);
+        }
+      }
+      return out;
+    });
+    assert.deepEqual(changed, []);
+  } finally {
+    await page.close();
+  }
+});
+
+// A cell's line break is a <br>, drawn as one even under the caret; the caret
+// after one sits on the new line. Backspace removes a blank row, and nowhere
+// else crosses a hidden pipe.
+test('Shift-Enter breaks a cell line and Backspace removes a blank row', async (t) => {
+  if (launchError) return skip(t);
+  const { page } = await open('table-edit.md');
+  try {
+    const at = (n, col) => page.evaluate(([n, col]) => {
+      const v = window.view;
+      v.focus();
+      v.dispatch({ selection: { anchor: v.state.doc.line(n).from + col } });
+    }, [n, col]);
+    const probe = () => page.evaluate(async () => {
+      await window.settle();
+      const v = window.view;
+      const head = v.state.selection.main.head;
+      const line = v.state.doc.lineAt(head);
+      const cursor = document.querySelector('.cm-cursor').getBoundingClientRect();
+      return { line: line.number, text: line.text, col: head - line.from, top: Math.round(cursor.top), height: Math.round(v.lineBlockAt(line.from).height) };
+    });
+    await at(5, 9);
+    const before = await probe();
+    await page.keyboard.press('Shift+Enter');
+    const broken = await probe();
+    assert.equal(broken.text, '| 一 | 第一行<br> |');
+    assert.ok(broken.top > before.top && broken.height > before.height);
+    await page.keyboard.press('ArrowLeft');
+    assert.equal((await probe()).top, before.top);
+    await page.keyboard.press('ArrowRight');
+    assert.equal((await probe()).top, broken.top);
+    await page.keyboard.press('Backspace');
+    assert.deepEqual(await probe(), before);
+
+    await at(7, 2);
+    await page.keyboard.press('Backspace');
+    const removed = await probe();
+    assert.equal(removed.line, 6);
+    assert.equal(removed.col, removed.text.length - 2);
+    await at(7, 2);
+    await page.keyboard.press('Backspace');
+    assert.equal((await probe()).text, '| 三 | 尾 |');
+  } finally {
+    await page.close();
+  }
+});
+
 // CM estimates unrendered lines from a text sample — the first drawn line of
 // at most 20 printable ASCII chars in plain text nodes — and re-estimates all
 // of them whenever that sample's metrics change. Short lines of different

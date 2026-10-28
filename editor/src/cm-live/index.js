@@ -7,6 +7,7 @@ import { syntaxHighlighting } from '@codemirror/language';
 import { wikiSyntax } from './wiki-syntax.js';
 import { frontmatterSyntax } from './frontmatter-syntax.js';
 import { livePreviewPlugin, skipHairlines } from './live-preview.js';
+import { tableCaret } from './table-caret.js';
 import { fenceCardField } from './fence-card/card-field.js';
 import { frontmatterCardField } from './frontmatter-card.js';
 import { livePreviewTheme, codeHighlightStyle } from './theme.js';
@@ -71,6 +72,8 @@ export function liveDecorations(options) {
     livePreviewPlugin.of(options),
     stableTextMetrics,
     editorScroll,
+    // Before skipHairlines: filters run last-to-first, so a caret carried past the delimiter row still lands in a cell.
+    tableCaret,
     skipHairlines,
     widgetReveal,
     verticalMotion,

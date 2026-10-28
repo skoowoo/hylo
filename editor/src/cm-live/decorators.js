@@ -5,7 +5,7 @@
 // code decorators that don't carry enough independent state to justify one.
 import { Decoration } from '@codemirror/view';
 import { syntaxTree } from '@codemirror/language';
-import { caretTouchesRange, caretOnLine, headInBlock, selectionInsideRange, readingMode } from './selection.js';
+import { caretTouchesRange, caretOnLine, headInBlock, selectionInsideRange, revealOff } from './selection.js';
 import { isRevealSuppressed } from './link-reveal-suppression.js';
 import { HangMarkWidget, WikiLinkWidget, TaskCheckboxWidget, ListMarkerWidget, CodeHeaderWidget, HorizontalRuleWidget } from './widgets.js';
 import { imageEditing } from './image-field.js';
@@ -14,7 +14,8 @@ import { hideRange, styleRange, hangRange } from './decoration-helpers.js';
 import { isSameNode } from './tree-utils.js';
 import { isWidgetRevealed } from './widget-reveal.js';
 import { imageFillsLink } from './image-nodes.js';
-import { decorateTableHeader, decorateTableBodyRow, decorateTableDelimiterRow } from './tables-decorate.js';
+import { decorateTableHeader, decorateTableBodyRow, decorateTableDelimiterRow, decorateCellBreak } from './tables-decorate.js';
+import { isCellBreak } from './table-rows.js';
 import { decorateFrontmatterSource } from './frontmatter-card.js';
 import { cardFence, fenceBody } from './fence-card/registry.js';
 import { linkTarget } from './link-refs.js';
@@ -75,7 +76,7 @@ function pushHeadingLines(doc, level, textFrom, textTo, nextNo, decos) {
 // A hung marker is a widget until the caret steps into it (← from the text,
 // or a click on it); then the source shows in place, still hung, to edit.
 function hangMarker(state, from, to, width, className, decos) {
-  const editing = state.selection.ranges.some((r) => r.empty && r.head >= from && r.head < to);
+  const editing = !revealOff(state) && state.selection.ranges.some((r) => r.empty && r.head >= from && r.head < to);
   if (editing) {
     hangRange(from, to, width, className, decos);
     return;
@@ -300,6 +301,7 @@ function decorateHtmlBlock(node, view, decos) {
 }
 
 function decorateHtmlTag(node, view, decos) {
+  if (isCellBreak(node.node, view.state.doc)) return decorateCellBreak(node, view, decos);
   styleRange(node.from, node.to, 'cm-lp-html', decos);
 }
 
@@ -393,7 +395,7 @@ function decorateListMark(node, view, decos, options, cache) {
   let markerTo = end;
   if (taskMarker) markerTo = taskMarker.to + (doc.sliceString(taskMarker.to, taskMarker.to + 1) === ' ' ? 1 : 0);
   // Caret stepped into the marker itself (← from the item text): show the source.
-  const editingMarker = !state.facet(readingMode) && state.selection.ranges.some((r) => r.empty && r.head > node.from && r.head < markerTo);
+  const editingMarker = !revealOff(state) && state.selection.ranges.some((r) => r.empty && r.head > node.from && r.head < markerTo);
   if (editingMarker) {
     styleRange(node.from, markerTo, 'cm-lp-list-mark-raw', decos);
   } else if (taskMarker) {

@@ -130,8 +130,9 @@ class OwnedScroll {
       this.walkSnap = null;
       if (this.changedUnseen(update)) this.measureAll();
     }
-    // Moving the caret or scrolling to something is a new destination.
-    if (this.target != null && update.transactions.some((tr) => tr.selection || tr.scrollIntoView)) this.stopGlide();
+    // Moving the caret or scrolling to something is a new destination; the agent's
+    // caret is followed by gliding (agent-typing.js), so its steps don't stop that.
+    if (this.target != null && update.transactions.some((tr) => (tr.selection && !tr.isUserEvent('select.agent')) || tr.scrollIntoView)) this.stopGlide();
     // The pane sliding open or the view scrolling: measuring waits until it's still.
     if (!this.walking && (update.geometryChanged || update.viewportChanged)) this.lastInput = performance.now();
     if (!(update.geometryChanged || update.heightChanged || update.viewportChanged)) return;
@@ -204,6 +205,35 @@ class OwnedScroll {
     this.wrote = -1;
     if (this.walk >= sd.scrollHeight) this.walk = -1;
     else this.scheduleWalk();
+  }
+
+  // Measures from..to right away, the way the walk does: text just written outside the
+  // view would otherwise keep estimated heights, and the bar would shift once it's seen.
+  measureRange(from, to) {
+    const { view, sd } = this;
+    if (!view.inView || !sd.clientHeight || view.composing) return;
+    forceParsing(view, to, SLICE);
+    view.measure();
+    const snap = view.scrollSnapshot();
+    const { viewport } = view;
+    if (from >= viewport.from && to <= viewport.to) return;
+    this.walking = true;
+    try {
+      keepingParkedCards(() => {
+        let y = Math.max(0, view.lineBlockAt(from).top);
+        do {
+          sd.scrollTop = y;
+          view.measure();
+          y += sd.clientHeight;
+        } while (y < view.lineBlockAt(to).bottom && y < sd.scrollHeight);
+        view.dispatch({ effects: snap });
+        view.measure();
+      });
+    } finally {
+      this.walking = false;
+    }
+    this.restTop = sd.scrollTop;
+    this.wrote = -1;
   }
 
   scrollTo(top) {
@@ -373,6 +403,23 @@ class OwnedScroll {
 }
 
 const ownedScroll = ViewPlugin.fromClass(OwnedScroll);
+
+// Where the view is headed: a glide's destination, else where it is.
+export function scrollDestination(view) {
+  const owner = view.plugin(ownedScroll);
+  return owner && owner.target != null ? owner.target : view.scrollDOM.scrollTop;
+}
+
+export function measureRange(view, from, to) {
+  const owner = view.plugin(ownedScroll);
+  if (owner) owner.measureRange(from, to);
+}
+
+export function glideTo(view, top) {
+  const owner = view.plugin(ownedScroll);
+  if (owner) owner.glideBy(top - (owner.target ?? owner.current()));
+  else view.scrollDOM.scrollTop = top;
+}
 
 export const editorScroll = owned
   ? [

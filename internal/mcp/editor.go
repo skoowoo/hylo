@@ -17,7 +17,7 @@ type editorTypeReq struct {
 	Content string `json:"content" jsonschema:"markdown to type into the note"`
 	At      string `json:"at,omitempty" jsonschema:"where to type: end (default) or cursor"`
 	Heading string `json:"heading,omitempty" jsonschema:"type at the end of this section instead (case-insensitive heading text)"`
-	Speed   string `json:"speed,omitempty" jsonschema:"slow, normal (default), fast or instant"`
+	Speed   string `json:"speed,omitempty" jsonschema:"slow, normal (default), fast or instant; long content types faster to finish in time"`
 }
 
 type editorTypeOut struct {
@@ -32,7 +32,7 @@ type editorReadReq struct {
 }
 
 type editorBlock struct {
-	ID   string `json:"id" jsonschema:"block id such as b3, valid until the note changes"`
+	ID   string `json:"id" jsonschema:"block id, derived from the block's text: it stays valid until that block is edited"`
 	Kind string `json:"kind" jsonschema:"heading, paragraph, list, code, quote, table, rule ..."`
 	Text string `json:"text"`
 }
@@ -51,11 +51,10 @@ type editorReadOut struct {
 type editorRewriteReq struct {
 	Path     string `json:"path,omitempty" jsonschema:"vault-absolute path of an existing note; omit for the note open in the user's editor"`
 	Content  string `json:"content" jsonschema:"the new markdown for the region; empty deletes it"`
-	Target   string `json:"target,omitempty" jsonschema:"selection (what the user has selected), or a block id or range from editor_read such as b3 or b3-b5"`
-	Expect   string `json:"expect,omitempty" jsonschema:"required with a block target: the first words of the region, copied from editor_read, to detect a changed note"`
+	Target   string `json:"target,omitempty" jsonschema:"selection (what the user has selected), or a block id or an inclusive range of ids from editor_read such as b4k2x7 or b4k2x7-b9x0m3"`
 	FromText string `json:"from_text,omitempty" jsonschema:"instead of target: exact text where the region starts; must occur once in the note"`
 	ToText   string `json:"to_text,omitempty" jsonschema:"with from_text: exact text where the region ends; the region runs from from_text through it"`
-	Speed    string `json:"speed,omitempty" jsonschema:"slow, normal (default), fast or instant"`
+	Speed    string `json:"speed,omitempty" jsonschema:"slow, normal (default), fast or instant; long content types faster to finish in time"`
 }
 
 type editorRewriteOut struct {
@@ -66,10 +65,11 @@ type editorRewriteOut struct {
 }
 
 // errNoEditor guarantees nothing was written, so writing the note another way is safe;
-// errEditorGone doesn't, and a write racing an editor still typing would duplicate text.
+// the others don't, and a write racing an editor still typing would duplicate text.
 var (
-	errNoEditor   = errors.New("no editor is open in Hylo, so nothing was written. If the user asked to watch the writing, ask them to open the app and retry; otherwise write the note with the note tools")
-	errEditorGone = errors.New("the editor disconnected while working on the note; part of it may be written. Call editor_read once the user reopens it; do not write the note with other tools instead")
+	errNoEditor    = errors.New("no editor is open in Hylo, so nothing was written. If the user asked to watch the writing, ask them to open the app and retry; otherwise write the note with the note tools")
+	errEditorGone  = errors.New("the editor disconnected while working on the note; part of it may be written. Call editor_read once the user reopens it; do not write the note with other tools instead")
+	errEditorStuck = errors.New("the editor stopped responding and was told to stop; part of the text may be written. Call editor_read and continue from what is there; do not write the note with other tools instead")
 )
 
 // requireNote fails early for a missing note, so the editor never pops an error dialog for it.
@@ -99,6 +99,8 @@ func dispatch(ctx context.Context, bus *editorbus.Bus, op editorbus.Op) (editorb
 		return res, errNoEditor
 	case errors.Is(err, editorbus.ErrEditorGone):
 		return res, errEditorGone
+	case errors.Is(err, editorbus.ErrEditorStuck):
+		return res, errEditorStuck
 	case err != nil:
 		return res, err
 	case !res.OK && !res.Interrupted:
@@ -156,7 +158,7 @@ func registerEditorTools(s *sdk.Server, c *client.Client, bus *editorbus.Bus) {
 		})
 
 	addTool(s, "editor_read",
-		"Read a note as it is in the user's open editor, unsaved edits included, split into numbered blocks, "+
+		"Read a note as it is in the user's open editor, unsaved edits included, split into blocks with ids, "+
 			"plus the text the user has selected. Without path it reads the note the user has open and returns its path. "+
 			"Call it before editor_rewrite to see what the user sees.", readOnly,
 		func(ctx context.Context, in editorReadReq) (editorReadOut, error) {
@@ -182,7 +184,7 @@ func registerEditorTools(s *sdk.Server, c *client.Client, bus *editorbus.Bus) {
 		"Rewrite one region of a note in the user's open editor the way a person would: the region is highlighted, "+
 			"deleted, and the new text is typed in its place. Use it when asked to redo or improve part of what is "+
 			"already written. Point at the region with target (selection, or block ids from editor_read) or with "+
-			"from_text/to_text. Empty content deletes the region.", destructive,
+			"from_text/to_text. Empty content deletes the region. Block ids of the blocks it did not touch stay valid.", destructive,
 		func(ctx context.Context, in editorRewriteReq) (editorRewriteOut, error) {
 			out := editorRewriteOut{Path: in.Path}
 			if err := requireNote(c, in.Path); err != nil {
@@ -193,7 +195,7 @@ func registerEditorTools(s *sdk.Server, c *client.Client, bus *editorbus.Bus) {
 			}
 			res, err := dispatch(ctx, bus, editorbus.Op{
 				Kind: editorbus.KindRewrite, Path: in.Path, Content: in.Content, Speed: in.Speed,
-				Target: in.Target, Expect: in.Expect, FromText: in.FromText, ToText: in.ToText,
+				Target: in.Target, FromText: in.FromText, ToText: in.ToText,
 			})
 			if err != nil {
 				return out, err

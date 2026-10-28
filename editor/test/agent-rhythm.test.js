@@ -106,3 +106,58 @@ test('instant speed never sleeps', async () => {
   await agentType(view, { pos: 0, text: 'A. B.\n\nC' }, { speed: 'instant', sleep: async () => { slept++; } });
   assert.equal(slept, 0);
 });
+
+const paragraphs = (n) => Array.from({ length: n }, (_, i) => `第${i}段：这一段有好几个句子。每句都会停一下，逗号也会，最后还有段落之间的停顿。`).join('\n\n');
+
+// A fake clock driven by the sleeps, plus a cost per step, like a page's main thread.
+// `largest` is the biggest jump of the caret, which is what appears at once.
+function clocked(text, { budget, sleepFloor = 0 }) {
+  const lang = wikiMarkdownLanguage();
+  let t = 0;
+  let writes = 0;
+  let largest = 0;
+  const view = {
+    state: EditorState.create({ doc: '', extensions: [lang, agentWritingExtension] }),
+    dispatch(...specs) {
+      const before = view.state.selection.main.head;
+      view.state = view.state.update(...specs).state;
+      largest = Math.max(largest, view.state.selection.main.head - before);
+      writes++;
+      t += 1;
+    },
+  };
+  const done = agentType(view, { pos: 0, text }, {
+    speed: 'normal', random: mid, now: () => t, deadline: budget,
+    sleep: async (ms) => { t += Math.max(ms, sleepFloor); },
+  });
+  return done.then((res) => ({ res, view, elapsed: t, writes, largest }));
+}
+
+test('long text types faster to finish within its deadline', async () => {
+  const text = paragraphs(40);
+  const free = await clocked(text, { budget: undefined });
+  assert.ok(free.elapsed > 60000, `unpaced takes ${free.elapsed}ms`);
+  const { res, view, elapsed, writes, largest } = await clocked(text, { budget: 30000 });
+  assert.equal(res.ok, true);
+  assert.equal(view.state.doc.toString(), text);
+  assert.ok(elapsed <= 30500, `took ${elapsed}ms`);
+  assert.ok(writes > text.length / 20, `still typed, in ${writes} writes`);
+  assert.ok(largest < 60, `no dump at the end: largest write ${largest} chars`);
+});
+
+test('short text keeps its natural rhythm under a deadline', async () => {
+  const text = paragraphs(2);
+  const free = await clocked(text, { budget: undefined });
+  const paced = await clocked(text, { budget: 30000 });
+  assert.equal(paced.elapsed, free.elapsed);
+});
+
+// Background windows clamp timers to ~1s; bursts grow so typing still ends in time.
+test('throttled timers still finish by the deadline', async () => {
+  const text = paragraphs(40);
+  const { res, view, elapsed, largest } = await clocked(text, { budget: 30000, sleepFloor: 1000 });
+  assert.equal(res.ok, true);
+  assert.equal(view.state.doc.toString(), text);
+  assert.ok(elapsed <= 31000, `took ${elapsed}ms`);
+  assert.ok(largest < text.length / 4, `largest write ${largest} of ${text.length}`);
+});

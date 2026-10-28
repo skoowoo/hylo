@@ -75,7 +75,7 @@
       }
 
       var plan = op.kind === 'rewrite'
-        ? __hyloCM.planAgentRewrite(view.state, {target: op.target, expect: op.expect, fromText: op.from_text, toText: op.to_text}, op.content || '')
+        ? __hyloCM.planAgentRewrite(view.state, {target: op.target, fromText: op.from_text, toText: op.to_text}, op.content || '')
         : __hyloCM.planAgentInsert(view.state, {at: op.at, heading: op.heading}, op.content);
       if (plan.error) throw new Error(plan.error);
 
@@ -86,6 +86,7 @@
       window.__hyloContentPane.agentWriting = true;
       var res = await __hyloCM.agentType(view, plan, {
         speed: op.speed,
+        deadline: op.deadline,
         signal: ctrl.signal,
         isCurrent: function() { return s.view === view && s.currentPath === op.path; },
       });
@@ -94,6 +95,7 @@
       await __hyloAgentAck({id: op.id, ok: false, error: (e && e.message) || 'editor error', chars: 0});
     } finally {
       if (window.__hyloContentPane) window.__hyloContentPane.agentWriting = false;
+      if (s.dirty) __hyloEditorScheduleSave();
       if (wasReading && s.reading && s.view === view && s.currentPath === op.path && !s.readingActive && !s.inSource) {
         __hyloAgentSetReading(true);
       }
@@ -115,6 +117,8 @@
     es.addEventListener('op', function(e) {
       var op; try { op = JSON.parse(e.data); } catch (_) { return; }
       if (__hyloAgentSeen.has(op.id)) return;
+      // Counted from arrival, so waiting behind earlier ops spends it too.
+      if (typeof op.budget_ms === 'number') op.deadline = Date.now() + op.budget_ms;
       __hyloAgentSeen.add(op.id);
       if (__hyloAgentSeen.size > 500) __hyloAgentSeen.delete(__hyloAgentSeen.values().next().value);
       __hyloAgentQueued.add(op.id);

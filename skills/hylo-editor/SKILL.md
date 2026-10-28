@@ -41,10 +41,10 @@ Use the editor for writing the user is there to see: whatever `hylo-writing` wri
 Pass `path`, or omit it for the note the user has open. Returns the note as it is **in the editor**, unsaved edits included:
 
 - `path`: the note read.
-- `blocks`: `[{id, kind, text}]`, numbered `b1…bn` in document order, frontmatter excluded. `kind` is `heading`, `paragraph`, `list`, `code`, `quote`, `table`, `rule` or `htmlblock`; `text` is raw markdown.
+- `blocks`: `[{id, kind, text}]` in document order, frontmatter excluded. `kind` is `heading`, `paragraph`, `list`, `code`, `quote`, `table`, `rule` or `htmlblock`; `text` is raw markdown.
 - `selection`: `{text, blocks}` when the user has text selected.
 
-Block ids are **positional**, valid only until the note changes. Read again before every rewrite: the user may have edited since.
+A block id such as `b4k2x7` comes from the block's text: it stays valid until **that block** is edited, by you or the user, and edits elsewhere in the note don't affect it, except adding or removing another copy of the same text. Use ids exactly as read; never guess or compute one.
 
 ### editor_rewrite: replace or delete a region
 
@@ -53,7 +53,7 @@ Highlights the region, deletes it, and types `content` in its place; empty `cont
 | Target | How |
 | ------ | --- |
 | `target: "selection"` | What the user has selected *at the moment of the call*. |
-| `target: "b3"` or `"b3-b5"` | Whole blocks from `editor_read`. **Requires `expect`**: the region's first few words, copied from `editor_read`. |
+| `target: "b4k2x7"` or `"b4k2x7-b9x0m3"` | Whole blocks from `editor_read`; a range runs from the first id through the second, top to bottom. |
 | `from_text` (+ `to_text`) | Exact raw text where the region starts, occurring **once** in the note; with `to_text`, the region runs through its end. |
 
 For block targets, `content` is trimmed, and deleting whole blocks also removes the blank line between them.
@@ -64,8 +64,8 @@ For block targets, `content` is trimmed, and deleting whole blocks also removes 
 | ------- | -- |
 | `interrupted: true` | The user typed or cancelled and took over. Don't retype the rest or finish the job unasked; say where you stopped and ask how to proceed. After an interrupted rewrite, `editor_read` first: the region may be half-written. |
 | "no editor is open in Hylo" | Nothing was written. If the user asked to watch, ask them to open Hylo, then retry. Coming from `hylo-writing`, write the file as its `references/surface.md` says. |
-| "the editor disconnected…" | Part of the text may be in the note. Once the editor is back, `editor_read` and continue from what's there. |
-| "the note changed since it was read" | `editor_read` again; recompute ids and `expect`. |
+| "the editor disconnected…" or "the editor stopped responding…" | Part of the text may be in the note. `editor_read` (once the editor is back) and continue from what's there. Never fall back to writing the file. |
+| "block … is not in the note" | That block was edited since your read. `editor_read` again and use the fresh ids. |
 | "heading not found" | `editor_read` for the real headings; use the exact text, or drop `heading`. |
 | "from_text occurs more than once" | Quote more surrounding text. |
 | "nothing is selected in the editor" | Ask them to select it, or target it by block or `from_text`. |
@@ -77,14 +77,14 @@ For block targets, `content` is trimmed, and deleting whole blocks also removes 
 - **Write a new note.** `editor_type` the title and first section, then one `editor_type` at `end` per further section.
 - **Add to a section.** `editor_type` with `heading`. A new section: include its heading line in `content`, at `end` or under its parent via `heading`.
 - **Continue where the user is.** `editor_type` with `at: "cursor"`, after an `editor_read` if you need the surrounding text.
-- **Revise blocks.** `editor_read`, pick the blocks, `editor_rewrite` with `target: "bN"` or `"bN-bM"` and `expect` set to the first words of `bN`.
+- **Revise blocks.** `editor_read`, pick the blocks, `editor_rewrite` with their id or an id range as `target`.
 - **Rewrite the selection.** `editor_read` for `selection.text`, then `target: "selection"` right away. If other calls come in between, the selection may have moved: use `from_text`/`to_text` copied from `selection.text`.
-- **Several edits in one note.** Work bottom to top so the ids above stay valid, or `editor_read` after each.
+- **Several edits in one note.** One `editor_read` serves them all: a rewrite only changes the ids of the blocks it replaced, and of any block it wrote a second copy of. Read again only to target text you just wrote.
 
 ## Best practices
 
 - **One call at a time.** Ops run in order; wait for each result.
-- **Chunk long writing by section.** `normal` types about 40–70 characters a second, so 3,000 characters take a minute. Sections show progress, make interruptions cheap and avoid tool timeouts.
+- **Chunk long writing by section.** A call always finishes within about 40 seconds: `normal` types around 25 characters a second, and longer content is typed faster to fit, so past roughly 1,000 characters it rushes. Sections keep the natural pace, show progress and make interruptions cheap.
 - **Typing steals focus.** Every op opens its note and scrolls to the caret. Stay on the note the user is in unless asked, and don't hop between notes.
 - **Write complete constructs.** Close every code fence (the editor auto-closes one as you open it), give tables their separator row, and put a blank line before a `---` rule, or it turns the paragraph above into a heading.
 - **Link with care.** Links to missing notes render broken; check a target with `resolve` or `search` first, unless it's a placeholder for a note to write later.

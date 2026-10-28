@@ -29,6 +29,10 @@ func (rw *responseWriter) Flush() {
 	}
 }
 
+// Unwrap lets http.ResponseController reach the connection, so streams can lift
+// the server's write timeout.
+func (rw *responseWriter) Unwrap() http.ResponseWriter { return rw.ResponseWriter }
+
 // Logger logs each request with method, path, status, and duration.
 func Logger(logger *slog.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {

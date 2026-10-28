@@ -61,3 +61,20 @@ test('a mindmap that grows while the caret is outside stays fitted', async (t) =
     await page.close();
   }
 });
+
+// A <style> inside a card adds and removes a stylesheet whenever the card enters or leaves
+// CM's viewport, and WebKit moved the editor's scroll in that frame (the real app jumped back
+// a card's height while paging slowly through mindmap-demo.md).
+test('mindmap cards keep no stylesheet inside the note', async (t) => {
+  if (launchError) return t.skip('WebKit unavailable');
+  const page = await browser.newPage({ viewport: { width: 900, height: 700 } });
+  try {
+    await page.goto(server.url + '/?f=mindmap-demo.md');
+    await page.waitForFunction(() => window.ready);
+    await page.waitForSelector('.cm-card-widget svg g.markmap-node');
+    const styles = await page.evaluate(() => window.view.contentDOM.querySelectorAll('style').length);
+    assert.equal(styles, 0);
+  } finally {
+    await page.close();
+  }
+});

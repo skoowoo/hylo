@@ -1,4 +1,4 @@
-import { Markmap, childSelector } from 'markmap-view';
+import { Markmap, childSelector, globalCSS } from 'markmap-view';
 import { walkTree } from 'markmap-common';
 
 // renderData is ported from markmap-view 0.18.12 (src/view.ts); keep the version pinned and
@@ -40,7 +40,28 @@ function hiddenCount(node) {
 const toggleWidth = (node) =>
   node.payload?.fold ? Math.max(TOGGLE, 6 + 6 * String(hiddenCount(node)).length) : TOGGLE;
 
+// markmap keeps a <style> inside each svg; a card entering or leaving CM's viewport then
+// changes the page's stylesheets, and WebKit moves the editor's scroll in that frame.
+// Its CSS lives in <head> once instead.
+function ensureGlobalCSS() {
+  if (document.getElementById('hy-markmap-css')) return;
+  const el = document.createElement('style');
+  el.id = 'hy-markmap-css';
+  el.textContent = globalCSS;
+  document.head.prepend(el);
+}
+
 export class HyloMarkmap extends Markmap {
+  constructor(svg, opts) {
+    super(svg, opts);
+    ensureGlobalCSS();
+    this.styleNode.remove();
+  }
+
+  updateStyle() {
+    this.svg.classed('markmap', true);
+  }
+
   static create(svg, opts, data = null) {
     const mm = new HyloMarkmap(svg, opts);
     if (data) mm.setData(data).then(() => mm.fit());
@@ -57,7 +78,9 @@ export class HyloMarkmap extends Markmap {
   async renderData(originData) {
     const { paddingX, autoFit, maxWidth, lineWidth } = this.options;
     const rootNode = this.state.data;
-    if (!rootNode) return;
+    // markmap's own ResizeObserver fires when a parked card is detached; measured then,
+    // every box is 0×0 and the map collapses until the card is back and re-measured.
+    if (!rootNode || !this.svg.node().isConnected) return;
 
     // The box drawn by CSS spans the foreignObject, which is inset by paddingX.
     const exitPoint = (r) => [r.x + Math.max(0, r.width - paddingX), r.y + r.height / 2];

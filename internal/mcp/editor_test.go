@@ -153,12 +153,12 @@ func TestEditorRewriteForwardsTarget(t *testing.T) {
 		got <- op
 		return editorbus.Result{OK: true, Chars: 3}
 	})
-	m, isErr := call(t, cs, "editor_rewrite", map[string]any{"path": "/a.md", "content": "new", "target": "b2", "expect": "First"})
+	m, isErr := call(t, cs, "editor_rewrite", map[string]any{"path": "/a.md", "content": "new", "target": "b4k2x7"})
 	if isErr || m["chars"] != float64(3) {
 		t.Fatalf("m=%v err=%v", m, isErr)
 	}
 	op := <-got
-	if op.Kind != editorbus.KindRewrite || op.Target != "b2" || op.Expect != "First" || op.Content != "new" {
+	if op.Kind != editorbus.KindRewrite || op.Target != "b4k2x7" || op.Content != "new" {
 		t.Fatalf("op = %+v", op)
 	}
 	if len(*writes) != 0 {
@@ -172,7 +172,7 @@ func TestEditorRewriteReportsEditorError(t *testing.T) {
 	fakeEditor(t, bus, func(editorbus.Op) editorbus.Result {
 		return editorbus.Result{Error: "the note changed since it was read; call editor_read again"}
 	})
-	if _, isErr := call(t, cs, "editor_rewrite", map[string]any{"path": "/a.md", "content": "x", "target": "b1", "expect": "y"}); !isErr {
+	if _, isErr := call(t, cs, "editor_rewrite", map[string]any{"path": "/a.md", "content": "x", "target": "b4k2x7"}); !isErr {
 		t.Fatal("expected the editor's error to surface")
 	}
 }

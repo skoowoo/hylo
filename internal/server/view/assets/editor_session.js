@@ -53,6 +53,8 @@
   }
   async function __hyloEditorDoSave() {
     if (!__hyloEditor.dirty) return;
+    // The agent's text is in the doc before it is shown; the editor saves once it is done.
+    if (window.__hyloContentPane && window.__hyloContentPane.agentWriting) return;
     var path = __hyloEditor.currentPath;
     var content = __hyloEditor.currentMd;
     if (!path) return;

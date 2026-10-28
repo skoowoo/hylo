@@ -5,7 +5,8 @@ import { parseOutline } from './mindmap-tree.js';
 // Widgets are rebuilt when scrolled out of view; folds and pan/zoom survive by source text.
 const viewCache = new Map();
 const CACHE_MAX = 100;
-// Only user-driven changes (fold, fit) animate; initial draw, edits, resize and theme swaps snap.
+// Only user-driven changes (fold, fit, zoom) animate; everything else snaps, including
+// markmap's own re-render when a node's box resizes.
 const ANIM_MS = 140;
 
 function remember(source, state) {
@@ -52,7 +53,7 @@ export function mount(el, source, ctx = {}) {
   const mm = HyloMarkmap.create(svg, {
     lineWidth: () => 1.5,
     pan: false,
-    duration: ANIM_MS,
+    duration: 0,
     maxWidth: 260,
     paddingX: 8,
     spacingVertical: 8,
@@ -63,15 +64,15 @@ export function mount(el, source, ctx = {}) {
   // Plain wheel must keep scrolling the note; only ⌘/Ctrl+wheel zooms.
   mm.zoom.filter((e) => (e.type === 'wheel' ? e.ctrlKey || e.metaKey : !e.button));
 
-  // Counted so overlapping snaps don't restore the animation under each other.
-  let snapping = 0;
-  const instant = async (fn) => {
-    snapping++;
-    mm.options.duration = 0;
+  // Counted so overlapping animations don't switch it off under each other.
+  let animating = 0;
+  const animated = async (fn) => {
+    animating++;
+    mm.options.duration = ANIM_MS;
     try {
       return await fn();
     } finally {
-      if (--snapping === 0) mm.options.duration = ANIM_MS;
+      if (--animating === 0) mm.options.duration = 0;
     }
   };
 
@@ -93,7 +94,7 @@ export function mount(el, source, ctx = {}) {
 
   const origToggle = mm.toggleNode.bind(mm);
   mm.toggleNode = async (...args) => {
-    await origToggle(...args);
+    await animated(() => origToggle(...args));
     save();
   };
 
@@ -101,11 +102,11 @@ export function mount(el, source, ctx = {}) {
     if (ownsView && transform) {
       mm.svg.call(mm.zoom.transform, zoomIdentity.translate(transform.x, transform.y).scale(transform.k));
     } else {
-      return instant(() => mm.fit());
+      return mm.fit();
     }
   };
 
-  const render = (refit) => instant(() => mm.setData(annotate(parseOutline(current), folds)))
+  const render = (refit) => mm.setData(annotate(parseOutline(current), folds))
     .then(() => refit && place())
     .catch(onError);
   render(true);
@@ -118,7 +119,7 @@ export function mount(el, source, ctx = {}) {
     const next = `${el.clientWidth}x${el.clientHeight}`;
     if (next === size) return;
     size = next;
-    if (!touched) instant(() => mm.fit());
+    if (!touched) mm.fit();
   });
   ro.observe(el);
 
@@ -135,11 +136,11 @@ export function mount(el, source, ctx = {}) {
     fit() {
       touched = false;
       save();
-      return mm.fit();
+      return animated(() => mm.fit());
     },
     zoom(factor) {
       touched = true;
-      return mm.rescale(factor).then(save);
+      return animated(() => mm.rescale(factor)).then(save);
     },
     destroy() {
       ro.disconnect();

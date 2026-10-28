@@ -100,6 +100,22 @@ func TestDispatchEditorGone(t *testing.T) {
 
 // A dropped SSE connection is not a lost page: the op is replayed on reconnect and
 // the page's ack still completes it.
+func TestReloadedFocusedPageTakesOver(t *testing.T) {
+	b := New()
+	other := b.subscribe("other")
+	old := b.subscribe("old")
+	b.Focus("old")
+	b.unsubscribe(old)
+	reloaded := b.subscribe("new")
+	go func() { b.Ack(Result{ID: (<-reloaded.ch).data.(Op).ID, OK: true}) }()
+	if _, err := b.Dispatch(context.Background(), Op{}); err != nil {
+		t.Fatal(err)
+	}
+	if len(other.ch) != 0 {
+		t.Fatal("op went to another window")
+	}
+}
+
 func TestDispatchSurvivesReconnect(t *testing.T) {
 	defer func(g time.Duration) { reconnectGrace = g }(reconnectGrace)
 	reconnectGrace = 200 * time.Millisecond
@@ -176,5 +192,54 @@ func TestAckAcceptsLargeRead(t *testing.T) {
 	b.AckPOST(rec, httptest.NewRequest(http.MethodPost, "/", bytes.NewBufferString(body)))
 	if rec.Code != http.StatusNoContent {
 		t.Fatalf("code = %d", rec.Code)
+	}
+}
+
+// An op issued while the page's SSE is reconnecting waits for it instead of failing.
+func TestDispatchDuringReconnectIsDeliveredOnReconnect(t *testing.T) {
+	b := New()
+	s := b.subscribe("page")
+	b.unsubscribe(s)
+	if !b.Connected() {
+		t.Fatal("a reconnecting page counts as connected")
+	}
+	done := make(chan Result, 1)
+	go func() {
+		r, _ := b.Dispatch(context.Background(), Op{Content: "x"})
+		done <- r
+	}()
+	time.Sleep(20 * time.Millisecond)
+	op := recv(t, b.subscribe("page")).data.(Op)
+	if op.BudgetMS <= 0 || op.BudgetMS > replyBudget.Milliseconds() {
+		t.Fatalf("budget = %d", op.BudgetMS)
+	}
+	b.Ack(Result{ID: op.ID, OK: true})
+	if r := <-done; !r.OK {
+		t.Fatalf("r = %+v", r)
+	}
+}
+
+// Nothing reached the page, so the caller may safely write the note another way.
+func TestUndeliveredOpReportsNoEditor(t *testing.T) {
+	defer func(g time.Duration) { reconnectGrace = g }(reconnectGrace)
+	reconnectGrace = 20 * time.Millisecond
+	b := New()
+	b.unsubscribe(b.subscribe("page"))
+	if _, err := b.Dispatch(context.Background(), Op{}); !errors.Is(err, ErrNoEditor) {
+		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestDispatchStopsAStuckEditor(t *testing.T) {
+	defer func(r, a time.Duration) { replyBudget, ackGrace = r, a }(replyBudget, ackGrace)
+	replyBudget, ackGrace = 20*time.Millisecond, 10*time.Millisecond
+	b := New()
+	s := b.subscribe("")
+	if _, err := b.Dispatch(context.Background(), Op{}); !errors.Is(err, ErrEditorStuck) {
+		t.Fatalf("err = %v", err)
+	}
+	recv(t, s)
+	if e := recv(t, s); e.name != "cancel" {
+		t.Fatalf("event = %s", e.name)
 	}
 }

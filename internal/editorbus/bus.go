@@ -1,6 +1,6 @@
 // Package editorbus lets server-side callers (MCP tools) drive the browser's live
 // editor: an op is pushed to the page over SSE and the caller blocks until the page
-// acks that typing finished.
+// acks that typing finished, which the page paces to happen within the op's budget.
 package editorbus
 
 import (
@@ -11,14 +11,14 @@ import (
 	"net/http"
 	"sync"
 	"time"
-	"unicode/utf8"
 
 	"github.com/google/uuid"
 )
 
 var (
-	ErrNoEditor   = errors.New("no editor connected")
-	ErrEditorGone = errors.New("editor disconnected")
+	ErrNoEditor    = errors.New("no editor connected")
+	ErrEditorGone  = errors.New("editor disconnected")
+	ErrEditorStuck = errors.New("editor did not finish in time")
 )
 
 // reconnectGrace is how long an op survives its page's SSE dropping; the page keeps
@@ -28,12 +28,12 @@ var reconnectGrace = 10 * time.Second
 // maxAckBytes bounds an ack; a read carries the whole note.
 const maxAckBytes = 16 << 20
 
-// opTimeout bounds one op, queueing in the page included. 100ms per char stays
-// above the slowest speed with its pauses.
-func opTimeout(op Op) time.Duration {
-	d := 2*time.Minute + time.Duration(utf8.RuneCountInString(op.Content))*100*time.Millisecond
-	return min(d, time.Hour)
-}
+// replyBudget bounds an op, queueing included: agent CLIs abandon a tool call after
+// as little as 60s and would then write the note another way.
+var replyBudget = 40 * time.Second
+
+// ackGrace covers delivery and the ack's round trip past the budget.
+var ackGrace = 10 * time.Second
 
 // Op kinds.
 const (
@@ -52,11 +52,12 @@ type Op struct {
 	At      string `json:"at,omitempty"`
 	Heading string `json:"heading,omitempty"`
 	Speed   string `json:"speed,omitempty"`
-	// Rewrite target: "selection" or a block id/range, which needs Expect; else FromText..ToText.
+	// Rewrite target: "selection" or a block id/range; else FromText..ToText.
 	Target   string `json:"target,omitempty"`
-	Expect   string `json:"expect,omitempty"`
 	FromText string `json:"from_text,omitempty"`
 	ToText   string `json:"to_text,omitempty"`
+	// BudgetMS is what is left of the op's budget when the page receives it.
+	BudgetMS int64 `json:"budget_ms"`
 	// Run is the agent run that issued the op, so cancelling that run stops it; "" when unknown.
 	Run string `json:"-"`
 }
@@ -86,11 +87,25 @@ type sub struct {
 }
 
 type pending struct {
-	op     Op
-	client string
-	res    chan Result
-	gone   chan struct{}
-	closed bool
+	op       Op
+	client   string
+	deadline time.Time
+	res      chan Result
+	gone     chan struct{}
+	// delivered: the page got the op, so it may have written part of it.
+	delivered bool
+	closed    bool
+}
+
+// sendTo delivers p to s with what is left of its budget. Caller holds mu.
+func (p *pending) sendTo(s *sub) bool {
+	op := p.op
+	op.BudgetMS = max(0, time.Until(p.deadline).Milliseconds())
+	if !s.send(event{"op", op}) {
+		return false
+	}
+	p.delivered = true
+	return true
 }
 
 type Bus struct {
@@ -101,17 +116,19 @@ type Bus struct {
 	active string
 	// cancels holds cancels for a client that was offline when they were issued.
 	cancels map[string][]string
+	// dropped holds clients whose connection dropped, while they may still reconnect.
+	dropped map[string]bool
 }
 
 func New() *Bus {
-	return &Bus{pending: map[string]*pending{}, cancels: map[string][]string{}}
+	return &Bus{pending: map[string]*pending{}, cancels: map[string][]string{}, dropped: map[string]bool{}}
 }
 
-// Connected reports whether any editor page is listening.
+// Connected reports whether an editor page is listening or about to reconnect.
 func (b *Bus) Connected() bool {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	return len(b.subs) > 0
+	return len(b.subs) > 0 || len(b.dropped) > 0
 }
 
 // Busy reports whether any op is in flight.
@@ -131,9 +148,14 @@ func (b *Bus) subscribe(client string) *sub {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	b.subs = append(b.subs, s)
+	// The focused window went away: a page arriving now is most likely it, reloaded under a new id.
+	if b.active != client && b.dropped[b.active] {
+		b.active = client
+	}
+	delete(b.dropped, client)
 	for _, p := range b.pending {
 		if p.client == client {
-			s.send(event{"op", p.op})
+			p.sendTo(s)
 		}
 	}
 	for _, id := range b.cancels[client] {
@@ -155,6 +177,7 @@ func (b *Bus) unsubscribe(s *sub) {
 	if b.subFor(s.client) != nil {
 		return
 	}
+	b.dropped[s.client] = true
 	time.AfterFunc(reconnectGrace, func() { b.expire(s.client) })
 }
 
@@ -165,6 +188,7 @@ func (b *Bus) expire(client string) {
 	if b.subFor(client) != nil {
 		return
 	}
+	delete(b.dropped, client)
 	delete(b.cancels, client)
 	for _, p := range b.pending {
 		if p.client == client && !p.closed {
@@ -212,22 +236,39 @@ func (b *Bus) Focus(client string) {
 	b.mu.Unlock()
 }
 
-// Dispatch sends op to the focused editor (else the newest) and waits for its ack.
+// target picks the client for the next op: the focused window, else the newest
+// connection, else a window that is reconnecting (its ops are sent on reconnect).
 // Typing into two windows of the same note would fight over the file, so only one gets it.
+// Caller holds mu.
+func (b *Bus) target() (string, *sub) {
+	if s := b.subFor(b.active); s != nil {
+		return s.client, s
+	}
+	if b.dropped[b.active] {
+		return b.active, nil
+	}
+	if len(b.subs) > 0 {
+		s := b.subs[len(b.subs)-1]
+		return s.client, s
+	}
+	for c := range b.dropped {
+		return c, nil
+	}
+	return "", nil
+}
+
+// Dispatch sends op to an editor and waits for its ack.
 func (b *Bus) Dispatch(ctx context.Context, op Op) (Result, error) {
 	b.mu.Lock()
-	if len(b.subs) == 0 {
+	client, s := b.target()
+	if client == "" {
 		b.mu.Unlock()
 		return Result{}, ErrNoEditor
 	}
-	s := b.subFor(b.active)
-	if s == nil {
-		s = b.subs[len(b.subs)-1]
-	}
 	op.ID = uuid.NewString()
-	p := &pending{op: op, client: s.client, res: make(chan Result, 1), gone: make(chan struct{})}
+	p := &pending{op: op, client: client, deadline: time.Now().Add(replyBudget), res: make(chan Result, 1), gone: make(chan struct{})}
 	b.pending[op.ID] = p
-	ok := s.send(event{"op", op})
+	ok := s == nil || p.sendTo(s)
 	b.mu.Unlock()
 
 	defer func() {
@@ -239,7 +280,7 @@ func (b *Bus) Dispatch(ctx context.Context, op Op) (Result, error) {
 		return Result{}, fmt.Errorf("editor queue full")
 	}
 
-	timer := time.NewTimer(opTimeout(op))
+	timer := time.NewTimer(replyBudget + ackGrace)
 	defer timer.Stop()
 	select {
 	case r := <-p.res:
@@ -248,10 +289,16 @@ func (b *Bus) Dispatch(ctx context.Context, op Op) (Result, error) {
 		b.cancel(op.ID, p)
 		return Result{}, ctx.Err()
 	case <-p.gone:
+		b.mu.Lock()
+		delivered := p.delivered
+		b.mu.Unlock()
+		if !delivered {
+			return Result{}, ErrNoEditor
+		}
 		return Result{}, ErrEditorGone
 	case <-timer.C:
 		b.cancel(op.ID, p)
-		return Result{}, errors.New("editor did not finish in time")
+		return Result{}, ErrEditorStuck
 	}
 }
 

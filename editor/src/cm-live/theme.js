@@ -504,22 +504,9 @@ export const livePreviewTheme = EditorView.theme({
   '.cm-fm-bool': { color: 'var(--muted, #6d7080)' },
   '.cm-fm-bool-on': { color: 'var(--fg, #18181b)' },
 
-  // ── Tables — a row is one markdown source line; cells are Decoration.mark
-  // spans on it, so there's no real <table> to lean on. flex covers the two
-  // things a real <table> would give for free:
-  //   1. align-items:stretch (the default) equalizes every cell's height to
-  //      the tallest one in the row, so a cell that wraps to 2+ lines
-  //      doesn't leave its siblings' borders drawn at their own shorter
-  //      height (which read as a broken/staggered grid).
-  //   2. Per-cell flex-grow + min-width (set inline in decorators.js,
-  //      driven by tableColumnWeights/tableColumnMinEm) instead of a flat
-  //      width:X% — a width tied purely to "this column's share of every
-  //      column's combined weight" lets one long-text column inflate the
-  //      total and squeeze a short label column below the width its own
-  //      content needs (it'd wrap one character per line despite the row
-  //      having plenty of spare width overall). min-width guarantees every
-  //      column at least enough room for its own content; only space left
-  //      over after that is split by weight.
+  // ── Tables — a row is one source line drawn as a flex row of cell marks
+  // (tables-decorate.js): stretch gives a wrapped cell's siblings its height,
+  // and inline flex/min-width per column stand in for <table> auto layout.
   '.cm-lp-table-row': { display: 'flex', alignItems: 'stretch' },
   '.cm-lp-table-cell': {
     boxSizing: 'border-box',
@@ -542,26 +529,15 @@ export const livePreviewTheme = EditorView.theme({
   // Keep last-row bottom border — no outer <table> to close the box.
   '.cm-lp-table-row-last .cm-lp-table-cell-first': { borderBottomLeftRadius: 'var(--r-sm, 6px)' },
   '.cm-lp-table-row-last .cm-lp-table-cell-last': { borderBottomRightRadius: 'var(--r-sm, 6px)' },
-  // Row under the caret: plain source in the cells' box — same font, padding
-  // and frame borders — so the switch never changes the row's height.
-  '.cm-lp-table-raw': {
+  // A delimiter row typed into shows raw inside the table's frame.
+  '.cm-lp-table-delim-raw': {
     fontSize: 'var(--text-base, 0.875rem)',
-    color: 'var(--td-tx, #374151)',
+    color: 'var(--muted-soft, rgba(60,60,67,0.35))',
     padding: '0.45rem 0.75rem !important',
     border: '1px solid var(--tbl-bd, rgba(24,24,27,0.12))',
     borderTop: 'none',
     borderRadius: '0',
   },
-  '.cm-lp-table-raw-header': {
-    borderTop: '1px solid var(--tbl-bd, rgba(24,24,27,0.12))',
-    borderTopLeftRadius: 'var(--r-sm, 6px)',
-    borderTopRightRadius: 'var(--r-sm, 6px)',
-  },
-  '.cm-lp-table-raw-last': {
-    borderBottomLeftRadius: 'var(--r-sm, 6px)',
-    borderBottomRightRadius: 'var(--r-sm, 6px)',
-  },
-  '.cm-lp-table-raw-delim, .cm-lp-table-pipe': { color: 'var(--muted-soft, rgba(60,60,67,0.35))' },
   // Hairline: shrink line font + inline-block widget (not block — splits buffers).
   '.cm-lp-table-delim': { fontSize: '1px', lineHeight: '1px' },
   '.cm-lp-table-delim-widget': { display: 'inline-block', height: '0' },

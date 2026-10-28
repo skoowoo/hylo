@@ -1,9 +1,14 @@
-// ── GFM tables — per-line decorations; cells are inline-block + % width
-// (shared across rows). No block widget / contenteditable.
+// ── GFM tables — each row line is a flex row of cell marks sized by shared
+// column weights. Rows stay drawn as cells with the caret in them: the source
+// line wraps nothing like its cells do, so showing it raw changed the row's
+// height and every column's width. Inline syntax inside a cell still reveals
+// around the caret like anywhere else; structure is edited with Tab/Enter or
+// in source mode.
 import { Decoration } from '@codemirror/view';
 import { caretOnLine } from './selection.js';
-import { TableEmptyCellWidget, TableDelimiterWidget } from './widgets.js';
-import { hideRange, styleRange } from './decoration-helpers.js';
+import { TableEmptyCellWidget, TableDelimiterWidget, TableBreakWidget } from './widgets.js';
+import { hideRange } from './decoration-helpers.js';
+import { rowCells, cellText } from './table-rows.js';
 
 function tableAlignments(tableNode, doc) {
   const delim = tableNode.getChild('TableDelimiter');
@@ -51,7 +56,7 @@ function tableColumnWeights(tableNode, doc) {
         if (cur.name === 'TableDelimiter') {
           colIndex++;
         } else if (cur.name === 'TableCell') {
-          const len = doc.sliceString(cur.from, cur.to).length;
+          const len = Math.max(...doc.sliceString(cur.from, cur.to).split(/<br\s*\/?>/i).map((s) => s.length));
           if (weights[colIndex] === undefined || len > weights[colIndex]) weights[colIndex] = len;
         }
       } while (cur.nextSibling());
@@ -87,7 +92,7 @@ export function decorateTableDelimiterRow(node, view, decos) {
   const state = view.state;
   const line = state.doc.lineAt(node.from);
   if (caretOnLine(state, line)) {
-    decos.push(Decoration.line({ class: 'cm-lp-table-raw cm-lp-table-raw-delim' }).range(line.from));
+    decos.push(Decoration.line({ class: 'cm-lp-table-delim-raw' }).range(line.from));
     return;
   }
   decos.push(Decoration.line({ class: 'cm-lp-table-row cm-lp-table-delim' }).range(line.from));
@@ -103,72 +108,52 @@ function decorateTableRow(isHeader) {
     const last = tableNode && tableNode.lastChild;
     const isLastRow = !isHeader && !!last && last.from === node.from && last.to === node.to;
 
-    // The row being edited stays a plain text line (inside the flex row its
-    // text runs and spans would become separate flex items), framed by the
-    // same borders and padding as its cells, so the table keeps its shape.
-    if (caretOnLine(state, line)) {
-      const raw = ['cm-lp-table-raw'];
-      if (isHeader) raw.push('cm-lp-table-raw-header');
-      if (isLastRow) raw.push('cm-lp-table-raw-last');
-      decos.push(Decoration.line({ class: raw.join(' ') }).range(line.from));
-      for (const pipe of node.node.getChildren('TableDelimiter')) styleRange(pipe.from, pipe.to, 'cm-lp-table-pipe', decos);
-      return;
-    }
-
     const rowClasses = ['cm-lp-table-row'];
     if (isHeader) rowClasses.push('cm-lp-table-row-header');
     if (isLastRow) rowClasses.push('cm-lp-table-row-last');
     decos.push(Decoration.line({ class: rowClasses.join(' ') }).range(line.from));
 
     const layout = tableNode ? getTableLayout(tableNode, doc, tableCache) : { alignments: [], weights: [] };
-    const alignments = layout.alignments;
-    const weights = layout.weights;
-
-    const colCells = [];
-    let colIndex = -1;
-    const cur = node.node.cursor();
-    if (cur.firstChild()) {
-      do {
-        if (cur.name === 'TableDelimiter') {
-          colIndex++;
-        } else if (cur.name === 'TableCell') {
-          colCells[colIndex] = { from: cur.from, to: cur.to };
-        }
-      } while (cur.nextSibling());
-    }
+    const { alignments, weights } = layout;
+    const cells = rowCells(state, node.node);
 
     // Column count from header alignments — trailing empty cells still need boxes.
-    const colCount = Math.max(alignments.length, weights.length, colCells.length);
+    const colCount = Math.max(alignments.length, weights.length, cells.length);
     let total = 0;
     for (let col = 0; col < colCount; col++) total += weights[col] || 4;
-    let pos = line.from;
+    hideRange(line.from, node.from, decos);
+    let pos = node.from;
     for (let col = 0; col < colCount; col++) {
       const cls = ['cm-lp-table-cell'];
       if (col === 0) cls.push('cm-lp-table-cell-first');
       if (col === colCount - 1) cls.push('cm-lp-table-cell-last');
       const align = alignments[col];
       const weight = weights[col] || 4;
-      // flex-grow:weight, flex-shrink:1, flex-basis:0% — divide the row's
-      // width by weight ratio same as before, but only after every column
-      // has already claimed its own min-width floor (tableColumnMinEm), so
-      // a short column can never be squeezed narrower than its own content
-      // needs just because a sibling column is much longer.
-      // The floor gives way to the column's weighted share of the row, so a table always fits the column.
+      // Every column first gets its own floor, then the leftover width goes by
+      // weight; the floor gives way to the weighted share so the table always fits.
       const styleParts = ['flex:' + weight + ' 1 0%', `min-width:min(${tableColumnMinEm(weight)}em,${(100 * weight) / total}%)`];
       if (align) styleParts.push('text-align:' + align);
       const style = styleParts.join(';');
-      const cell = colCells[col];
-      if (cell) {
-        hideRange(pos, cell.from, decos);
-        decos.push(Decoration.mark({ class: cls.join(' '), attributes: { style } }).range(cell.from, cell.to));
-        pos = cell.to;
-      } else {
-        decos.push(Decoration.widget({ widget: new TableEmptyCellWidget(cls.join(' '), style), side: 1 }).range(pos));
+      const cell = cells[col];
+      if (!cell) {
+        decos.push(Decoration.widget({ widget: new TableEmptyCellWidget(cls.join(' '), style), side: 1 }).range(line.to));
+        continue;
       }
+      // The cell's box owns its pipes and padding too, so no stray flex item sits
+      // between cells and a caret at a hidden edge is still drawn in its cell.
+      const end = col === cells.length - 1 ? line.to : cell.to;
+      const text = cellText(state, cell);
+      hideRange(pos, text.from, decos);
+      hideRange(text.to, end, decos);
+      decos.push(Decoration.mark({ class: cls.join(' '), attributes: { style }, inclusive: true }).range(pos, end));
+      pos = end;
     }
-    hideRange(pos, line.to, decos);
   };
 }
 
 export const decorateTableHeader = decorateTableRow(true);
 export const decorateTableBodyRow = decorateTableRow(false);
+
+export function decorateCellBreak(node, view, decos) {
+  decos.push(Decoration.replace({ widget: new TableBreakWidget() }).range(node.from, node.to));
+}

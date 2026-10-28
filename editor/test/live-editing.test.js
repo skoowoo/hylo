@@ -14,7 +14,8 @@ import { skipHairlines } from '../src/cm-live/live-preview.js';
 import { linkTarget } from '../src/cm-live/link-refs.js';
 import { wordRangeAt } from '../src/cm-live/cjk-words.js';
 import { toggleBold, toggleInlineCode, insertLink } from '../src/cm-live/inline-format.js';
-import { nextCell, previousCell, tableEnter } from '../src/cm-live/table-keys.js';
+import { nextCell, previousCell, tableEnter, cellBreak } from '../src/cm-live/table-keys.js';
+import { tableCaret } from '../src/cm-live/table-caret.js';
 import { applyTarget } from '../src/cm-live/wikilink-complete.js';
 import { revealedWidgetField, revealWidgetBeforeCaret, revealBlockBeforeCaret } from '../src/cm-live/widget-reveal.js';
 import { imageNodeAt, imageSpan } from '../src/cm-live/image-nodes.js';
@@ -157,11 +158,46 @@ test('Enter adds a row; Enter on an empty row leaves the table', () => {
   assert.equal(text(view), TABLE + '\n');
 });
 
+test('Shift-Enter breaks a cell with <br>, drawn even under the caret', () => {
+  const view = viewFor(TABLE, 23);
+  cellBreak(view);
+  assert.equal(text(view), TABLE.replace('| 1 |', '| 1<br> |'));
+  assert.deepEqual(sel(view), [27, 27]);
+  assert.ok(decoClasses(view).includes('TableBreakWidget'));
+  assert.equal(cellBreak(viewFor('plain', 2)), false);
+});
+
 test('Enter keeps a quoted table quoted', () => {
   const doc = '> | a | b |\n> |---|---|\n> | 1 | 2 |';
   const view = viewFor(doc, doc.length - 2);
   tableEnter(view);
   assert.equal(text(view), doc + '\n> |  |  |');
+});
+
+test('a table row stays cells under the caret, which steps over hidden pipes', () => {
+  const cells = (view) => decoClasses(view).filter((c) => /cm-lp-table-cell/.test(c)).length;
+  assert.equal(cells(viewFor(TABLE, 22)), cells(viewFor(TABLE, 0)));
+  const step = (from, to) => {
+    let state = EditorState.create({ doc: TABLE, selection: { anchor: from }, extensions: [lang, tableCaret, skipHairlines] });
+    ensureSyntaxTree(state, state.doc.length, 5000);
+    return state.update({ selection: { anchor: to } }).state.selection.main.head;
+  };
+  assert.equal(step(3, 4), 6);
+  assert.equal(step(6, 5), 3);
+  assert.equal(step(2, 0), 2);
+  assert.equal(step(9, 10), 22);
+  assert.equal(step(22, 19), 2);
+  assert.equal(step(22, 21), 7);
+  assert.equal(step(7, 8), 22);
+  const click = (doc, from, to) => {
+    let state = EditorState.create({ doc, selection: { anchor: from }, extensions: [lang, tableCaret, skipHairlines] });
+    ensureSyntaxTree(state, state.doc.length, 5000);
+    return state.update({ selection: { anchor: to }, userEvent: 'select.pointer' }).state.selection.main.head;
+  };
+  assert.equal(click(TABLE, 22, 29), 27);
+  assert.equal(click(TABLE + '   \nend', 22, 29), 27);
+  assert.equal(step(22, 20), 22);
+  assert.equal(step(22, 29), 27);
 });
 
 test('wikilink completion closes the link or replaces an existing target', () => {
@@ -311,9 +347,7 @@ test('a range selection leaves inline syntax and rows rendered; a caret reveals 
   const all = viewFor(doc, 0, doc.length);
   const caret = viewFor(doc, 4);
   assert.ok(hidden(all) > hidden(caret));
-  assert.ok(!decoClasses(all).some((c) => /table-raw/.test(c)));
   assert.ok(decoClasses(all).includes('HorizontalRuleWidget'));
-  assert.ok(decoClasses(viewFor(doc, doc.indexOf('| 1'))).some((c) => /table-raw/.test(c)));
   assert.ok(!decoClasses(viewFor(doc, doc.indexOf('---\n\nend'))).includes('HorizontalRuleWidget'));
 });
 

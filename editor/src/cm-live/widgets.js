@@ -338,7 +338,26 @@ export class HorizontalRuleWidget extends WidgetType {
   }
 }
 
-// Empty "| |" cell — no TableCell node; nbsp keeps box height.
+// <br> in a table cell. Drawn even under the caret, since showing its source
+// would rejoin the lines.
+export class TableBreakWidget extends WidgetType {
+  eq() {
+    return true;
+  }
+
+  toDOM() {
+    const span = document.createElement('span');
+    span.className = 'cm-lp-table-br';
+    span.appendChild(document.createElement('br'));
+    return span;
+  }
+
+  ignoreEvent() {
+    return false;
+  }
+}
+
+// A column the row has no cell for at all; nbsp keeps box height.
 export class TableEmptyCellWidget extends WidgetType {
   constructor(className, style) {
     super();

@@ -4,7 +4,7 @@ import { StateEffect, EditorState } from '@codemirror/state';
 import { syntaxTree } from '@codemirror/language';
 import { nodeDecorators, isHairlineLine } from './decorators.js';
 import { drawnRanges } from './decoration-helpers.js';
-import { readingModeToggled } from './selection.js';
+import { revealToggled, selectionMatters } from './selection.js';
 import { revealedWidgetField } from './widget-reveal.js';
 import { suppressedLinkRevealField } from './link-reveal-suppression.js';
 
@@ -20,7 +20,7 @@ export const wikiLinksRevalidated = StateEffect.define();
 const REVEAL_FIELDS = [revealedWidgetField, suppressedLinkRevealField];
 
 function revealChanged(a, b) {
-  return readingModeToggled(a, b) || REVEAL_FIELDS.some((f) => a.field(f, false) !== b.field(f, false));
+  return revealToggled(a, b) || REVEAL_FIELDS.some((f) => a.field(f, false) !== b.field(f, false));
 }
 
 class LivePreviewPlugin {
@@ -51,7 +51,8 @@ class LivePreviewPlugin {
     // A grown tree can add rows/definitions the cache was built without.
     if (update.docChanged || treeChanged) this.layoutCache.clear();
     const revalidated = update.transactions.some((tr) => tr.effects.some((e) => e.is(wikiLinksRevalidated)));
-    if (treeChanged || update.docChanged || update.viewportChanged || update.selectionSet || revalidated || revealChanged(update.startState, update.state)) {
+    const caretMatters = update.transactions.some(selectionMatters);
+    if (treeChanged || update.docChanged || update.viewportChanged || caretMatters || revalidated || revealChanged(update.startState, update.state)) {
       this.tree = tree;
       this.rebuild(update.view);
     }
@@ -90,7 +91,7 @@ export const livePreviewPlugin = ViewPlugin.fromClass(LivePreviewPlugin, {
 // would move every line below. Carry the caret on in the direction it moved:
 // a one-character step crossed the line break, a longer one keeps its column.
 export const skipHairlines = EditorState.transactionFilter.of((tr) => {
-  if (!tr.selection || tr.docChanged) return tr;
+  if (!tr.selection || tr.docChanged || tr.isUserEvent('select.agent')) return tr;
   const sel = tr.newSelection.main;
   if (!sel.empty) return tr;
   const state = tr.startState;

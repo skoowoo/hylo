@@ -4,7 +4,7 @@
 import { StateField, StateEffect, EditorState, EditorSelection, ChangeSet, Transaction } from '@codemirror/state';
 import { Decoration, EditorView, WidgetType } from '@codemirror/view';
 import { syntaxTree } from '@codemirror/language';
-import { headInBlock, readingModeToggled } from './selection.js';
+import { headInBlock, revealToggled, selectionMatters } from './selection.js';
 import { findFrontmatterNode } from './frontmatter-syntax.js';
 import { parseFrontmatter } from './frontmatter-yaml.js';
 import { wikiLinksRevalidated } from './live-preview.js';
@@ -373,9 +373,9 @@ export function frontmatterCardField(options = {}) {
       const tree = syntaxTree(tr.state);
       const rebuild =
         tr.docChanged ||
-        tr.selection ||
+        selectionMatters(tr) ||
         tree !== value.tree ||
-        readingModeToggled(tr.startState, tr.state) ||
+        revealToggled(tr.startState, tr.state) ||
         tr.effects.some((e) => e.is(setFrontmatterCollapsed) || e.is(wikiLinksRevalidated));
       return rebuild ? { decorations: build(tr.state, options), tree } : value;
     },

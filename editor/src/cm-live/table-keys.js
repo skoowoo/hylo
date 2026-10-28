@@ -1,29 +1,8 @@
 // Tab / Shift-Tab / Enter inside a GFM table: move between cells, append rows,
-// and leave the table from an empty last row.
+// and leave the table from an empty last row. Shift-Enter breaks a cell's line.
 import { keymap } from '@codemirror/view';
 import { Prec, EditorSelection } from '@codemirror/state';
-import { resolveAncestor } from './tree-utils.js';
-
-const isRow = (n) => n.name === 'TableHeader' || n.name === 'TableRow';
-
-function rowAt(state, pos) {
-  return resolveAncestor(state, pos, isRow, -1) || resolveAncestor(state, pos, isRow, 1);
-}
-
-// Content ranges between pipes; a row may omit its leading/trailing pipe.
-function rowCells(state, row) {
-  const pipes = row.getChildren('TableDelimiter');
-  let i = 0;
-  let start = row.from;
-  if (pipes.length && pipes[0].from === row.from) start = pipes[i++].to;
-  const cells = [];
-  for (; i < pipes.length; i++) {
-    cells.push({ from: start, to: pipes[i].from });
-    start = pipes[i].to;
-  }
-  if (start < row.to && state.doc.sliceString(start, row.to).trim()) cells.push({ from: start, to: row.to });
-  return cells;
-}
+import { isRow, rowAt, rowCells, CELL_BREAK } from './table-rows.js';
 
 // Select the cell's text so typing replaces it; an empty cell gets a caret after its pad space.
 function cellSelection(state, cell) {
@@ -106,6 +85,14 @@ export function tableEnter(view) {
   return insertRowAfter(view, row);
 }
 
+// A cell's source can't hold a newline; a <br> is its line break.
+export function cellBreak(view) {
+  const state = view.state;
+  if (state.readOnly || !rowAt(state, state.selection.main.head)) return false;
+  view.dispatch({ ...state.replaceSelection(CELL_BREAK), scrollIntoView: true, userEvent: 'input' });
+  return true;
+}
+
 export const nextCell = (view) => moveCell(view, 1);
 export const previousCell = (view) => moveCell(view, -1);
 
@@ -114,5 +101,6 @@ export const tableKeymap = Prec.highest(
     { key: 'Tab', run: nextCell },
     { key: 'Shift-Tab', run: previousCell },
     { key: 'Enter', run: tableEnter },
+    { key: 'Shift-Enter', run: cellBreak },
   ])
 );

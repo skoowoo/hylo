@@ -4,7 +4,7 @@
 import { StateField } from '@codemirror/state';
 import { Decoration, EditorView, WidgetType } from '@codemirror/view';
 import { syntaxTree } from '@codemirror/language';
-import { headInBlock, readingModeToggled } from '../selection.js';
+import { headInBlock, revealToggled, selectionMatters } from '../selection.js';
 import { cardEntry, cardFence } from './registry.js';
 import { LEAF_BLOCKS } from '../tree-utils.js';
 import { mountCard, returnEditorFocus } from './host.js';
@@ -167,7 +167,7 @@ export const cardState = StateField.define({
   update(value, tr) {
     const tree = syntaxTree(tr.state);
     const treeChanged = tree !== value.tree;
-    if (!tr.docChanged && !tr.selection && !treeChanged && !readingModeToggled(tr.startState, tr.state)) return value;
+    if (!tr.docChanged && !selectionMatters(tr) && !treeChanged && !revealToggled(tr.startState, tr.state)) return value;
     const found = tr.docChanged || treeChanged ? collect(tr.state) : value.found;
     return { found, decorations: build(tr.state, found), tree };
   },

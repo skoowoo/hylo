@@ -1,0 +1,1 @@
+import{a,b,c,d,e}from"./chunk-R3HVZ3JP.js";import"./chunk-XSTDEW75.js";import"./chunk-GJF3ARVF.js";import"./chunk-RBO4P254.js";import"./chunk-24JGFMM2.js";export{e as autoCloseTags,d as html,a as htmlCompletionSource,b as htmlCompletionSourceWith,c as htmlLanguage};

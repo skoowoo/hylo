@@ -7,7 +7,7 @@
 import { StateField, StateEffect } from '@codemirror/state';
 import { Decoration, EditorView, ViewPlugin } from '@codemirror/view';
 import { syntaxTree } from '@codemirror/language';
-import { selectionInsideRange, selectionCoversRange, readingModeToggled } from './selection.js';
+import { selectionInsideRange, selectionCoversRange, revealToggled, selectionMatters } from './selection.js';
 import { imageSpan } from './image-nodes.js';
 import { wikiNodeInner } from './wiki-syntax.js';
 import { ImageWidget } from './widgets.js';
@@ -87,7 +87,7 @@ export function imageField(options = {}) {
       const tree = syntaxTree(tr.state);
       const rescan = tr.docChanged || tree !== value.tree;
       const learned = tr.effects.some((e) => e.is(sizesLearned));
-      if (!rescan && !tr.selection && !learned && !readingModeToggled(tr.startState, tr.state)) return value;
+      if (!rescan && !selectionMatters(tr) && !learned && !revealToggled(tr.startState, tr.state)) return value;
       const images = rescan ? collect(tr.state, options) : value.images;
       return { images, decorations: build(tr.state, images), tree };
     },
