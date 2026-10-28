@@ -29,12 +29,12 @@
     node.textContent = text;
   }
 
-  var CHEVRON = '<svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 18l6-6-6-6"/></svg>';
-  var COPY_SVG = '<svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path stroke-linecap="round" stroke-linejoin="round" d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>';
-  var CHECK_SVG = '<svg fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20 6L9 17l-5-5"/></svg>';
-  var RETRY_SVG = '<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 1 1-3-6.7"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 3v6h-6"/></svg>';
-  var CHECK_MARK = '<svg class="seg-tool-check" fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
-  var CROSS_MARK = '<svg class="seg-tool-check" fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24"><path stroke-linecap="round" d="M7 7l10 10M17 7L7 17"/></svg>';
+  var CHEVRON = hyloIcon('chevron-right');
+  var COPY_SVG = hyloIcon('copy');
+  var CHECK_SVG = hyloIcon('check');
+  var RETRY_SVG = hyloIcon('retry');
+  var CHECK_MARK = hyloIcon('check', 'seg-tool-check');
+  var CROSS_MARK = hyloIcon('close', 'seg-tool-check');
 
   // ── View state the kernel's messages don't carry ────────────────────
   // Keyed by the message, which the kernel keeps across merges and remounts.

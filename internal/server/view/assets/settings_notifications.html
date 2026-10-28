@@ -16,7 +16,7 @@
                       <button type="button" class="icon-btn icon-btn--lg" title="Preview sound"
                               :disabled="notifySettings.sound === 'none'"
                               @click="window.hyloDesktop?.inboxNotify?.previewSound(notifySettings.sound)">
-                        <svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 4v16l13-8z"/></svg>
+                        {{icon "play"}}
                       </button>
                     </div>
                     <p class="settings-field-desc">Sound played when a new inbox message arrives.</p>

@@ -539,14 +539,9 @@
   }
 
   // ── Search panel (custom, top-anchored) ─────────────────────────────────────
-  var SR_ICON = {
-    close: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
-    expand: '<path d="m9 6 6 6-6 6"/>',
-    up: '<path d="m18 15-6-6-6 6"/>',
-    down: '<path d="m6 9 6 6 6-6"/>',
-  };
+  var SR_ICON = { close: 'close', expand: 'chevron-right', up: 'chevron-up', down: 'chevron-down' };
   function srIcon(name) {
-    return '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + SR_ICON[name] + '</svg>';
+    return hyloIcon(SR_ICON[name], 'width="11" height="11"');
   }
 
   function __hyloCreateSearchPanel(view) {

@@ -3,15 +3,14 @@ package view
 import (
 	"fmt"
 	"html/template"
+	"net/url"
 	"strconv"
+	"strings"
 )
 
 // Line icons are Lucide-based (ISC, see THIRD_PARTY_NOTICES). Sources live in
-// icons/*.svg and `make icons` compiles them into shared_icons_line.go;
-// /dev/icons shows them all.
-
-// lineIconStroke is the drawn stroke of every line icon, in 24px-box units.
-const lineIconStroke = 2
+// icons/*.svg; `make icons` compiles them into shared_icons_line.go (with the
+// stroke width) and assets/shared_icons_line.js; /dev/icons shows them all.
 
 type lineIconDef struct {
 	Paths string
@@ -25,14 +24,26 @@ type lineIconDef struct {
 	Changes string
 }
 
-func (d lineIconDef) svg(class string) template.HTML {
+// svg renders the icon. attrs is a class name, or raw attributes when it
+// holds an "=" (sizes, Alpine bindings); a fill or stroke there replaces the
+// line defaults, for a solid state such as a pinned badge.
+func (d lineIconDef) svg(attrs string) template.HTML {
 	half := 12 / d.Zoom
-	cls := ""
-	if class != "" {
-		cls = ` class="` + template.HTMLEscapeString(class) + `"`
+	extra := ""
+	if strings.Contains(attrs, "=") {
+		extra = " " + attrs
+	} else if attrs != "" {
+		extra = ` class="` + template.HTMLEscapeString(attrs) + `"`
 	}
-	return template.HTML(fmt.Sprintf(`<svg%s fill="none" stroke="currentColor" stroke-width="%s" stroke-linecap="round" stroke-linejoin="round" viewBox="%s %s %s %s" aria-hidden="true">`, //nolint:gosec // static markup
-		cls, svgNum(lineIconStroke/d.Zoom), svgNum(12-half), svgNum(12-half), svgNum(2*half), svgNum(2*half)) + d.Paths + `</svg>`)
+	paint := ""
+	if !strings.Contains(attrs, "fill=") {
+		paint += ` fill="none"`
+	}
+	if !strings.Contains(attrs, "stroke=") {
+		paint += ` stroke="currentColor"`
+	}
+	return template.HTML(fmt.Sprintf(`<svg%s%s stroke-width="%s" stroke-linecap="round" stroke-linejoin="round" viewBox="%s %s %s %s" aria-hidden="true">`, //nolint:gosec // static markup
+		extra, paint, svgNum(lineIconStroke/d.Zoom), svgNum(12-half), svgNum(12-half), svgNum(2*half), svgNum(2*half)) + d.Paths + `</svg>`)
 }
 
 // svgNum keeps three decimals, enough that a zoomed viewBox stays centred.
@@ -40,17 +51,35 @@ func svgNum(v float64) string {
 	return strconv.FormatFloat(v, 'f', 3, 64)
 }
 
-// icon renders a line icon; an optional class goes on the <svg>.
-func icon(name string, class ...string) (template.HTML, error) {
+// icon renders a line icon: {{icon "name"}}, {{icon "name" "class"}} or
+// {{icon "name" `class="x" width="13" height="13"`}}.
+func icon(name string, attrs ...string) (template.HTML, error) {
 	d, ok := lineIcons[name]
 	if !ok {
 		return "", fmt.Errorf("icon: no line icon %q", name)
 	}
-	c := ""
-	if len(class) > 0 {
-		c = class[0]
+	a := ""
+	if len(attrs) > 0 {
+		a = attrs[0]
 	}
-	return d.svg(c), nil
+	return d.svg(a), nil
+}
+
+// lineIconsCSS defines --icon-<name> as a mask-ready data URL for icons drawn
+// by CSS (pseudo-elements), so they come from the same sources as the rest.
+func lineIconsCSS(names ...string) string {
+	var b strings.Builder
+	b.WriteString(":root{")
+	for _, n := range names {
+		d, ok := lineIcons[n]
+		if !ok {
+			panic("lineIconsCSS: no line icon " + n)
+		}
+		svg := strings.Replace(string(d.svg(`xmlns="http://www.w3.org/2000/svg"`)), `stroke="currentColor"`, `stroke="black"`, 1)
+		fmt.Fprintf(&b, "--icon-%s:url(\"data:image/svg+xml,%s\");", n, url.PathEscape(svg))
+	}
+	b.WriteString("}\n")
+	return b.String()
 }
 
 func sideIcon(name string) (template.HTML, error) {

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+     data-base="lucide/copy" data-zoom="1"
+     data-changes="corners r4 (back frame redrawn with arcs)">
+  <rect width="14" height="14" x="8" y="8" rx="4" />
+  <path d="M6 16A4 4 0 0 1 2 12V6A4 4 0 0 1 6 2H12A4 4 0 0 1 16 6" />
+</svg>

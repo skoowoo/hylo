@@ -588,7 +588,7 @@
 
       async deleteActiveNote() {
         var tab = this.tabs[this.activeTab]; if (!tab || !tab.path) return;
-        var confirmed = await window.showConfirm({titleHTML:'<span class="confirm-title-icon"><svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h10M5 4V3a1 1 0 011-1h2a1 1 0 011 1v1M12 4l-1 8H3L2 4"/><path d="M6 7v3M8 7v3"/></svg></span>Delete note',message:'"'+tab.title+'" will be permanently deleted.',confirmLabel:'Delete',danger:true});
+        var confirmed = await window.showConfirm({titleHTML:'<span class="confirm-title-icon">' + hyloIcon('trash', 'width="13" height="13"') + '</span>Delete note',message:'"'+tab.title+'" will be permanently deleted.',confirmLabel:'Delete',danger:true});
         if (!confirmed) return;
         var reqBody = {path:tab.path};
         var resp = await fetch('/api/vault/delete', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(reqBody)});

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+     data-base="lucide/chevrons-down" data-zoom="1" data-kind="glyph"
+     data-changes="tips rounded r2">
+  <path d="M7 6L10.586 9.586A2 2 0 0 0 13.414 9.586L17 6" />
+  <path d="M7 13L10.586 16.586A2 2 0 0 0 13.414 16.586L17 13" />
+</svg>

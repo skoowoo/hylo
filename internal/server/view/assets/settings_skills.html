@@ -38,7 +38,7 @@
                       <span class="skills-builtin-names" x-text="builtinSkills.map(function(s) { return s.name; }).join(', ')"></span>
                     </span>
                     <span class="skill-used">Always on for the main bot</span>
-                    <svg class="skills-builtin-chev" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m9 6 6 6-6 6"/></svg>
+                    {{icon "chevron-right" "skills-builtin-chev"}}
                   </button>
                   <div class="skills-grid skills-builtin-grid" x-show="skillsBuiltinOpen">
                     <template x-for="s in builtinSkills" :key="s.name">{{template "skills-card"}}
@@ -65,9 +65,9 @@
             </div>
           </div><!-- .skills-pane -->
 
-{{define "skills-sparkle"}}<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z"/></svg>{{end}}
-{{define "skills-trash"}}<svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>{{end}}
-{{define "skills-plus"}}<svg fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg>{{end}}
+{{define "skills-sparkle"}}{{icon "sparkle"}}{{end}}
+{{define "skills-trash"}}{{icon "trash"}}{{end}}
+{{define "skills-plus"}}{{icon "plus"}}{{end}}
 {{define "skills-source"}}
                       <template x-if="s.repo">
                         <a class="skill-source" :href="'https://github.com/' + s.repo" target="_blank" rel="noopener noreferrer"

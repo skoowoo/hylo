@@ -33,7 +33,7 @@ function extToType(ext) {
   return m[(ext || '').toLowerCase()] || ((ext || '').toUpperCase().replace('.', '') + ' Image');
 }
 
-var __hyloTrashIcon = '<span class="confirm-title-icon"><svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h10M5 4V3a1 1 0 011-1h2a1 1 0 011 1v1M12 4l-1 8H3L2 4"/><path d="M6 7v3M8 7v3"/></svg></span>';
+var __hyloTrashIcon = '<span class="confirm-title-icon">' + hyloIcon('trash', 'width="13" height="13"') + '</span>';
 
 function __hyloConfirmDelete(title, message) {
   return window.showConfirm({ titleHTML: __hyloTrashIcon + title, message: message, confirmLabel: 'Delete', danger: true });

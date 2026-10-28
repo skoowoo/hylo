@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
      data-base="lucide/bot" data-zoom="1.2"
-     data-changes="ears removed; corners r4">
-  <path d="M12 8V4H8" />
+     data-changes="ears removed; corners r4; tips rounded">
+  <path d="M12 8L12 6A2 2 0 0 0 10 4L8 4" />
   <rect width="16" height="12" x="4" y="8" rx="4" />
   <path d="M15 13v2" />
   <path d="M9 13v2" />

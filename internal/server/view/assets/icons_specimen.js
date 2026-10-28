@@ -33,13 +33,16 @@
       area += r - l + 1; x0 = Math.min(x0, l); x1 = Math.max(x1, r); y0 = Math.min(y0, y); y1 = y;
     }
     var u = 24 / N;
-    return { optical: Math.sqrt(area) * u, offset: Math.hypot((x0 + x1) / 2 * u - 12, (y0 + y1) / 2 * u - 12) };
+    return { optical: Math.sqrt(area) * u, offset: Math.hypot((x0 + x1) / 2 * u - 12, (y0 + y1) / 2 * u - 12),
+             clipped: x0 === 0 || y0 === 0 || x1 === N - 1 || y1 === N - 1 };
   }
   document.querySelectorAll('tr[data-icon]').forEach(async function (row) {
     var m = await measure(row.querySelector('.spec-glyph-24 svg'));
     var opt = row.querySelector('[data-metric="optical"]'), off = row.querySelector('[data-metric="offset"]');
     opt.textContent = m.optical.toFixed(1);
     off.textContent = m.offset.toFixed(2);
+    // Ink on the box edge means the zoom pushed part of the icon out of view.
+    if (m.clipped) { off.textContent += ' clipped'; off.classList.add('is-off'); return; }
     if (!row.hasAttribute('data-check')) return;
     opt.classList.toggle('is-off', m.optical < OPTICAL[0] || m.optical > OPTICAL[1]);
     off.classList.toggle('is-off', m.offset > OFFSET);

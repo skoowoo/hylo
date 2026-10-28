@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+     data-base="lucide/refresh-ccw" data-zoom="1"
+     data-changes="tips rounded">
+  <path d="M21 12A9 9 0 0 0 12 3A9.75 9.75 0 0 0 5.26 5.74L3.586 7.414" />
+  <path d="M3 3L3 6A2 2 0 0 0 5 8L8 8" />
+  <path d="M3 12A9 9 0 0 0 12 21A9.75 9.75 0 0 0 18.74 18.26L20.414 16.586" />
+  <path d="M16 16L19 16A2 2 0 0 1 21 18L21 21" />
+</svg>

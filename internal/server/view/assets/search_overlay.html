@@ -28,10 +28,7 @@
                   tabindex="-1"
                   :class="{'has-mode': mode.field || mode.kind}"
                   class="srch-icon-area shrink-0 flex items-center gap-1.5 justify-center">
-            <svg class="srch-icon w-[18px] h-[18px] shrink-0"
-                 fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
-              <circle cx="11" cy="11" r="8"/><path stroke-linecap="round" d="m21 21-4.35-4.35"/>
-            </svg>
+            {{icon "search" "srch-icon w-[18px] h-[18px] shrink-0"}}
             <span x-show="mode.field || mode.kind"
                   class="srch-mode-chip"
                   x-text="mode.label"></span>

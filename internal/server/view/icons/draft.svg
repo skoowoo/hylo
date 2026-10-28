@@ -1,5 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-     data-base="lucide/pencil-line" data-zoom="1" data-kind="glyph">
+     data-base="lucide/pencil-line" data-zoom="1" data-kind="glyph"
+     data-changes="tips rounded">
   <path d="M12 20h9" />
-  <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+  <path d="M16.5 3.5A2.12 2.12 0 0 1 19.5 6.5L7.392 18.608A2 2 0 0 1 6.463 19.134L4.8 19.55A1.113 1.113 0 0 1 3.45 18.2L3.866 16.537A2 2 0 0 1 4.392 15.608L16.5 3.5Z" />
 </svg>

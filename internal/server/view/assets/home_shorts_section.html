@@ -6,7 +6,7 @@
       <button type="button" class="cselect-btn cselect-btn--ghost" :class="{open: csOpen}"
               @click="csOpen = !csOpen" @keydown.escape="csOpen = false" aria-label="Jump to month">
         <span class="cselect-btn-text">{{.ActiveMonthLabel}}</span>
-        <svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+        {{icon "chevron-down"}}
       </button>
       <div class="cselect-dropdown" x-show="csOpen" x-cloak>
         {{range .Months}}
@@ -35,7 +35,7 @@
               <div class="compose-thumb-spin" x-show="img.uploading"></div>
               <button type="button" class="compose-thumb-remove" title="Remove image" aria-label="Remove image"
                       @click="removeShortComposeImage(img.id)">
-                <svg fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" viewBox="0 0 24 24"><path d="M18 6L6 18"/><path d="M6 6l12 12"/></svg>
+                {{icon "close"}}
               </button>
             </div>
           </template>
@@ -46,7 +46,7 @@
           <button type="button" class="shorts-compose-attach" title="Add image" aria-label="Add image"
                   :disabled="shortComposeSaving"
                   onclick="document.getElementById('shorts-compose-file-input').click()">
-            <svg fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+            {{icon "image"}}
           </button>
           <div class="shorts-compose-footer-right">
             <button type="button" class="shorts-compose-send"

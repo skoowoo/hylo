@@ -9,13 +9,13 @@
     <div class="home-note-row-titleblock">
       <div class="home-note-row-titlerow">
         <span class="home-note-row-title">{{label .}}</span>
-        {{if .TodoTotal}}{{if eq .TodoDone .TodoTotal}}<span class="home-note-badge home-note-badge--done" title="{{.TodoDone}}/{{.TodoTotal}} done"><svg fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span>{{else}}<span class="home-note-badge home-note-badge--todo" title="{{.TodoDone}}/{{.TodoTotal}}"><svg viewBox="0 0 20 20"><circle class="home-note-badge--todo-track" cx="10" cy="10" r="8"/><circle class="home-note-badge--todo-fill" cx="10" cy="10" r="8" transform="rotate(-90 10 10)" stroke-dasharray="{{todoRingDash .TodoDone .TodoTotal}}"/></svg></span>{{end}}{{end}}
+        {{if .TodoTotal}}{{if eq .TodoDone .TodoTotal}}<span class="home-note-badge home-note-badge--done" title="{{.TodoDone}}/{{.TodoTotal}} done">{{icon "check"}}</span>{{else}}<span class="home-note-badge home-note-badge--todo" title="{{.TodoDone}}/{{.TodoTotal}}"><svg viewBox="0 0 20 20"><circle class="home-note-badge--todo-track" cx="10" cy="10" r="8"/><circle class="home-note-badge--todo-fill" cx="10" cy="10" r="8" transform="rotate(-90 10 10)" stroke-dasharray="{{todoRingDash .TodoDone .TodoTotal}}"/></svg></span>{{end}}{{end}}
       </div>
       {{if .Preview}}<span class="home-note-row-preview-grid">{{.Preview}}</span>{{end}}
     </div>
     <div class="home-note-row-badges">
-      {{if .Pinned}}<span class="home-note-badge home-note-badge--pin" title="Pinned"><svg fill="currentColor" viewBox="0 0 24 24"><path d="M17 3a2 2 0 0 1 2 2v15a1 1 0 0 1-1.496.868l-4.512-2.578a2 2 0 0 0-1.984 0l-4.512 2.578A1 1 0 0 1 5 20V5a2 2 0 0 1 2-2z"/></svg></span>{{end}}
-      {{if .IsCompiled}}<span class="home-note-badge home-note-badge--done" title="Compiled"><svg fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span>{{end}}
+      {{if .Pinned}}<span class="home-note-badge home-note-badge--pin" title="Pinned">{{icon "bookmark" `fill="currentColor" stroke="none"`}}</span>{{end}}
+      {{if .IsCompiled}}<span class="home-note-badge home-note-badge--done" title="Compiled">{{icon "check"}}</span>{{end}}
     </div>
   </div>
   <div class="home-note-row-meta">
@@ -34,7 +34,7 @@
   {{if .Desc}}<div class="empty-state-desc">{{.Desc}}</div>{{end}}
   {{if .NewNote}}<div class="empty-state-actions">
     <button type="button" class="btn-solid" onclick="window.__hyloContentPane && void window.__hyloContentPane.openNewInContentPane()">
-      <svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>New note
+      {{icon "plus"}}New note
     </button>
   </div>{{end}}
 </div>{{end}}

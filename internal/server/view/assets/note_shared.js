@@ -1,5 +1,5 @@
-var fmIconDown = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m7 6 5 5 5-5"/><path d="m7 13 5 5 5-5"/></svg>';
-var fmIconUp   = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m7 11 5-5 5 5"/><path d="m7 18 5-5 5 5"/></svg>';
+var fmIconDown = hyloIcon('chevrons-down');
+var fmIconUp   = hyloIcon('chevrons-up');
 
 // Renders a key-combo hint (e.g. "⌘K") for the shared .kbd-combo component
 // (base.css) — wraps modifier symbols (⌘⇧⌥⌃) in .kbd-cmd so its fallback-font glyph can be

@@ -21,7 +21,7 @@ function tokensCSS() {
 
 function chatPage() {
   const css = ['base.css', 'home.css', 'note_shared_prose.css', 'agent_chat.css'];
-  const js = ['keys.js', 'path_ac.js', 'chat_reduce.js', 'chat_text.js', 'chat_kernel.js', 'chat_rows.js', 'chat_view.js'];
+  const js = ['shared_icons_line.js', 'keys.js', 'path_ac.js', 'chat_reduce.js', 'chat_text.js', 'chat_kernel.js', 'chat_rows.js', 'chat_view.js'];
   const section = fs.readFileSync(path.join(VIEW, 'assets/home_chat_section.html'), 'utf8').replace(/\{\{[^}]*\}\}/g, '');
   return `<!doctype html><html data-theme="light"><head><meta charset="utf-8">
 <style>${tokensCSS()} html, body { margin: 0; height: 100%; } body { display: flex; font-family: -apple-system, sans-serif; } #chat-root { flex: 1; height: 100%; }</style>

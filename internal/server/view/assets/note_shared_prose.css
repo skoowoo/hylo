@@ -196,11 +196,9 @@
       margin-right: 0.2em; vertical-align: middle; margin-top: -0.1em;
       border-radius: 0; /* CSS-mask icon glyph, not a shape — never clip it */
       background-color: var(--muted);
-      /* Lucide "file" icon (matches the outline style of every other icon in the
-         app), delivered as a mask so it can pick up var(--muted) like a real
-         inline SVG would — not hand-drawn. */
-      -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z'/%3E%3Cpath d='M14 2v4a2 2 0 0 0 2 2h4'/%3E%3C/svg%3E");
-      mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z'/%3E%3Cpath d='M14 2v4a2 2 0 0 0 2 2h4'/%3E%3C/svg%3E");
+      /* The "file" line icon as a mask (--icon-file, icons_line.go), so it takes var(--muted). */
+      -webkit-mask-image: var(--icon-file);
+      mask-image: var(--icon-file);
       -webkit-mask-size: 100% 100%; mask-size: 100% 100%;
       -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
     }

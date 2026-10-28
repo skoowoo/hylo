@@ -7,10 +7,7 @@
               <div>
                 <div class="agent-bots-toolbar" x-show="agentBotsList.length || agentBotsError">
                   <button class="btn-outline" @click="newAgentBot()">
-                    <svg fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14"/>
-                      <path stroke-linecap="round" stroke-linejoin="round" d="M12 5v14"/>
-                    </svg>
+                    {{icon "plus"}}
                     New Bot
                   </button>
 
@@ -182,9 +179,7 @@
                           <div class="agent-bot-trigger-hdr hairline" @click="t._open = !t._open">
                             <div class="agent-bot-trigger-hdr-main">
                               <span class="agent-bot-trigger-chev" :class="{open: t._open}">
-                                <svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24" aria-hidden="true">
-                                  <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
-                                </svg>
+                                {{icon "chevron-right" `aria-hidden="true"`}}
                               </span>
                               <span class="agent-bot-trigger-label" x-text="(t.name || '').trim() || 'Trigger ' + (ti + 1)"></span>
                               <span class="agent-bot-trigger-summary" x-show="!t._open" x-text="agentBotTriggerSummary(t)"></span>

@@ -33,7 +33,6 @@ var viewFuncs = template.FuncMap{
 		}
 		return m
 	},
-	"svgCheck":      func() template.HTML { return svgCheck },
 	"settingsTabs":  func() []settingsTab { return settingsTabs },
 	"accentPresets": func() []accentPreset { return accentPresets },
 	"accentDefault": func() string { return accentDefaultID },

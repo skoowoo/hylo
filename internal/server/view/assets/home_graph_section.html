@@ -9,22 +9,13 @@
       </div>
       <div class="graph-zoom-controls">
         <button type="button" class="icon-btn-ghost graph-zoom-btn" title="Zoom in" @click="zoomIn()">
-          <svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
-            <path stroke-linecap="round" d="M12 5v14M5 12h14"/>
-          </svg>
+          {{icon "plus"}}
         </button>
         <button type="button" class="icon-btn-ghost graph-zoom-btn" title="Zoom out" @click="zoomOut()">
-          <svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
-            <path stroke-linecap="round" d="M5 12h14"/>
-          </svg>
+          {{icon "minus"}}
         </button>
         <button type="button" class="icon-btn-ghost graph-zoom-btn" title="Fit all nodes" @click="zoomFit()">
-          <svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M8 3H5a2 2 0 0 0-2 2v3"/>
-            <path stroke-linecap="round" stroke-linejoin="round" d="M21 8V5a2 2 0 0 0-2-2h-3"/>
-            <path stroke-linecap="round" stroke-linejoin="round" d="M3 16v3a2 2 0 0 0 2 2h3"/>
-            <path stroke-linecap="round" stroke-linejoin="round" d="M16 21h3a2 2 0 0 0 2-2v-3"/>
-          </svg>
+          {{icon "maximize"}}
         </button>
       </div>
     </div>
@@ -37,10 +28,7 @@
         <span class="graph-node-panel-edges"
               x-text="nodePanel ? (nodePanel.edgeCount + (nodePanel.edgeCount === 1 ? ' link' : ' links')) : ''"></span>
         <button type="button" class="icon-btn-ghost graph-node-panel-close" @click="_clearFocus()" title="Close">
-          <svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
-            <path stroke-linecap="round" d="M18 6 6 18"/>
-            <path stroke-linecap="round" d="m6 6 12 12"/>
-          </svg>
+          {{icon "close"}}
         </button>
       </div>
       <div class="graph-node-panel-title" x-text="nodePanel ? nodePanel.label : ''"></div>

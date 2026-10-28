@@ -39,7 +39,6 @@
   },
   "devDependencies": {
     "esbuild": "^0.25.4",
-    "pixelarticons": "^2.1.0",
     "playwright-core": "1.63.0"
   }
 }

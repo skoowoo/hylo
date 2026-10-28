@@ -1,5 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-     data-base="lucide/book-open" data-zoom="1">
+     data-base="lucide/book-open" data-zoom="1"
+     data-changes="tips rounded">
   <path d="M12 7v14" />
-  <path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z" />
+  <path d="M2 16L2 5A2 2 0 0 1 4 3L8 3A4 4 0 0 1 12 7A4 4 0 0 1 16 3L20 3A2 2 0 0 1 22 5L22 16A2 2 0 0 1 20 18L15 18A3 3 0 0 0 12 21A3 3 0 0 0 9 18L4 18A2 2 0 0 1 2 16Z" />
 </svg>
