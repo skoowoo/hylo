@@ -20,23 +20,20 @@
 
 /* Settings → Server header: the server the tab below is editing. */
 .srv-hero {
-  display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  flex-wrap: wrap; max-width: 640px; padding: 12px 14px; margin-bottom: 1.25rem;
-  background: var(--btn-bg);
+  display: flex; align-items: center; gap: 10px; padding: 12px 14px;
+  border-radius: var(--r-lg); background: var(--surface-soft);
 }
-.srv-hero-main { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1; }
-.srv-hero-text { display: flex; flex-direction: column; min-width: 0; }
+.srv-hero-text { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 .srv-hero-name { font-size: var(--text-base); font-weight: 600; color: var(--fg); }
 .srv-hero-url { color: var(--muted); font-size: var(--text-xs); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.srv-hero-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.srv-hero + .srv-process, .srv-hero ~ .settings-section { margin-top: var(--space-lg); }
 .srv-notice {
   display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
-  max-width: 640px; margin: -0.5rem 0 1rem; padding: 8px 12px;
+  margin-bottom: var(--space-md); padding: 8px 12px; border-radius: var(--r-md);
   background: var(--btn-bg); color: var(--body); font-size: var(--text-xs);
 }
 .srv-notice-actions { display: flex; gap: 6px; }
 .srv-process {
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
-  max-width: 640px; margin: -0.5rem 0 1rem; color: var(--muted); font-size: var(--text-xs);
+  color: var(--muted); font-size: var(--text-xs);
 }
-.cfg-scope-for { color: var(--muted); font-weight: 400; text-transform: none; letter-spacing: 0; }

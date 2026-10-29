@@ -1,11 +1,10 @@
 {{/* Bots tab: the bot list and the create/edit form (bot settings, then Triggers). */}}
-          <!-- Agent Bots tab -->
-          <div class="agent-bots-pane" x-show="tab === 'agent-bots'">
-           <div class="agent-bots-scroll">
+          <div class="settings-page" x-show="tab === 'agent-bots'">
+           <div class="settings-body">
 
             <template x-if="!agentBotFormMode">
               <div>
-                <div class="agent-bots-toolbar" x-show="agentBotsList.length || agentBotsError">
+                <div class="settings-toolbar" x-show="agentBotsList.length || agentBotsError">
                   <button class="btn-outline" @click="newAgentBot()">
                     {{icon "plus"}}
                     New Bot
@@ -13,14 +12,14 @@
 
 {{template "toolbar-refresh" (dict "Loading" `agentBotsLoading` "Click" `loadAgentBots()` "Busy" `Loading…`)}}
                 </div>
-                <div class="cfg-err-msg" x-show="agentBotsError && !agentBotsLoading" x-text="'Error: ' + agentBotsError"></div>
+                <div class="settings-status settings-status--err" x-show="agentBotsError && !agentBotsLoading" x-text="'Error: ' + agentBotsError"></div>
                 <div class="agent-bots-list">
                   <template x-if="!agentBotsLoading && !agentBotsError && agentBotsList.length === 0">
-                    <div class="list-card list-card--soft bot-setup">
+                    <div class="list-card bot-setup">
                       <h3 class="bot-setup-title">Set up Hylo</h3>
                       <p class="bot-setup-note">Hylo is your personal AI agent, powered by an AI agent on this server. Pick the one to use.</p>
                       <p class="bot-setup-note" x-show="botSetup.phase === 'scanning'">Looking for AI agents…</p>
-                      <p class="cfg-err-msg" x-show="botSetup.phase === 'error'" x-text="botSetup.error"></p>
+                      <p class="settings-msg settings-msg--err" x-show="botSetup.phase === 'error'" x-text="botSetup.error"></p>
                       <p class="bot-setup-note" x-show="botSetup.phase === 'ready' && !botSetup.agents.length">
                         No AI agent found on this server. Install Pi with <code>curl -fsSL https://pi.dev/install.sh | sh</code>, run <code>pi</code> once to sign in, then look again.
                       </p>
@@ -33,8 +32,8 @@
                           </button>
                         </template>
                       </div>
-                      <div class="bot-setup-model" x-show="botSetup.agentId">
-                        <label class="agent-bot-form-label">Model</label>
+                      <div class="settings-field bot-setup-model" x-show="botSetup.agentId">
+                        <label class="settings-label">Model</label>
 {{template "cselect-open" `botSetup.model === '' ? 'Choose a model' : (botSetup.model === 'default' ? 'Default' : botSetup.model)`}}<template x-for="m in setupModels()" :key="m.id"><button type="button" class="cselect-option" :class="botSetup.model===m.id?'sel':''" :disabled="botSetup.creating" @click="pickSetupModel(m.id); csOpen=false"><span class="dot dot--fg cselect-option-dot"></span><span :title="(m.label && m.label !== m.id) ? m.label : ''" x-text="m.id === 'default' ? 'Default' : m.id"></span></button></template>{{template "cselect-close"}}
                       </div>
                       <template x-if="botSetup.model && botSetup.hello.state !== 'idle'">
@@ -61,7 +60,7 @@
                     </div>
                   </template>
                   <template x-for="(m, mi) in agentBotsList" :key="m.id">
-                    <div class="list-card list-card--hover list-card--soft agent-bot-card" :class="m.enabled ? '' : 'disabled-card'" data-avatar-hover>
+                    <div class="list-card list-card--hover agent-bot-card" :class="m.enabled ? '' : 'disabled-card'" data-avatar-hover>
                       <div class="avatar avatar--lg agent-bot-avatar"
                            x-html="window.agentBotAvatarSVG(m.name, agentBotsList)"></div>
                       <div class="agent-bot-card-body">
@@ -97,7 +96,7 @@
             </template>
 
             <template x-if="agentBotFormMode">
-              <div class="agent-bot-form-wrap">
+              <div>
                 <div class="seg agent-bot-tabs" role="tablist">
                   <template x-for="t in agentBotFormTabs()" :key="t.id">
                     <button type="button" class="seg-btn" role="tab" :class="{active: botFormTab === t.id}" :aria-selected="botFormTab === t.id"
@@ -107,51 +106,51 @@
                   </template>
                 </div>
                 <div class="agent-bot-form">
-                  <section class="agent-bot-form-section" role="tabpanel" x-show="botFormTab === 'general'">
-                    <div class="agent-bot-form-row">
-                      <div>
-                        <label class="agent-bot-form-label">Name</label>
-                        <input class="field-input agent-bot-form-input" type="text" x-model="agentBotDraft.name" placeholder="Quote Extractor" autofocus>
+                  <section class="settings-form" role="tabpanel" x-show="botFormTab === 'general'">
+                    <div class="settings-form-row">
+                      <div class="settings-field">
+                        <label class="settings-label">Name</label>
+                        <input class="field-input" type="text" x-model="agentBotDraft.name" placeholder="Quote Extractor" autofocus>
                       </div>
-                      <div style="flex:0 0 auto;min-width:90px">
-                        <label class="agent-bot-form-label">Enabled</label>
+                      <div class="settings-field settings-field--fit">
+                        <label class="settings-label">Enabled</label>
                         <div class="seg">
                           <button type="button" class="seg-btn" :class="{active: !agentBotDraft.enabled}" @click="agentBotDraft.enabled = false">Off</button>
                           <button type="button" class="seg-btn" :class="{active: agentBotDraft.enabled}" @click="agentBotDraft.enabled = true">On</button>
                         </div>
                       </div>
                     </div>
-                    <div>
-                      <label class="agent-bot-form-label">Description <span style="font-weight:400;text-transform:none;letter-spacing:0;">(optional)</span></label>
-                      <input class="field-input agent-bot-form-input" type="text" x-model="agentBotDraft.description" placeholder="Brief description of what this bot does">
+                    <div class="settings-field">
+                      <label class="settings-label">Description <small>(optional)</small></label>
+                      <input class="field-input" type="text" x-model="agentBotDraft.description" placeholder="Brief description of what this bot does">
                     </div>
-                    <div class="agent-bot-form-row">
-                      <div>
-                        <label class="agent-bot-form-label">Agent</label>
+                    <div class="settings-form-row">
+                      <div class="settings-field">
+                        <label class="settings-label">Agent</label>
 {{template "cselect-open" `(agents.find(function(a){return a.id===agentBotDraft.agentId&&a.available;}) || {name: 'Select agent'}).name`}}<template x-for="a in agents.filter(function(a){return a.available;})" :key="a.id"><button type="button" class="cselect-option" :class="agentBotDraft.agentId===a.id?'sel':''" @click="agentBotDraft.agentId=a.id; onAgentBotAgentChange(); csOpen=false"><span class="dot dot--fg cselect-option-dot"></span><span x-text="a.name"></span></button></template>{{template "cselect-close"}}
                       </div>
-                      <div>
-                        <label class="agent-bot-form-label">Model</label>
+                      <div class="settings-field">
+                        <label class="settings-label">Model</label>
 {{template "cselect-open" `(agentBotDraft.model && agentBotDraft.model !== 'default') ? agentBotDraft.model : 'Default'`}}<button type="button" class="cselect-option" :class="(!agentBotDraft.model||agentBotDraft.model==='default')?'sel':''" @click="agentBotDraft.model=''; csOpen=false"><span class="dot dot--fg cselect-option-dot"></span><span>Default</span></button><template x-for="m in agentBotModelsForAgent(agentBotDraft.agentId).filter(function(m){return m.id!=='default';})" :key="m.id"><button type="button" class="cselect-option" :class="agentBotDraft.model===m.id?'sel':''" @click="agentBotDraft.model=m.id; csOpen=false"><span class="dot dot--fg cselect-option-dot"></span><span :title="(m.label && m.label !== m.id) ? m.label : ''" x-text="m.id"></span></button></template>{{template "cselect-close"}}
                       </div>
                     </div>
-                    <div>
-                      <label class="agent-bot-form-label">System Prompt</label>
+                    <div class="settings-field">
+                      <label class="settings-label">System prompt</label>
                       <textarea class="field-input agent-bot-form-textarea" x-model="agentBotDraft.systemPrompt" rows="3"
                                 x-init="agentBotAutoGrow($el)" @input="agentBotAutoGrow($el)"
                                 placeholder="Instructions prepended to every message…"></textarea>
                     </div>
                     <div class="agent-bot-cwd">
-                      <span class="agent-bot-form-label">Working directory</span>
+                      <span class="settings-label">Working directory</span>
                       <span class="agent-bot-cwd-value" :class="{'is-pending': !agentBotDraft.cwd}" :title="agentBotDraft.cwd"
                             x-text="agentBotDraft.cwd || 'a folder named after the bot, made on save'"></span>
                     </div>
                   </section>
 
-                  <section class="agent-bot-form-section" role="tabpanel" x-show="botFormTab === 'skills'">
-                    <p class="agent-bot-section-desc">Pick the skills this bot can use; hover one to see what it does.
+                  <section class="settings-form" role="tabpanel" x-show="botFormTab === 'skills'">
+                    <p class="settings-intro">Pick the skills this bot can use; hover one to see what it does.
                       <span x-show="agentBotDraft.main">Built-in skills are always on for the main bot.</span>
-                      Add more under <button type="button" class="skills-empty-link" @click="skillsTab = 'catalog'; tab = 'skills'">Skills</button>.</p>
+                      Add more under <button type="button" class="settings-link" @click="skillsTab = 'catalog'; tab = 'skills'">Skills</button>.</p>
                     <div class="agent-bot-skill-chips" x-show="extraSkills.length">
                       <template x-for="s in extraSkills" :key="s.name">
                         <button type="button" class="btn-outline btn--xs" :class="{active: agentBotSkills[s.name]}" :aria-pressed="!!agentBotSkills[s.name]"
@@ -159,8 +158,8 @@
                       </template>
                     </div>
                     <template x-if="!agentBotDraft.main">
-                      <div>
-                        <span class="agent-bot-var-panel-label">Built-in</span>
+                      <div class="settings-field">
+                        <span class="settings-label">Built-in</span>
                         <div class="agent-bot-skill-chips">
                           <template x-for="s in builtinSkills" :key="s.name">
                             <button type="button" class="btn-outline btn--xs" :class="{active: agentBotSkills[s.name]}" :aria-pressed="!!agentBotSkills[s.name]"
@@ -171,8 +170,8 @@
                     </template>
                   </section>
 
-                  <section class="agent-bot-form-section agent-bot-form-section-triggers" role="tabpanel" x-show="botFormTab === 'triggers'">
-                    <p class="agent-bot-section-desc">Run this bot on vault events or on a schedule. Each trigger sends a prompt template to the agent.</p>
+                  <section class="settings-form" role="tabpanel" x-show="botFormTab === 'triggers'">
+                    <p class="settings-intro">Run this bot on vault events or on a schedule. Each trigger sends a prompt template to the agent.</p>
                     <div class="agent-bot-trigger-list">
                       <template x-for="(t, ti) in agentBotTriggers" :key="ti">
                         <div class="agent-bot-trigger-card" :class="{'is-open': t._open, 'is-off': !t.enabled}">
@@ -193,25 +192,19 @@
                             </div>
                           </div>
                           <div class="agent-bot-trigger-body" x-show="t._open">
-                            <div class="agent-bot-trigger-block agent-bot-trigger-name">
-                              <div class="agent-bot-block-label">
-                                <span class="agent-bot-block-title">Name <span style="font-weight:400;opacity:0.6;">(optional)</span></span>
-                              </div>
-                              <input class="field-input agent-bot-form-input" type="text" x-model="t.name" placeholder="Compiler, Memory, Recall…">
+                            <div class="settings-field">
+                              <span class="settings-label">Name <small>(optional)</small></span>
+                              <input class="field-input" type="text" x-model="t.name" placeholder="Compiler, Memory, Recall…">
                             </div>
-                            <div class="agent-bot-trigger-block agent-bot-trigger-events">
-                              <div class="agent-bot-block-label">
-                                <span class="agent-bot-block-title">Event</span>
-                                <span class="agent-bot-block-hint" x-text="agentBotTriggerHint(t)"></span>
-                              </div>
+                            <div class="settings-field">
+                              <span class="settings-label">Event</span>
+                              <span class="settings-desc" x-text="agentBotTriggerHint(t)"></span>
 {{template "cselect-open" `(agentBotEventDefs.find(function(d){return d.type===(t.eventTypes[0]||'');}) || {label: 'Select event…'}).label`}}<template x-for="def in agentBotEventDefs" :key="def.type"><button type="button" class="cselect-option" :class="(t.eventTypes[0]||'')===def.type ? 'sel' : ''" :title="def.description" @click="setAgentBotET(t, def.type); csOpen=false"><span class="dot dot--fg cselect-option-dot"></span><span x-text="def.label"></span></button></template>{{template "cselect-close"}}
                             </div>
                             <template x-if="eventOf(t) === 'scheduled'">
-                              <div class="agent-bot-trigger-block agent-bot-trigger-schedule">
-                                <div class="agent-bot-block-label">
-                                  <span class="agent-bot-block-title">Schedule</span>
-                                  <span class="agent-bot-block-hint">How often this trigger runs.</span>
-                                </div>
+                              <div class="settings-field">
+                                <span class="settings-label">Schedule</span>
+                                <span class="settings-desc">How often this trigger runs.</span>
                                 <div class="seg agent-bot-schedule-kind-seg">
                                   <button type="button" class="seg-btn" :class="{active: scheduleKindOf(t)==='every'}" @click="setScheduleKind(t, 'every')">Every</button>
                                   <button type="button" class="seg-btn" :class="{active: scheduleKindOf(t)==='daily'}" @click="setScheduleKind(t, 'daily')">Daily</button>
@@ -228,7 +221,7 @@
                                                 x-text="p.label"></button>
                                       </template>
                                     </div>
-                                    <span class="agent-bot-block-hint">Minimum interval: 15 minutes. For another interval, edit the text below.</span>
+                                    <span class="settings-desc">Minimum interval: 15 minutes. For another interval, edit the text below.</span>
                                   </div>
                                 </template>
 
@@ -260,16 +253,14 @@
                                 </template>
 
                                 <label class="agent-bot-schedule-custom-label">As text</label>
-                                <input class="field-input agent-bot-form-input" type="text" x-model="t.schedule"
+                                <input class="field-input" type="text" x-model="t.schedule"
                                        placeholder="every 1h · daily 09:00 · weekly mon,wed 09:00">
                               </div>
                             </template>
                             <template x-if="hasPathFilter(t)">
-                              <div class="agent-bot-trigger-block agent-bot-trigger-paths">
-                                <div class="agent-bot-block-label">
-                                  <span class="agent-bot-block-title"><span x-text="agentBotFilterFor(t).title"></span> <span style="font-weight:400;opacity:0.6;">(optional)</span></span>
-                                  <span class="agent-bot-block-hint" x-text="agentBotFilterFor(t).hint"></span>
-                                </div>
+                              <div class="settings-field">
+                                <span class="settings-label"><span x-text="agentBotFilterFor(t).title"></span> <small>(optional)</small></span>
+                                <span class="settings-desc" x-text="agentBotFilterFor(t).hint"></span>
                                 <textarea class="field-input agent-bot-form-textarea"
                                           rows="2" x-effect="t._open; agentBotAutoGrow($el)" @input="agentBotAutoGrow($el)"
                                           :value="(t.pathPrefixes || []).join('\n')"
@@ -277,11 +268,9 @@
                                           :placeholder="agentBotFilterFor(t).placeholder"></textarea>
                               </div>
                             </template>
-                            <div class="agent-bot-trigger-block agent-bot-trigger-prompt">
-                              <div class="agent-bot-block-label">
-                                <span class="agent-bot-block-title">Prompt template</span>
-                                <span class="agent-bot-block-hint">Message sent to the agent when this trigger fires. Click a variable below to insert at cursor.</span>
-                              </div>
+                            <div class="settings-field agent-bot-trigger-prompt">
+                              <span class="settings-label">Prompt template</span>
+                              <span class="settings-desc">Message sent to the agent when this trigger fires. Click a variable below to insert at cursor.</span>
                               <div class="agent-bot-var-panel">
                                 <span class="agent-bot-var-panel-label">Variables</span>
                                 <div class="agent-bot-var-chips">
@@ -301,32 +290,32 @@
                         </div>
                       </template>
                     </div>
-                    <button class="agent-bot-trigger-add" type="button" @click="addAgentBotTrigger()" style="margin-top:0.25rem;">+ Add trigger</button>
+                    <button class="btn-outline agent-bot-trigger-add" type="button" @click="addAgentBotTrigger()">{{icon "plus"}}Add trigger</button>
                   </section>
 
-                  <section class="agent-bot-form-section" role="tabpanel" x-show="botFormTab === 'channels'">
-                    <p class="agent-bot-section-desc">Connect an app to this bot. Messages there continue its current chat, the same conversation as on the desktop; send /new in the app to start a new one. One contact belongs to one bot. Connecting or disconnecting applies right away, without Save.</p>
+                  <section class="settings-form" role="tabpanel" x-show="botFormTab === 'channels'">
+                    <p class="settings-intro">Connect an app to this bot. Messages there continue its current chat, the same conversation as on the desktop; send /new in the app to start a new one. One contact belongs to one bot. Connecting or disconnecting applies right away, without Save.</p>
 
-                    <div class="cfg-link hairline">
-                      <div class="cfg-link-head">
-                        <span class="cfg-link-title">WeChat</span>
+                    <div class="bot-channel hairline">
+                      <div class="bot-channel-head">
+                        <span class="bot-channel-title">WeChat</span>
                         <span class="badge" :class="{ 'badge--ok': botChannels.wechat }" x-text="botChannels.wechat ? 'Connected' : 'Not connected'"></span>
                       </div>
                       <template x-if="botChannels.wechat">
                         <div>
-                          <p class="cfg-link-meta">Connected as <code x-text="botChannels.wechat.display"></code>. Only the account that scanned can talk to it.</p>
-                          <div class="cfg-link-actions">
+                          <p class="settings-desc bot-channel-meta">Connected as <code x-text="botChannels.wechat.display"></code>. Only the account that scanned can talk to it.</p>
+                          <div class="bot-channel-actions">
                             <button type="button" class="btn-solid btn-solid--danger" @click="disconnectChannel('wechat')" :disabled="!!channelBusy" x-text="channelBusy === 'wechat' ? 'Disconnecting…' : 'Disconnect'"></button>
                           </div>
                         </div>
                       </template>
                       <template x-if="!botChannels.wechat">
                         <div>
-                          <p class="cfg-link-meta">Scan with WeChat. One account stays on one bot. Scanning again disconnects the previous bot.</p>
-                          <div class="cfg-link-qr" x-show="wxImage">
+                          <p class="settings-desc bot-channel-meta">Scan with WeChat. One account stays on one bot. Scanning again disconnects the previous bot.</p>
+                          <div class="bot-channel-qr" x-show="wxImage">
                             <img :src="wxImage" alt="WeChat login QR code">
                           </div>
-                          <div class="cfg-link-actions">
+                          <div class="bot-channel-actions">
                             <button type="button" class="btn-solid" x-show="!wxImage" @click="startWechat()" :disabled="!!channelBusy" x-text="channelBusy === 'wechat' ? 'Starting…' : 'Connect'"></button>
                             <button type="button" class="btn-outline" x-show="wxImage" @click="cancelWechat()">Cancel</button>
                           </div>
@@ -334,79 +323,78 @@
                       </template>
                     </div>
 
-                    <div class="cfg-link hairline">
-                      <div class="cfg-link-head">
-                        <span class="cfg-link-title">Discord</span>
+                    <div class="bot-channel hairline">
+                      <div class="bot-channel-head">
+                        <span class="bot-channel-title">Discord</span>
                         <span class="badge" :class="{ 'badge--ok': botChannels.discord }" x-text="botChannels.discord ? 'Connected' : 'Not connected'"></span>
                       </div>
                       <template x-if="botChannels.discord">
                         <div>
-                          <p class="cfg-link-meta">Connected as <code x-text="botChannels.discord.display"></code>. Only your user ID can talk to it.</p>
-                          <div class="cfg-link-actions">
+                          <p class="settings-desc bot-channel-meta">Connected as <code x-text="botChannels.discord.display"></code>. Only your user ID can talk to it.</p>
+                          <div class="bot-channel-actions">
                             <button type="button" class="btn-solid btn-solid--danger" @click="disconnectChannel('discord')" :disabled="!!channelBusy" x-text="channelBusy === 'discord' ? 'Disconnecting…' : 'Disconnect'"></button>
                           </div>
                         </div>
                       </template>
                       <template x-if="!botChannels.discord">
                         <div>
-                          <p class="cfg-link-meta">Create a bot in the Discord Developer Portal, turn on Message Content Intent, and paste its token plus your user ID (Developer Mode, right-click your avatar).</p>
-                          <div class="cfg-link-actions">
-                            <input type="password" class="field-input cfg-input" autocomplete="off" spellcheck="false" placeholder="Bot token" x-model="dcToken">
-                            <input type="text" class="field-input cfg-input" autocomplete="off" spellcheck="false" placeholder="Your user ID" x-model="dcOwner">
+                          <p class="settings-desc bot-channel-meta">Create a bot in the Discord Developer Portal, turn on Message Content Intent, and paste its token plus your user ID (Developer Mode, right-click your avatar).</p>
+                          <div class="bot-channel-actions">
+                            <input type="password" class="field-input" autocomplete="off" spellcheck="false" placeholder="Bot token" x-model="dcToken">
+                            <input type="text" class="field-input" autocomplete="off" spellcheck="false" placeholder="Your user ID" x-model="dcOwner">
                             <button type="button" class="btn-solid" @click="connectDiscord()" :disabled="!!channelBusy || !dcToken.trim() || !dcOwner.trim()" x-text="channelBusy === 'discord' ? 'Connecting…' : 'Connect'"></button>
                           </div>
                         </div>
                       </template>
                     </div>
 
-                    <div class="cfg-link hairline">
-                      <div class="cfg-link-head">
-                        <span class="cfg-link-title">Telegram</span>
+                    <div class="bot-channel hairline">
+                      <div class="bot-channel-head">
+                        <span class="bot-channel-title">Telegram</span>
                         <span class="badge" :class="{ 'badge--ok': botChannels.telegram }" x-text="botChannels.telegram ? 'Connected' : 'Not connected'"></span>
                       </div>
                       <template x-if="botChannels.telegram">
                         <div>
-                          <p class="cfg-link-meta">Paired with <code x-text="botChannels.telegram.display"></code>. Only the account that tapped Start can talk to it.</p>
-                          <div class="cfg-link-actions">
+                          <p class="settings-desc bot-channel-meta">Paired with <code x-text="botChannels.telegram.display"></code>. Only the account that tapped Start can talk to it.</p>
+                          <div class="bot-channel-actions">
                             <button type="button" class="btn-solid btn-solid--danger" @click="disconnectChannel('telegram')" :disabled="!!channelBusy" x-text="channelBusy === 'telegram' ? 'Disconnecting…' : 'Disconnect'"></button>
                           </div>
                         </div>
                       </template>
                       <template x-if="!botChannels.telegram">
                         <div>
-                          <p class="cfg-link-meta">Create a bot with <a href="https://t.me/BotFather" target="_blank" rel="noopener noreferrer">@BotFather</a>, paste its token, then open the link on your phone and tap Start.</p>
-                          <div class="cfg-link-actions" x-show="!tgCode">
-                            <input type="password" class="field-input cfg-input" autocomplete="off" spellcheck="false" placeholder="123456:ABC-DEF…" x-model="tgToken" @keydown.enter.prevent="startTelegram()">
+                          <p class="settings-desc bot-channel-meta">Create a bot with <a href="https://t.me/BotFather" target="_blank" rel="noopener noreferrer">@BotFather</a>, paste its token, then open the link on your phone and tap Start.</p>
+                          <div class="bot-channel-actions" x-show="!tgCode">
+                            <input type="password" class="field-input" autocomplete="off" spellcheck="false" placeholder="123456:ABC-DEF…" x-model="tgToken" @keydown.enter.prevent="startTelegram()">
                             <button type="button" class="btn-solid" @click="startTelegram()" :disabled="!!channelBusy || !tgToken.trim()" x-text="channelBusy === 'telegram' ? 'Checking…' : 'Connect'"></button>
                           </div>
                           <div x-show="tgCode">
-                            <div class="cfg-link-qr">
+                            <div class="bot-channel-qr">
                               <img :src="tgImage" alt="Telegram bot link QR code" x-show="tgImage">
-                              <p class="cfg-link-status">Scan with your phone, or open <a :href="tgLink" target="_blank" rel="noopener noreferrer" x-text="tgUsername ? '@' + tgUsername : tgLink"></a> and tap Start.</p>
+                              <p class="settings-desc">Scan with your phone, or open <a :href="tgLink" target="_blank" rel="noopener noreferrer" x-text="tgUsername ? '@' + tgUsername : tgLink"></a> and tap Start.</p>
                             </div>
-                            <div class="cfg-link-actions">
+                            <div class="bot-channel-actions">
                               <button type="button" class="btn-outline" @click="cancelTelegram()">Cancel</button>
                             </div>
                           </div>
                         </div>
                       </template>
                     </div>
-                    <p class="cfg-link-err" x-show="channelError" x-text="channelError"></p>
+                    <p class="settings-msg settings-msg--err" x-show="channelError" x-text="channelError"></p>
                   </section>
 
                 </div>
               </div>
             </template>
 
-           </div><!-- .agent-bots-scroll -->
+           </div>
 
-            <div class="agent-bot-form-footer hairline" x-show="agentBotFormMode">
+            <div class="settings-foot" x-show="agentBotFormMode">
+              <div class="settings-foot-status"><span class="settings-msg settings-msg--err" x-text="agentBotSaveError"></span></div>
+              <button class="btn-outline" type="button" @click="closeAgentBotForm()">Cancel</button>
               <button class="btn-solid" type="button"
                       :disabled="!agentBotDraft.name.trim() || agentBotSaving"
                       @click="saveAgentBot()"
                       x-text="agentBotSaving ? 'Saving…' : 'Save'"></button>
-              <button class="btn-outline" type="button" @click="closeAgentBotForm()">Cancel</button>
-              <span class="agent-bot-form-err" x-text="agentBotSaveError"></span>
             </div>
-
-          </div><!-- .agent-bots-pane -->
+          </div>

@@ -215,9 +215,10 @@
       flex-shrink: 0; width: 20px; height: 20px;
       display: flex; align-items: center; justify-content: center;
     }
-    .home-side-child-icon { flex-shrink: 0; width: 14px; height: 14px; opacity: 0.5; }
+    /* Colour, not opacity, for the same reason as .side-nav-icon. */
+    .home-side-child-icon { flex-shrink: 0; width: 14px; height: 14px; color: color-mix(in srgb, currentColor 50%, transparent); }
     .home-side-child-icon > svg { display: block; width: 100%; height: 100%; }
-    .home-side-child.is-active .home-side-child-icon { opacity: 1; }
+    .home-side-child.is-active .home-side-child-icon { color: inherit; }
     .home-side-child-name {
       flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }

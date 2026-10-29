@@ -1,7 +1,7 @@
 {{/* Skills tab: every skill added to ~/.hylo/skills, and the catalog Hylo curates. */}}
-          <!-- Skills tab -->
-          <div class="settings-scroll-pane" x-show="tab === 'skills'">
-            <div class="skills-toolbar">
+          <div class="settings-page" x-show="tab === 'skills'">
+           <div class="settings-body">
+            <div class="settings-toolbar">
               <div class="seg" role="tablist">
                 <button type="button" class="seg-btn" role="tab" :class="{active: skillsTab === 'added'}"
                         :aria-selected="skillsTab === 'added'" @click="skillsTab = 'added'">
@@ -12,7 +12,7 @@
                   Catalog <span class="seg-count" x-show="!skillsLoading" x-text="catalogSkills.length"></span>
                 </button>
               </div>
-              <div class="skills-toolbar-actions">
+              <div class="settings-toolbar-end">
                 <button type="button" class="btn-outline" @click="skillsRepoOpen = !skillsRepoOpen; $nextTick(() => skillsRepoOpen && $refs.skillsRepo.focus())">{{template "skills-plus"}}Add from GitHub</button>
 {{template "toolbar-refresh" (dict "Loading" `skillsLoading` "Click" `loadSkills()` "Busy" `Loading…`)}}
               </div>
@@ -23,10 +23,10 @@
               <button type="submit" class="btn-solid" :disabled="!skillsRepo.repo.trim() || skillsRepo.adding" x-text="skillsRepo.adding ? 'Adding…' : 'Add'"></button>
               <button type="button" class="btn-outline" @click="skillsRepoOpen = false">Cancel</button>
             </form>
-            <p class="skills-hint" x-show="skillsTab === 'added'">Every skill in <code>~/.hylo/skills/</code>, wherever it came from. Turn them on for a bot under Bots.</p>
-            <p class="skills-hint" x-show="skillsTab === 'catalog'">Skills Hylo curates on GitHub. Add one, then turn it on for a bot.</p>
-            <div class="cfg-err-msg" x-show="skillsError && !skillsLoading" x-text="'Error: ' + skillsError"></div>
-            <div class="cfg-loader" x-show="skillsLoading">Loading skills…</div>
+            <p class="settings-intro" x-show="skillsTab === 'added'">Every skill in <code>~/.hylo/skills/</code>, wherever it came from. Turn them on for a bot under Bots.</p>
+            <p class="settings-intro" x-show="skillsTab === 'catalog'">Skills Hylo curates on GitHub. Add one, then turn it on for a bot.</p>
+            <div class="settings-status settings-status--err" x-show="skillsError && !skillsLoading" x-text="'Error: ' + skillsError"></div>
+            <div class="settings-status" x-show="skillsLoading">Loading skills…</div>
             <div x-show="!skillsLoading && skillsTab === 'added'">
               <template x-if="builtinSkills.length">
                 <div class="skills-builtin">
@@ -49,7 +49,7 @@
               <template x-if="extraSkills.length === 0">
                 <div class="skills-empty">
                   No other skills added yet.
-                  <button type="button" class="skills-empty-link" @click="skillsTab = 'catalog'">Browse the catalog</button>
+                  <button type="button" class="settings-link" @click="skillsTab = 'catalog'">Browse the catalog</button>
                 </div>
               </template>
               <div class="skills-grid">
@@ -63,7 +63,8 @@
                 </template>
               </div>
             </div>
-          </div><!-- .skills-pane -->
+           </div>
+          </div>
 
 {{define "skills-sparkle"}}{{icon "sparkle"}}{{end}}
 {{define "skills-trash"}}{{icon "trash"}}{{end}}

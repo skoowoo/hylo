@@ -1,21 +1,9 @@
-    .shortcuts-fields { max-width: 640px; }
-    .shortcuts-list { display: flex; flex-direction: column; }
-    .shortcuts-row {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 0.6rem 0; gap: 1rem;
-    }
-    .shortcuts-row-meta { min-width: 0; flex: 1; }
-    .shortcuts-label { font-size: var(--text-sm); font-weight: 600; color: var(--fg); display: block; }
-    .shortcuts-desc { font-size: var(--text-xs); color: var(--muted); margin-top: 0.1rem; }
-    .shortcuts-keys { display: flex; gap: 0.3rem; align-items: center; flex-shrink: 0; }
-    .shortcuts-keys .kbd { font-size: var(--text-xs); padding: 0.18rem 0.42rem; }
+    .settings-row-ctrl .kbd { font-size: var(--text-xs); padding: 0.18rem 0.42rem; }
     button.kbd { cursor: pointer; }
     button.kbd:hover { background: var(--btn-bg-hov); }
-    .kbd-recording { border-color: var(--accent, var(--fg)); color: var(--muted); }
-    .shortcuts-btn {
+    .kbd-recording { border-color: var(--accent); color: var(--muted); }
+    .shortcuts-reset {
       background: none; border: none; padding: 0; cursor: pointer;
       font-size: var(--text-xs); color: var(--muted);
     }
-    .shortcuts-btn:hover { color: var(--fg); }
-    .shortcuts-error { flex-basis: 100%; text-align: right; font-size: var(--text-xs); color: var(--danger, #d33); }
-    .shortcuts-row { flex-wrap: wrap; }
+    .shortcuts-reset:hover { color: var(--fg); }

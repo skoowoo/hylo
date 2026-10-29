@@ -6,27 +6,24 @@
       backdrop-filter: var(--glass-scrim-filter);
       -webkit-backdrop-filter: var(--glass-scrim-filter);
       border-radius: 0; /* full-viewport scrim — never rounds */
-      display: flex; align-items: center; justify-content: center;
     }
+    /* Centred on whole pixels: at a half pixel (odd window size) WebKit draws a
+       row's icon a pixel off while its hover/active background transitions. */
     .settings-modal-panel {
-      width: 1040px; max-width: calc(100vw - 2rem);
-      height: 720px; max-height: calc(100vh - 2rem);
+      --panel-w: min(1040px, 100vw - 2rem); --panel-h: min(720px, 100vh - 2rem);
+      position: absolute;
+      left: round(down, (100vw - var(--panel-w)) / 2, 1px);
+      top: round(down, (100vh - var(--panel-h)) / 2, 1px);
+      width: var(--panel-w); height: var(--panel-h);
       background: var(--bg);
       /* Shadow carries the floating edge; the line is only a whisper. */
       border: var(--bd-w) solid var(--line-hair);
       border-radius: var(--r-xl);
       box-shadow: var(--shadow-lg) var(--shadow-color);
-      display: flex; flex-direction: column; overflow: hidden;
-      /* Anchors .settings-modal-close, now that there's no title bar for it
-         to sit in. */
-      position: relative;
+      display: flex; overflow: hidden;
     }
 
-    /* Positioned against the whole panel rather than just .settings-content,
-       so it also floats above .settings-sidebar (which has no header of its
-       own) — same 12px corner offset as the app's other floating chrome
-       (graph's zoom controls/node panel). Lands inside the content header's
-       row (below) on the right. */
+    /* Floats over the panel's corner, inside the content header's row. */
     .settings-modal-close {
       position: absolute; top: 12px; right: 12px; z-index: 5;
     }
@@ -40,47 +37,118 @@
     html.macos .settings-modal-panel,
     html.macos .settings-modal-close { -webkit-app-region: no-drag; }
     .settings-modal-inner {
-      flex: 1; min-height: 0; display: flex; overflow: hidden;
+      flex: 1; min-width: 0; display: flex; overflow: hidden;
       border-radius: 0;
     }
 
-    /* ── Settings inner layout ───────────────────────────────── */
-
-    /* ── Primary sidebar ──────────────────────────────────────── */
+    /* ── Sidebar ──────────────────────────────────────────────── */
     .settings-sidebar {
       flex-shrink: 0; width: 196px;
       border-right: var(--bd-w) solid var(--line-hair);
       background: var(--surface-soft);
-      padding: 0 0.5rem 1rem; display: flex; flex-direction: column;
+      padding: 0 var(--space-xs) var(--space-md); display: flex; flex-direction: column;
       gap: 2px; user-select: none;
     }
-
-    /* Same height and type as the content pane's title row, so both sit on one line. */
+    /* Same height and type as the content header, so both titles sit on one line. */
     .settings-sidebar-title {
-      flex-shrink: 0; height: var(--toolbar-h); padding: 0 8px;
+      flex-shrink: 0; height: var(--toolbar-h); padding: 0 var(--space-xs);
       display: flex; align-items: center;
-      font-size: var(--text-base); font-weight: 600; color: var(--fg);
+      font-size: var(--text-base); font-weight: var(--fw-semibold); color: var(--fg);
     }
     html.macos .settings-sidebar-title { -webkit-app-region: drag; }
 
-    /* ── Content area ─────────────────────────────────────────── */
-    .settings-content { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden; border-radius: 0; }
-    /* Reuses the shared .home-list-head (home.css) so this pane's top
-       chrome matches every other section's header row instead of
-       inventing its own; just a title here since the pane below already
-       carries whatever controls it needs. */
+    /* ── Content: header, then one page per tab ──────────────── */
+    .settings-content {
+      /* One reading column for every page; body and footer pad out to it. */
+      --settings-col: 720px;
+      --settings-gutter: var(--space-lg);
+      --settings-inline: var(--settings-gutter) max(var(--settings-gutter), 100% - var(--settings-col) - var(--settings-gutter));
+      flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden; border-radius: 0;
+    }
+    /* .home-list-head (home.css) supplies the row; only the title is ours. */
     .settings-content-title {
       min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-      font-size: var(--text-base); font-weight: 600; color: var(--fg);
+      font-size: var(--text-base); font-weight: var(--fw-semibold); color: var(--fg);
     }
-    /* A tab's detail view (a config section, a bot) leaves through here. The
-       negative margins line the chevron up with the pane's left edge. */
+    /* Lines the chevron up with the gutter. */
     .settings-back { margin: 0 -4px 0 -10px; }
 
-    /* ── Pane ─────────────────────────────────────────────────── */
-    /* Shared by every tab that's just "a scrollable column of fields"
-       (Appearance/Shortcuts/Notifications/Skills/Agents) — Server and
-       Agent Bots have their own multi-part layouts (.cfg-content,
-       .agent-bots-pane) and don't use this. */
-    .settings-scroll-pane { flex: 1; overflow-y: auto; padding: 1.75rem 1.5rem 3rem; }
+    /* A page is a scrolling body plus an optional docked footer: the footer is
+       a sibling of the scroller, never sticky inside it. */
+    .settings-page { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+    .settings-body {
+      flex: 1; min-height: 0; overflow-y: auto;
+      padding: var(--space-xs) 0 var(--space-xxl); padding-inline: var(--settings-inline);
+      border-radius: 0;
+    }
+    .settings-foot {
+      flex-shrink: 0; display: flex; align-items: center; gap: var(--space-xs);
+      padding: var(--space-sm) 0; padding-inline: var(--settings-inline);
+      border-top: var(--bd-w) solid var(--line-hair);
+    }
+    .settings-foot-status {
+      flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--space-sm);
+      font-size: var(--text-xs); color: var(--muted);
+    }
+
+    /* ── Page parts ───────────────────────────────────────────── */
+    .settings-toolbar { display: flex; align-items: center; gap: var(--space-xs); margin-bottom: var(--space-md); }
+    .settings-toolbar-end { margin-left: auto; display: flex; align-items: center; gap: var(--space-xs); }
+    .settings-toolbar-note { font-size: var(--text-xs); color: var(--muted); }
+    .settings-intro { font-size: var(--text-sm); color: var(--muted); line-height: var(--lh-relaxed); margin: 0 0 var(--space-md); }
+    .settings-intro code, .settings-desc code {
+      font-family: var(--font-mono); font-size: var(--text-2xs);
+      padding: 0.05rem 0.3rem; border-radius: var(--r-xs); background: var(--code-bg);
+    }
+    .settings-intro a, .settings-desc a { color: var(--accent-text); }
+    .settings-form > .settings-intro { margin: 0; }
+    /* A button that reads as an inline link. */
+    .settings-link {
+      border: none; background: none; padding: 0; border-radius: 0;
+      font: inherit; color: var(--accent-text); cursor: pointer;
+    }
+    .settings-link:hover { text-decoration: underline; }
+    .settings-section + .settings-section { margin-top: var(--space-xl); }
+    .settings-section-title {
+      display: flex; align-items: baseline; gap: 0.4rem; margin: 0 0 var(--space-sm);
+      font-size: var(--text-sm); font-weight: var(--fw-semibold); color: var(--fg);
+    }
+    .settings-section-title small { font-size: inherit; font-weight: var(--fw-regular); color: var(--muted); }
+
+    /* Preference list: label and help on the left, the control on the right,
+       hairlines between rows. */
+    .settings-list { display: flex; flex-direction: column; }
+    .settings-row {
+      display: grid; grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center; column-gap: var(--space-lg);
+      padding: var(--space-sm) 0;
+    }
+    .settings-row + .settings-row { border-top: var(--bd-w) solid var(--line-hair); }
+    /* Text inputs share one width so their edges line up down the list. */
+    .settings-row--input { grid-template-columns: minmax(0, 1fr) 240px; }
+    /* Wide controls (textareas) drop below the label. */
+    .settings-row--block { grid-template-columns: minmax(0, 1fr); row-gap: var(--space-xs); }
+    .settings-row-ctrl { display: flex; align-items: center; justify-content: flex-end; gap: var(--space-xs); min-width: 0; }
+    .settings-row--block .settings-row-ctrl { justify-content: stretch; }
+
+    /* Editor form (a bot): label above its control. */
+    .settings-form { display: flex; flex-direction: column; gap: var(--space-lg); }
+    .settings-form-row { display: flex; gap: var(--space-md); }
+    .settings-form-row > * { flex: 1; min-width: 0; }
+    .settings-form-row > .settings-field--fit { flex: none; }
+    .settings-field > .settings-label { margin-bottom: var(--space-xs); }
+    .settings-field > .settings-desc { margin: calc(-1 * var(--space-xxs)) 0 var(--space-xs); }
+
+    .settings-label { display: block; font-size: var(--text-sm); font-weight: var(--fw-medium); color: var(--fg); }
+    .settings-label small { font-size: inherit; font-weight: var(--fw-regular); color: var(--muted); }
+    .settings-desc { display: block; margin-top: 2px; font-size: var(--text-xs); color: var(--muted); line-height: var(--lh-relaxed); }
+    .settings-key { font-family: var(--font-mono); font-size: var(--text-2xs); color: var(--muted-soft); }
+
+    /* Loading / error placeholders that stand in for a page's content. */
+    .settings-status { font-size: var(--text-xs); color: var(--muted); padding: var(--space-xl) 0; }
+    .settings-status--err { color: var(--s-err); }
+    /* Inline outcome text next to the control that caused it. */
+    .settings-msg { font-size: var(--text-xs); color: var(--muted); }
+    .settings-msg--ok { color: var(--s-ok); font-weight: var(--fw-medium); }
+    .settings-msg--err { color: var(--s-err); }
     ::-webkit-scrollbar { display: none; }

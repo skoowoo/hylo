@@ -1,19 +1,19 @@
 {{/* Agents tab: detected CLI agents and their models. The agents list is shared with Bots, so it lives in settings_modal.js. */}}
-          <!-- Agents tab -->
-          <div class="settings-scroll-pane" x-show="tab === 'agents'">
-            <div class="agents-toolbar">
+          <div class="settings-page" x-show="tab === 'agents'">
+           <div class="settings-body">
+            <div class="settings-toolbar">
 {{template "toolbar-refresh" (dict "Loading" `agentsLoading` "Click" `loadAgents(true)` "Busy" `Detecting…`)}}
-              <span class="agents-summary" x-show="!agentsLoading && agents.length">
+              <span class="settings-toolbar-note" x-show="!agentsLoading && agents.length">
                 <span x-text="agents.filter(a=>a.available).length + ' available · ' + agents.filter(a=>!a.available).length + ' not installed'"></span>
                 <span x-show="agentsFromCache && agentsCachedAt"
                       x-text="' · cached ' + Math.round((Date.now() - agentsCachedAt) / 60000) + 'm ago'"></span>
               </span>
             </div>
-            <div class="cfg-loader" x-show="agentsLoading">Detecting agents on PATH — this may take a moment…</div>
-            <div class="cfg-err-msg" x-show="agentsError && !agentsLoading" x-text="'Error: ' + agentsError"></div>
+            <div class="settings-status" x-show="agentsLoading">Detecting agents on PATH — this may take a moment…</div>
+            <div class="settings-status settings-status--err" x-show="agentsError && !agentsLoading" x-text="'Error: ' + agentsError"></div>
             <div class="agents-list" x-show="!agentsLoading && !agentsError && agents.length">
               <template x-for="ag in sortedAgents" :key="ag.id">
-                <div class="list-card list-card--hover list-card--soft agent-card" :class="{unavailable: !ag.available}">
+                <div class="list-card list-card--hover agent-card" :class="{unavailable: !ag.available}">
                   <div class="agent-card-top">
                     <span class="dot" :class="ag.available ? 'dot--on' : 'dot--off'"></span>
                     <span class="agent-card-name" x-text="ag.name"></span>
@@ -53,4 +53,5 @@
                 </div>
               </template>
             </div>
-          </div><!-- .agents-pane -->
+           </div>
+          </div>

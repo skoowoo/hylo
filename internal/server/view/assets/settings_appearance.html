@@ -1,35 +1,48 @@
 {{/* Appearance tab: theme, accent and line-break preferences. */}}
-          <!-- Appearance tab -->
-          <div class="settings-scroll-pane" x-show="tab === 'appearance'">
-            <div class="settings-fields">
-              <div>
-                <label class="settings-field-label">Theme</label>
-                <div class="seg">
-                  <button class="seg-btn" :class="{active: themePref==='light'}" @click="setTheme('light')">Light</button>
-                  <button class="seg-btn" :class="{active: themePref==='dark'}" @click="setTheme('dark')">Dark</button>
-                  <button class="seg-btn" :class="{active: themePref==='auto'}" @click="setTheme('auto')">Auto</button>
+          <div class="settings-page" x-show="tab === 'appearance'">
+            <div class="settings-body">
+              <div class="settings-list">
+                <div class="settings-row hairline">
+                  <div>
+                    <span class="settings-label">Theme</span>
+                    <span class="settings-desc">Light, dark, or match your system setting.</span>
+                  </div>
+                  <div class="settings-row-ctrl">
+                    <div class="seg">
+                      <button class="seg-btn" :class="{active: themePref==='light'}" @click="setTheme('light')">Light</button>
+                      <button class="seg-btn" :class="{active: themePref==='dark'}" @click="setTheme('dark')">Dark</button>
+                      <button class="seg-btn" :class="{active: themePref==='auto'}" @click="setTheme('auto')">Auto</button>
+                    </div>
+                  </div>
                 </div>
-                <p class="settings-field-desc">Light, dark, or match your system setting. Takes effect immediately.</p>
-              </div>
-              <div>
-                <label class="settings-field-label">Accent Color</label>
-                <div class="accent-swatches" role="radiogroup" aria-label="Accent color">
-                  <template x-for="p in accentPresets" :key="p.id">
-                    <button type="button" class="accent-swatch" role="radio"
-                            :class="{active: accentPref===p.id}" :aria-checked="accentPref===p.id"
-                            :style="'--sw:' + p.a" :title="p.name" :aria-label="p.name"
-                            @click="setAccent(p.id)"></button>
-                  </template>
+                <div class="settings-row hairline">
+                  <div>
+                    <span class="settings-label">Accent color</span>
+                    <span class="settings-desc">Buttons, links and text selection.</span>
+                  </div>
+                  <div class="settings-row-ctrl">
+                    <div class="accent-swatches" role="radiogroup" aria-label="Accent color">
+                      <template x-for="p in accentPresets" :key="p.id">
+                        <button type="button" class="accent-swatch" role="radio"
+                                :class="{active: accentPref===p.id}" :aria-checked="accentPref===p.id"
+                                :style="'--sw:' + p.a" :title="p.name" :aria-label="p.name"
+                                @click="setAccent(p.id)"></button>
+                      </template>
+                    </div>
+                  </div>
                 </div>
-                <p class="settings-field-desc">Brand color for buttons, links and text selection. Takes effect immediately.</p>
-              </div>
-              <div>
-                <label class="settings-field-label">Line Breaks</label>
-                <div class="seg">
-                  <button class="seg-btn" :class="{active: lineBreaksPref==='loose'}" @click="setLineBreaks('loose')">Loose</button>
-                  <button class="seg-btn" :class="{active: lineBreaksPref==='strict'}" @click="setLineBreaks('strict')">Strict</button>
+                <div class="settings-row hairline">
+                  <div>
+                    <span class="settings-label">Line breaks</span>
+                    <span class="settings-desc">How a single line break inside a paragraph reads when Markdown is opened or pasted. Loose keeps it as a visible break, like Obsidian. Strict joins it into flowing text, like plain CommonMark: use it for text hard-wrapped to a fixed width. Applies the next time the text is parsed.</span>
+                  </div>
+                  <div class="settings-row-ctrl">
+                    <div class="seg">
+                      <button class="seg-btn" :class="{active: lineBreaksPref==='loose'}" @click="setLineBreaks('loose')">Loose</button>
+                      <button class="seg-btn" :class="{active: lineBreaksPref==='strict'}" @click="setLineBreaks('strict')">Strict</button>
+                    </div>
+                  </div>
                 </div>
-                <p class="settings-field-desc">How a single line break inside a paragraph is interpreted when opening or pasting Markdown. Loose shows it as a visible break, matching Obsidian's default. Strict merges it into flowing text like plain CommonMark — use this if you paste text that was manually wrapped to a fixed width. Applies the next time that text is parsed (reopen the note, or switch out of source view).</p>
               </div>
             </div>
           </div>

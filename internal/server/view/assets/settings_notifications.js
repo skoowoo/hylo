@@ -1,7 +1,6 @@
   function settingsNotificationsTab() {
     return {
       notifySettings: { textEnabled: true, soundEnabled: true, sound: 'beep' },
-      notifySaveOk: false,
 
       notifySounds: [
         { id: 'beep', label: 'System beep' }, { id: 'none', label: 'None' },
@@ -32,8 +31,6 @@
             sound:        this.notifySettings.sound,
           };
           this.notifySettings = await window.hyloDesktop.inboxNotify.setSettings(snap);
-          this.notifySaveOk = true;
-          setTimeout(() => { this.notifySaveOk = false; }, 1500);
         } catch(e) { console.error('[notify] saveNotifySettings error:', e); }
       },
     };

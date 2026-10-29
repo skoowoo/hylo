@@ -341,8 +341,10 @@
        tab list) — a nested/indented row dims its icon further and sizes
        it down a notch as a depth cue; that one stays its own
        .home-side-child-icon rather than joining this. */
-    .side-nav-icon { flex-shrink: 0; width: 15px; height: 15px; opacity: 0.6; }
-    .side-nav-item.is-active .side-nav-icon { opacity: 1; }
+    /* Dimmed by colour, not opacity: WebKit re-snaps an opacity group at a half
+       pixel whenever a neighbouring scroller gains or drops its layer. */
+    .side-nav-icon { flex-shrink: 0; width: 15px; height: 15px; color: color-mix(in srgb, currentColor 60%, transparent); }
+    .side-nav-item.is-active .side-nav-icon { color: inherit; }
 
     /* ── Shared small status dot — a solid circle, color carries the
        meaning. One recipe backs every online/offline, unread, and dirty
@@ -418,7 +420,7 @@
        Bot field, the frontmatter YAML editor, the editor's Find/Replace).
        font-family is monospace throughout: most of these fields already
        were (server URL, every Server-tab config value, the note-path
-       field), it matches the mono .cfg-field-key label sitting right next
+       field), it matches the mono .settings-key label sitting right next
        to each config input, and it's a single committed choice rather
        than switching per field's content.
        No border at rest — background: var(--btn-bg) is base.css's

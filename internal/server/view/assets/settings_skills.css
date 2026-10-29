@@ -1,23 +1,11 @@
-    .skills-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; margin-bottom: 0.75rem; }
-    .skills-toolbar-actions { display: flex; align-items: center; gap: 0.5rem; }
-    .skills-repo-form { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; flex-wrap: wrap; }
+    .skills-repo-form { display: flex; align-items: center; gap: var(--space-xs); margin-bottom: var(--space-md); flex-wrap: wrap; }
     .skills-repo-form .field-input { flex: 2 1 14rem; min-width: 0; }
     .skills-repo-form .skills-repo-name { flex: 1 1 9rem; }
-    .skills-hint { font-size: var(--text-xs); color: var(--muted); line-height: 1.5; margin: 0 0 1rem; min-height: 1.5em; }
-    .skills-hint code {
-      font-family: var(--font-mono); font-size: var(--text-2xs);
-      padding: 0.05rem 0.3rem; border-radius: var(--r-xs); background: var(--code-bg);
-    }
     .skills-empty {
       display: flex; flex-direction: column; align-items: center; gap: 0.5rem;
       font-size: var(--text-sm); color: var(--muted); padding: 2.5rem 0; text-align: center;
     }
-    .skills-empty-link {
-      border: none; background: none; padding: 0; font: inherit; font-size: var(--text-sm);
-      color: var(--accent-text); border-radius: 0;
-    }
-    .skills-empty-link:hover { text-decoration: underline; }
-    .skills-builtin { margin-bottom: 0.5rem; }
+    .skills-builtin { margin-bottom: var(--space-xs); }
     .skills-builtin:has(.skills-builtin-row[aria-expanded="true"]) {
       margin-bottom: 1.25rem; padding-bottom: 1.25rem; border-bottom: 1px solid var(--line-hair); border-radius: 0;
     }
@@ -38,7 +26,7 @@
     .skills-builtin-chev { width: 14px; height: 14px; flex-shrink: 0; color: var(--muted); transition: transform var(--motion-fast); }
     .skills-builtin-row[aria-expanded="true"] .skills-builtin-chev { transform: rotate(90deg); }
     .skills-builtin-grid { margin-top: 0.5rem; }
-    .skills-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(232px, 1fr)); gap: 0.5rem; }
+    .skills-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: var(--space-xs); }
 
     /* Surface from the shared .list-card (base.css); not --clickable since
        the card's controls are the targets. */

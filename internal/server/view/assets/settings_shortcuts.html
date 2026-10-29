@@ -1,17 +1,17 @@
 {{/* Shortcuts tab: keyboard shortcut reference list. */}}
-          <!-- Shortcuts tab -->
-          <div class="settings-scroll-pane" x-show="tab === 'shortcuts'">
-            <div class="shortcuts-fields">
-              <div class="shortcuts-list">
+          <div class="settings-page" x-show="tab === 'shortcuts'">
+            <div class="settings-body">
+              <div class="settings-list">
                 <template x-for="s in shortcutDefs" :key="s.id">
-                  <div class="shortcuts-row hairline">
-                    <div class="shortcuts-row-meta">
-                      <span class="shortcuts-label" x-text="s.label"></span>
-                      <span class="shortcuts-desc" x-text="s.desc"></span>
+                  <div class="settings-row hairline">
+                    <div>
+                      <span class="settings-label" x-text="s.label"></span>
+                      <span class="settings-desc" x-text="s.desc"></span>
+                      <span class="settings-desc settings-msg--err" x-show="recordingId === s.id && shortcutError" x-text="shortcutError"></span>
                     </div>
-                    <div class="shortcuts-keys" @click.outside="recordingId === s.id && cancelRecord()">
+                    <div class="settings-row-ctrl" @click.outside="recordingId === s.id && cancelRecord()">
                       <template x-if="s.editable && customKeys[s.id] && recordingId !== s.id">
-                        <button type="button" class="shortcuts-btn" @click="resetCombo(s)">Reset</button>
+                        <button type="button" class="shortcuts-reset" @click="resetCombo(s)">Reset</button>
                       </template>
                       <button type="button" class="kbd" x-show="s.editable"
                               :class="{ 'kbd-recording': recordingId === s.id }"
@@ -19,9 +19,8 @@
                               x-text="recordingId === s.id ? 'Press shortcut…' : fmtCombo(getCombo(s))"></button>
                       <span class="kbd" x-show="!s.editable" x-text="fmtCombo(getCombo(s))"></span>
                     </div>
-                    <div class="shortcuts-error" x-show="recordingId === s.id && shortcutError" x-text="shortcutError"></div>
                   </div>
                 </template>
               </div>
             </div>
-          </div><!-- .shortcuts-pane -->
+          </div>

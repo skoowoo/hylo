@@ -1,178 +1,153 @@
-{{/* Server tab: connection config, and the Config section picker and detail. */}}
-          <!-- Server tab -->
-          <div class="cfg-content" x-show="tab === 'server'">
-            <div class="cfg-pane-area">
-              <div class="cfg-pane">
+{{/* Server tab: the server being edited, its config section picker, and a section's fields. */}}
+          <div class="settings-page" x-show="tab === 'server'">
+            <div class="settings-body" x-init="$store.servers.load()">
 
-                <div x-init="$store.servers.load()">
+              <div class="srv-notice" x-show="switchConfirm" x-cloak>
+                <span x-text="'Switching reloads the window. Discard ' + Object.keys(patch).length + ' unsaved change' + (Object.keys(patch).length !== 1 ? 's' : '') + '?'"></span>
+                <span class="srv-notice-actions">
+                  <button type="button" class="btn-solid btn--xs" @click="confirmSwitch()">Discard and switch</button>
+                  <button type="button" class="btn-outline btn--xs" @click="switchConfirm = ''">Cancel</button>
+                </span>
+              </div>
+              <div class="srv-notice" x-show="switching" x-cloak>Switching…</div>
+              <p class="settings-intro settings-msg--err" x-show="switchError" x-text="switchError"></p>
 
-                  <!-- Which server this tab edits. Everything below belongs to it. -->
+              <template x-if="!openSection">
+                <div>
                   <div class="srv-hero">
-                    <div class="srv-hero-main">
-                      <span class="srv-dot" :class="'is-' + heroState"></span>
-                      <div class="srv-hero-text">
-                        <span class="srv-hero-name" x-text="heroName"></span>
-                        <span class="srv-hero-url" x-text="heroSub"></span>
-                      </div>
+                    <span class="srv-dot" :class="'is-' + heroState"></span>
+                    <div class="srv-hero-text">
+                      <span class="srv-hero-name" x-text="heroName"></span>
+                      <span class="srv-hero-url" x-text="heroSub"></span>
                     </div>
-                    <div class="srv-hero-actions">
-                      <button type="button" class="btn-outline" x-show="$store.servers.available" @click="$store.servers.openManager()">Manage servers</button>
-                    </div>
+                    <button type="button" class="btn-outline" x-show="$store.servers.available" @click="$store.servers.openManager()">Manage servers</button>
                   </div>
-
-                  <div class="srv-notice" x-show="switchConfirm" x-cloak>
-                    <span x-text="'Switching reloads the window. Discard ' + Object.keys(patch).length + ' unsaved change' + (Object.keys(patch).length !== 1 ? 's' : '') + '?'"></span>
-                    <span class="srv-notice-actions">
-                      <button type="button" class="btn-solid btn--xs" @click="confirmSwitch()">Discard and switch</button>
-                      <button type="button" class="btn-outline btn--xs" @click="switchConfirm = ''">Cancel</button>
-                    </span>
-                  </div>
-                  <div class="settings-error" x-show="switchError" x-text="switchError" style="margin-bottom:0.75rem;"></div>
-                  <div class="srv-notice" x-show="switching" x-cloak>Switching…</div>
-
                   <div class="srv-process" x-show="isDesktop && serverManaged && editingLocalServer">
-                    <span class="srv-process-label">Server process started by this app</span>
+                    <span>Server process started by this app</span>
                     <button class="btn-outline btn-outline--danger btn--xs"
                             @click="stopServer()"
                             :disabled="!serverRunning || serverStopping"
                             x-text="serverStopping ? 'Stopping…' : (serverRunning ? 'Stop' : 'Stopped')"></button>
                   </div>
-                  <div class="settings-error" x-show="serverStopError" x-text="serverStopError"></div>
+                  <p class="settings-intro settings-msg--err" x-show="serverStopError" x-text="serverStopError"></p>
 
-                <div x-show="cfgLoading" class="cfg-loader">Loading configuration…</div>
-                <div x-show="cfgError && !cfgLoading" class="cfg-err-msg" x-text="'Error: ' + cfgError"></div>
-
-                <!-- Section picker — every section is a card, one click away,
-                     instead of a stacked accordion you scroll past. -->
-                <template x-if="!cfgLoading && !cfgError && !openSection">
-                  <div>
-                    <label class="settings-field-label cfg-scope" style="margin-bottom:0.75rem;display:block;">
-                      Configuration <span class="cfg-scope-for" x-text="'· ' + heroName"></span>
-                    </label>
+                  <section class="settings-section" x-show="!cfgLoading && !cfgError">
+                    <h3 class="settings-section-title">Configuration <small x-text="heroName"></small></h3>
                     <div class="cfg-section-grid">
                       <template x-for="section in sectionTabs" :key="section">
-                        <button type="button" class="list-card list-card--clickable list-card--soft cfg-section-card" @click="openSectionDetail(section)">
-                          <div class="cfg-section-card-top">
-                            <span class="cfg-section-card-title" x-text="sectionLabel(section)"></span>
+                        <button type="button" class="list-card list-card--clickable cfg-section-card" @click="openSectionDetail(section)">
+                          <span class="cfg-section-card-title">
+                            <span x-text="sectionLabel(section)"></span>
                             <span class="dot dot--accent" x-show="sectionHasDirty(section)" title="Unsaved changes in this section"></span>
-                          </div>
-                          <span class="cfg-section-card-desc" x-text="sectionIntro(section)"></span>
+                          </span>
+                          <span class="settings-desc" x-text="sectionIntro(section)"></span>
                         </button>
                       </template>
                     </div>
-                  </div>
-                </template>
+                  </section>
+                </div>
+              </template>
 
-                <!-- Section detail — replaces the picker (same list↔detail
-                     swap Agent Bots uses) so opening one section never
-                     pushes the others further down the page. -->
-                <template x-if="!cfgLoading && !cfgError && openSection">
-                  <div class="cfg-detail">
-                    <p class="cfg-detail-desc" x-show="sectionIntro(openSection)" x-text="sectionIntro(openSection)"></p>
+              <div class="settings-status" x-show="cfgLoading">Loading configuration…</div>
+              <div class="settings-status settings-status--err" x-show="cfgError && !cfgLoading" x-text="'Error: ' + cfgError"></div>
 
-                    <div class="cfg-fields">
-                      <template x-for="field in fieldsForSection(openSection)" :key="field.key">
-                        <div class="cfg-field hairline" :class="{dirty: isDirty(field.key), multiline: field.multiline}">
-                          <div class="cfg-field-meta">
-                            <span class="cfg-field-label"><span x-text="field.label"></span><span class="badge badge--sm cfg-vault-badge" x-show="field.vault" :title="vaultConfigPath ? 'Saved in ' + vaultConfigPath : ''">This vault</span></span>
-                            <code class="cfg-field-key" x-text="field.key"></code>
-                          </div>
-                          <div class="cfg-field-ctrl">
-                            <template x-if="field.type === 'bool'">
-                              <div class="seg">
-                                <button type="button" class="seg-btn" :class="{active: !getVal(field.key)}" @click="setVal(field.key, false)">Off</button>
-                                <button type="button" class="seg-btn" :class="{active: !!getVal(field.key)}" @click="setVal(field.key, true)">On</button>
-                              </div>
-                            </template>
-                            <template x-if="field.type === 'string' && field.enum && field.enum.length">
-                              <select class="field-input cfg-input" @change="setVal(field.key, $event.target.value)">
-                                <template x-for="opt in (field.enum || [])" :key="opt">
-                                  <option :value="opt" :selected="getVal(field.key) === opt" x-text="opt"></option>
-                                </template>
-                              </select>
-                            </template>
-                            <template x-if="field.type === 'int'">
-                              <input type="number" class="field-input cfg-input"
-                                     :value="getVal(field.key)"
-                                     @change="setVal(field.key, Number($event.target.value))"
-                                     :min="field.constraints ? field.constraints.min : undefined"
-                                     :max="field.constraints ? field.constraints.max : undefined">
-                            </template>
-                            <template x-if="field.type === 'string_list'">
-                              <textarea class="field-input cfg-textarea" rows="3" placeholder="One entry per line"
-                                        :value="listToText(getVal(field.key))"
-                                        @change="setVal(field.key, textToList($event.target.value))"></textarea>
-                            </template>
-                            <template x-if="field.sensitive && field.type !== 'bool' && field.type !== 'string_list'">
-                              <div class="cfg-reveal-wrap">
-                                <input class="field-input cfg-input"
-                                       :type="revealed[field.key] ? 'text' : 'password'"
-                                       :value="getVal(field.key) || ''"
-                                       :placeholder="(secrets[field.key] && !getVal(field.key)) ? '••• set •••' : (field.default != null ? String(field.default) : '')"
-                                       @input="setVal(field.key, $event.target.value)">
-                                <button type="button" class="icon-btn icon-btn--lg"
-                                        @click.stop="toggleReveal(field.key)"
-                                        :title="revealed[field.key] ? 'Hide' : 'Reveal'">
-                                  {{icon "eye" `x-show="!revealed[field.key]"`}}
-                                  {{icon "eye-off" `x-show="revealed[field.key]"`}}
-                                </button>
-                              </div>
-                            </template>
-                            <template x-if="!field.sensitive && field.type === 'string' && field.multiline && !(field.enum && field.enum.length)">
-                              <textarea class="field-input cfg-textarea" rows="6"
-                                        :value="getVal(field.key) ?? ''"
-                                        :placeholder="field.default != null ? String(field.default) : ''"
-                                        @input="setVal(field.key, $event.target.value)"></textarea>
-                            </template>
-                            <template x-if="!field.sensitive && (field.type === 'string' || field.type === 'duration') && !field.multiline && !(field.enum && field.enum.length)">
-                              <div style="display:flex;gap:0.375rem;align-items:center;width:100%;">
-                                <input type="text" class="field-input cfg-input" style="flex:1;min-width:0;"
-                                       :value="getVal(field.key) ?? ''"
-                                       :placeholder="field.default != null ? String(field.default) : ''"
-                                       @input="setVal(field.key, $event.target.value)">
-                                <template x-if="field.key === 'vault.path' && isDesktop">
-                                  <button type="button" class="icon-btn icon-btn--lg"
-                                          title="Browse for folder"
-                                          style="font-size:13px;letter-spacing:0.05em;padding:0 6px;width:auto;"
-                                          @click="pickFolder(field.key, getVal(field.key))">···</button>
-                                </template>
-                              </div>
-                            </template>
-                          </div>
-                          <p class="cfg-field-desc" x-text="field.description"></p>
+              <template x-if="openSection && !cfgLoading && !cfgError">
+                <div>
+                  <p class="settings-intro" x-show="sectionIntro(openSection)" x-text="sectionIntro(openSection)"></p>
+                  <div class="settings-list">
+                    <template x-for="field in fieldsForSection(openSection)" :key="field.key">
+                      <div class="settings-row hairline"
+                           :class="{'is-dirty': isDirty(field.key), 'settings-row--block': field.type === 'string_list' || field.multiline, 'settings-row--input': field.type !== 'bool' && field.type !== 'string_list' && !field.multiline}">
+                        <div>
+                          <span class="settings-label cfg-label"><span x-text="field.label"></span><span class="badge badge--sm" x-show="field.vault" :title="vaultConfigPath ? 'Saved in ' + vaultConfigPath : ''">This vault</span></span>
+                          <span class="settings-desc" x-text="field.description"></span>
+                          <code class="settings-key" x-text="field.key"></code>
                         </div>
-                      </template>
-                    </div>
-
+                        <div class="settings-row-ctrl">
+                          <template x-if="field.type === 'bool'">
+                            <div class="seg">
+                              <button type="button" class="seg-btn" :class="{active: !getVal(field.key)}" @click="setVal(field.key, false)">Off</button>
+                              <button type="button" class="seg-btn" :class="{active: !!getVal(field.key)}" @click="setVal(field.key, true)">On</button>
+                            </div>
+                          </template>
+                          <template x-if="field.type === 'string' && field.enum && field.enum.length">
+                            <select class="field-input" @change="setVal(field.key, $event.target.value)">
+                              <template x-for="opt in (field.enum || [])" :key="opt">
+                                <option :value="opt" :selected="getVal(field.key) === opt" x-text="opt"></option>
+                              </template>
+                            </select>
+                          </template>
+                          <template x-if="field.type === 'int'">
+                            <input type="number" class="field-input cfg-number"
+                                   :value="getVal(field.key)"
+                                   @change="setVal(field.key, Number($event.target.value))"
+                                   :min="field.constraints ? field.constraints.min : undefined"
+                                   :max="field.constraints ? field.constraints.max : undefined">
+                          </template>
+                          <template x-if="field.type === 'string_list'">
+                            <textarea class="field-input" rows="3" placeholder="One entry per line"
+                                      :value="listToText(getVal(field.key))"
+                                      @change="setVal(field.key, textToList($event.target.value))"></textarea>
+                          </template>
+                          <template x-if="field.sensitive && field.type !== 'bool' && field.type !== 'string_list'">
+                            <div class="cfg-input-group">
+                              <input class="field-input"
+                                     :type="revealed[field.key] ? 'text' : 'password'"
+                                     :value="getVal(field.key) || ''"
+                                     :placeholder="(secrets[field.key] && !getVal(field.key)) ? '••• set •••' : (field.default != null ? String(field.default) : '')"
+                                     @input="setVal(field.key, $event.target.value)">
+                              <button type="button" class="icon-btn icon-btn--lg"
+                                      @click.stop="toggleReveal(field.key)"
+                                      :title="revealed[field.key] ? 'Hide' : 'Reveal'">
+                                {{icon "eye" `x-show="!revealed[field.key]"`}}
+                                {{icon "eye-off" `x-show="revealed[field.key]"`}}
+                              </button>
+                            </div>
+                          </template>
+                          <template x-if="!field.sensitive && field.type === 'string' && field.multiline && !(field.enum && field.enum.length)">
+                            <textarea class="field-input" rows="6"
+                                      :value="getVal(field.key) ?? ''"
+                                      :placeholder="field.default != null ? String(field.default) : ''"
+                                      @input="setVal(field.key, $event.target.value)"></textarea>
+                          </template>
+                          <template x-if="!field.sensitive && (field.type === 'string' || field.type === 'duration') && !field.multiline && !(field.enum && field.enum.length)">
+                            <div class="cfg-input-group">
+                              <input type="text" class="field-input"
+                                     :value="getVal(field.key) ?? ''"
+                                     :placeholder="field.default != null ? String(field.default) : ''"
+                                     @input="setVal(field.key, $event.target.value)">
+                              <template x-if="field.key === 'vault.path' && isDesktop">
+                                <button type="button" class="icon-btn icon-btn--lg" title="Browse for folder"
+                                        @click="pickFolder(field.key, getVal(field.key))">{{icon "folder"}}</button>
+                              </template>
+                            </div>
+                          </template>
+                        </div>
+                      </div>
+                    </template>
                   </div>
-                </template>
-
                 </div>
+              </template>
 
-              </div>
             </div>
 
-            <div class="cfg-action-bar hairline" x-show="!cfgLoading && !cfgError">
-              <div class="cfg-action-bar-inner">
-                <div class="cfg-action-left">
-                  <span class="cfg-status-ok" x-show="cfgSaveOk && !hasDirty">Saved</span>
-                  <span class="cfg-status-err" x-show="cfgSaveError" x-text="cfgSaveError"></span>
-                  <span class="cfg-status-err" x-show="cfgRestartError" x-text="cfgRestartError"></span>
-                  <span class="cfg-restart-note" x-show="cfgRestarting">Restarting server…</span>
-                  <span class="badge" x-show="hasDirty"
-                        x-text="Object.keys(patch).length + ' unsaved change' + (Object.keys(patch).length !== 1 ? 's' : '')"></span>
-                  <span class="cfg-restart-note"
-                        x-show="!hasDirty && !cfgSaveOk && !cfgSaveError && !cfgRestartError && !cfgRestarting">
-                    Pick a section to edit. Save once when done; the server restarts to apply.
-                  </span>
-                </div>
-                <div class="cfg-action-right">
-                  <button class="btn-outline" x-show="hasDirty" @click="discardAll()">Discard</button>
-                  <button class="btn-solid"
-                          @click="saveConfig()"
-                          :disabled="!hasDirty || cfgSaving || cfgRestarting"
-                          x-text="cfgRestarting ? 'Restarting…' : cfgSaving ? 'Saving…' : 'Save all'"></button>
-                </div>
+            <div class="settings-foot" x-show="!cfgLoading && !cfgError">
+              <div class="settings-foot-status">
+                <span class="settings-msg settings-msg--ok" x-show="cfgSaveOk && !hasDirty">Saved</span>
+                <span class="settings-msg settings-msg--err" x-show="cfgSaveError" x-text="cfgSaveError"></span>
+                <span class="settings-msg settings-msg--err" x-show="cfgRestartError" x-text="cfgRestartError"></span>
+                <span class="settings-msg" x-show="cfgRestarting">Restarting server…</span>
+                <span class="badge" x-show="hasDirty"
+                      x-text="Object.keys(patch).length + ' unsaved change' + (Object.keys(patch).length !== 1 ? 's' : '')"></span>
+                <span class="settings-msg"
+                      x-show="!hasDirty && !cfgSaveOk && !cfgSaveError && !cfgRestartError && !cfgRestarting">
+                  Save once when done; the server restarts to apply.
+                </span>
               </div>
+              <button class="btn-outline" x-show="hasDirty" @click="discardAll()">Discard</button>
+              <button class="btn-solid"
+                      @click="saveConfig()"
+                      :disabled="!hasDirty || cfgSaving || cfgRestarting"
+                      x-text="cfgRestarting ? 'Restarting…' : cfgSaving ? 'Saving…' : 'Save all'"></button>
             </div>
-          </div><!-- .cfg-content server -->
+          </div>
