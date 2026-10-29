@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-     data-base="lucide/files" data-zoom="1"
-     data-changes="corners r4; tips rounded">
-  <path d="M20 7L18.5 7A3.5 3.5 0 0 1 15 3.5L15 2" />
-  <path d="M11 18A4 4 0 0 1 7 14L7 6A4 4 0 0 1 11 2L15.172 2A2 2 0 0 1 16.586 2.586L19.414 5.414A2 2 0 0 1 20 6.828L20 14A4 4 0 0 1 16 18L11 18Z" />
-  <path d="M3 7.6L3 18A4 4 0 0 0 7 22L14.4 22" />
+     data-base="lucide/dock" data-zoom="1"
+     data-changes="corners r4">
+  <path d="M2 8h20" />
+  <rect width="20" height="16" x="2" y="4" rx="4" />
+  <path d="M6 16h12" />
 </svg>
