@@ -8,7 +8,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -691,23 +690,27 @@ func (g *Vault) AppendNote(p Path, incoming []byte, heading string) error {
 // it never deletes another note, only the relation rows that reference p.
 func (g *Vault) DeleteNote(p Path) error {
 	g.mu.Lock()
-	absSrc, err := g.osPath(p)
+	err := g.deleteNoteLocked(p)
+	g.mu.Unlock()
 	if err != nil {
-		g.mu.Unlock()
 		return err
 	}
+	g.emit("vault_delete", p.String(), false, time.Now())
+	return nil
+}
 
+// deleteNoteLocked must be called with g.mu held for writing.
+func (g *Vault) deleteNoteLocked(p Path) error {
+	absSrc, err := g.osPath(p)
+	if err != nil {
+		return err
+	}
 	if rmErr := os.Remove(absSrc); rmErr != nil && !errors.Is(rmErr, fs.ErrNotExist) {
-		g.mu.Unlock()
 		return mapOSError(rmErr)
 	}
 	if dbErr := dbDelete(g.db, p); dbErr != nil {
-		g.mu.Unlock()
 		return fmt.Errorf("vault: metadata delete %q: %w", p.String(), dbErr)
 	}
-
-	g.mu.Unlock()
-	g.emit("vault_delete", p.String(), false, time.Now())
 	return nil
 }
 
@@ -1014,179 +1017,6 @@ func (g *Vault) FailRenameJob(id int64, errMsg string) error {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	return dbFailRenameJob(g.db, id, errMsg)
-}
-
-// AppendShort appends content as a new short note entry to today's daily file,
-// /_shorts/YYYY-MM-DD.md.
-//
-// Each entry is prefixed with a sequence heading ("## Short Note N") and a
-// creation timestamp. Entries are separated by "---". Any "---" lines present
-// in the incoming content are replaced with blank lines so they cannot break
-// the entry structure.
-//
-// The note is stored with origin "short" so it can be filtered distinctly.
-// Returns the vault path of the daily file and the note's metadata.
-func (g *Vault) AppendShort(content []byte) (Path, Note, error) {
-	if !util.IsValidText(content) {
-		return "", Note{}, ErrBinaryContent
-	}
-
-	sanitized := shortSanitize(content)
-
-	now := time.Now()
-	p := Path(ShortDir + "/" + now.Format("2006-01-02") + ".md")
-	timestamp := now.Format("2006-01-02 15:04:05")
-
-	g.mu.Lock()
-
-	existing, err := g.readNoteLocked(p)
-	if err != nil && !errors.Is(err, ErrNotFound) {
-		g.mu.Unlock()
-		return "", Note{}, err
-	}
-
-	entry := fmt.Sprintf("###### Short Note: %s\n\n%s", timestamp, strings.TrimSpace(string(sanitized)))
-
-	// Strip any frontmatter (or absence thereof) to get the raw entry body,
-	// then always reconstruct with a fresh frontmatter header.
-	_, existingBody := util.ParseFrontmatter(existing)
-	rawBody := strings.TrimSpace(string(existingBody))
-
-	fm := util.FormatShortFrontmatter(now)
-	var merged string
-	if rawBody != "" {
-		merged = fm + rawBody + "\n\n---\n\n" + entry
-	} else {
-		merged = fm + entry
-	}
-
-	isNew, modTime, writeErr := g.writeNoteLocked(p, []byte(merged), Note{Kind: KindShort})
-	g.mu.Unlock()
-	if writeErr != nil {
-		return "", Note{}, writeErr
-	}
-
-	if isNew {
-		g.emit("vault_create", p.String(), false, modTime)
-	} else {
-		g.emit("vault_write", p.String(), false, modTime)
-	}
-	g.emitEvent(plugin.Event{
-		Type:    plugin.EventVaultShortAppend,
-		Path:    p.String(),
-		Time:    modTime,
-		Content: strings.TrimSpace(string(sanitized)),
-	})
-
-	g.mu.RLock()
-	note, dbErr := dbGet(g.db, p)
-	g.mu.RUnlock()
-	if dbErr != nil {
-		return p, Note{}, dbErr
-	}
-	return p, note, nil
-}
-
-// shortSanitize replaces any line that is exactly "---" with a blank line so
-// that user content cannot accidentally inject an entry separator.
-func shortSanitize(content []byte) []byte {
-	lines := strings.Split(string(content), "\n")
-	for i, l := range lines {
-		if strings.TrimSpace(l) == "---" {
-			lines[i] = ""
-		}
-	}
-	return []byte(strings.Join(lines, "\n"))
-}
-
-// shortEntryDelimRe matches any markdown thematic-break line (--- or ***)
-// used as an entry separator, with optional surrounding whitespace / CRLF.
-var shortEntryDelimRe = regexp.MustCompile(`\r?\n(?:---|\*\*\*)\s*\r?\n`)
-
-// ParseShortEntries parses the raw content of a short daily file and returns
-// individual entries, newest first. DailyPath is set on every returned entry.
-func ParseShortEntries(content []byte, dailyPath string) []ShortEntry {
-	raw := strings.TrimSpace(string(content))
-	if raw == "" {
-		return nil
-	}
-	// Strip YAML frontmatter (kind: short daily files carry it).
-	if fm, body := util.ParseFrontmatter([]byte(raw)); fm.HasMeta() {
-		raw = strings.TrimSpace(string(body))
-		if raw == "" {
-			return nil
-		}
-	}
-	// Split on any markdown thematic-break separator (--- or ***) with optional
-	// surrounding whitespace, to tolerate the current "\n\n---\n\n" format, older
-	// single-newline variants, and files that used "***" as the delimiter.
-	chunks := shortEntryDelimRe.Split(raw, -1)
-	entries := make([]ShortEntry, 0, len(chunks))
-	for _, chunk := range chunks {
-		chunk = strings.TrimSpace(chunk)
-		if chunk == "" {
-			continue
-		}
-		lines := strings.SplitN(chunk, "\n", 3)
-		const prefix = "###### Short Note: "
-		if !strings.HasPrefix(lines[0], prefix) {
-			continue
-		}
-		t, err := time.ParseInLocation("2006-01-02 15:04:05", strings.TrimPrefix(lines[0], prefix), time.Local)
-		if err != nil {
-			continue
-		}
-		body := ""
-		if len(lines) >= 3 {
-			body = strings.TrimSpace(lines[2])
-		}
-		entries = append(entries, ShortEntry{Content: body, CreatedAt: t, DailyPath: dailyPath})
-	}
-	// Reverse to return newest-first (file stores oldest-first).
-	for i, j := 0, len(entries)-1; i < j; i, j = i+1, j-1 {
-		entries[i], entries[j] = entries[j], entries[i]
-	}
-	return entries
-}
-
-// ListShortEntries returns individual short note entries, newest first, by
-// reading and parsing the daily aggregation files in the shorts directory.
-func (g *Vault) ListShortEntries(opts ShortListOptions) ([]ShortEntry, error) {
-	listOpts := ListOptions{
-		OnlyKinds:  []Kind{KindShort},
-		SortByTime: true,
-		After:      opts.After,
-		Before:     opts.Before,
-	}
-	g.mu.RLock()
-	dailyNotes, err := dbListByDir(g.db, ShortDir, listOpts)
-	g.mu.RUnlock()
-	if err != nil {
-		return nil, err
-	}
-
-	var all []ShortEntry
-	for _, daily := range dailyNotes {
-		g.mu.RLock()
-		content, readErr := g.readNoteLocked(daily.Path())
-		g.mu.RUnlock()
-		if readErr != nil {
-			continue
-		}
-		for _, e := range ParseShortEntries(content, daily.PathString()) {
-			if !opts.After.IsZero() && e.CreatedAt.Before(opts.After) {
-				continue
-			}
-			if !opts.Before.IsZero() && !e.CreatedAt.Before(opts.Before) {
-				continue
-			}
-			all = append(all, e)
-			if opts.Limit > 0 && len(all) >= opts.Limit {
-				return all, nil
-			}
-		}
-	}
-	return all, nil
 }
 
 func (g *Vault) MarkNoteIndexed(p Path) error {

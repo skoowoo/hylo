@@ -51,4 +51,10 @@ var (
 	// lives under a system directory (an underscore-prefixed path segment,
 	// e.g. "/_shorts", "/_knowledge" — see dirHasUnderscoreSegment).
 	ErrRenameNotAllowed = errors.New("this note cannot be renamed")
+
+	// ErrEmptyContent is returned when a short note would be saved with no text.
+	ErrEmptyContent = errors.New("content must not be empty")
+
+	// ErrConflict is returned when a short note changed since the caller read it.
+	ErrConflict = errors.New("the note changed since it was read; reload and try again")
 )

@@ -362,12 +362,8 @@ func (c *Client) RenameStatus(jobID int64) (RenameJobStatus, error) {
 	return out, nil
 }
 
-// ShortEntry mirrors storage.ShortEntry for JSON decoding.
-type ShortEntry struct {
-	Content   string    `json:"content"`
-	CreatedAt time.Time `json:"created_at"`
-	DailyPath string    `json:"daily_path"`
-}
+// ShortEntry is one entry of a daily short file.
+type ShortEntry = storage.ShortEntry
 
 // ShortListOptions controls filtering for Client.ListShorts.
 type ShortListOptions struct {
@@ -388,44 +384,59 @@ func (c *Client) ListShorts(opts ShortListOptions) ([]ShortEntry, error) {
 	if opts.Limit > 0 {
 		body["limit"] = opts.Limit
 	}
-	resp, err := c.postJSON(c.baseURL+"/api/vault/shorts/list", body)
-	if err != nil {
-		return nil, wrapConnErr(err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		raw, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("short list: %s", statusMsg(resp.StatusCode, raw))
-	}
 	var out struct {
 		Entries []ShortEntry `json:"entries"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
-		return nil, fmt.Errorf("short list: decode response: %w", err)
-	}
-	return out.Entries, nil
+	err := c.shortCall("list", body, &out)
+	return out.Entries, err
 }
 
-// CreateShortResponse is the JSON body returned by POST /api/vault/shorts.
-type CreateShortResponse = storage.Note
+// CreateShort appends a short note to today's daily file.
+func (c *Client) CreateShort(content string) (ShortEntry, error) {
+	var e ShortEntry
+	err := c.shortCall("", map[string]any{"content": content}, &e)
+	return e, err
+}
 
-// CreateShort appends a short note to today's daily file in the shorts directory.
-func (c *Client) CreateShort(content string) (storage.Note, error) {
-	body := map[string]any{"content": content}
-	resp, err := c.postJSON(c.baseURL+"/api/vault/shorts", body)
+func (c *Client) GetShort(id string) (ShortEntry, error) {
+	var e ShortEntry
+	err := c.shortCall("get", map[string]any{"id": id}, &e)
+	return e, err
+}
+
+// UpdateShort replaces an entry's content; a non-empty hash must still match.
+func (c *Client) UpdateShort(id, hash, content string) (ShortEntry, error) {
+	var e ShortEntry
+	err := c.shortCall("update", map[string]any{"id": id, "hash": hash, "content": content}, &e)
+	return e, err
+}
+
+func (c *Client) DeleteShort(id, hash string) error {
+	return c.shortCall("delete", map[string]any{"id": id, "hash": hash}, nil)
+}
+
+func (c *Client) shortCall(op string, body map[string]any, out any) error {
+	url, label := c.baseURL+"/api/vault/shorts", "short"
+	if op != "" {
+		url += "/" + op
+		label += " " + op
+	}
+	resp, err := c.postJSON(url, body)
 	if err != nil {
-		return storage.Note{}, wrapConnErr(err)
+		return wrapConnErr(err)
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
 		raw, _ := io.ReadAll(resp.Body)
-		return storage.Note{}, fmt.Errorf("short: %s", statusMsg(resp.StatusCode, raw))
+		return fmt.Errorf("%s: %s", label, statusMsg(resp.StatusCode, raw))
 	}
-	var note storage.Note
-	if err := json.NewDecoder(resp.Body).Decode(&note); err != nil {
-		return storage.Note{}, fmt.Errorf("short: decode response: %w", err)
+	if out == nil {
+		return nil
 	}
-	return note, nil
+	if err := json.NewDecoder(resp.Body).Decode(out); err != nil {
+		return fmt.Errorf("%s: decode response: %w", label, err)
+	}
+	return nil
 }
 
 // ── Search ────────────────────────────────────────────────────────────────────

@@ -21,13 +21,22 @@
   }
 
   // ctx.editing is the note open in the editor: its writes are the page's own
-  // autosave, which must not reload the list being looked at.
+  // autosave, which must not reload the list being looked at. A write naming
+  // the short entry it touched (data.id) goes to `shorts` instead: the shown
+  // feed brings that one card in line, whoever wrote it.
   function affect(changes, ctx) {
     var editing = (ctx && ctx.editing) || '';
-    var out = { all: false, sidebar: false, refetch: {}, park: {} };
+    var out = { all: false, sidebar: false, refetch: {}, park: {}, shorts: [] };
     function refetch(types) { types.forEach(function (t) { out.refetch[t] = true; }); }
     function park(types) { types.forEach(function (t) { out.park[t] = true; }); }
     changes.forEach(function (c) {
+      if (c.data && c.data.id && under(c.path, '/_shorts')) {
+        if (c.op !== 'write') out.sidebar = true;
+        out.shorts.push(c.data);
+        park(['shorts']);
+        refetch(['recent']);
+        return;
+      }
       switch (c.op) {
         case 'resync':
           out.all = true;
@@ -52,9 +61,6 @@
             // Index notes title the sidebar's knowledge entries.
             if (under(c.path, '/_knowledge/_index')) out.sidebar = true;
           }
-          break;
-        case 'short':
-          refetch(['shorts', 'recent']);
           break;
         case 'pin':
           refetch(['pinned', 'folder', 'recent']);

@@ -120,13 +120,13 @@ document.addEventListener('pointerover', function(e) {
 });
 
 // ── Per-section list/grid layout preference ────────────────────────────────
-// Knowledge/Memory/Pinned/Folders/Tags each get their own list-vs-grid choice
+// Knowledge/Memory/Pinned/Folders/Tags/Shorts each get their own list-vs-grid choice
 // (all folders share the single 'folder' bucket, all of Knowledge's
 // All/category items share the single 'knowledge' bucket, and every tag's
 // drilldown shares the single 'tags' bucket — rather than one per selection).
 // Knowledge's value can also be 'graph' — see setListView()/listViewKey().
 function loadListViewModes() {
-  var defaults = { knowledge: 'list', memory: 'list', pinned: 'list', recent: 'list', folder: 'list', tags: 'list' };
+  var defaults = { knowledge: 'list', memory: 'list', pinned: 'list', recent: 'list', folder: 'list', tags: 'list', shorts: 'list' };
   try {
     return Object.assign(defaults, JSON.parse(localStorage.getItem('hylo-list-view') || '{}'));
   } catch (_) {
@@ -246,6 +246,7 @@ function homeCtrl() {
     toastText: '',
     toastKind: 'ok',
     toastVisible: false,
+    toastAction: null, // {label, run, owner} — one button beside the text
     _toastTimer: null,
     init() {
       this.initContentPane();
@@ -389,12 +390,18 @@ function homeCtrl() {
     },
 
     // Any caller (e.g. the drag-to-move flow) can use the .run-toast element, not just agent runs.
-    showToast(text, kind) {
+    showToast(text, kind, action) {
       this.toastText = text;
       this.toastKind = kind === 'err' ? 'err' : 'ok';
+      this.toastAction = action || null;
       this.toastVisible = true;
       if (this._toastTimer) clearTimeout(this._toastTimer);
       this._toastTimer = setTimeout(() => { this.toastVisible = false; }, 6000);
+    },
+    runToastAction() {
+      var a = this.toastAction;
+      this.toastVisible = false;
+      if (a) a.run();
     },
 
   });

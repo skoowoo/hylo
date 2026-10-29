@@ -23,6 +23,8 @@ func TestNoteChangesFromVaultEvents(t *testing.T) {
 		{plugin.Event{Type: plugin.EventVaultRename, Path: "/b.md", OldPath: "/a.md"}, Change{Topic: TopicNotes, Op: "rename", Path: "/b.md", OldPath: "/a.md"}},
 		{plugin.Event{Type: plugin.EventVaultPin, Path: "/a.md"}, Change{Topic: TopicNotes, Op: "pin", Path: "/a.md"}},
 		{plugin.Event{Type: plugin.EventVaultImage, Path: "/_assets/x.png"}, Change{Topic: TopicNotes, Op: "image", Path: "/_assets/x.png"}},
+		{plugin.Event{Type: plugin.EventVaultWrite, Path: "/_shorts/d.md", ShortID: "d-090000", ShortHash: "h"},
+			Change{Topic: TopicNotes, Op: "write", Path: "/_shorts/d.md", Data: ShortRef{ID: "d-090000", Hash: "h"}}},
 	}
 	for _, c := range cases {
 		got, ok := noteChange(c.e)
@@ -32,6 +34,10 @@ func TestNoteChangesFromVaultEvents(t *testing.T) {
 	}
 	if _, ok := noteChange(plugin.Event{Type: plugin.EventCompileRequested}); ok {
 		t.Error("compile is not a note change")
+	}
+	// The daily file's own write already carries the entry.
+	if _, ok := noteChange(plugin.Event{Type: plugin.EventVaultShortAppend}); ok {
+		t.Error("short append is not a separate note change")
 	}
 }
 

@@ -10,7 +10,7 @@ import { parseFrontmatter } from './frontmatter-yaml.js';
 import { wikiLinksRevalidated } from './live-preview.js';
 import { splitWikiLinkInner } from './wiki-syntax.js';
 import { WikiLinkWidget } from './widgets.js';
-import { lineIcon } from '../line-icons.js';
+import { lineIconNode } from '../line-icons.js';
 import { ensureStyle, iconButton } from './fence-card/shell.js';
 import { heldBlocks, blockHold, blockSpacer } from './block-hold.js';
 
@@ -277,7 +277,7 @@ class FrontmatterCardWidget extends WidgetType {
     head.setAttribute('role', 'button');
     head.tabIndex = -1;
     head.title = this.collapsed ? 'Expand metadata' : 'Collapse metadata';
-    head.innerHTML = `<span class="cm-fm-chevron">${lineIcon('chevron-down')}</span>`;
+    head.appendChild(el('span', 'cm-fm-chevron')).appendChild(lineIconNode('chevron-down'));
     head.appendChild(el('span', 'cm-fm-title', 'Metadata'));
     if (this.collapsed) head.appendChild(el('span', 'cm-fm-count', String(this.fields.length)));
     head.addEventListener('click', () => view.dispatch({ effects: setFrontmatterCollapsed.of(!this.collapsed) }));
@@ -287,7 +287,7 @@ class FrontmatterCardWidget extends WidgetType {
       const grid = el('div', 'cm-fm-grid');
       for (const field of this.fields) {
         const key = el('div', 'cm-fm-key');
-        key.innerHTML = `<span class="cm-fm-icon">${lineIcon(iconFor(field))}</span>`;
+        key.appendChild(el('span', 'cm-fm-icon')).appendChild(lineIconNode(iconFor(field)));
         key.appendChild(el('span', 'cm-fm-name', field.key));
         key.title = field.key;
         grid.append(key, this.value(view, field));

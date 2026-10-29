@@ -1,6 +1,6 @@
     .accent-swatches { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; padding: 5px; }
     /* Ring is a pseudo-element border, not outline: the page-wide
-       "button:focus { outline: none }" (images.css/shorts.css) would wipe an
+       "button:focus { outline: none }" (images.css) would wipe an
        outline the moment a click focuses the swatch. */
     .accent-swatch {
       position: relative; width: 20px; height: 20px; padding: 0; border: none;

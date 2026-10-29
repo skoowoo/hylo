@@ -1,0 +1,40 @@
+{{/* The short composer, bound to the draft object named by "." — shortCompose
+     for a new short, shortEdit for the card being edited (it has an id). */}}
+{{define "shorts-composer"}}
+<div class="shorts-compose-card" :class="{'is-dropping': {{.}}.dropping}"
+     @dragover="handleShortDragOver($event, {{.}})" @dragleave="handleShortDragLeave($event, {{.}})"
+     @drop="handleShortDrop($event, {{.}})">
+  <div class="compose-thumbs shorts-compose-images" x-show="{{.}}.images.length" x-cloak>
+    <template x-for="img in {{.}}.images" :key="img.id">
+      <div class="compose-thumb" :class="{'is-uploading': img.uploading, 'is-failed': img.failed}">
+        <img :src="img.previewUrl || img.src" :alt="img.name">
+        <div class="compose-thumb-spin" x-show="img.uploading"></div>
+        <button type="button" class="compose-thumb-remove" title="Remove image" aria-label="Remove image"
+                @click="removeShortImage({{.}}, img.id)">
+          {{icon "close"}}
+        </button>
+      </div>
+    </template>
+  </div>
+  <div class="shorts-compose-row">
+    <input type="file" class="shorts-compose-file-input" accept="image/*" multiple
+           @change="handleShortFilePick($event, {{.}})">
+    <button type="button" class="shorts-compose-attach" title="Add image" aria-label="Add image"
+            @click="$el.parentElement.querySelector('.shorts-compose-file-input').click()">
+      {{icon "image"}}
+    </button>
+    <textarea class="shorts-compose-input" rows="2" placeholder="Write a short…" spellcheck="false"
+              x-model="{{.}}.text"
+              x-init="$nextTick(() => __hyloAutoResize($el))"
+              @keydown="handleShortKeydown($event, {{.}})"
+              @paste="handleShortPaste($event, {{.}})"
+              @input="__hyloAutoResize($event.target, $event)"></textarea>
+    <div class="shorts-compose-buttons">
+      <button type="button" class="shorts-compose-cancel" x-show="{{.}}.id" x-cloak
+              @click="cancelShortEdit()">Cancel</button>
+      <button type="button" class="shorts-compose-send" title="Save (⌘↵)"
+              :disabled="!shortDraftReady({{.}})" @click="submitShortDraft({{.}})">Save</button>
+    </div>
+  </div>
+</div>
+{{end}}

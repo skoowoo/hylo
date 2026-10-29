@@ -20,6 +20,21 @@ type shortCreateReq struct {
 	Content string `json:"content" jsonschema:"short note text"`
 }
 
+type shortIDReq struct {
+	ID string `json:"id" jsonschema:"short note id from short_list, e.g. 2026-10-29-153012"`
+}
+
+type shortUpdateReq struct {
+	ID      string `json:"id" jsonschema:"short note id from short_list"`
+	Content string `json:"content" jsonschema:"new text, replacing the whole entry"`
+	Hash    string `json:"hash,omitempty" jsonschema:"hash from short_list/short_get; when set, fails instead of overwriting a newer edit"`
+}
+
+type shortDeleteReq struct {
+	ID   string `json:"id" jsonschema:"short note id from short_list"`
+	Hash string `json:"hash,omitempty" jsonschema:"hash from short_list/short_get; when set, fails if the entry changed since"`
+}
+
 type shortListReq struct {
 	Limit  int    `json:"limit,omitempty" jsonschema:"max entries, 0 = no limit"`
 	Start  string `json:"start,omitempty" jsonschema:"only entries created on or after this date (YYYY-MM-DD)"`
@@ -51,9 +66,8 @@ func registerTagTools(s *sdk.Server, c *client.Client) {
 
 func registerShortTools(s *sdk.Server, c *client.Client) {
 	addTool(s, "short_create", "Save a short note into today's shorts file.", additive,
-		func(_ context.Context, in shortCreateReq) (pathOut, error) {
-			p, err := notes.ShortCreate(c, in.Content)
-			return pathOut{Path: p}, err
+		func(_ context.Context, in shortCreateReq) (client.ShortEntry, error) {
+			return notes.ShortCreate(c, in.Content)
 		})
 
 	addTool(s, "short_list", "List individual short note entries, newest first.", readOnly,
@@ -63,5 +77,23 @@ func registerShortTools(s *sdk.Server, c *client.Client) {
 				Time:  notes.TimeFilter{Start: in.Start, End: in.End, Latest: in.Latest},
 			})
 			return shortsOut{Entries: entries}, err
+		})
+
+	addTool(s, "short_get", "Read one short note entry by id.", readOnly,
+		func(_ context.Context, in shortIDReq) (client.ShortEntry, error) {
+			return c.GetShort(in.ID)
+		})
+
+	addTool(s, "short_update", "Replace a short note entry's text, keeping its time and place in the daily file.", destructiveIdempotent,
+		func(_ context.Context, in shortUpdateReq) (client.ShortEntry, error) {
+			return notes.ShortUpdate(c, in.ID, in.Hash, in.Content)
+		})
+
+	addTool(s, "short_delete", "Permanently delete one short note entry; there is no undo.", destructiveIdempotent,
+		func(_ context.Context, in shortDeleteReq) (okOut, error) {
+			if err := c.DeleteShort(in.ID, in.Hash); err != nil {
+				return okOut{}, err
+			}
+			return okOut{OK: true}, nil
 		})
 }

@@ -1,7 +1,7 @@
 // One http(s) URL per line. One line is a single card; several share a grid, at most three
 // across, which turns into a list of single cards where three would not fit.
 import { injectStyle } from './fields.js';
-import { lineIcon } from '../../line-icons.js';
+import { lineIconNode } from '../../line-icons.js';
 
 const CSS = `
 .hy-embed{display:block;box-sizing:border-box;margin:0;border-radius:var(--r-lg,12px);background:var(--surface-soft,#f5f5f7);color:var(--fg,#18181b);font:var(--text-sm,.8125rem)/1.4 var(--font-ui,system-ui,sans-serif);overflow:hidden;text-decoration:none}
@@ -70,7 +70,7 @@ a.hy-embed-title:hover{text-decoration:underline}
 .hy-embed-row>.hy-embed-pending:not([data-kind="video"]){min-height:200px}
 .hy-embed-row>.hy-embed-pending[data-kind="audio"]{min-height:104px}
 }
-.hy-embed svg{width:16px;height:16px}
+.hy-embed .line-icon{width:16px;height:16px}
 .prose a.hy-embed,.prose a.hy-embed:hover{color:inherit;text-decoration:none}
 a.hy-embed-page:hover,.prose a.hy-embed-page:hover{background:var(--btn-bg-hov,rgba(24,24,27,.06))}
 `;
@@ -249,7 +249,7 @@ function openLink(href) {
   a.rel = 'noopener noreferrer';
   a.title = 'Open';
   a.setAttribute('aria-label', 'Open');
-  a.innerHTML = lineIcon('external-link');
+  a.append(lineIconNode('external-link'));
   a.addEventListener('click', (e) => e.stopPropagation());
   return a;
 }
@@ -343,7 +343,7 @@ function bindMedia(card, media, button, embed) {
   const sync = () => {
     const on = !media.paused && !media.ended;
     button.setAttribute('aria-label', on ? 'Pause' : 'Play');
-    button.innerHTML = lineIcon(on ? 'pause' : 'play', 'fill="currentColor"');
+    button.replaceChildren(lineIconNode(on ? 'pause' : 'play', 'fill="currentColor"'));
   };
   media.addEventListener('play', () => {
     for (const other of playing) if (other !== media) other.pause();

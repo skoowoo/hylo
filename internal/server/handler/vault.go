@@ -27,10 +27,11 @@ func writeVaultError(w http.ResponseWriter, err error) {
 		http.Error(w, err.Error(), http.StatusNotFound)
 	case errors.Is(err, storage.ErrInvalidPath),
 		errors.Is(err, storage.ErrUnsupportedType),
-		errors.Is(err, storage.ErrBinaryContent):
+		errors.Is(err, storage.ErrBinaryContent),
+		errors.Is(err, storage.ErrEmptyContent):
 		http.Error(w, err.Error(), http.StatusBadRequest)
 	case errors.Is(err, storage.ErrIsDir), errors.Is(err, storage.ErrIsFile),
-		errors.Is(err, storage.ErrAlreadyExists):
+		errors.Is(err, storage.ErrAlreadyExists), errors.Is(err, storage.ErrConflict):
 		http.Error(w, err.Error(), http.StatusConflict)
 	case errors.Is(err, storage.ErrRenameNotAllowed):
 		http.Error(w, err.Error(), http.StatusForbidden)

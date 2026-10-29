@@ -27,8 +27,18 @@ func (p *Plugin) Notify(e plugin.Event) {
 	}
 }
 
+// ShortRef is the Data of a write that touched one short entry, so a page can
+// update that card in place; Hash is empty once the entry is deleted.
+type ShortRef struct {
+	ID   string `json:"id"`
+	Hash string `json:"hash,omitempty"`
+}
+
 func noteChange(e plugin.Event) (Change, bool) {
 	c := Change{Topic: TopicNotes, Path: e.Path, IsDir: e.IsDir}
+	if e.ShortID != "" {
+		c.Data = ShortRef{ID: e.ShortID, Hash: e.ShortHash}
+	}
 	switch e.Type {
 	case plugin.EventVaultCreate, plugin.EventFSCreate:
 		c.Op = "create"
@@ -39,8 +49,6 @@ func noteChange(e plugin.Event) (Change, bool) {
 	case plugin.EventVaultRename:
 		c.Op = "rename"
 		c.OldPath = e.OldPath
-	case plugin.EventVaultShortAppend:
-		c.Op = "short"
 	case plugin.EventVaultPin:
 		c.Op = "pin"
 	case plugin.EventVaultImage, plugin.EventFSImage:

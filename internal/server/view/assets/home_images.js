@@ -25,6 +25,24 @@ window.openImageLightbox = function (el) {
   });
 };
 
+// A short opens as its images, switchable, beside its own text.
+window.openShortViewer = function (card, index) {
+  var prose = card.querySelector('.shorts-entry-prose');
+  if (_lbOpen) _lbOpen({
+    short: {
+      id: card.dataset.id,
+      quote: card.classList.contains('shorts-entry--quote'),
+      html: prose ? prose.innerHTML : '',
+      date: card.querySelector('.shorts-entry-date').textContent.trim(),
+      time: card.querySelector('.shorts-entry-time').textContent.trim(),
+    },
+    images: Array.from(card.querySelectorAll('.shorts-img-cell'), function (c) {
+      return { src: c.dataset.imgSrc, name: c.dataset.imgName };
+    }),
+    index: index || 0,
+  });
+};
+
 function extToType(ext) {
   var m = {
     '.jpg': 'JPEG Image', '.jpeg': 'JPEG Image', '.png': 'PNG Image',
@@ -57,10 +75,11 @@ function __hyloImgGridEmptyCheck() {
 function homeImagesMixin() {
   return {
     lightbox: null,
+    lbData: null, // what the panel shows; outlives `lightbox` through the close fade
     selectMode: false,
     selectedCount: 0,
     initImages() {
-      _lbOpen = (data) => { this.lightbox = data; };
+      _lbOpen = (data) => { this.lbData = data; this.lightbox = data; };
       // Route both overlays through the shared ESC stack (keys.js)
       // instead of @keydown.escape.window: that binding fires on window's
       // bubble phase, but the stack's document-capture listener runs first
@@ -103,6 +122,40 @@ function homeImagesMixin() {
       __hyloImgGridEmptyCheck();
     },
     closeLightbox() { this.lightbox = null; },
+    lbImage() {
+      var lb = this.lbData;
+      if (!lb) return null;
+      return lb.images ? lb.images[lb.index] || null : lb;
+    },
+    lbStep(d) {
+      var lb = this.lbData, i = lb && lb.images ? lb.index + d : -1;
+      if (i < 0 || i >= lb.images.length) return;
+      lb.index = i;
+      if (lb.images[i + d]) new Image().src = lb.images[i + d].src;
+    },
+    lbKey(e) {
+      if (!this.lightbox || !this.lightbox.images || e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.target.closest && e.target.closest('input, textarea, [contenteditable]')) return;
+      var d = e.key === 'ArrowLeft' ? -1 : e.key === 'ArrowRight' ? 1 : 0;
+      if (!d) return;
+      e.preventDefault();
+      this.lbStep(d);
+    },
+    _lbShortCard() {
+      var id = this.lbData && this.lbData.short && this.lbData.short.id;
+      this.lightbox = null;
+      return id ? document.querySelector('.shorts-entry[data-id="' + CSS.escape(id) + '"]') : null;
+    },
+    lbEditShort() {
+      var card = this._lbShortCard();
+      if (!card) return;
+      card.scrollIntoView({ block: 'nearest' });
+      this.editShort(card);
+    },
+    lbOpenShortDay() {
+      var card = this._lbShortCard();
+      if (card) this.openShortDay(card, true);
+    },
     async deleteLightboxImage() {
       var lb = this.lightbox;
       if (!lb || !lb.name || lb.dir == null) return;

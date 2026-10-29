@@ -232,10 +232,13 @@ type RenameJob struct {
 }
 
 // ShortEntry is a single parsed entry from a short daily aggregation file.
+// ID is "<daily file stem>-<HHMMSS>", so the file is derivable from it.
 type ShortEntry struct {
+	ID        string    `json:"id"`
 	Content   string    `json:"content"`
+	Hash      string    `json:"hash"` // of Content; guards update/delete against concurrent edits
 	CreatedAt time.Time `json:"created_at"`
-	DailyPath string    `json:"daily_path"`
+	Path      string    `json:"path"`
 }
 
 // ShortListOptions controls filtering for Vault.ListShortEntries.

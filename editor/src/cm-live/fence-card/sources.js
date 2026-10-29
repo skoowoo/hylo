@@ -1,12 +1,12 @@
 // Chat-only line naming the notes and skill a reply drew on. The skill is a
 // button only while the reply can still be answered, like a choices card.
 import { parseFields, injectStyle, noteName, noteLink } from './fields.js';
-import { lineIcon } from '../../line-icons.js';
+import { lineIconNode } from '../../line-icons.js';
 
 const CSS = `
 .hy-sources{display:flex;flex-wrap:wrap;align-items:center;gap:2px var(--space-xs,8px);font:var(--text-xs,.75rem)/1.6 var(--font-ui,system-ui,sans-serif);color:var(--muted,#6d7080)}
 .hy-sources-group{display:inline-flex;flex-wrap:wrap;align-items:center;gap:0 6px}
-.hy-sources svg{width:12px;height:12px;flex:none}
+.hy-sources .line-icon{width:12px;height:12px;flex:none}
 .hy-sources a{color:inherit;text-decoration:none}
 .hy-sources a:hover{color:var(--fg,#18181b);text-decoration:underline}
 .hy-sources-sep{opacity:.6}
@@ -77,7 +77,7 @@ export function mount(el, source) {
 function group(name) {
   const g = document.createElement('span');
   g.className = 'hy-sources-group';
-  g.innerHTML = lineIcon(name);
+  g.append(lineIconNode(name));
   return g;
 }
 

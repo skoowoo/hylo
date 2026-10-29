@@ -1,5 +1,5 @@
 // Chrome shared by every fence renderer: sizing, toolbar, fullscreen overlay, theme tokens.
-import { lineIcon } from '../../line-icons.js';
+import { lineIconNode } from '../../line-icons.js';
 
 const STYLE_ID = 'hy-card-style';
 
@@ -29,7 +29,7 @@ const CSS = `
 .hy-card-bar{position:absolute;top:8px;right:8px;display:flex;gap:4px;opacity:0;transition:opacity var(--motion-base,160ms);will-change:opacity;z-index:1}
 .hy-card:hover .hy-card-bar,.hy-card:focus-within .hy-card-bar{opacity:1}
 .hy-btn{all:unset;box-sizing:border-box;cursor:pointer;display:flex;align-items:center;justify-content:center;width:24px;height:24px;color:var(--muted,#6d7080);border-radius:var(--r-sm,6px);transition:background-color var(--motion-fast,100ms),color var(--motion-fast,100ms)}
-.hy-btn svg{width:14px;height:14px}
+.hy-btn .line-icon{width:14px;height:14px}
 .hy-btn:hover{color:var(--fg,#18181b);background:var(--btn-bg-hov,rgba(24,24,27,.1))}
 .hy-btn:focus-visible{outline:2px solid rgba(var(--accent-rgb,94,106,210),.5);outline-offset:1px}
 .hy-card-bar .hy-btn:not(:hover){background:var(--btn-bg,rgba(24,24,27,.06))}
@@ -69,7 +69,7 @@ export function iconButton(name, title, fn) {
   const b = document.createElement('button');
   b.type = 'button';
   b.className = 'hy-btn';
-  b.innerHTML = lineIcon(name);
+  b.append(lineIconNode(name));
   b.title = title;
   b.setAttribute('aria-label', title);
   // Keep the editor's selection (and the pip open) while clicking chrome.

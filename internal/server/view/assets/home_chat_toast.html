@@ -1,6 +1,8 @@
   <div class="run-toast" :class="toastKind === 'ok' ? 'run-toast-ok' : 'run-toast-err'" x-show="toastVisible" x-transition
     style="display:none">
     <span x-text="toastText"></span>
+    <button class="run-toast-action" type="button" x-show="toastAction" x-text="toastAction && toastAction.label"
+            @click="runToastAction()"></button>
     <button class="run-toast-dismiss" @click="toastVisible = false" type="button" title="Dismiss">
       {{icon "close"}}
     </button>

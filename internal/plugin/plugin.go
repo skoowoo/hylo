@@ -73,6 +73,11 @@ type Event struct {
 	// OldPath is the vault-absolute path the note had before the mutation.
 	// Only set for EventVaultRename, where Path is the new path.
 	OldPath string
+
+	// ShortID names the entry a vault write to a daily short file touched;
+	// ShortHash is its new content hash, empty once the entry is deleted.
+	ShortID   string
+	ShortHash string
 }
 
 // Plugin is the interface every Hylo plugin must implement.

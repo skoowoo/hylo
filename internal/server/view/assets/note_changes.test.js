@@ -39,7 +39,18 @@ test('a rename touches both places, and a batch merges', () => {
 
 test('pins, shorts and resync', () => {
   assert.deepEqual(keys(affect([{ op: 'pin', path: '/a.md' }]).refetch), ['folder', 'pinned', 'recent']);
-  assert.deepEqual(keys(affect([{ op: 'short', path: '/_shorts/2026-10-13.md' }]).refetch), ['recent', 'shorts']);
+  assert.deepEqual(keys(affect([{ op: 'write', path: '/_shorts/2026-10-13.md' }]).refetch), ['recent', 'shorts']);
   const r = affect([{ op: 'resync' }]);
   assert.equal(r.all && r.sidebar, true);
+});
+
+test('a write naming its short entry updates that card, not the feed', () => {
+  const a = affect([
+    { op: 'write', path: '/_shorts/2026-10-29.md', data: { id: '2026-10-29-090000', hash: 'h' } },
+    { op: 'delete', path: '/_shorts/2026-10-28.md', data: { id: '2026-10-28-100000' } },
+  ]);
+  assert.deepEqual(keys(a.refetch), ['recent']);
+  assert.deepEqual(keys(a.park), ['shorts']);
+  assert.deepEqual(a.shorts.map((s) => s.id), ['2026-10-29-090000', '2026-10-28-100000']);
+  assert.equal(a.sidebar, true);
 });

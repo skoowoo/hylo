@@ -2,6 +2,7 @@ package notes
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/hardhacker/hylo/internal/client"
 )
@@ -11,15 +12,11 @@ type ShortQuery struct {
 	Time  TimeFilter
 }
 
-func ShortCreate(c *client.Client, content string) (path string, err error) {
-	if len([]rune(content)) == 0 {
-		return "", fmt.Errorf("content must not be empty")
+func ShortCreate(c *client.Client, content string) (client.ShortEntry, error) {
+	if strings.TrimSpace(content) == "" {
+		return client.ShortEntry{}, fmt.Errorf("content must not be empty")
 	}
-	note, err := c.CreateShort(content)
-	if err != nil {
-		return "", err
-	}
-	return note.PathString(), nil
+	return c.CreateShort(content)
 }
 
 func ShortList(c *client.Client, q ShortQuery) ([]client.ShortEntry, error) {
@@ -33,6 +30,13 @@ func ShortList(c *client.Client, q ShortQuery) ([]client.ShortEntry, error) {
 		entries = []client.ShortEntry{}
 	}
 	return entries, err
+}
+
+func ShortUpdate(c *client.Client, id, hash, content string) (client.ShortEntry, error) {
+	if strings.TrimSpace(content) == "" {
+		return client.ShortEntry{}, fmt.Errorf("content must not be empty; delete the short note instead")
+	}
+	return c.UpdateShort(id, hash, content)
 }
 
 func TagList(c *client.Client, limit int) ([]client.TagStat, error) {

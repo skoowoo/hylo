@@ -19,9 +19,10 @@ const (
 )
 
 // Change is one thing that changed. For notes, Op is create, write, delete,
-// rename, short, pin or image, and Path the note (or folder, or image);
-// Inbox creates carry the new message in Data; other topics only say that
-// something in them changed.
+// rename, pin or image, and Path the note (or folder, or image); a write that
+// touched one short entry carries its ShortRef in Data. Inbox creates carry
+// the new message in Data; other topics only say that something in them
+// changed.
 type Change struct {
 	Topic   string `json:"topic"`
 	Op      string `json:"op"`

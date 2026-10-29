@@ -6,7 +6,7 @@ import { headInBlock } from '../selection.js';
 import { mountCard, returnEditorFocus } from './host.js';
 import { cardEntry } from './registry.js';
 import { ensureStyle, iconButton } from './shell.js';
-import { lineIcon } from '../../line-icons.js';
+import { lineIconNode } from '../../line-icons.js';
 
 const STORE_KEY = 'hy-card-pip';
 const DEFAULT = { w: 380, h: 300 };
@@ -49,7 +49,7 @@ class Pip {
     const fold = iconButton('minus', 'Collapse', () => {
       this.toggleFold();
       const label = this.folded ? 'Expand' : 'Collapse';
-      fold.innerHTML = lineIcon(this.folded ? 'plus' : 'minus');
+      fold.replaceChildren(lineIconNode(this.folded ? 'plus' : 'minus'));
       fold.title = label;
       fold.setAttribute('aria-label', label);
     });

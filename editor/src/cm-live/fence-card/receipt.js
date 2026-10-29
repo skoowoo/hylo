@@ -1,12 +1,12 @@
 // Chat-only record of what an automation change did, with an undo that stays
 // usable on older replies. The chat sets its state through el._hyReceipt.
 import { parseFields, injectStyle, appendText } from './fields.js';
-import { lineIcon } from '../../line-icons.js';
+import { lineIconNode } from '../../line-icons.js';
 
 const CSS = `
 .hy-receipt{display:grid;grid-template-columns:auto 1fr auto;column-gap:var(--space-xs,8px);align-items:start;padding:10px 14px;border-radius:var(--r-lg,12px);background:var(--surface-soft,#f5f5f7);font:var(--text-sm,.8125rem)/1.5 var(--font-ui,system-ui,sans-serif);color:var(--fg,#18181b);transition:opacity var(--motion-fast,100ms)}
 .hy-receipt-icon{display:flex;height:1.5em;align-items:center;color:var(--s-ok,#16a34a)}
-.hy-receipt-icon svg{width:14px;height:14px}
+.hy-receipt-icon .line-icon{width:14px;height:14px}
 .hy-receipt-title{font-weight:var(--fw-semibold,600)}
 .hy-receipt-lines{grid-column:2;margin:2px 0 0;padding:0;list-style:none;color:var(--muted,#6d7080)}
 .hy-receipt-undo{all:unset;box-sizing:border-box;grid-column:3;grid-row:1;padding:2px 10px;border-radius:var(--r-sm,6px);font-size:var(--text-xs,.75rem);color:var(--fg,#18181b);background:var(--btn-bg,rgba(24,24,27,.06));cursor:pointer;white-space:nowrap;transition:background-color var(--motion-fast,100ms)}
@@ -29,7 +29,7 @@ export function mount(el, source) {
     card.className = 'hy-receipt' + (mode === 'done' ? ' hy-receipt-undone' : '');
     const mark = document.createElement('span');
     mark.className = 'hy-receipt-icon';
-    mark.innerHTML = lineIcon('check');
+    mark.append(lineIconNode('check'));
     const title = appendText(document.createElement('div'), parsed.field('title'));
     title.className = 'hy-receipt-title';
     card.append(mark, title);

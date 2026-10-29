@@ -328,8 +328,15 @@
         if (this.contentPaneOpen && prevTab) __hyloEditorSaveTabState(prevTab.id);
         this.upsertTab(path, title, isKnowledge, pinned, isIndex, canCompile);
         __hyloEditorResetCompileBtn();
-        // Already loaded with unsaved edits — don't clobber with a server fetch
-        if (__hyloEditor.currentPath === path && __hyloEditor.dirty) { this.contentPaneOpen = true; return; }
+        // Already loaded with unsaved edits — don't clobber with a server fetch;
+        // a heading asked for is still where it goes.
+        if (__hyloEditor.currentPath === path && __hyloEditor.dirty) {
+          this.contentPaneOpen = true;
+          var heading = __hyloEditor.pendingHeading;
+          __hyloEditor.pendingHeading = null;
+          if (heading) __hyloCM.jumpToHeading(__hyloEditor.view, heading);
+          return;
+        }
         var tab = this.tabs[this.activeTab];
         var savedState = tab ? __hyloEditorRestoreTabState(tab.id) : null;
         await this._openWith(__hyloContentPaneLoadNote(path, tab ? tab.id : null, savedState));

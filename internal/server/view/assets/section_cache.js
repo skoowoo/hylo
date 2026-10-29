@@ -186,6 +186,9 @@ function __hyloHoldRefetch() {
 function __hyloNotesChanged(changes) {
   var editing = window.__hyloEditor ? __hyloEditor.currentPath : '';
   var a = __hyloNoteChanges.affect(changes, { editing: editing });
+  if (a.shorts.length && __hyloSectionShownURL && __hyloSectionType(__hyloSectionShownURL) === 'shorts' && window._homeData) {
+    a.shorts.forEach(function (s) { void window._homeData.syncShort(s); });
+  }
   var refetch = false;
   if (a.all) {
     __hyloDropParked(function () { return true; });

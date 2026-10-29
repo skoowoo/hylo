@@ -71,7 +71,7 @@ func TestToolsAlignWithCLI(t *testing.T) {
 		"knowledge_search", "knowledge_delete", "knowledge_list_indexes",
 		"extract_outline", "extract_section", "extract_code", "extract_link", "extract_list",
 		"extract_segment", "extract_tag", "tag_list", "tag_count",
-		"short_create", "short_list",
+		"short_create", "short_list", "short_get", "short_update", "short_delete",
 	} {
 		if !got[name] {
 			t.Errorf("missing tool %q", name)
@@ -91,7 +91,7 @@ func TestToolsAnnotateTheirEffect(t *testing.T) {
 	}
 	for name, want := range map[string]string{
 		"read": "read", "append": "add", "short_create": "add", "bot_create": "add",
-		"delete": "destroy", "create": "destroy", "trigger_delete": "destroy",
+		"delete": "destroy", "create": "destroy", "trigger_delete": "destroy", "short_delete": "destroy",
 	} {
 		a := byName[name]
 		if a == nil {

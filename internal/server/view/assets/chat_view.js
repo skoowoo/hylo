@@ -1375,7 +1375,7 @@
       if (files.length) api.addImages(files);
     });
     on(ta, 'paste', function (e) {
-      var files = (root.__hyloImageFilesFromClipboard && root.__hyloImageFilesFromClipboard(e.clipboardData)) || [];
+      var files = (root.__hyloImageFilesFrom && root.__hyloImageFilesFrom(e.clipboardData)) || [];
       if (!files.length) return;
       e.preventDefault();
       api.addImages(files);

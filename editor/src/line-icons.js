@@ -17,3 +17,23 @@ export function lineIconMask(name, attrs = '') {
   const svg = lineIcon(name, ('xmlns="http://www.w3.org/2000/svg" ' + attrs).trim()).replace('stroke="currentColor"', 'stroke="black"');
   return 'url("data:image/svg+xml,' + encodeURIComponent(svg) + '")';
 }
+
+// The icon as a plain element painted through its mask, for editor content: an
+// inline <svg> in the DOM CodeMirror syncs makes WebKit move the scroller.
+// Sized by the caller's CSS (.x .line-icon), 1em square by default.
+const NODE_MASKS = new Map();
+export function lineIconNode(name, attrs = '') {
+  const key = name + ' ' + attrs;
+  if (!NODE_MASKS.has(key)) NODE_MASKS.set(key, lineIconMask(name, attrs));
+  if (!document.getElementById('line-icon-style')) {
+    const style = document.createElement('style');
+    style.id = 'line-icon-style';
+    style.textContent = '.line-icon{display:inline-block;flex:none;width:1em;height:1em;border-radius:0;background-color:currentColor;-webkit-mask:var(--line-icon) center/100% 100% no-repeat;mask:var(--line-icon) center/100% 100% no-repeat}';
+    document.head.appendChild(style);
+  }
+  const el = document.createElement('span');
+  el.className = 'line-icon';
+  el.setAttribute('aria-hidden', 'true');
+  el.style.setProperty('--line-icon', NODE_MASKS.get(key));
+  return el;
+}

@@ -314,7 +314,7 @@ export const livePreviewTheme = EditorView.theme({
   },
   '.cm-lp-code-copy:hover': { opacity: '1', background: 'var(--icon-hov, rgba(0,0,0,0.06))', color: 'var(--fg, #1a1a1a)' },
   '.cm-lp-code-copy.is-done': { opacity: '1', color: 'var(--accent-text, #5e6ad2)' },
-  '.cm-lp-code-copy svg': { width: '13px', height: '13px', display: 'block' },
+  '.cm-lp-code-copy .line-icon': { width: '13px', height: '13px', display: 'block' },
 
   // ── Wikilink ────────────────────────────────────────────────────────────
   // Color carries the link now, not an underline — same as .cm-lp-link.
@@ -393,7 +393,7 @@ export const livePreviewTheme = EditorView.theme({
     transition: 'opacity 0.15s ease',
   },
   '.cm-lp-wikiimage:hover .cm-lp-image-zoom': { opacity: '1' },
-  '.cm-lp-image-zoom svg': { width: '14px', height: '14px', display: 'block' },
+  '.cm-lp-image-zoom .line-icon': { width: '14px', height: '14px', display: 'block' },
   '.cm-lp-image-broken': {
     display: 'inline-flex',
     alignItems: 'center',
@@ -405,7 +405,7 @@ export const livePreviewTheme = EditorView.theme({
     fontSize: 'var(--text-sm, 0.8125rem)',
     lineHeight: '1.5',
   },
-  '.cm-lp-image-broken svg': { width: '14px', height: '14px', flexShrink: '0' },
+  '.cm-lp-image-broken .line-icon': { width: '14px', height: '14px', flexShrink: '0' },
   // The edge is an outline, so the box is the picture's own size.
   '.cm-lp-wikiimage img': {
     display: 'block',
@@ -443,7 +443,7 @@ export const livePreviewTheme = EditorView.theme({
   },
   '.cm-fm-head:hover': { color: 'var(--fg, #18181b)' },
   '.cm-fm-chevron': { display: 'inline-flex', transition: 'transform var(--motion-fast, 100ms)' },
-  '.cm-fm-chevron svg': { width: '11px', height: '11px' },
+  '.cm-fm-chevron .line-icon': { width: '11px', height: '11px' },
   '.cm-fm-card-collapsed .cm-fm-chevron': { transform: 'rotate(-90deg)' },
   '.cm-fm-count': { fontWeight: 'var(--fw-regular, 400)', letterSpacing: '0', fontVariantNumeric: 'tabular-nums' },
   // fit-content: the key column grows to the longest key up to a cap, past which keys truncate.
@@ -462,7 +462,7 @@ export const livePreviewTheme = EditorView.theme({
   },
   '.cm-fm-name': { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
   '.cm-fm-icon': { display: 'inline-flex', alignItems: 'center', height: '1.5em', flexShrink: '0', color: 'var(--muted-soft, #9b9eac)' },
-  '.cm-fm-icon svg': { width: '13px', height: '13px', display: 'block' },
+  '.cm-fm-icon .line-icon': { width: '13px', height: '13px', display: 'block' },
   '.cm-fm-val': { color: 'var(--prose-body, #27272a)', overflowWrap: 'anywhere' },
   '.cm-fm-val-empty': { color: 'var(--muted-soft, #9b9eac)' },
   '.cm-fm-val-pre': { whiteSpace: 'pre-line' },

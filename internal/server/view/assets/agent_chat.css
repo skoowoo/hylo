@@ -1645,6 +1645,18 @@
       color: var(--s-err);
     }
 
+    .run-toast-action {
+      padding: 0 0.25rem;
+      border: none;
+      background: transparent;
+      color: currentColor;
+      font: inherit;
+      font-weight: var(--fw-semibold);
+      text-decoration: underline;
+      text-underline-offset: 2px;
+      cursor: pointer;
+    }
+
     .run-toast-dismiss {
       flex-shrink: 0;
       width: 16px;

@@ -1,10 +1,18 @@
 package view
 
 import (
+	"fmt"
 	"html/template"
+	"image"
+	_ "image/gif"
+	_ "image/jpeg"
+	_ "image/png"
 	"net/http"
+	"os"
 	"strings"
+	"sync"
 	"time"
+	"unicode/utf8"
 
 	"github.com/hardhacker/hylo/internal/storage"
 	"github.com/hardhacker/hylo/internal/util"
@@ -13,6 +21,7 @@ import (
 // ─── stream types ─────────────────────────────────────────────────────────────
 
 type shortsStreamGroup struct {
+	Day         string // "2006-01-02"; the composer files a new card under it
 	DateLabel   string // "Monday, June 16" or "Monday, June 16, 2025" — group heading
 	IsToday     bool
 	IsYesterday bool
@@ -35,49 +44,71 @@ type shortsStreamPageData struct {
 }
 
 type shortRenderedEntry struct {
+	ID     string
+	Hash   string
+	Path   string // the daily file
+	Stamp  string // the entry's heading time, for jumping to it in the daily file
 	Time   string
 	HTML   template.HTML
-	Images []imageItem // attachments, rendered as a grid below HTML — see resolveShortImages
+	Quote  bool         // one short line, no images: the grid view sets it large
+	Images []shortImage // attachments, rendered below HTML (stream) or as a cover (grid)
+	Thumbs int          // grid card's thumb-row columns under the cover
+	More   int          // images past the grid card's cover + three thumbs
 }
 
-// resolveShortImages looks up attachment metadata (for the lightbox's
-// data-img-* attributes — same imageItem the /images gallery uses) for each
-// ![[name]] embed a short carries. Names that don't resolve (deleted since
-// the short was saved) are silently dropped rather than shown broken.
-func (vh *ViewHandler) resolveShortImages(names []string) []imageItem {
-	if len(names) == 0 {
-		return nil
+// shortImage carries the image's own aspect ratio so a grid card is laid out
+// at its final height before the image loads.
+type shortImage struct {
+	Name   string
+	URL    string
+	Aspect string
+}
+
+const (
+	shortQuoteMaxRunes = 80
+	shortGridImages    = 4
+)
+
+// Cover ratios are clamped like a photo feed's: no taller than 3:4, no wider than 3:2.
+const (
+	shortCoverMinRatio = 3.0 / 4
+	shortCoverMaxRatio = 3.0 / 2
+)
+
+var shortImageRatios sync.Map // abs path + mtime → float64 width/height
+
+func (vh *ViewHandler) shortImageAspect(img storage.Image) string {
+	ratio := 4.0 / 3
+	abs := vh.vault.OsImagePath(img)
+	key := abs + "@" + img.UpdatedAt.String()
+	if v, ok := shortImageRatios.Load(key); ok {
+		ratio = v.(float64)
+	} else if f, err := os.Open(abs); err == nil {
+		if cfg, _, err := image.DecodeConfig(f); err == nil && cfg.Height > 0 {
+			ratio = float64(cfg.Width) / float64(cfg.Height)
+			shortImageRatios.Store(key, ratio)
+		}
+		f.Close()
 	}
-	resolved := make([]storage.Image, 0, len(names))
+	ratio = min(max(ratio, shortCoverMinRatio), shortCoverMaxRatio)
+	return fmt.Sprintf("%.4f", ratio)
+}
+
+// resolveShortImages resolves each ![[name]] embed a short carries; names that
+// no longer resolve (deleted since) are dropped rather than shown broken.
+func (vh *ViewHandler) resolveShortImages(names []string) []shortImage {
+	var items []shortImage
 	for _, name := range names {
 		imgs, err := vh.vault.GetImagesByName(name)
 		if err != nil || len(imgs) == 0 {
 			continue
 		}
-		resolved = append(resolved, imgs[0])
-	}
-
-	linksByImage, preview, rank := resolveImageLinks(vh.vault, resolved)
-	items := make([]imageItem, 0, len(resolved))
-	for _, img := range resolved {
-		items = append(items, imageItemFrom(img, linksByImage[img.Name], preview, rank))
+		items = append(items, shortImage{imgs[0].Name, imageThumbURL(imgs[0]), vh.shortImageAspect(imgs[0])})
 	}
 	return items
 }
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
-
-func stripShortContent(content string) string {
-	content = strings.TrimSpace(content)
-	if strings.HasPrefix(content, "###### Short Note:") {
-		if i := strings.Index(content, "\n"); i >= 0 {
-			content = strings.TrimSpace(content[i+1:])
-		} else {
-			content = ""
-		}
-	}
-	return content
-}
 
 // loadStreamGroups returns entries grouped by date, newest-first.
 // It fetches limit+1 entries to determine whether more exist.
@@ -97,6 +128,17 @@ func (vh *ViewHandler) loadStreamGroups(before time.Time, limit int) ([]shortsSt
 		entries = entries[:limit]
 	}
 
+	groups := vh.shortGroups(entries)
+	var cursor string
+	if len(entries) > 0 {
+		cursor = entries[len(entries)-1].CreatedAt.Format(time.RFC3339)
+	}
+
+	return groups, cursor, hasMore, nil
+}
+
+// shortGroups renders entries (newest first) into day groups.
+func (vh *ViewHandler) shortGroups(entries []storage.ShortEntry) []shortsStreamGroup {
 	now := time.Now()
 	today := now.Format("2006-01-02")
 	yesterday := now.AddDate(0, 0, -1).Format("2006-01-02")
@@ -105,8 +147,7 @@ func (vh *ViewHandler) loadStreamGroups(before time.Time, limit int) ([]shortsSt
 	groupIdx := make(map[string]int)
 
 	for _, e := range entries {
-		content := stripShortContent(e.Content)
-		text, imageNames := util.ExtractShortImages([]byte(content))
+		text, imageNames := util.ExtractShortImages([]byte(e.Content))
 		rendered, renderErr := util.MarkdownToHTMLFragment(text)
 		if renderErr != nil {
 			rendered = []byte(template.HTMLEscapeString(string(text)))
@@ -122,24 +163,27 @@ func (vh *ViewHandler) loadStreamGroups(before time.Time, limit int) ([]shortsSt
 			idx = len(groups)
 			groupIdx[date] = idx
 			groups = append(groups, shortsStreamGroup{
+				Day:         date,
 				DateLabel:   dateLabel,
 				IsToday:     date == today,
 				IsYesterday: date == yesterday,
 			})
 		}
+		images := vh.resolveShortImages(imageNames)
 		groups[idx].Entries = append(groups[idx].Entries, shortRenderedEntry{
+			ID:     e.ID,
+			Hash:   e.Hash,
+			Path:   e.Path,
+			Stamp:  e.CreatedAt.Format("2006-01-02 15:04:05"),
 			Time:   e.CreatedAt.Format("15:04"),
 			HTML:   template.HTML(rendered), //nolint:gosec // server-rendered markdown
-			Images: vh.resolveShortImages(imageNames),
+			Quote:  len(images) == 0 && !strings.Contains(string(text), "\n") && utf8.RuneCount(text) <= shortQuoteMaxRunes,
+			Images: images,
+			Thumbs: min(max(len(images)-1, 1), shortGridImages-1),
+			More:   max(len(images)-shortGridImages, 0),
 		})
 	}
-
-	var cursor string
-	if len(entries) > 0 {
-		cursor = entries[len(entries)-1].CreatedAt.Format(time.RFC3339)
-	}
-
-	return groups, cursor, hasMore, nil
+	return groups
 }
 
 // loadMonthsWithEntries returns the months (within the last 24 calendar
@@ -222,6 +266,24 @@ func (vh *ViewHandler) ShortsStream(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := views.ExecuteTemplate(w, "shorts_stream.html", data); err != nil {
+		http.Error(w, "render: "+err.Error(), http.StatusInternalServerError)
+	}
+}
+
+// ShortsEntry handles GET /shorts/entry?id= — one card in its day group, which
+// the composer files into the feed itself instead of reloading the section.
+func (vh *ViewHandler) ShortsEntry(w http.ResponseWriter, r *http.Request) {
+	if !htmxOnly(w, r, "/home") {
+		return
+	}
+	e, err := vh.vault.GetShort(r.URL.Query().Get("id"))
+	if err != nil {
+		http.Error(w, "shorts/entry: "+err.Error(), http.StatusNotFound)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	data := struct{ Groups []shortsStreamGroup }{vh.shortGroups([]storage.ShortEntry{e})}
+	if err := views.ExecuteTemplate(w, "shorts-days", data); err != nil {
 		http.Error(w, "render: "+err.Error(), http.StatusInternalServerError)
 	}
 }

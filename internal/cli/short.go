@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -13,12 +12,15 @@ import (
 
 func newShortCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:          "short",
-		Short:        "Create and manage short notes",
-		Long:         `Operate on short notes — quick captures appended to a daily file.`,
+		Use:   "short",
+		Short: "Create and manage short notes",
+		Long: `Operate on short notes — quick captures appended to a daily file.
+
+Each entry has an id like 2026-10-29-153012 (its day and time), shown by
+"short list" and accepted by get, update and delete.`,
 		SilenceUsage: true,
 	}
-	cmd.AddCommand(newShortCreateCmd(), newShortListCmd())
+	cmd.AddCommand(newShortCreateCmd(), newShortListCmd(), newShortGetCmd(), newShortUpdateCmd(), newShortDeleteCmd())
 	return cmd
 }
 
@@ -38,30 +40,26 @@ Content sources (in priority order):
 		Args:         cobra.NoArgs,
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runShortCreate(content)
+			data, err := resolveAppendContent(content)
+			if err != nil {
+				return err
+			}
+			c, err := openClient()
+			if err != nil {
+				return err
+			}
+			e, err := notes.ShortCreate(c, string(data))
+			if err != nil {
+				return err
+			}
+			fmt.Fprintf(os.Stdout, "saved short note %s to %q\n", e.ID, e.Path)
+			return nil
 		},
 	}
 
 	cmd.Flags().StringVarP(&content, "content", "c", "", "inline content for the short note")
 
 	return cmd
-}
-
-func runShortCreate(content string) error {
-	data, err := resolveAppendContent(content)
-	if err != nil {
-		return err
-	}
-	c, err := openClient()
-	if err != nil {
-		return err
-	}
-	p, err := notes.ShortCreate(c, string(data))
-	if err != nil {
-		return err
-	}
-	fmt.Fprintf(os.Stdout, "saved short note to %q\n", p)
-	return nil
 }
 
 func newShortListCmd() *cobra.Command {
@@ -117,9 +115,99 @@ func runShortList(q notes.ShortQuery, table bool) error {
 	if table {
 		return printShortTable(entries)
 	}
-	enc := json.NewEncoder(os.Stdout)
-	enc.SetIndent("", "  ")
-	return enc.Encode(entries)
+	return printJSON(entries)
+}
+
+func newShortGetCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:          "get <id>",
+		Short:        "Print one short note entry as JSON",
+		Example:      `  hylo short get 2026-10-29-153012`,
+		Args:         cobra.ExactArgs(1),
+		SilenceUsage: true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			c, err := openClient()
+			if err != nil {
+				return err
+			}
+			e, err := c.GetShort(args[0])
+			if err != nil {
+				return err
+			}
+			return printJSON(e)
+		},
+	}
+}
+
+func newShortUpdateCmd() *cobra.Command {
+	var content, hash string
+
+	cmd := &cobra.Command{
+		Use:   "update <id>",
+		Short: "Replace a short note entry's content",
+		Long: `Replace the content of a short note entry, keeping its time and place in
+the daily file.
+
+Content sources (in priority order):
+  1. --content <text>   inline text
+  2. stdin              pipe or interactive input
+
+Pass --hash (from "short get") to fail instead of overwriting a newer edit.`,
+		Example: `  hylo short update 2026-10-29-153012 --content "Fixed thought"
+  echo "Fixed thought" | hylo short update 2026-10-29-153012`,
+		Args:         cobra.ExactArgs(1),
+		SilenceUsage: true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			data, err := resolveAppendContent(content)
+			if err != nil {
+				return err
+			}
+			c, err := openClient()
+			if err != nil {
+				return err
+			}
+			e, err := notes.ShortUpdate(c, args[0], hash, string(data))
+			if err != nil {
+				return err
+			}
+			fmt.Fprintf(os.Stdout, "updated short note %s in %q\n", e.ID, e.Path)
+			return nil
+		},
+	}
+
+	cmd.Flags().StringVarP(&content, "content", "c", "", "new content for the short note")
+	cmd.Flags().StringVar(&hash, "hash", "", "only edit if the entry still has this hash")
+
+	return cmd
+}
+
+func newShortDeleteCmd() *cobra.Command {
+	var hash string
+
+	cmd := &cobra.Command{
+		Use:   "delete <id>",
+		Short: "Permanently delete a short note entry",
+		Long: `Permanently delete one short note entry; there is no undo. The daily file
+is removed once its last entry is gone.`,
+		Example:      `  hylo short delete 2026-10-29-153012`,
+		Args:         cobra.ExactArgs(1),
+		SilenceUsage: true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			c, err := openClient()
+			if err != nil {
+				return err
+			}
+			if err := c.DeleteShort(args[0], hash); err != nil {
+				return err
+			}
+			fmt.Fprintf(os.Stdout, "deleted short note %s\n", args[0])
+			return nil
+		},
+	}
+
+	cmd.Flags().StringVar(&hash, "hash", "", "only delete if the entry still has this hash")
+
+	return cmd
 }
 
 func printShortTable(entries []client.ShortEntry) error {
@@ -127,14 +215,14 @@ func printShortTable(entries []client.ShortEntry) error {
 		return nil
 	}
 	cols := []Column{
+		{Header: "ID", MaxWidth: 24},
 		{Header: "CREATED", MaxWidth: 20},
-		{Header: "DAILY", MaxWidth: 40},
 		{Header: "CONTENT", MaxWidth: 80},
 	}
 	rows := make([][]string, len(entries))
 	for i, e := range entries {
 		preview := strings.ReplaceAll(e.Content, "\n", " ")
-		rows[i] = []string{e.CreatedAt.Format("2006-01-02 15:04:05"), e.DailyPath, preview}
+		rows[i] = []string{e.ID, e.CreatedAt.Format("2006-01-02 15:04:05"), preview}
 	}
 	PrintTable(cols, rows)
 	return nil

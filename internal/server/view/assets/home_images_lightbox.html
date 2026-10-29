@@ -8,18 +8,61 @@
        x-transition:leave-end="lb-leave-end"
        @click.self="closeLightbox()"
        style="display:none">
-    <div class="lb-panel" @click.stop>
-      <div class="lb-viewer">
-        <img class="lb-viewer-img"
-             :src="lightbox ? lightbox.src : ''"
-             :alt="lightbox ? lightbox.name : ''"
-             draggable="false">
+    <div class="lb-panel" @click.stop @keydown.window="lbKey($event)"
+         :class="{ 'lb-panel--short': lbData && lbData.short, 'lb-panel--text': lbData && lbData.short && !lbImage(), 'lb-panel--quote': lbData && lbData.short && lbData.short.quote }">
+      <div class="lb-viewer" x-show="lbImage()">
+        <div class="lb-stage">
+          <img class="lb-viewer-img"
+               :src="lbImage() ? lbImage().src : ''"
+               :alt="lbImage() ? lbImage().name : ''"
+               draggable="false">
+          <template x-if="lbData && lbData.images && lbData.images.length > 1">
+            <div class="lb-nav">
+              <span class="lb-count" x-text="(lbData.index + 1) + ' / ' + lbData.images.length"></span>
+              <button type="button" class="lb-step lb-step--prev" title="Previous (←)" aria-label="Previous image"
+                      x-show="lbData.index > 0" @click="lbStep(-1)">{{icon "chevron-left"}}</button>
+              <button type="button" class="lb-step lb-step--next" title="Next (→)" aria-label="Next image"
+                      x-show="lbData.index < lbData.images.length - 1" @click="lbStep(1)">{{icon "chevron-right"}}</button>
+            </div>
+          </template>
+        </div>
+        <template x-if="lbData && lbData.images && lbData.images.length > 1">
+          <div class="lb-strip">
+            <template x-for="(img, i) in lbData.images" :key="i">
+              <button type="button" class="lb-strip-thumb" :class="{ active: i === lbData.index }"
+                      :aria-label="img.name" @click="lbData.index = i">
+                <img :src="img.src" alt="" draggable="false">
+              </button>
+            </template>
+          </div>
+        </template>
       </div>
       <aside class="lb-sidebar hairline">
+        <template x-if="lbData && lbData.short">
+          <div class="lb-sidebar-inner">
+            <div class="lb-sidebar-head hairline">
+              <button type="button" class="lb-short-date" title="Show in daily note"
+                      @click="lbOpenShortDay()" x-text="lbData.short.date"></button>
+              <span class="lb-short-time" x-text="lbData.short.time"></span>
+              <span class="lb-sidebar-spacer"></span>
+              <button type="button" class="icon-btn-ghost icon-btn-ghost--sm" title="Edit" aria-label="Edit"
+                      @click="lbEditShort()">{{icon "pencil"}}</button>
+              <button type="button" class="icon-btn-ghost icon-btn-ghost--sm" title="Show in daily note" aria-label="Show in daily note"
+                      @click="lbOpenShortDay()">{{icon "external-link"}}</button>
+              <button type="button" class="icon-btn-ghost icon-btn-ghost--sm" title="Close (Esc)" aria-label="Close"
+                      @click="closeLightbox()">{{icon "close"}}</button>
+            </div>
+            <div class="lb-sidebar-body lb-short-body">
+              <div class="prose shorts-entry-prose" x-show="lbData.short.html" x-html="lbData.short.html"></div>
+            </div>
+          </div>
+        </template>
+        <template x-if="lbData && !lbData.short">
+        <div class="lb-sidebar-inner">
         <div class="lb-sidebar-head hairline">
-          <span class="lb-sidebar-title" x-text="lightbox ? lightbox.name : ''"></span>
+          <span class="lb-sidebar-title" x-text="lbData ? lbData.name : ''"></span>
           <button type="button" class="lb-delete-btn" title="Delete image"
-                  x-show="lightbox && lightbox.dir != null"
+                  x-show="lbData && lbData.dir != null"
                   @click="deleteLightboxImage()">
             {{icon "trash" `aria-hidden="true"`}}
           </button>
@@ -28,12 +71,12 @@
           </button>
         </div>
         <div class="lb-sidebar-body">
-          <template x-if="lightbox && lightbox.dir != null">
+          <template x-if="lbData && lbData.dir != null">
           <div>
           <div class="lb-section-label">Linked Notes</div>
-          <template x-if="lightbox && lightbox.notes && lightbox.notes.length > 0">
+          <template x-if="lbData && lbData.notes && lbData.notes.length > 0">
             <div>
-              <template x-for="note in lightbox.notes" :key="note.name">
+              <template x-for="note in lbData.notes" :key="note.name">
                 <div class="lb-note-card" @click="openLinkedNote(note.name)">
                   {{icon "file" "lb-note-card-icon"}}
                   <div class="lb-note-card-body">
@@ -45,7 +88,7 @@
               </template>
             </div>
           </template>
-          <template x-if="!lightbox || !lightbox.notes || lightbox.notes.length === 0">
+          <template x-if="!lbData || !lbData.notes || lbData.notes.length === 0">
             <div class="lb-no-notes">No linked notes</div>
           </template>
           <div class="lb-divider hairline"></div>
@@ -54,25 +97,27 @@
           <div class="lb-section-label">Info</div>
           <div class="lb-field">
             <div class="lb-field-label">Filename</div>
-            <div class="lb-field-value mono" x-text="lightbox ? lightbox.name : ''"></div>
+            <div class="lb-field-value mono" x-text="lbData ? lbData.name : ''"></div>
           </div>
           <div class="lb-field">
             <div class="lb-field-label">Type</div>
-            <div class="lb-field-value" x-text="lightbox ? extToType(lightbox.ext) : ''"></div>
+            <div class="lb-field-value" x-text="lbData ? extToType(lbData.ext) : ''"></div>
           </div>
-          <div class="lb-field" x-show="lightbox && lightbox.dir != null">
+          <div class="lb-field" x-show="lbData && lbData.dir != null">
             <div class="lb-field-label">Size</div>
-            <div class="lb-field-value" x-text="lightbox ? lightbox.size : ''"></div>
+            <div class="lb-field-value" x-text="lbData ? lbData.size : ''"></div>
           </div>
-          <div class="lb-field" x-show="lightbox && lightbox.dir != null">
+          <div class="lb-field" x-show="lbData && lbData.dir != null">
             <div class="lb-field-label">Location</div>
-            <div class="lb-field-value mono" x-text="lightbox ? lightbox.dir : ''"></div>
+            <div class="lb-field-value mono" x-text="lbData ? lbData.dir : ''"></div>
           </div>
-          <div class="lb-field" x-show="lightbox && lightbox.dir != null">
+          <div class="lb-field" x-show="lbData && lbData.dir != null">
             <div class="lb-field-label">Modified</div>
-            <div class="lb-field-value" x-text="lightbox ? lightbox.time : ''"></div>
+            <div class="lb-field-value" x-text="lbData ? lbData.time : ''"></div>
           </div>
         </div>
+        </div>
+        </template>
       </aside>
     </div>
   </div>

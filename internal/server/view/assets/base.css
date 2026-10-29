@@ -187,7 +187,6 @@
     }
     .compose-thumb img {
       width: 100%; height: 100%; object-fit: cover; display: block;
-      transition: opacity var(--motion-fast);
     }
     .compose-thumb.is-uploading img, .compose-thumb.is-failed img { opacity: 0.45; }
     .compose-thumb.is-failed { outline: var(--bd-w) solid var(--s-err-bd); }
@@ -208,10 +207,10 @@
       display: flex; align-items: center; justify-content: center;
       background: var(--img-control-bg); color: var(--img-control-fg);
       border: none; border-radius: var(--r-full);
-      cursor: pointer; opacity: 0.85;
-      transition: opacity var(--motion-fast);
+      cursor: pointer;
+      transition: background-color var(--motion-fast);
     }
-    .compose-thumb-remove:hover { opacity: 1; }
+    .compose-thumb-remove:hover { background: color-mix(in srgb, var(--img-control-bg), #000 30%); }
     .compose-thumb-remove svg { width: 9px; height: 9px; flex-shrink: 0; }
 
     /* The pill-shaped iOS-style toggle switch that used to live here

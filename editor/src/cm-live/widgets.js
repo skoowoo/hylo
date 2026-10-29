@@ -2,7 +2,7 @@ import { WidgetType, EditorView } from '@codemirror/view';
 import { openImageViewer } from './image-viewer.js';
 import { imageNodeAt } from './image-nodes.js';
 import { imageBox, columnWidth, rememberImageSize, IMAGE_MAX_HEIGHT } from './image-sizes.js';
-import { lineIcon } from '../line-icons.js';
+import { lineIconNode } from '../line-icons.js';
 
 // Click puts the caret `offset` chars into the source the widget replaces,
 // which flips it back to raw markdown for editing.
@@ -102,10 +102,9 @@ export class ImageWidget extends WidgetType {
     img.addEventListener('error', () => {
       sizeBox(wrap, null);
       wrap.classList.add('cm-lp-image-broken');
-      wrap.innerHTML = lineIcon('image-off');
       const text = document.createElement('span');
       text.textContent = 'Image not found · ' + this.label;
-      wrap.appendChild(text);
+      wrap.replaceChildren(lineIconNode('image-off'), text);
     }, { once: true });
     img.src = this.src;
 
@@ -114,7 +113,7 @@ export class ImageWidget extends WidgetType {
     zoom.className = 'cm-lp-image-zoom';
     zoom.title = 'View image';
     zoom.setAttribute('aria-label', 'View image');
-    zoom.innerHTML = lineIcon('expand');
+    zoom.append(lineIconNode('expand'));
     zoom.addEventListener('mousedown', (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -289,16 +288,16 @@ export class CodeHeaderWidget extends WidgetType {
     btn.className = 'cm-lp-code-copy';
     btn.title = 'Copy code';
     btn.setAttribute('aria-label', 'Copy code');
-    btn.innerHTML = lineIcon('copy');
+    btn.append(lineIconNode('copy'));
     // Keep the caret where it is — clicking chrome shouldn't open the block for editing.
     btn.addEventListener('mousedown', (e) => e.preventDefault());
     btn.addEventListener('click', () => {
       if (!navigator.clipboard) return;
       navigator.clipboard.writeText(this.code).then(() => {
-        btn.innerHTML = lineIcon('check');
+        btn.replaceChildren(lineIconNode('check'));
         btn.classList.add('is-done');
         setTimeout(() => {
-          btn.innerHTML = lineIcon('copy');
+          btn.replaceChildren(lineIconNode('copy'));
           btn.classList.remove('is-done');
         }, 1200);
       }).catch(() => {});

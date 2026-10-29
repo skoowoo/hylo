@@ -751,62 +751,6 @@
     .tag-picker-option-count { flex-shrink: 0; margin-left: auto; color: var(--muted); font-variant-numeric: tabular-nums; }
     .cselect-option.sel .tag-picker-option-count { color: inherit; opacity: 0.7; }
 
-    /* ── Short note content in content pane ──────────────────────── */
-    .short-day-frag {
-      display: flex;
-      flex-direction: column;
-    }
-    .short-entry-stack {
-      display: flex;
-      flex-direction: column;
-      gap: 0;
-    }
-    .short-entry-time {
-      margin-bottom: 8px;
-      padding-left: 0;
-    }
-    .short-entry-time-inner {
-      display: inline-block;
-      font-size: var(--text-xs);
-      font-weight: 500;
-      font-variant-numeric: tabular-nums;
-      color: var(--muted-soft);
-      opacity: 1;
-    }
-    .short-entry-content.short-entry-prose {
-      font-size: var(--text-base);
-      line-height: 1.6;
-      color: var(--body);
-      font-family: var(--font-sans);
-    }
-    .short-entry-prose > :first-child { margin-top: 0 !important; }
-    .short-entry-prose > :last-child { margin-bottom: 0 !important; }
-    .short-entry-prose :is(p, ul, ol) { margin: 0.4em 0; }
-    .short-entry-prose :is(ul, ol) { padding-left: 1.05em; }
-    .short-entry-prose :is(h1, h2, h3, h4) {
-      font-size: var(--text-base);
-      font-weight: 500;
-      margin: 0.55em 0 0.3em;
-      letter-spacing: -0.01em;
-      color: var(--fg);
-    }
-    .short-entry-prose pre, .short-entry-prose code {
-      font-size: var(--text-xs);
-      border-radius: var(--r-sm);
-      font-family: var(--font-mono);
-    }
-    .short-entry-prose a {
-      color: var(--link);
-      text-underline-offset: 2px;
-    }
-    .short-entry-prose blockquote {
-      margin: 0.45em 0;
-      padding: 0.3em 0 0.3em 0.65em;
-      border-left: var(--bd-w) solid var(--line-hair);
-      border-radius: 0;
-      color: var(--muted);
-      opacity: 1;
-    }
     /* ── Inbox embedded in the home list pane ─────────────────── */
     /* Inbox's header now uses the shared .home-list-head below (same class
        as Pinned/Folder/Images/Agents/Shorts/Graph) instead of its own

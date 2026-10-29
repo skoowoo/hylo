@@ -18,71 +18,23 @@
       </div>
     </div>
     {{end}}
+    <div class="seg">
+      <button type="button" class="seg-btn" :class="currentListView() === 'list' ? 'active' : ''"
+              @click="setListView('list')" title="List view">
+        {{icon "list"}}
+      </button>
+      <button type="button" class="seg-btn" :class="currentListView() === 'grid' ? 'active' : ''"
+              @click="setListView('grid')" title="Grid view">
+        {{icon "grid"}}
+      </button>
+    </div>
   </div>
 
   <div class="sec-body shorts-stream-wrap">
-    <div class="shorts-stream-inner">
-      <div class="shorts-compose-card">
-        <textarea id="shorts-compose-input" class="shorts-compose-input" rows="2"
-                  placeholder="Write a short…" spellcheck="false" x-model="shortComposeText"
-                  :disabled="shortComposeSaving"
-                  @paste="handleShortComposePaste($event)"
-                  @input="__hyloAutoResize($event.target)"></textarea>
-        <div class="compose-thumbs shorts-compose-images" x-show="shortComposeImages.length" x-cloak>
-          <template x-for="img in shortComposeImages" :key="img.id">
-            <div class="compose-thumb" :class="{'is-uploading': img.uploading, 'is-failed': img.failed}">
-              <img :src="img.previewUrl || img.src" :alt="img.name">
-              <div class="compose-thumb-spin" x-show="img.uploading"></div>
-              <button type="button" class="compose-thumb-remove" title="Remove image" aria-label="Remove image"
-                      @click="removeShortComposeImage(img.id)">
-                {{icon "close"}}
-              </button>
-            </div>
-          </template>
-        </div>
-        <div class="shorts-compose-footer">
-          <input type="file" id="shorts-compose-file-input" class="shorts-compose-file-input"
-                 accept="image/*" multiple @change="handleShortComposeFilePick($event)">
-          <button type="button" class="shorts-compose-attach" title="Add image" aria-label="Add image"
-                  :disabled="shortComposeSaving"
-                  onclick="document.getElementById('shorts-compose-file-input').click()">
-            {{icon "image"}}
-          </button>
-          <div class="shorts-compose-footer-right">
-            <button type="button" class="shorts-compose-send"
-                    :disabled="(!shortComposeText.trim() && !shortComposeImages.length) || shortComposeSaving || shortComposeImages.some(i => i.uploading)"
-                    @click="saveShortCompose()">Save</button>
-          </div>
-        </div>
-      </div>
-      <div id="shorts-stream-groups">
-        {{range .Groups}}
-        {{$group := .}}
-        <div class="shorts-day">
-          {{range .Entries}}
-          <div class="list-card shorts-entry">
-            <div class="shorts-entry-meta">
-              <span class="shorts-entry-date">{{if $group.IsToday}}Today{{else if $group.IsYesterday}}Yesterday{{else}}{{$group.DateLabel}}{{end}}</span>
-              <span class="shorts-entry-time">{{.Time}}</span>
-            </div>
-            <div class="prose shorts-entry-prose">{{.HTML}}</div>
-            {{if .Images}}
-            <div class="shorts-img-grid{{if eq (len .Images) 1}} shorts-img-grid--one{{end}}">
-              {{range .Images}}
-              <div class="shorts-img-cell" onclick="openImageLightbox(this)"
-                   data-img-src="{{.ThumbURL}}" data-img-name="{{.Name}}" data-img-dir="{{.Dir}}"
-                   data-img-size="{{.Size}}" data-img-time="{{.UpdatedAt}}" data-img-ext="{{.Ext}}"
-                   data-img-notes="{{.LinkedNotesJSON}}">
-                <img src="{{.ThumbURL}}" alt="{{.Name}}" loading="lazy" decoding="async">
-              </div>
-              {{end}}
-            </div>
-            {{end}}
-          </div>
-          {{end}}
-        </div>
-        {{end}}
-      </div>
+    <div class="shorts-stream-inner" :class="{'is-grid': currentListView() === 'grid'}">
+      {{template "shorts-composer" "shortCompose"}}
+      <template id="shorts-edit-tpl">{{template "shorts-composer" "shortEdit"}}</template>
+      <div id="shorts-stream-groups" class="shorts-stream-groups">{{template "shorts-days" .}}</div>
 
       <div id="shorts-load-more">
         {{if .HasMore}}
