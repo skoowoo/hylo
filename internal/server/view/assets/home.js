@@ -62,49 +62,35 @@ function _agentBotSlot(name, bots) {
   return mine === -1 ? _agentBotHash(name) % n : mine;
 }
 // Each color slot has its own cheerful face, so a bot keeps one color and one
-// face. Faces are solid rounded shapes only (dots, ovals, bowls, triangles);
-// anim names the face's one-shot move in base.css.
+// face. A face is just two eyes, each a solid circle or ellipse, set on one of
+// five spots; anim names the face's one-shot move in base.css.
 var _BOT_EYES = {
-  dot: function(x) { return '<circle class="ink" cx="' + x + '" cy="0" r="4.4"/>'; },
-  oval: function(x) { return '<ellipse class="ink" cx="' + x + '" cy="-0.5" rx="3.7" ry="5.4"/>'; },
-  peak: function(x) { return '<path class="solid tri" d="M' + (x - 2.7) + ' 1.4L' + x + ' -1.9L' + (x + 2.7) + ' 1.4z"/>'; },
+  dot: function(x) { return '<circle cx="' + x + '" cy="0" r="5.4"/>'; },
+  dotL: function(x) { return '<circle cx="' + x + '" cy="0" r="6.6"/>'; },
+  dotS: function(x) { return '<circle cx="' + x + '" cy="0.6" r="3.8"/>'; },
+  oval: function(x) { return '<ellipse cx="' + x + '" cy="0" rx="4.3" ry="6.6"/>'; },
+  ovalW: function(x) { return '<ellipse cx="' + x + '" cy="0" rx="6.2" ry="4.2"/>'; },
 };
-function _botBowl(rx, ry, y) { return 'M' + -rx + ' ' + y + 'h' + rx * 2 + 'a' + rx + ' ' + ry + ' 0 0 1 ' + -rx * 2 + ' 0z'; }
-var _BOT_MOUTHS = {
-  small: '<path class="solid" d="' + _botBowl(3.4, 3.4, 8.4) + '"/>',
-  open: '<path class="solid" d="' + _botBowl(4.6, 4.6, 8.4) + '"/>',
-  big: '<path class="solid" d="' + _botBowl(5.8, 5.8, 7.6) + '"/>',
-  grin: '<path class="solid" d="' + _botBowl(6.2, 3.4, 8.4) + '"/>',
-  vee: '<path class="solid tri" d="M-3.4 9.4h6.8L0 13z"/>',
-};
+// The four corners share one offset so the spot reads even at 20px.
+var _BOT_C = [0, 0], _BOT_TL = [-8, -6], _BOT_TR = [8, -6], _BOT_BL = [-8, 6], _BOT_BR = [8, 6];
 var _BOT_FACES = [
-  { eyes: 'peak', mouth: 'grin', at: [0, 2], anim: 'squint' },
-  { eyes: 'oval', mouth: 'big', at: [6, -6], anim: 'hop' },
-  { eyes: 'dot', mouth: 'small', blush: true, at: [0, 1], anim: 'shy' },
-  { eyes: 'dot', mouth: 'big', tongue: true, at: [0, -1], anim: 'tongue' },
-  { eyes: 'oval', gap: 8, mouth: 'open', at: [-8, -6], anim: 'look' },
-  { eyes: 'peak', mouth: 'big', at: [0, 0], anim: 'laugh' },
-  { eyes: 'dot', mouth: 'vee', at: [9, 7], anim: 'kiss' },
-  { eyes: 'dot', mouth: 'open', at: [-8, -7], anim: 'wave' },
+  { eyes: ['dot', 'dot'], at: _BOT_C, anim: 'squint' },
+  { eyes: ['dotL', 'dotL'], at: _BOT_TR, anim: 'hop' },
+  { eyes: ['oval', 'oval'], at: _BOT_C, anim: 'look' },
+  { eyes: ['oval', 'dot'], at: _BOT_BL, tilt: 6, anim: 'wink' },
+  { eyes: ['oval', 'dotS'], gap: 11, at: _BOT_TL, tilt: -8, anim: 'curious' },
+  { eyes: ['dotS', 'dotS'], gap: 10, at: _BOT_BR, anim: 'wobble' },
+  { eyes: ['dotL', 'dotS'], gap: 13, at: _BOT_BL, tilt: 5, anim: 'giggle' },
+  { eyes: ['ovalW', 'ovalW'], gap: 13, at: _BOT_TL, anim: 'wave' },
 ];
-var _botClipSeq = 0;
 
 window.agentBotAvatarSVG = function(name, bots) {
-  var slot = _agentBotSlot(name, bots), f = _BOT_FACES[slot], gap = f.gap || 11;
-  var color = 'var(--bot' + slot + ')', eye = _BOT_EYES[f.eyes];
-  var blush = f.blush ? '<g class="blush">' + [-1, 1].map(function(k) {
-    return '<ellipse cx="' + k * (gap + 4.5) + '" cy="7.5" rx="3.8" ry="2.5"/>';
-  }).join('') + '</g>' : '';
-  var tongue = '';
-  if (f.tongue) {
-    var id = 'bot-mouth-' + (++_botClipSeq);
-    tongue = '<clipPath id="' + id + '"><path class="solid" d="' + _botBowl(5.8, 5.8, 7.6) + '"/></clipPath>' +
-      '<circle cx="0" cy="15.2" r="4.6" clip-path="url(#' + id + ')" style="fill:color-mix(in oklab, ' + color + ' 45%, var(--inverse-canvas))"/>';
-  }
-  return '<svg class="bot-face" data-anim="' + f.anim + '" data-eyes="' + f.eyes + '" style="--blink-at:' + (slot * 5 % 8) * 0.8 + 's"' +
-    ' viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="50" style="fill:' + color + '"/>' +
-    '<g transform="translate(50 50) scale(1.3) translate(' + f.at[0] + ' ' + f.at[1] + ')"><g class="face">' + blush +
-    '<g class="eyes">' + eye(-gap) + eye(gap) + '</g><g class="mouth">' + _BOT_MOUTHS[f.mouth] + tongue + '</g></g></g></svg>';
+  var slot = _agentBotSlot(name, bots), f = _BOT_FACES[slot], gap = f.gap || 12;
+  var eye = function(k, x) { return '<g class="eye eye--' + k + '">' + _BOT_EYES[k](x) + '</g>'; };
+  return '<svg class="bot-face" data-anim="' + f.anim + '" style="--blink-at:' + (slot * 5 % 8) * 0.8 + 's"' +
+    ' viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="50" style="fill:var(--bot' + slot + ')"/>' +
+    '<g transform="translate(50 50) scale(1.3) translate(' + f.at[0] + ' ' + f.at[1] + ') rotate(' + (f.tilt || 0) + ')">' +
+    '<g class="face"><g class="eyes">' + eye(f.eyes[0], -gap) + eye(f.eyes[1], gap) + '</g></g></g></svg>';
 };
 
 // Plays a face's one-shot move; the class clears itself when the move ends. A face

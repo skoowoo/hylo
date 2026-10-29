@@ -368,52 +368,47 @@
       line-height: 1.4; white-space: nowrap;
     }
 
-    /* ── Agent bot avatar — a cheerful face on a disc, one color and one face
-       per bot, drawn by agentBotAvatarSVG (home.js). Shapes are solid; a thin
-       same-ink outline with round joins rounds every corner. A face moves only
-       on a one-shot .is-playing (hover, a new reply), and blinks only under
+    /* ── Agent bot avatar — two eyes on a disc, one color and one face per
+       bot, drawn by agentBotAvatarSVG (home.js). A face moves only on a
+       one-shot .is-playing (hover, a new reply), and blinks only under
        [data-blink] (the sidebar and the latest reply). ── */
     .avatar { display: block; flex-shrink: 0; user-select: none; }
     .avatar--sm { width: 20px; height: 20px; }
     .avatar--md { width: 28px; height: 28px; }
     .avatar--lg { width: 36px; height: 36px; }
     .bot-face { display: block; width: 100%; height: 100%; }
-    .bot-face .ink { fill: var(--inverse-ink); }
-    .bot-face .solid { fill: var(--inverse-ink); stroke: var(--inverse-ink); stroke-width: 2.6; stroke-linejoin: round; }
-    .bot-face .tri { stroke-width: 4.6; }
-    .bot-face .blush { fill: var(--inverse-canvas); fill-opacity: 0.7; }
-    .bot-face :is(.face, .eyes, .mouth, .blush) { transform-box: fill-box; transform-origin: center; }
+    .bot-face .eyes { fill: var(--inverse-ink); }
+    .bot-face :is(.face, .eye) { transform-box: fill-box; transform-origin: center; }
 
-    [data-blink] .bot-face:not(.is-playing, [data-eyes="peak"]) .eyes { animation: bot-blink 6.4s var(--blink-at) infinite; }
+    [data-blink] .bot-face:not(.is-playing) .eye { animation: bot-blink 6.4s var(--blink-at) infinite; }
     .bot-face.is-playing[data-anim="squint"] .face { animation: bot-bob 1s ease-in-out; }
-    .bot-face.is-playing[data-anim="squint"] .eyes { animation: bot-squeeze 1s ease-in-out; }
+    .bot-face.is-playing[data-anim="squint"] .eye { animation: bot-squeeze 1s ease-in-out; }
     .bot-face.is-playing[data-anim="hop"] .face { animation: bot-hop .9s ease-in-out; }
-    .bot-face.is-playing[data-anim="hop"] .mouth { animation: bot-grow .9s ease-in-out; }
-    .bot-face.is-playing[data-anim="shy"] .face { animation: bot-sway 1.2s ease-in-out; }
-    .bot-face.is-playing[data-anim="shy"] .blush { animation: bot-flush 1.2s ease-in-out; }
-    .bot-face.is-playing[data-anim="tongue"] .face { animation: bot-wobble 1s ease-in-out; }
-    .bot-face.is-playing[data-anim="tongue"] .mouth { animation: bot-grow 1s ease-in-out; }
+    .bot-face.is-playing[data-anim="hop"] .eye { animation: bot-stretch .9s ease-in-out; }
     .bot-face.is-playing[data-anim="look"] .face { animation: bot-look 1.4s ease-in-out; }
-    .bot-face.is-playing[data-anim="laugh"] .face { animation: bot-chuckle .9s ease-in-out; }
-    .bot-face.is-playing[data-anim="laugh"] .mouth { animation: bot-chomp .9s ease-in-out; }
-    .bot-face.is-playing[data-anim="kiss"] .face { animation: bot-lean 1s ease-in-out; }
-    .bot-face.is-playing[data-anim="kiss"] .mouth { animation: bot-pucker 1s ease-in-out; }
+    .bot-face.is-playing[data-anim="wink"] .face { animation: bot-tilt 1s ease-in-out; }
+    .bot-face.is-playing[data-anim="wink"] .eye--dot { animation: bot-shut 1s ease-in-out; }
+    .bot-face.is-playing[data-anim="curious"] .face { animation: bot-sway 1.2s ease-in-out; }
+    .bot-face.is-playing[data-anim="curious"] .eye--dotS { animation: bot-pop 1.2s ease-in-out; }
+    .bot-face.is-playing[data-anim="wobble"] .face { animation: bot-wobble 1s ease-in-out; }
+    .bot-face.is-playing[data-anim="wobble"] .eye { animation: bot-stretch 1s ease-in-out; }
+    .bot-face.is-playing[data-anim="giggle"] .face { animation: bot-chuckle .9s ease-in-out; }
     .bot-face.is-playing[data-anim="wave"] .face { animation: bot-wave 1.1s ease-in-out; }
+    .bot-face.is-playing[data-anim="wave"] .eye { animation: bot-stretch 1.1s ease-in-out; }
     @keyframes bot-blink { 0%, 95%, 100% { transform: scaleY(1); } 97.5% { transform: scaleY(.12); } }
     @keyframes bot-bob { 0%, 100% { transform: translateY(0); } 25%, 65% { transform: translateY(-3px); } 45% { transform: translateY(0); } }
     @keyframes bot-squeeze { 0%, 100% { transform: scaleY(1); } 25%, 65% { transform: scaleY(.55); } 45% { transform: scaleY(1); } }
+    @keyframes bot-stretch { 0%, 100% { transform: scale(1); } 35% { transform: scale(.9, 1.2); } 65% { transform: scale(1.08, .92); } }
+    @keyframes bot-shut { 0%, 100% { transform: scaleY(1); } 30%, 60% { transform: scaleY(.12); } }
+    @keyframes bot-pop { 0%, 100% { transform: scale(1); } 35%, 70% { transform: scale(1.45); } }
     @keyframes bot-hop { 0%, 100% { transform: translateY(0); } 35% { transform: translateY(-9px); } 60% { transform: translateY(0); } 75% { transform: translateY(-3px); } }
-    @keyframes bot-grow { 0%, 100% { transform: scale(1); } 35% { transform: scale(1.2); } }
-    @keyframes bot-sway { 0%, 100% { transform: rotate(0); } 30% { transform: translateX(-3px) rotate(-9deg); } 65% { transform: translateX(2px) rotate(6deg); } }
-    @keyframes bot-flush { 0%, 100% { transform: scale(1); } 40%, 70% { transform: scale(1.3); } }
+    @keyframes bot-tilt { 0%, 100% { transform: rotate(0); } 30%, 65% { transform: translateX(2px) rotate(10deg); } }
+    @keyframes bot-sway { 0%, 100% { transform: rotate(0); } 30% { transform: translateX(-3px) rotate(-12deg); } 65% { transform: translateX(-2px) rotate(-8deg); } }
     @keyframes bot-wobble { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-8deg); } 50% { transform: rotate(7deg); } 75% { transform: rotate(-4deg); } }
     @keyframes bot-look { 0%, 100% { transform: translate(0, 0); } 30%, 45% { transform: translate(9px, 3px); } 65%, 80% { transform: translate(-3px, -1px); } }
     @keyframes bot-chuckle { 0%, 100% { transform: translateY(0); } 15%, 45%, 75% { transform: translateY(-3.5px); } 30%, 60%, 90% { transform: translateY(0); } }
-    @keyframes bot-chomp { 0%, 100% { transform: scaleY(1); } 15%, 45%, 75% { transform: scaleY(1.25); } 30%, 60%, 90% { transform: scaleY(.9); } }
-    @keyframes bot-lean { 0%, 100% { transform: scale(1); } 40%, 60% { transform: translate(-2px, -2px) scale(1.12); } }
-    @keyframes bot-pucker { 0%, 100% { transform: scale(1); } 30%, 60% { transform: scale(1.35); } 45% { transform: scale(1); } }
     @keyframes bot-wave { 0%, 100% { transform: rotate(0); } 20% { transform: rotate(-12deg); } 45% { transform: rotate(10deg); } 70% { transform: rotate(-6deg); } }
-    @media (prefers-reduced-motion: reduce) { .bot-face :is(.face, .eyes, .mouth, .blush) { animation: none !important; } }
+    @media (prefers-reduced-motion: reduce) { .bot-face :is(.face, .eye) { animation: none !important; } }
 
     /* ── Shared form field control — text input / select / textarea. One
        recipe backs every field in the app (Settings' every config/Agent
