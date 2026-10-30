@@ -383,9 +383,18 @@ function homeCtrl() {
     reloadActiveSection() {
       // Explicit refresh: drop every parked section, then refetch what's on screen.
       __hyloSectionCacheInvalidate();
+      // It also drops every filter (__hyloSectionFilterParams, unread only, a
+      // trigger) but keeps where you are.
+      this.inboxFilter = 'all';
       // The chat's DOM is the kernel's, so it refetches the conversation instead.
       if (this._chat && document.getElementById('chat-root')) {
+        this._chat.clearFilter();
         this._chat.reload();
+        return;
+      }
+      var unfiltered = __hyloSectionUnfiltered(this.curKey);
+      if (unfiltered !== this.curKey) {
+        this.go(unfiltered);
         return;
       }
       __hyloSectionFetch(this.curKey);

@@ -239,13 +239,21 @@ type ShortEntry struct {
 	Hash      string    `json:"hash"` // of Content; guards update/delete against concurrent edits
 	CreatedAt time.Time `json:"created_at"`
 	Path      string    `json:"path"`
+	Tags      []string  `json:"tags"` // #tags in Content, normalized
 }
 
 // ShortListOptions controls filtering for Vault.ListShortEntries.
 type ShortListOptions struct {
 	After  time.Time // inclusive lower bound on entry created_at; zero = no bound
 	Before time.Time // exclusive upper bound on entry created_at; zero = no bound
+	Tag    string    // normalized (util.NormalizeTag); only entries whose body carries it
 	Limit  int       // 0 = no limit
+}
+
+// ShortTagCount is how many days of shorts carry a tag.
+type ShortTagCount struct {
+	Tag   string
+	Count int
 }
 
 // dirFromFileInfo builds a Dir from an fs.FileInfo and its vault-relative path.

@@ -5,7 +5,7 @@
   {{if .HasMore}}
   <div class="shorts-load-more-wrap">
     <button class="shorts-loadmore-btn"
-            hx-get="/shorts/stream?before={{urlquery .Cursor}}">
+            hx-get="/shorts/stream?before={{urlquery .Cursor}}{{if .Tag}}&tag={{urlquery .Tag}}{{end}}">
       Load earlier
     </button>
   </div>

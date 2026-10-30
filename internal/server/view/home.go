@@ -13,6 +13,7 @@ import (
 
 	"github.com/hardhacker/hylo/internal/plugins/search"
 	"github.com/hardhacker/hylo/internal/storage"
+	"github.com/hardhacker/hylo/internal/util"
 )
 
 const homeListPageSize = 20
@@ -320,7 +321,8 @@ func (vh *ViewHandler) renderHomeShortsSection(r *http.Request) (template.HTML, 
 		}
 	}
 
-	groups, cursor, hasMore, err := vh.loadStreamGroups(before, 50)
+	tag := util.NormalizeTag(r.URL.Query().Get("tag"))
+	groups, cursor, hasMore, err := vh.loadStreamGroups(before, tag, 50)
 	if err != nil {
 		return "", err
 	}
@@ -329,6 +331,8 @@ func (vh *ViewHandler) renderHomeShortsSection(r *http.Request) (template.HTML, 
 		Groups:           groups,
 		Cursor:           cursor,
 		HasMore:          hasMore,
+		Tag:              tag,
+		Tags:             vh.shortsTagRow(tag),
 		Months:           vh.loadMonthsWithEntries(activeYM),
 		ActiveMonthLabel: activeMonthLabel,
 	}

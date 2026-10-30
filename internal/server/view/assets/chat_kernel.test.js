@@ -418,3 +418,42 @@ test('a bot removed anywhere moves the chat to the next one', async function () 
     disarm();
   }
 });
+
+test('clearFilter drops the trigger filter (a refresh returns to all runs)', async function () {
+  var matesReady;
+  var matesP = new Promise(function (resolve) { matesReady = resolve; });
+  var api;
+  global.__hyloChatMount = function (el, facade) {
+    api = facade;
+    return {
+      render: function () {},
+      destroy: function () {},
+      draftValue: function () { return facade.draft(); },
+      clearComposer: function () {},
+      focusComposer: function () {},
+    };
+  };
+  global.fetch = async function (url) {
+    var u = String(url);
+    if (u === '/api/mates') return jsonResponse(200, { mates: [{ id: 'm1', name: 'Ada', enabled: true, agentId: 'cursor-agent' }] });
+    if (u === '/api/mate-events') return jsonResponse(200, { events: [] });
+    if (u.indexOf('/api/conversations?') === 0) return jsonResponse(200, { conversations: [] });
+    return jsonResponse(200, {});
+  };
+
+  var chat = global.__hyloChatCreate({ onMates: function () { matesReady(); } });
+  try {
+    chat.start();
+    await matesP;
+    chat.attach({});
+    chat.tryOpen('m1');
+    await tick();
+
+    api.setTriggerFilter('t1');
+    assert.equal(api.state().triggerFilter, 't1');
+    chat.clearFilter();
+    assert.equal(api.state().triggerFilter, '');
+  } finally {
+    disarm();
+  }
+});

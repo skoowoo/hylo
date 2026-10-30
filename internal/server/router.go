@@ -191,6 +191,7 @@ func newRouter(
 	mux.HandleFunc("GET /home/section/more", vh.HomeSectionMore)
 	mux.HandleFunc("GET /shorts/stream", vh.ShortsStream)
 	mux.HandleFunc("GET /shorts/entry", vh.ShortsEntry)
+	mux.HandleFunc("GET /shorts/tags", vh.ShortsTags)
 	mux.HandleFunc("GET /images/grid", vh.ImagesGrid)
 	mux.HandleFunc("GET /api/graph/data", vh.KnowledgeGraphData)
 	mux.HandleFunc("POST /api/graph/rebuild", vh.KnowledgeGraphRebuild)

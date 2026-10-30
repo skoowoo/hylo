@@ -39,6 +39,8 @@ type shortsStreamPageData struct {
 	Groups           []shortsStreamGroup
 	Cursor           string // RFC3339 of the oldest entry shown — load-more cursor
 	HasMore          bool
+	Tag              string   // the #tag the feed is filtered to, "" for all
+	Tags             []string // the shorts' most used tags, plus Tag when it isn't among them
 	Months           []shortsMonthItem
 	ActiveMonthLabel string // "SEP 2026" — the month-picker trigger's own label
 }
@@ -49,6 +51,7 @@ type shortRenderedEntry struct {
 	Path   string // the daily file
 	Stamp  string // the entry's heading time, for jumping to it in the daily file
 	Time   string
+	Tags   string // space-separated normalized #tags, so live sync can tell a card out of a filtered feed
 	HTML   template.HTML
 	Quote  bool         // one short line, no images: the grid view sets it large
 	Images []shortImage // attachments, rendered below HTML (stream) or as a cover (grid)
@@ -67,6 +70,7 @@ type shortImage struct {
 const (
 	shortQuoteMaxRunes = 80
 	shortGridImages    = 4
+	shortsTagRowMax    = 40 // the row shows as many as its width fits
 )
 
 // Cover ratios are clamped like a photo feed's: no taller than 3:4, no wider than 3:2.
@@ -114,9 +118,10 @@ func (vh *ViewHandler) resolveShortImages(names []string) []shortImage {
 // It fetches limit+1 entries to determine whether more exist.
 // Returns (groups, cursor, hasMore, err). cursor is the RFC3339 timestamp of
 // the oldest entry returned, used as the next load-more `before` value.
-func (vh *ViewHandler) loadStreamGroups(before time.Time, limit int) ([]shortsStreamGroup, string, bool, error) {
+func (vh *ViewHandler) loadStreamGroups(before time.Time, tag string, limit int) ([]shortsStreamGroup, string, bool, error) {
 	entries, err := vh.vault.ListShortEntries(storage.ShortListOptions{
 		Before: before,
+		Tag:    tag,
 		Limit:  limit + 1,
 	})
 	if err != nil {
@@ -148,7 +153,7 @@ func (vh *ViewHandler) shortGroups(entries []storage.ShortEntry) []shortsStreamG
 
 	for _, e := range entries {
 		text, imageNames := util.ExtractShortImages([]byte(e.Content))
-		rendered, renderErr := util.MarkdownToHTMLFragment(text)
+		rendered, renderErr := util.MarkdownToHTMLFragmentTags(text)
 		if renderErr != nil {
 			rendered = []byte(template.HTMLEscapeString(string(text)))
 		}
@@ -176,6 +181,7 @@ func (vh *ViewHandler) shortGroups(entries []storage.ShortEntry) []shortsStreamG
 			Path:   e.Path,
 			Stamp:  e.CreatedAt.Format("2006-01-02 15:04:05"),
 			Time:   e.CreatedAt.Format("15:04"),
+			Tags:   strings.Join(e.Tags, " "),
 			HTML:   template.HTML(rendered), //nolint:gosec // server-rendered markdown
 			Quote:  len(images) == 0 && !strings.Contains(string(text), "\n") && utf8.RuneCount(text) <= shortQuoteMaxRunes,
 			Images: images,
@@ -228,6 +234,24 @@ func (vh *ViewHandler) loadMonthsWithEntries(activeYM string) []shortsMonthItem 
 	return items
 }
 
+// shortsTagRow is the feed's tag row: the most used tags, with the filtered
+// tag kept in it even when it's rarer than those, or on no short at all.
+func (vh *ViewHandler) shortsTagRow(selected string) []string {
+	counts, _ := vh.vault.ShortTagCounts()
+	var tags []string
+	found := selected == ""
+	for i, c := range counts {
+		if i < shortsTagRowMax || c.Tag == selected {
+			tags = append(tags, c.Tag)
+			found = found || c.Tag == selected
+		}
+	}
+	if !found {
+		tags = append(tags, selected)
+	}
+	return tags
+}
+
 // ─── handlers ─────────────────────────────────────────────────────────────────
 
 // ShortsStream handles GET /shorts/stream?before=RFC3339 — HTMX load-more
@@ -252,7 +276,8 @@ func (vh *ViewHandler) ShortsStream(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	groups, cursor, hasMore, err := vh.loadStreamGroups(before, 30)
+	tag := util.NormalizeTag(r.URL.Query().Get("tag"))
+	groups, cursor, hasMore, err := vh.loadStreamGroups(before, tag, 30)
 	if err != nil {
 		http.Error(w, "shorts/stream: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -262,7 +287,8 @@ func (vh *ViewHandler) ShortsStream(w http.ResponseWriter, r *http.Request) {
 		Groups  []shortsStreamGroup
 		Cursor  string
 		HasMore bool
-	}{groups, cursor, hasMore}
+		Tag     string
+	}{groups, cursor, hasMore, tag}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := views.ExecuteTemplate(w, "shorts_stream.html", data); err != nil {
@@ -284,6 +310,23 @@ func (vh *ViewHandler) ShortsEntry(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	data := struct{ Groups []shortsStreamGroup }{vh.shortGroups([]storage.ShortEntry{e})}
 	if err := views.ExecuteTemplate(w, "shorts-days", data); err != nil {
+		http.Error(w, "render: "+err.Error(), http.StatusInternalServerError)
+	}
+}
+
+// ShortsTags handles GET /shorts/tags?tag= — the feed's tag row, refetched
+// after a short changes so its counts follow the cards.
+func (vh *ViewHandler) ShortsTags(w http.ResponseWriter, r *http.Request) {
+	if !htmxOnly(w, r, "/home") {
+		return
+	}
+	tag := util.NormalizeTag(r.URL.Query().Get("tag"))
+	data := struct {
+		Tag  string
+		Tags []string
+	}{tag, vh.shortsTagRow(tag)}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if err := views.ExecuteTemplate(w, "shorts-tags", data); err != nil {
 		http.Error(w, "render: "+err.Error(), http.StatusInternalServerError)
 	}
 }

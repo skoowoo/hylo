@@ -16,8 +16,17 @@ function __hyloImageFilesFrom(dt) {
 }
 
 // ── Links in a short (card or viewer): intercept internal ones ────────────
-// Wikilinks (/notes?…) → open in the content pane; external → new tab.
+// A #tag filters the feed; wikilinks (/notes?…) → open in the content pane;
+// external → new tab.
 document.addEventListener('click', function (e) {
+  var hashtag = e.target.closest ? e.target.closest('.shorts-entry-prose .hashtag') : null;
+  if (hashtag && window._homeData) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (hashtag.closest('.lb-overlay')) window._homeData.closeLightbox();
+    window._homeData.filterShorts(hashtag.dataset.tag, true);
+    return;
+  }
   var a = e.target.closest ? e.target.closest('a') : null;
   if (!a || !a.closest('.shorts-entry-prose')) return;
   var href = a.getAttribute('href');
@@ -99,8 +108,9 @@ async function __hyloShortGet(id) {
   return resp.json();
 }
 
+// The shown feed only: a parked shorts section (another tag or month) keeps its cards in <body>.
 function __hyloShortCard(id) {
-  return document.querySelector('.shorts-stream-groups .shorts-entry[data-id="' + CSS.escape(id) + '"]');
+  return document.querySelector('#home-list-pane .shorts-stream-groups .shorts-entry[data-id="' + CSS.escape(id) + '"]');
 }
 
 // Latest known hash per short id ('' once deleted): a render that comes back
@@ -113,10 +123,16 @@ async function __hyloShortRender(id) {
 }
 
 // Puts a freshly rendered card (in its day group) in the feed: over its old
-// self, or newest-first at the top. A card being edited waits for its editor.
+// self, or newest-first at the top; out of a feed filtered to a tag it no
+// longer carries. A card being edited waits for its editor.
 function __hyloShortPut(day) {
   var fresh = day.firstElementChild;
   var old = __hyloShortCard(fresh.dataset.id);
+  var tag = window._homeData ? window._homeData.curParam('tag') : '';
+  if (tag && !fresh.dataset.tags.split(' ').includes(tag)) {
+    if (old && !old.classList.contains('is-editing')) __hyloShortRemoveCard(old);
+    return;
+  }
   if (old) {
     if (!old.classList.contains('is-editing') && old.dataset.hash !== fresh.dataset.hash) old.replaceWith(fresh);
     return;
@@ -126,7 +142,22 @@ function __hyloShortPut(day) {
   var first = groups.querySelector('.shorts-day');
   if (first && first.dataset.day === day.dataset.day) first.prepend(fresh);
   else groups.prepend(day);
-  document.querySelector('.shorts-empty')?.remove();
+  document.querySelector('#home-list-pane .shorts-empty')?.remove();
+}
+
+// Re-renders the shown feed's tag row once a burst of short changes settles.
+var __hyloShortTagsTimer = 0;
+function __hyloShortTagsRefresh() {
+  clearTimeout(__hyloShortTagsTimer);
+  __hyloShortTagsTimer = setTimeout(async function () {
+    var tag = window._homeData ? window._homeData.curParam('tag') : '';
+    var resp = await fetch('/shorts/tags?tag=' + encodeURIComponent(tag), { headers: { 'HX-Request': 'true' } });
+    var row = document.querySelector('#home-list-pane .shorts-tags');
+    if (!resp.ok || !row || (window._homeData && window._homeData.curParam('tag') !== tag)) return;
+    var tpl = document.createElement('template');
+    tpl.innerHTML = (await resp.text()).trim();
+    row.replaceWith(tpl.content.firstElementChild);
+  }, 300);
 }
 
 function __hyloShortRemoveCard(card) {
@@ -222,7 +253,7 @@ function homeShortsMixin() {
       var draft = this.shortCompose;
       var content = __hyloShortDraftContent(draft);
       this.shortCompose = __hyloShortDraft({ saving: true });
-      this.$nextTick(() => __hyloShortFitInput(document.querySelector('.shorts-stream-inner')));
+      this.$nextTick(() => __hyloShortFitInput(document.querySelector('#home-list-pane .shorts-stream-inner')));
       try {
         var resp = await fetch('/api/vault/shorts', {
           method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: content }),
@@ -230,18 +261,28 @@ function homeShortsMixin() {
         if (!resp.ok) throw new Error((await resp.text()) || 'Save failed');
         var entry = await resp.json();
         draft.images.forEach((i) => { if (i.previewUrl) URL.revokeObjectURL(i.previewUrl); });
-        if (this._shortsAtTop()) await this.syncShort(entry);
-        else this.go('/home/section?type=shorts');
+        // Writing a new short clears the filters (a tag, a month) so it shows at the top.
+        var unfiltered = __hyloSectionUnfiltered(this.curKey);
+        if (unfiltered === this.curKey) await this.syncShort(entry);
+        else this.go(unfiltered);
       } catch (err) {
         if (!this.shortCompose.text && !this.shortCompose.images.length) {
           draft.saving = false;
           this.shortCompose = draft;
-          this.$nextTick(() => __hyloShortFitInput(document.querySelector('.shorts-stream-inner')));
+          this.$nextTick(() => __hyloShortFitInput(document.querySelector('#home-list-pane .shorts-stream-inner')));
         }
         window.showError('Failed to save: ' + (err && err.message ? err.message : String(err)), 'Save failed');
       } finally {
         this.shortCompose.saving = false;
       }
+    },
+    // The tag row toggles its tag; a #tag in a short always filters to it.
+    // A month picked meanwhile stays, as the tag does when picking a month.
+    filterShorts(tag, keep) {
+      var params = new URLSearchParams(this.curParams());
+      if (keep || tag !== params.get('tag')) params.set('tag', tag);
+      else params.delete('tag');
+      this.go('/home/section?' + params.toString());
     },
     // A new short belongs at the top of the feed, which a jump to an earlier
     // month has scrolled out of the view.
@@ -254,6 +295,7 @@ function homeShortsMixin() {
     // ({id, hash}, no hash once deleted), whoever made it.
     async syncShort(s) {
       __hyloShortLatest.set(s.id, s.hash || '');
+      __hyloShortTagsRefresh();
       var card = __hyloShortCard(s.id);
       if (!s.hash) {
         if (card) __hyloShortRemoveCard(card);

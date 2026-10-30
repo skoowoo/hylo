@@ -2,7 +2,7 @@
 <div class="shorts-day" data-day="{{.Day}}">
   {{range .Entries}}
   <article class="list-card shorts-entry{{if .Images}} shorts-entry--media{{end}}{{if .Quote}} shorts-entry--quote{{end}}"
-           data-id="{{.ID}}" data-hash="{{.Hash}}" data-path="{{.Path}}" data-stamp="{{.Stamp}}">
+           data-id="{{.ID}}" data-hash="{{.Hash}}" data-path="{{.Path}}" data-stamp="{{.Stamp}}" data-tags="{{.Tags}}">
     <div class="shorts-entry-meta">
       <button type="button" class="shorts-entry-date" title="Open the daily note"
               @click="openShortDay($el.closest('.shorts-entry'))">{{if $group.IsToday}}Today{{else if $group.IsYesterday}}Yesterday{{else}}{{$group.DateLabel}}{{end}}</button>
@@ -29,3 +29,12 @@
   {{end}}
 </div>
 {{end}}{{end}}
+
+{{/* The feed's tag row; /shorts/tags re-renders it as shorts change. */}}
+{{define "shorts-tags"}}<nav class="shorts-tags" aria-label="Filter by tag"{{if not .Tags}} hidden{{end}}>
+  {{range .Tags}}{{$on := eq . $.Tag}}
+  <button type="button" class="badge shorts-tag{{if $on}} badge--accent{{end}}" data-tag="{{.}}" aria-pressed="{{$on}}"
+          title="{{if $on}}Clear the tag filter{{else}}Only shorts with #{{.}}{{end}}"
+          @click="filterShorts($el.dataset.tag)">#{{.}}{{if $on}}{{icon "close"}}{{end}}</button>
+  {{end}}
+</nav>{{end}}

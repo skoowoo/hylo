@@ -47,6 +47,8 @@ func expandWikilinks(src []byte) []byte {
 		if !strings.HasSuffix(name, ".md") {
 			name += ".md"
 		}
+		// A '#' in a wikilink is never a tag (InlineTags skips wikilinks).
+		display = strings.ReplaceAll(display, "#", `\#`)
 		return []byte(fmt.Sprintf("[%s](/notes?name=%s)", display, url.QueryEscape(name)))
 	})
 }

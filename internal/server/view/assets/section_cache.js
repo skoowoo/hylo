@@ -51,6 +51,16 @@ function __hyloSectionParams(key) {
   catch (e) { return new URLSearchParams(); }
 }
 
+// Params that narrow a section rather than say where it is: a refresh, or
+// writing a new short, drops them (folder path, knowledge index and view stay).
+var __hyloSectionFilterParams = ['tag', 'from'];
+
+function __hyloSectionUnfiltered(key) {
+  var params = new URLSearchParams(__hyloSectionParams(key));
+  __hyloSectionFilterParams.forEach(function (p) { params.delete(p); });
+  return __hyloSectionKey('/home/section?' + params.toString());
+}
+
 function __hyloSectionType(key) {
   return __hyloSectionParams(key).get('type') || '';
 }

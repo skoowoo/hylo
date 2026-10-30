@@ -2,8 +2,11 @@ package util
 
 import (
 	"encoding/json"
+	"html"
 	"os"
 	"reflect"
+	"regexp"
+	"slices"
 	"testing"
 )
 
@@ -53,6 +56,37 @@ func TestValidTag(t *testing.T) {
 	} {
 		if got := ValidTag(tag); got != want {
 			t.Errorf("ValidTag(%q) = %v, want %v", tag, got, want)
+		}
+	}
+}
+
+// The rendered #tags must be the ones InlineTags finds.
+func TestMarkdownToHTMLFragmentTagsFixture(t *testing.T) {
+	raw, err := os.ReadFile("testdata/tags.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var cases []struct {
+		MD   string   `json:"md"`
+		Tags []string `json:"tags"`
+	}
+	if err := json.Unmarshal(raw, &cases); err != nil {
+		t.Fatal(err)
+	}
+	dataTag := regexp.MustCompile(`<span class="hashtag" data-tag="([^"]*)">`)
+	for _, c := range cases {
+		out, err := MarkdownToHTMLFragmentTags([]byte(c.MD))
+		if err != nil {
+			t.Fatal(err)
+		}
+		got := []string{}
+		for _, m := range dataTag.FindAllStringSubmatch(string(out), -1) {
+			if !slices.Contains(got, html.UnescapeString(m[1])) {
+				got = append(got, html.UnescapeString(m[1]))
+			}
+		}
+		if !reflect.DeepEqual(got, c.Tags) {
+			t.Errorf("%q: got %q, want %q\n%s", c.MD, got, c.Tags, out)
 		}
 	}
 }

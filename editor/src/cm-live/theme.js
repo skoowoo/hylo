@@ -168,8 +168,8 @@ export const livePreviewTheme = EditorView.theme({
   '.cm-lp-tag': {
     color: 'var(--accent-text, #5e6ad2)',
     background: 'var(--tint-soft, rgba(94,106,210,0.06))',
-    borderRadius: 'var(--r-sm, 6px)',
-    padding: '0.1em 0.3em',
+    borderRadius: 'var(--r-full, 999px)',
+    padding: '0.1em 0.45em',
     cursor: 'pointer',
   },
   '.cm-lp-tag:not(.cm-lp-tag-editing):hover': { color: 'var(--accent-hov, #4c56c8)' },

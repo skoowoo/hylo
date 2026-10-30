@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -61,7 +62,10 @@ func parseShortDay(raw []byte, p Path) []shortSegment {
 					id += "-" + strconv.Itoa(n)
 				}
 				content := strings.TrimSpace(rest)
-				seg.ShortEntry = ShortEntry{ID: id, Content: content, Hash: shortHash(content), CreatedAt: t, Path: p.String()}
+				seg.ShortEntry = ShortEntry{
+					ID: id, Content: content, Hash: shortHash(content), CreatedAt: t, Path: p.String(),
+					Tags: util.ExtractTags([]byte(content)).Inline,
+				}
 			}
 		}
 		segs = append(segs, seg)
@@ -320,9 +324,7 @@ func (g *Vault) spliceShort(id, hash, after string, edit func(raw []byte, segs [
 // Days are picked and ordered by file name, not mtime: editing an old entry
 // must not move its day or hide it from a before-cursor page.
 func (g *Vault) ListShortEntries(opts ShortListOptions) ([]ShortEntry, error) {
-	g.mu.RLock()
-	dailyNotes, err := dbListByDir(g.db, ShortDir, ListOptions{OnlyKinds: []Kind{KindShort}})
-	g.mu.RUnlock()
+	dailyNotes, err := g.shortDays()
 	if err != nil {
 		return nil, err
 	}
@@ -330,6 +332,9 @@ func (g *Vault) ListShortEntries(opts ShortListOptions) ([]ShortEntry, error) {
 
 	var all []ShortEntry
 	for _, daily := range dailyNotes {
+		if opts.Tag != "" && !slices.Contains(daily.Tags, opts.Tag) {
+			continue
+		}
 		if day, err := time.ParseInLocation("2006-01-02", strings.TrimSuffix(daily.Name, ".md"), time.Local); err == nil {
 			if !opts.Before.IsZero() && !day.Before(opts.Before) {
 				continue
@@ -338,13 +343,10 @@ func (g *Vault) ListShortEntries(opts ShortListOptions) ([]ShortEntry, error) {
 				continue
 			}
 		}
-		g.mu.RLock()
-		raw, readErr := g.readNoteLocked(daily.Path())
-		g.mu.RUnlock()
-		if readErr != nil {
+		segs, ok := g.readShortDay(daily)
+		if !ok {
 			continue
 		}
-		segs := parseShortDay(raw, daily.Path())
 		for i := len(segs) - 1; i >= 0; i-- {
 			e := segs[i].ShortEntry
 			if e.ID == "" {
@@ -356,6 +358,9 @@ func (g *Vault) ListShortEntries(opts ShortListOptions) ([]ShortEntry, error) {
 			if !opts.Before.IsZero() && !e.CreatedAt.Before(opts.Before) {
 				continue
 			}
+			if opts.Tag != "" && !slices.Contains(e.Tags, opts.Tag) {
+				continue
+			}
 			all = append(all, e)
 			if opts.Limit > 0 && len(all) >= opts.Limit {
 				return all, nil
@@ -363,4 +368,48 @@ func (g *Vault) ListShortEntries(opts ShortListOptions) ([]ShortEntry, error) {
 		}
 	}
 	return all, nil
+}
+
+// ShortTagCounts counts each tag by the days whose shorts carry it, most used
+// first. Approximate on purpose: it reads only the tags column, no files.
+func (g *Vault) ShortTagCounts() ([]ShortTagCount, error) {
+	dailyNotes, err := g.shortDays()
+	if err != nil {
+		return nil, err
+	}
+	counts := map[string]int{}
+	for _, daily := range dailyNotes {
+		for _, t := range daily.Tags {
+			counts[t]++
+		}
+	}
+	out := make([]ShortTagCount, 0, len(counts))
+	for t, n := range counts {
+		out = append(out, ShortTagCount{t, n})
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Count != out[j].Count {
+			return out[i].Count > out[j].Count
+		}
+		return out[i].Tag < out[j].Tag
+	})
+	return out, nil
+}
+
+// shortDays lists the daily short files, unordered.
+func (g *Vault) shortDays() ([]Note, error) {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+	return dbListByDir(g.db, ShortDir, ListOptions{OnlyKinds: []Kind{KindShort}})
+}
+
+// readShortDay parses a daily file; false when it's gone since it was listed.
+func (g *Vault) readShortDay(daily Note) ([]shortSegment, bool) {
+	g.mu.RLock()
+	raw, err := g.readNoteLocked(daily.Path())
+	g.mu.RUnlock()
+	if err != nil {
+		return nil, false
+	}
+	return parseShortDay(raw, daily.Path()), true
 }

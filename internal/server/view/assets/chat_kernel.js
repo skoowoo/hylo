@@ -975,6 +975,10 @@
         await reloadMates();
         await refresh(true);
       },
+      clearFilter: function () {
+        triggerFilter = '';
+        requestRender();
+      },
       openFreshChat: openFreshChat,
       busy: busy,
       mateId: function () { return mateId; },

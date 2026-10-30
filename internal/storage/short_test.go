@@ -2,6 +2,7 @@ package storage
 
 import (
 	"errors"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -190,5 +191,44 @@ func TestShortWritesNameTheirEntry(t *testing.T) {
 		if got[i].Type != w.Type || got[i].ShortID != w.ShortID || got[i].ShortHash != w.ShortHash {
 			t.Errorf("event %d = %+v, want %+v", i, got[i], w)
 		}
+	}
+}
+
+func TestShortTags(t *testing.T) {
+	v := newTestVault(t)
+	days := map[string]string{
+		"2026-10-28": "---\nkind: short\n---\n\n###### Short Note: 2026-10-28 09:00:00\n\nno tags\n",
+		"2026-10-29": "---\nkind: short\n---\n\n###### Short Note: 2026-10-29 09:00:00\n\n#读书 one\n\n---\n\n###### Short Note: 2026-10-29 10:00:00\n\n#Idea and #读书\n\n---\n\n###### Short Note: 2026-10-29 11:00:00\n\nplain\n",
+		"2026-10-30": "---\nkind: short\ntags: [day]\n---\n\n###### Short Note: 2026-10-30 09:00:00\n\n#idea\n",
+	}
+	for day, body := range days {
+		if err := v.WriteNote(Path(ShortDir+"/"+day+".md"), []byte(body), KindShort); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	counts, err := v.ShortTagCounts()
+	if err != nil {
+		t.Fatal(err)
+	}
+	// By day, not by short; a day file's own front matter tags count too.
+	want := []ShortTagCount{{"idea", 2}, {"day", 1}, {"读书", 1}}
+	if !slices.Equal(counts, want) {
+		t.Errorf("counts = %v, want %v", counts, want)
+	}
+
+	entries, err := v.ListShortEntries(ShortListOptions{Tag: "读书"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var ids []string
+	for _, e := range entries {
+		ids = append(ids, e.ID)
+	}
+	if strings.Join(ids, ",") != "2026-10-29-100000,2026-10-29-090000" {
+		t.Errorf("ids = %v", ids)
+	}
+	if entries, _ := v.ListShortEntries(ShortListOptions{Tag: "day"}); len(entries) != 0 {
+		t.Errorf("front matter tag matched entries: %v", entries)
 	}
 }

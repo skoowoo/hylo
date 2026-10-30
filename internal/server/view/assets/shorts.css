@@ -96,6 +96,34 @@
     .shorts-compose-cancel { background: transparent; color: var(--muted); }
     .shorts-compose-cancel:hover { background: var(--icon-hov); color: var(--fg); }
 
+    /* ── Tag row: the shorts' most used #tags (shared .badge), toggled to
+       filter the feed below the composer. One line as wide as the cards:
+       tags that would wrap are clipped, so the grid shows more. ── */
+    .shorts-tags:not([hidden]) {
+      --tag-h: 1.375rem;
+      display: flex; flex-wrap: wrap; column-gap: var(--space-xs);
+      height: var(--tag-h); overflow: hidden;
+      border-radius: 0; /* a clip box: base.css's radius would cut the end tags */
+      margin-bottom: var(--space-lg);
+    }
+    .shorts-tag {
+      height: var(--tag-h);
+      border: none; font-family: inherit; cursor: pointer;
+      transition: color var(--motion-fast) ease, background-color var(--motion-fast) ease;
+    }
+    .shorts-tag:not(.badge--accent):hover { color: var(--fg); }
+    .shorts-tag svg { width: 10px; height: 10px; }
+
+    /* A #tag in a short: the editor's .cm-lp-tag pill; clicking filters. */
+    .shorts-entry-prose .hashtag {
+      white-space: nowrap;
+      color: var(--accent-text); background: var(--tint-soft);
+      border-radius: var(--r-full); padding: 0.1em 0.45em;
+      cursor: pointer;
+      transition: color var(--motion-fast) ease;
+    }
+    .shorts-entry-prose .hashtag:hover { color: var(--accent-hov); }
+
     /* ── Cards: a static .list-card per short (not itself a click target);
        edit / more sit at the top-right, shown while the card is hovered or
        holds focus. List view separates calendar days with space only — the

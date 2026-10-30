@@ -11,7 +11,7 @@
       <div class="cselect-dropdown" x-show="csOpen" x-cloak>
         {{range .Months}}
         <button type="button" class="cselect-option{{if .IsCurrent}} sel{{end}}"
-                @click="csOpen = false; go('/home/section?type=shorts&from={{.YM}}')">
+                @click="csOpen = false; go('/home/section?type=shorts&from={{.YM}}{{if $.Tag}}&tag={{urlquery $.Tag}}{{end}}')">
           <span class="dot dot--fg cselect-option-dot"></span><span>{{.Abbr}} {{.Year}}</span>
         </button>
         {{end}}
@@ -34,13 +34,14 @@
     <div class="shorts-stream-inner" :class="{'is-grid': currentListView() === 'grid'}">
       {{template "shorts-composer" "shortCompose"}}
       <template id="shorts-edit-tpl">{{template "shorts-composer" "shortEdit"}}</template>
+      {{template "shorts-tags" .}}
       <div id="shorts-stream-groups" class="shorts-stream-groups">{{template "shorts-days" .}}</div>
 
       <div id="shorts-load-more">
         {{if .HasMore}}
         <div class="shorts-load-more-wrap">
           <button class="shorts-loadmore-btn"
-                  hx-get="/shorts/stream?before={{urlquery .Cursor}}">
+                  hx-get="/shorts/stream?before={{urlquery .Cursor}}{{if .Tag}}&tag={{urlquery .Tag}}{{end}}">
             Load earlier
           </button>
         </div>
@@ -51,8 +52,13 @@
   {{if not .Groups}}
   <div class="empty-state empty-state--page shorts-empty">
     <div class="empty-state-icon">{{sideIcon "shorts"}}</div>
+    {{if .Tag}}
+    <div class="empty-state-title">No shorts with #{{.Tag}}</div>
+    <div class="empty-state-desc">Write #{{.Tag}} in a short to file it here.</div>
+    {{else}}
     <div class="empty-state-title">No shorts yet</div>
     <div class="empty-state-desc">Jot down a passing thought; Hylo checks it against what you already know.</div>
+    {{end}}
   </div>
   {{end}}
 </div>
