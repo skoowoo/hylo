@@ -30,6 +30,39 @@
       d.noteCanCompile === 'true');
   }
 
+  // Note actions by path, shared by the editor and every note card; open tabs
+  // and lists then follow the live feed.
+  async function __hyloNoteActionFailed(resp, title) {
+    var text = ''; try { text = (await resp.text()).trim(); } catch (_) {}
+    window.showError(text || 'Server error (' + resp.status + ').', title);
+  }
+
+  async function __hyloSetNotePinned(path, pinned) {
+    var resp = await fetch('/api/vault/pin', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({path:path,pinned:!!pinned})});
+    if (!resp.ok) { await __hyloNoteActionFailed(resp, pinned ? 'Could not pin' : 'Could not unpin'); return false; }
+    if (window.__hyloContentPane) window.__hyloContentPane.notePinned(path, !!pinned);
+    return true;
+  }
+
+  async function __hyloDeleteNote(path, title) {
+    var confirmed = await window.showConfirm({titleHTML:'<span class="confirm-title-icon">' + hyloIcon('trash', 'width="13" height="13"') + '</span>Delete note',message:'"'+title+'" will be permanently deleted.',confirmLabel:'Delete',danger:true});
+    if (!confirmed) return false;
+    var resp = await fetch('/api/vault/delete', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({path:path})});
+    if (!resp.ok) { await __hyloNoteActionFailed(resp, 'Could not delete'); return false; }
+    if (window.__hyloContentPane) window.__hyloContentPane.noteDeleted(path);
+    return true;
+  }
+
+  function __hyloNoteCardMenu(btn, e) {
+    var d = btn.closest('.note-card').dataset;
+    var path = d.notePath, title = d.noteTitle, pinned = d.notePinned === 'true';
+    __hyloCardMenu.toggle(btn, [
+      { icon: 'bookmark', label: pinned ? 'Unpin' : 'Pin', run: function() { __hyloSetNotePinned(path, !pinned); } },
+      'divider',
+      { icon: 'trash', label: 'Delete', danger: true, run: function() { __hyloDeleteNote(path, title); } },
+    ], e);
+  }
+
   // Strips a trailing .md/.markdown (case-insensitive) — mirrors the server's
   // accepted extensions (internal/util/markdown.go's markdownExts), so the
   // rename box's "bare name" and its no-op check agree with what actually
@@ -316,6 +349,7 @@
           changes.forEach(function(c) {
             if (c.op === 'rename') self.noteRenamed(c.oldPath, c.path);
             else if (c.op === 'delete') self.noteDeleted(c.path);
+            else if (c.op === 'pin' && c.data) self.notePinned(c.path, !!c.data.pinned);
           });
         });
       },
@@ -574,33 +608,17 @@
 
       async togglePinActiveNote() {
         var tab = this.tabs[this.activeTab];
-        if (!tab || !tab.path) return;
-        if (tab.pinned) await this.unpinActiveNote(); else await this.pinActiveNote();
-      },
-
-      async pinActiveNote() {
-        var tab = this.tabs[this.activeTab]; if (!tab || !tab.path || tab.pinned) return;
-        var resp = await fetch('/api/vault/pin', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({path:tab.path,pinned:true})});
-        if (resp.status === 409) { window.showError((await resp.text()).trim() || 'Pinned notes limit reached.', 'Cannot pin'); return; }
-        if (!resp.ok) return;
-        tab.pinned = true;
-      },
-
-      async unpinActiveNote() {
-        var tab = this.tabs[this.activeTab]; if (!tab || !tab.path || !tab.pinned) return;
-        var resp = await fetch('/api/vault/pin', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({path:tab.path,pinned:false})});
-        if (!resp.ok) return;
-        tab.pinned = false;
+        if (tab && tab.path) await __hyloSetNotePinned(tab.path, !tab.pinned);
       },
 
       async deleteActiveNote() {
-        var tab = this.tabs[this.activeTab]; if (!tab || !tab.path) return;
-        var confirmed = await window.showConfirm({titleHTML:'<span class="confirm-title-icon">' + hyloIcon('trash', 'width="13" height="13"') + '</span>Delete note',message:'"'+tab.title+'" will be permanently deleted.',confirmLabel:'Delete',danger:true});
-        if (!confirmed) return;
-        var reqBody = {path:tab.path};
-        var resp = await fetch('/api/vault/delete', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(reqBody)});
-        if (!resp.ok) return;
-        this.noteDeleted(tab.path);
+        var tab = this.tabs[this.activeTab];
+        if (tab && tab.path) await __hyloDeleteNote(tab.path, tab.title);
+      },
+
+      notePinned(path, pinned) {
+        var tab = this.tabs.find(function(t) { return t.path === path; });
+        if (tab) tab.pinned = pinned;
       },
 
       noteDeleted(path) {

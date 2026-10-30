@@ -41,7 +41,7 @@ func init() {
 	// The editor modules are imported lazily by URL, so the bundle carries their versioned URLs.
 	modules := `window.__hyloModules = {"editor": "` + static.URL("editor.js") + `", "fenceCard": "` + static.URL("fence-card.js") + `"};` + "\n"
 	static.Bundle("bundle/home.js", modules+readAssets(
-		"shared_icons_line.js", "home_init.js", "live.js", "note_changes.js", "keys.js", "path_ac.js",
+		"shared_icons_line.js", "home_init.js", "live.js", "note_changes.js", "keys.js", "card_menu.js", "path_ac.js",
 		"chat_reduce.js", "chat_text.js", "chat_kernel.js", "chat_rows.js", "chat_view.js",
 		"list_tighten.js", "graph_layout.js", "editor_session.js", "editor_agent.js", "content_pane.js",
 		"search_overlay.js", "confirm_dialog.js", "info_dialog.js", "servers_store.js",

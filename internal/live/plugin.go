@@ -34,6 +34,11 @@ type ShortRef struct {
 	Hash string `json:"hash,omitempty"`
 }
 
+// PinRef is the Data of a pin change: the note's new state.
+type PinRef struct {
+	Pinned bool `json:"pinned"`
+}
+
 func noteChange(e plugin.Event) (Change, bool) {
 	c := Change{Topic: TopicNotes, Path: e.Path, IsDir: e.IsDir}
 	if e.ShortID != "" {
@@ -51,6 +56,7 @@ func noteChange(e plugin.Event) (Change, bool) {
 		c.OldPath = e.OldPath
 	case plugin.EventVaultPin:
 		c.Op = "pin"
+		c.Data = PinRef{Pinned: e.Pinned}
 	case plugin.EventVaultImage, plugin.EventFSImage:
 		c.Op = "image"
 	default:

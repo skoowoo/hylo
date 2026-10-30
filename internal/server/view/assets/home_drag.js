@@ -24,14 +24,14 @@ function __hyloUpdateDraggableCards() {
   var pane = document.getElementById('home-list-pane');
   if (!pane) return;
   var isFolderView = !!(window._homeData && window._homeData.curType() === 'folder');
-  var cards = pane.querySelectorAll('.home-note-row');
+  var cards = pane.querySelectorAll('.note-card');
   for (var i = 0; i < cards.length; i++) {
     cards[i].draggable = isFolderView && __hyloDragNoteEligible(cards[i]);
   }
 }
 
 document.addEventListener('dragstart', function (e) {
-  var card = e.target.closest ? e.target.closest('.home-note-row') : null;
+  var card = e.target.closest ? e.target.closest('.note-card') : null;
   if (!card) return;
   // A card mid-move (is-move-pending) is also pointer-events:none (home.css),
   // so it can't be the drag source here — this check is defense in depth.

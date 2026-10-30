@@ -80,7 +80,7 @@ var viewFuncs = template.FuncMap{
 		return "/api/images/serve?name=" + url.QueryEscape(name)
 	},
 	// todoRingDash returns the stroke-dasharray for the todo progress ring
-	// (see .home-note-badge--todo-fill): "<filled length> <circumference>",
+	// (see .note-badge--todo-fill): "<filled length> <circumference>",
 	// where filled is the arc length representing done/total around a
 	// circle of radius todoRingRadius. The gap value only needs to be at
 	// least the circle's full circumference — however much filled leaves

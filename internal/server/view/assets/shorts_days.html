@@ -2,26 +2,17 @@
 <div class="shorts-day" data-day="{{.Day}}">
   {{range .Entries}}
   <article class="list-card shorts-entry{{if .Images}} shorts-entry--media{{end}}{{if .Quote}} shorts-entry--quote{{end}}"
-           data-id="{{.ID}}" data-hash="{{.Hash}}" data-path="{{.Path}}" data-stamp="{{.Stamp}}"
-           x-data="{ more: false }" :class="{ 'is-menu-open': more }">
+           data-id="{{.ID}}" data-hash="{{.Hash}}" data-path="{{.Path}}" data-stamp="{{.Stamp}}">
     <div class="shorts-entry-meta">
       <button type="button" class="shorts-entry-date" title="Open the daily note"
               @click="openShortDay($el.closest('.shorts-entry'))">{{if $group.IsToday}}Today{{else if $group.IsYesterday}}Yesterday{{else}}{{$group.DateLabel}}{{end}}</button>
       <span class="shorts-entry-time">{{.Time}}</span>
     </div>
-    <div class="shorts-entry-actions">
+    <div class="shorts-entry-actions card-reveal">
       <button type="button" class="icon-btn-ghost icon-btn-ghost--sm" title="Edit" aria-label="Edit"
               @click="editShort($el.closest('.shorts-entry'))">{{icon "pencil"}}</button>
-      <div class="cselect cselect--inline" @click.outside="more = false">
-        <button type="button" class="icon-btn-ghost icon-btn-ghost--sm shorts-entry-more" :class="{ active: more }" title="More" aria-label="More"
-                @click="more = !more" @keydown.escape="more = false">{{icon "more"}}</button>
-        <div class="cselect-dropdown" x-show="more" x-cloak>
-          <button type="button" class="cselect-option" @click="more = false; copyShort($el.closest('.shorts-entry'))">{{icon "copy"}}<span>Copy text</span></button>
-          <button type="button" class="cselect-option" @click="more = false; openShortDay($el.closest('.shorts-entry'), true)">{{icon "external-link"}}<span>Show in daily note</span></button>
-          <div class="cselect-divider hairline"></div>
-          <button type="button" class="cselect-option shorts-entry-menu-danger" @click="more = false; deleteShort($el.closest('.shorts-entry'))">{{icon "trash"}}<span>Delete</span></button>
-        </div>
-      </div>
+      <button type="button" class="icon-btn-ghost icon-btn-ghost--sm card-more" title="More" aria-label="More" aria-haspopup="menu" aria-expanded="false"
+              @click="shortMenu($el, $event)">{{icon "more"}}</button>
     </div>
     {{if .HTML}}<div class="prose shorts-entry-prose">{{.HTML}}</div>{{end}}
     {{if .Images}}

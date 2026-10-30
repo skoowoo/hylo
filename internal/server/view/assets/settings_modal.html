@@ -1,7 +1,7 @@
 {{/* The settings modal: shell, sidebar nav and every tab, opened from the sidebar's Settings button. */}}
   <div id="hylo-settings-modal"
        x-data="settingsCtrl()"
-       x-show="$store.settingsModal.open"
+       :hidden="!$store.settingsModal.open"
        x-trap.inert.noreturn="$store.settingsModal.open"
        x-cloak
        class="settings-modal-overlay">

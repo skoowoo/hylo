@@ -388,6 +388,15 @@ function homeShortsMixin() {
       });
     },
 
+    shortMenu(btn, e) {
+      var card = btn.closest('.shorts-entry');
+      __hyloCardMenu.toggle(btn, [
+        { icon: 'copy', label: 'Copy text', run: () => this.copyShort(card) },
+        { icon: 'external-link', label: 'Show in daily note', run: () => this.openShortDay(card, true) },
+        'divider',
+        { icon: 'trash', label: 'Delete', danger: true, run: () => this.deleteShort(card) },
+      ], e);
+    },
     async copyShort(card) {
       try {
         await navigator.clipboard.writeText((await __hyloShortGet(card.dataset.id)).content);

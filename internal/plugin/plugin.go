@@ -78,6 +78,9 @@ type Event struct {
 	// ShortHash is its new content hash, empty once the entry is deleted.
 	ShortID   string
 	ShortHash string
+
+	// Pinned is the note's new pinned state on an EventVaultPin.
+	Pinned bool
 }
 
 // Plugin is the interface every Hylo plugin must implement.

@@ -345,122 +345,133 @@
       display: flex; flex-direction: column;
     }
     .sec-body--flush { padding: 0; overflow: hidden; }
-    /* Grid layout toggle (Pinned/Folder/Knowledge/Memory only — the sections
-       that render through homeSectionData's shared "full" template). Cards
-       keep the same .home-list-card/.home-note-row markup; only the
-       container's layout mode and a few of the row's own rules change. */
+    /* ── Note card ──────────────────────────────────────────────
+       One card for every note list (rows template, home_section_rows.html)
+       and the chat's touched-notes strip (chat_rows.js). Layers, bottom up:
+       the card's surface, its cover, the text, the ⋯ trigger; the ⋯ menu
+       itself is in the top layer (card_menu.js). The cover only tints on
+       hover: a transform/filter animation composites it, and WebKit then
+       draws what overlaps it a pixel off (shorts_css_test.go guards this). */
+    .home-list-card {
+      margin-bottom: 0.5rem;
+      flex-shrink: 0; /* a has-cover card's overflow:hidden zeroes its flex min-height */
+    }
+    .note-card { position: relative; }
+    .note-card.has-cover { isolation: isolate; }
+    .note-card-cover {
+      display: block; position: absolute; z-index: -1;
+      border-radius: inherit; overflow: hidden; pointer-events: none;
+    }
+    .note-card-cover img { display: block; width: 100%; height: 100%; object-fit: cover; }
+    .note-card-cover::after {
+      content: ""; position: absolute; inset: 0;
+      transition: background-color var(--motion-base);
+    }
+    .note-card.has-cover:hover .note-card-cover::after { background-color: rgba(255, 255, 255, 0.08); }
+
+    .note-card-head { display: flex; align-items: center; gap: 0.35rem; min-width: 0; }
+    .note-card-title {
+      flex: 0 1 auto; min-width: 0; /* hugs the text, so the todo ring sits right after it */
+      font-size: var(--text-base); font-weight: var(--fw-semibold); color: var(--fg);
+      line-height: var(--lh-normal);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-radius: 0;
+    }
+    .note-card-end { margin-left: auto; flex-shrink: 0; display: flex; align-items: center; gap: 0.3rem; }
+    /* Kept inside the title's line box, so revealing it never changes the card's height. */
+    .note-card-end .card-more { margin-block: -0.25rem; margin-right: -0.35rem; }
+    .note-card-preview,
+    .note-card-dir {
+      min-width: 0; margin: 0; font-size: var(--text-sm); color: var(--muted);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-radius: 0;
+    }
+    .note-card-meta { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; min-width: 0; }
+    .note-card-dir { flex: 1; }
+    .note-card-time { flex-shrink: 0; font-size: var(--text-sm); color: var(--muted); font-variant-numeric: tabular-nums; }
+    /* The excerpt says more about a note than its folder does. */
+    .note-card-preview + .note-card-meta .note-card-dir { display: none; }
+
+    .note-badge {
+      flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
+      width: var(--space-md); height: var(--space-md);
+      color: var(--fg); border-radius: var(--r-full);
+    }
+    .note-badge svg { width: 10px; height: 10px; }
+    .note-badge--done { background: var(--fg); color: var(--bg); }
+    .note-badge--pin svg { width: 14px; height: 14px; }
+    /* Checklist progress in the accent next to the title; a finished list
+       becomes the same solid check a compiled note shows. */
+    .note-badge--todo svg { width: 100%; height: 100%; }
+    .note-badge--todo-track { fill: none; stroke: rgba(var(--accent-rgb), 0.22); stroke-width: 2.5; }
+    .note-badge--todo-fill { fill: none; stroke: var(--accent); stroke-width: 2.5; stroke-linecap: round; }
+
+    /* List: title line, then excerpt (or folder) and time on one line; the
+       cover is a masked strip along the right edge. */
+    .home-list-body:not(.is-grid) .note-card {
+      display: grid; grid-template-columns: minmax(0, 1fr) auto;
+      column-gap: 0.5rem; row-gap: 0.3rem;
+    }
+    .home-list-body:not(.is-grid) .note-card-head,
+    .home-list-body:not(.is-grid) .note-card-meta { grid-column: 1 / -1; }
+    .home-list-body:not(.is-grid) .note-card-preview + .note-card-meta { grid-column: 2; }
+    .home-list-body:not(.is-grid) .note-card.has-cover { overflow: hidden; }
+    .home-list-body:not(.is-grid) .note-card-cover {
+      top: 0; right: 0; bottom: 0; width: min(42%, 13rem);
+      -webkit-mask-image: linear-gradient(to right, transparent, #000 42%);
+      mask-image: linear-gradient(to right, transparent, #000 42%);
+    }
+    .home-list-body:not(.is-grid) .note-card-cover img { object-position: center 30%; }
+    /* The title row's end sits on the photo, so its controls get a solid backing. */
+    .home-list-body:not(.is-grid) .has-cover :is(.card-more, .note-badge--pin) { background: var(--surface-soft); color: var(--fg); }
+    .home-list-body:not(.is-grid) .has-cover .card-more:hover,
+    .home-list-body:not(.is-grid) .has-cover .card-more[aria-expanded="true"] {
+      background: color-mix(in srgb, var(--fg) 8%, var(--surface-soft));
+    }
+    @media (max-width: 520px) {
+      .home-list-body:not(.is-grid) .note-card-cover { display: none; }
+    }
+
+    /* Grid (Pinned/Folder/Knowledge/Memory/Tags): two-line title, three-line
+       excerpt, meta at the bottom; the cover fills the card under a scrim. */
     .home-list-body.is-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
       align-content: start;
       gap: 0.85rem;
     }
-    /* A touch more breathing room than the shared .list-card padding (list
-       rows keep that one untouched) — cards read a little too tight at this
-       larger min-width otherwise. */
-    .home-list-body.is-grid .home-list-card { margin-bottom: 0; display: flex; flex-direction: column; padding: 1rem 1.35rem; }
-    /* Grid mode's title+badge(s)+excerpt used to all live inside one flex
-       row (.home-note-row-top: titleblock | badges side by side), which
-       meant the badges column ate into titleblock's width for its *whole*
-       height — including the excerpt line(s) below the title, which only
-       ever need to share a line with the title itself. A 2-column/2-row
-       grid fixes that: the badges cell is pinned to row 1 (the title's
-       line) only, and the excerpt explicitly spans the full width on row 2.
-       titleblock itself becomes display:contents so its two children
-       (titlerow, preview-grid) act as direct grid items instead of a nested
-       flex slot — losing its own box means dropping the shared title+
-       excerpt max-height budget it used to enforce, but each child already
-       clamps its own line count (2 / 3 below), so card height still has a
-       hard ceiling either way. */
-    .home-list-body.is-grid .home-note-row-top {
-      display: grid;
-      grid-template-columns: 1fr auto;
-      align-items: start;
-    }
-    .home-list-body.is-grid .home-note-row-titleblock {
-      display: contents;
-    }
-    .home-list-body.is-grid .home-note-row-titlerow {
-      grid-column: 1;
-      grid-row: 1;
-      align-items: flex-start;
-    }
-    .home-list-body.is-grid .home-note-row-badges {
-      grid-column: 2;
-      grid-row: 1;
-    }
-    .home-list-body.is-grid .home-note-row-title {
-      white-space: normal; display: -webkit-box;
-      -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
-    }
-    .home-list-body.is-grid .home-note-row-preview-grid {
-      grid-column: 1 / -1;
-      grid-row: 2;
-      display: -webkit-box; margin-top: 0.25rem;
-      font-size: var(--text-sm); font-weight: var(--fw-normal); color: var(--muted);
-      line-height: var(--lh-normal);
-      -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
-    }
-    .home-list-body.is-grid .home-note-row-meta { margin-top: auto; padding-top: 0.5rem; }
-    /* Cover fills the whole card as a background; it is out of flow so the
-       card keeps the exact size its text gives it, cover or not. Fixed dark
-       base + scrim keep the light text readable while loading / on failure /
-       in the light theme.
-
-       The card itself (.home-list-card, a grid item here) deliberately never
-       gets `overflow: hidden` in grid mode — a grid item's automatic minimum
-       size drops to 0 once its own overflow isn't visible, which was
-       collapsing has-cover cards down to a sliver (or, at one card per row,
-       overlapping the next row entirely) at narrower pane widths, while
-       cover-less cards (still overflow:visible) sized normally. The rounded-
-       corner clip that overflow:hidden used to buy us here instead lives on
-       .home-note-cover, which is absolutely positioned and out of flow, so
-       nothing about it ever feeds back into the grid item's own sizing. */
-    .home-list-body.is-grid .home-list-card.has-cover { position: relative; }
-    .home-list-body.is-grid .home-note-cover {
-      display: block; position: absolute; inset: 0; background: #26262a;
-      border-radius: inherit; overflow: hidden;
-    }
-    .home-list-body.is-grid .home-note-cover::after {
-      content: ""; position: absolute; inset: 0;
-      background: linear-gradient(to bottom, rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.66));
-    }
-    .home-list-body.is-grid .home-note-cover img {
-      display: block; width: 100%; height: 100%; object-fit: cover;
-      transition: transform var(--motion-base);
-    }
-    .home-list-body.is-grid .has-cover:hover .home-note-cover img { transform: scale(1.04); }
-    .home-list-body.is-grid .has-cover .home-note-row-title { color: #fff; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45); }
-    .home-list-body.is-grid .has-cover .home-note-row-preview-grid,
-    .home-list-body.is-grid .has-cover .home-note-row-dir,
-    .home-list-body.is-grid .has-cover .home-note-row-time { color: rgba(255, 255, 255, 0.78); text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45); }
-    .home-list-body.is-grid .has-cover .home-note-badge { color: #fff; }
-    .home-list-body.is-grid .has-cover .home-note-badge--done { background: #fff; color: #26262a; }
-    .home-list-body.is-grid .has-cover .home-note-badge--todo-track { stroke: rgba(255, 255, 255, 0.4); }
-    .home-list-body.is-grid .has-cover .home-note-badge--todo-fill { stroke: #fff; }
     .home-list-body.is-grid .home-load-sentinel { grid-column: 1 / -1; }
-
-    /* ── Wide note row ─────────────────────────────────────────── */
-    /* ── Shared list-card row — the note list's rows and Inbox's message
-       cards were two separately-defined rules identical in every property
-       except display mode (block vs flex, since inbox cards lay out an
-       unread-dot + content side by side). One definition now backs both;
-       each keeps only its own layout mode on top. ── */
-    /* Box + click interaction come from the shared
-       .list-card.list-card--clickable (base.css). Note rows drop the
-       outline and sit on surface-soft, same as a read inbox card. */
-    .home-list-card {
-      margin-bottom: 0.5rem;
-      /* overflow:hidden (has-cover) zeroes the flex min-height, so cards would
-         get squashed in the column-flex list body */
-      flex-shrink: 0;
+    .home-list-body.is-grid .note-card { margin-bottom: 0; display: flex; flex-direction: column; padding: 1rem 1.35rem; }
+    .home-list-body.is-grid .note-card-head { align-items: flex-start; }
+    .home-list-body.is-grid .note-card-title {
+      white-space: normal; display: -webkit-box;
+      -webkit-line-clamp: 2; -webkit-box-orient: vertical;
     }
-    .home-note-row { display: block; background: var(--surface-soft); border-color: transparent; }
-    .home-note-row:hover { background: var(--card-hov); }
+    .home-list-body.is-grid .note-card-end { min-height: calc(var(--text-base) * var(--lh-normal)); }
+    .home-list-body.is-grid .note-card-preview {
+      margin-top: 0.25rem; white-space: normal; line-height: var(--lh-normal);
+      display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
+    }
+    .home-list-body.is-grid .note-card-meta { margin-top: auto; padding-top: 0.5rem; }
+    .home-list-body.is-grid .note-card-cover { inset: 0; background: #26262a; }
+    .home-list-body.is-grid .note-card-cover::after {
+      background-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.66));
+    }
+    .home-list-body.is-grid .has-cover :is(.note-card-title, .note-card-preview, .note-card-dir, .note-card-time) {
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+    }
+    .home-list-body.is-grid .has-cover .note-card-title,
+    .home-list-body.is-grid .has-cover .note-badge,
+    .home-list-body.is-grid .has-cover .card-more { color: #fff; }
+    .home-list-body.is-grid .has-cover :is(.note-card-preview, .note-card-dir, .note-card-time) { color: rgba(255, 255, 255, 0.78); }
+    .home-list-body.is-grid .has-cover .card-more:hover,
+    .home-list-body.is-grid .has-cover .card-more[aria-expanded="true"] { background: rgba(255, 255, 255, 0.16); }
+    .home-list-body.is-grid .has-cover .note-badge--done { background: #fff; color: #26262a; }
+    .home-list-body.is-grid .has-cover .note-badge--todo-track { stroke: rgba(255, 255, 255, 0.4); }
+    .home-list-body.is-grid .has-cover .note-badge--todo-fill { stroke: #fff; }
+
     /* Drag-to-move (home.js) — draggable is toggled on/off per card by
        __hyloUpdateDraggableCards() (folder view only; every section shares
        this markup, "rows" template, home.go), not baked into the template. */
-    .home-note-row[draggable="true"] {
+    .note-card[draggable="true"] {
       cursor: grab;
       /* Without this, starting the drag gesture on the card's own text (the
          title/dir/time spans) has a real chance of being read as a text
@@ -468,17 +479,17 @@
          any draggable container that holds plain text. */
       user-select: none;
     }
-    .home-note-row.is-dragging,
-    .home-note-row.is-move-pending {
+    .note-card.is-dragging,
+    .note-card.is-move-pending {
       transition: opacity var(--motion-fast) var(--ease-standard);
     }
-    .home-note-row.is-dragging { opacity: 0.45; cursor: grabbing; }
+    .note-card.is-dragging { opacity: 0.45; cursor: grabbing; }
     /* Move request in flight (dropped on a target, awaiting the server
        response) — kept distinct from .is-dragging so dragend doesn't clear
        it early: the card must stay non-interactive/non-re-draggable until
        the request resolves, or a fast second drag could fire a second move
        on a file the first one may have already relocated. */
-    .home-note-row.is-move-pending { opacity: 0.45; cursor: wait; pointer-events: none; }
+    .note-card.is-move-pending { opacity: 0.45; cursor: wait; pointer-events: none; }
     /* Dropped somewhere that isn't a move (outside any folder, or back into
        its own folder) — a plain nudge, not an error, so no color change.
        The inter-keyframe timing here is shake-specific tempo, not a general
@@ -490,7 +501,7 @@
       30%, 50%, 70% { transform: translateX(-4px); }
       40%, 60% { transform: translateX(4px); }
     }
-    .home-note-row.is-move-noop {
+    .note-card.is-move-noop {
       animation: home-shake calc(var(--motion-base) * 2.5) cubic-bezier(.36,.07,.19,.97) both;
     }
     /* The move actually failed server-side (409 conflict, network error) —
@@ -500,7 +511,7 @@
       0%, 100% { background: var(--surface-soft); }
       30% { background: var(--s-err-bg); }
     }
-    .home-note-row.is-move-rejected {
+    .note-card.is-move-rejected {
       animation: home-shake calc(var(--motion-base) * 2.5) cubic-bezier(.36,.07,.19,.97) both,
                  home-reject-flash calc(var(--motion-base) * 3) var(--ease-standard);
     }
@@ -514,7 +525,7 @@
        settling (that's what .just-received above is for).
        pointer-events: none so it can't be clicked/re-dragged while it's on
        its way out. */
-    .home-note-row.is-move-success {
+    .note-card.is-move-success {
       transition: transform calc(var(--motion-base) * 2) var(--ease-in),
                   opacity var(--motion-slow) var(--ease-in);
       transform: translate(var(--fly-dx, 0), var(--fly-dy, 0)) scale(0.15);
@@ -534,133 +545,6 @@
       color: var(--fg);
       white-space: nowrap;
       box-shadow: var(--shadow-sm) var(--shadow-color);
-    }
-    /* List mode: cover is only a right-side background layer. The card keeps
-       the same block layout and padding as rows without covers, so badges and
-       timestamps stay pinned to the far right instead of being squeezed into a
-       text-only column. */
-    .home-list-body:not(.is-grid) .home-list-card.has-cover {
-      position: relative; overflow: hidden;
-    }
-    .home-list-body:not(.is-grid) .home-note-cover {
-      display: block; position: absolute; top: 0; right: 0; bottom: 0;
-      width: min(42%, 13rem); pointer-events: none;
-      -webkit-mask-image: linear-gradient(to right, transparent, #000 42%);
-      mask-image: linear-gradient(to right, transparent, #000 42%);
-    }
-    .home-list-body:not(.is-grid) .home-note-cover img {
-      display: block; width: 100%; height: 100%;
-      object-fit: cover; object-position: center 30%;
-      transition: filter var(--motion-base), transform var(--motion-base);
-    }
-    .home-list-body:not(.is-grid) .has-cover:hover .home-note-cover img {
-      filter: brightness(1.08); transform: scale(1.02);
-    }
-    @media (max-width: 520px) {
-      .home-list-body:not(.is-grid) .home-note-cover { display: none; }
-    }
-    /* The cover photo is absolutely positioned with no z-index of its own
-       (auto). That would still paint above normal-flow siblings by default
-       (any positioned element beats a static one, regardless of source
-       order), so the two real content blocks are bumped into the
-       positioned-but-unraised layer to sit back on top. */
-    .home-note-row-top,
-    .home-note-row-meta {
-      position: relative; z-index: 1;
-    }
-    .home-note-row-top {
-      display: flex; align-items: center; justify-content: space-between;
-      gap: 0.75rem; margin-bottom: 0.3rem;
-    }
-    /* Wraps the title (and, grid-only, its preview excerpt) so the pair can
-       share one flex slot in .home-note-row-top; list mode gives it no
-       styling of its own beyond the flex sizing .home-note-row-title used
-       to carry directly. */
-    .home-note-row-titleblock { flex: 1; min-width: 0; }
-    /* Pairs the title with its checklist progress ring (when there is one)
-       on the same line, right next to the text it's progress on — rather
-       than off in the corner badge row with pin/compiled, which reads as
-       this note's *status* (pinned, compiled) more than a property of the
-       title itself. */
-    .home-note-row-titlerow { display: flex; align-items: center; gap: 0.35rem; min-width: 0; }
-    .home-note-row-title {
-      /* Grow:0 (not flex:1) is deliberate — this sits in a row with the
-         optional todo ring now, and a growing title would claim all of
-         that row's width even when the text itself is short, stranding
-         the ring off at the row's far edge instead of snug against the
-         text. Shrink:1 + min-width:0 still let a genuinely long title give
-         up width down to its own ellipsis, same as before. */
-      flex: 0 1 auto; min-width: 0;
-      font-size: var(--text-base); font-weight: var(--fw-semibold); color: var(--fg);
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-      border-radius: 0; line-height: var(--lh-normal);
-    }
-    /* Grid-only excerpt shown under the title (see the .is-grid rules
-       below); list mode keeps its excerpt down on the path line instead
-       (.home-note-row-preview), so this stays hidden there. */
-    .home-note-row-preview-grid { display: none; }
-    .home-note-row-badges { flex-shrink: 0; display: flex; align-items: center; gap: 0.3rem; }
-    .home-note-badge {
-      flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
-      width: var(--space-md); height: var(--space-md);
-      font-size: var(--text-2xs); font-weight: var(--fw-medium); letter-spacing: 0;
-      color: var(--fg);
-      border-radius: var(--r-full);
-    }
-    .home-note-badge svg { width: 10px; height: 10px; }
-    .home-note-badge--done { background: var(--fg); color: var(--bg); }
-    .home-note-badge--pin { background: transparent; color: var(--fg); }
-    .home-note-badge--pin svg { width: 14px; height: 14px; }
-    /* Checklist progress ring — same size as the pin/compiled circles, just
-       filled by an SVG arc instead of an icon glyph, so a partly-done
-       checklist reads as "how much" at a glance without spelling out a
-       fraction in text (title="n/m" still gives the exact count on hover).
-       Colored with the user's own accent (not --fg) specifically so it
-       stands out as a highlight next to the plain-colored title, rather
-       than blending in as just another gray/black UI glyph — track and
-       fill share that same hue (a light tint vs. the solid color) rather
-       than pairing it with a neutral gray track, so the ring reads as one
-       deliberately-colored unit. Once done/total reaches 1:1 the template
-       swaps this out for the same solid checkmark .home-note-badge--done
-       already uses elsewhere (a compiled note) — one shared "done" visual
-       language project-wide, rather than a second checkmark style just for
-       checklists. */
-    .home-note-badge--todo { padding: 0; }
-    .home-note-badge--todo svg { width: 100%; height: 100%; }
-    .home-note-badge--todo-track { fill: none; stroke: rgba(var(--accent-rgb), 0.22); stroke-width: 2.5; }
-    .home-note-badge--todo-fill {
-      fill: none; stroke: var(--accent); stroke-width: 2.5; stroke-linecap: round;
-    }
-    .home-note-row-meta {
-      display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;
-    }
-    .home-note-row-dir,
-    .home-note-row-preview {
-      flex: 1; min-width: 0; font-size: var(--text-sm); color: var(--muted);
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-      border-radius: 0;
-    }
-    .home-note-row-time {
-      flex-shrink: 0; font-size: var(--text-sm); color: var(--muted);
-      font-variant-numeric: tabular-nums;
-    }
-    /* When a note has a preview excerpt, it takes over the path line — the
-       path span itself stays in the DOM (list mode's .home-note-row-preview
-       is still the sibling hook this relies on; grid mode's excerpt lives
-       in .home-note-row-preview-grid instead, up by the title, but the
-       hidden .home-note-row-preview sibling is still rendered either way
-       and still does its job here) — just hidden. No excerpt means nothing
-       to hide, and the path shows exactly as before, in both modes.
-       (Element order in the "rows" template matters: .home-note-row-preview
-       comes before .home-note-row-dir for this ~ combinator to match.) */
-    .home-note-row-preview ~ .home-note-row-dir {
-      display: none;
-    }
-    /* List mode shows the excerpt right on the path line; grid mode shows
-       it up by the title instead (.home-note-row-preview-grid) — so grid
-       hides this copy, same as before the excerpt existed. */
-    .home-list-body.is-grid .home-note-row-preview {
-      display: none;
     }
 
     /* ── Sentinel / empty ─────────────────────────────────────── */

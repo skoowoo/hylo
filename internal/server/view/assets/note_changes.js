@@ -63,7 +63,8 @@
           }
           break;
         case 'pin':
-          refetch(['pinned', 'folder', 'recent']);
+          refetch(listsFor(c.path));
+          refetch(['pinned']);
           break;
         case 'image':
           refetch(['images']);

@@ -1,7 +1,7 @@
 
   <div id="confirm-dialog"
        x-data="confirmDialogCtrl()"
-       x-show="open"
+       :hidden="!open"
        x-trap.inert.noreturn="open"
        x-cloak
        class="dialog-overlay confirm-overlay"

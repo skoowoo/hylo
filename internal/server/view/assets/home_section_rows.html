@@ -1,27 +1,24 @@
 {{define "rows"}}{{range .Items}}
-<div class="list-card list-card--clickable home-list-card home-note-row{{if .Cover}} has-cover{{end}}" @click="__hyloOpenNote($event.currentTarget)"
+<div class="list-card list-card--clickable home-list-card note-card{{if .Cover}} has-cover{{end}}" @click="__hyloOpenNote($event.currentTarget)"
      draggable="true"
      data-note-path="{{.Path}}" data-note-title="{{label .}}"
      data-note-is-knowledge="{{.IsKnowledge}}" data-note-is-index="{{.IsIndex}}"
      data-note-can-compile="{{.CanCompile}}" data-note-pinned="{{.Pinned}}">
-  {{if .Cover}}<div class="home-note-cover" aria-hidden="true"><img src="{{coverURL .Cover}}" alt="" draggable="false" loading="lazy" decoding="async"></div>{{end}}
-  <div class="home-note-row-top">
-    <div class="home-note-row-titleblock">
-      <div class="home-note-row-titlerow">
-        <span class="home-note-row-title">{{label .}}</span>
-        {{if .TodoTotal}}{{if eq .TodoDone .TodoTotal}}<span class="home-note-badge home-note-badge--done" title="{{.TodoDone}}/{{.TodoTotal}} done">{{icon "check"}}</span>{{else}}<span class="home-note-badge home-note-badge--todo" title="{{.TodoDone}}/{{.TodoTotal}}"><svg viewBox="0 0 20 20"><circle class="home-note-badge--todo-track" cx="10" cy="10" r="8"/><circle class="home-note-badge--todo-fill" cx="10" cy="10" r="8" transform="rotate(-90 10 10)" stroke-dasharray="{{todoRingDash .TodoDone .TodoTotal}}"/></svg></span>{{end}}{{end}}
-      </div>
-      {{if .Preview}}<span class="home-note-row-preview-grid">{{.Preview}}</span>{{end}}
-    </div>
-    <div class="home-note-row-badges">
-      {{if .Pinned}}<span class="home-note-badge home-note-badge--pin" title="Pinned">{{icon "bookmark" `fill="currentColor" stroke="none"`}}</span>{{end}}
-      {{if .IsCompiled}}<span class="home-note-badge home-note-badge--done" title="Compiled">{{icon "check"}}</span>{{end}}
-    </div>
+  {{if .Cover}}<div class="note-card-cover" aria-hidden="true"><img src="{{coverURL .Cover}}" alt="" draggable="false" loading="lazy" decoding="async"></div>{{end}}
+  <div class="note-card-head">
+    <span class="note-card-title">{{label .}}</span>
+    {{if .TodoTotal}}{{if eq .TodoDone .TodoTotal}}<span class="note-badge note-badge--done" title="{{.TodoDone}}/{{.TodoTotal}} done">{{icon "check"}}</span>{{else}}<span class="note-badge note-badge--todo" title="{{.TodoDone}}/{{.TodoTotal}}"><svg viewBox="0 0 20 20"><circle class="note-badge--todo-track" cx="10" cy="10" r="8"/><circle class="note-badge--todo-fill" cx="10" cy="10" r="8" transform="rotate(-90 10 10)" stroke-dasharray="{{todoRingDash .TodoDone .TodoTotal}}"/></svg></span>{{end}}{{end}}
+    <span class="note-card-end">
+      {{if .Pinned}}<span class="note-badge note-badge--pin" title="Pinned">{{icon "bookmark" `fill="currentColor" stroke="none"`}}</span>{{end}}
+      {{if .IsCompiled}}<span class="note-badge note-badge--done" title="Compiled">{{icon "check"}}</span>{{end}}
+      <button type="button" class="icon-btn-ghost icon-btn-ghost--sm card-more card-reveal" title="More" aria-label="More" aria-haspopup="menu" aria-expanded="false"
+              @click.stop="__hyloNoteCardMenu($el, $event)">{{icon "more"}}</button>
+    </span>
   </div>
-  <div class="home-note-row-meta">
-    {{if .Preview}}<span class="home-note-row-preview">{{.Preview}}</span>{{end}}
-    <span class="home-note-row-dir">{{.Dir}}</span>
-    <span class="home-note-row-time">{{.UpdatedAt}}</span>
+  {{if .Preview}}<p class="note-card-preview">{{.Preview}}</p>{{end}}
+  <div class="note-card-meta">
+    <span class="note-card-dir">{{.Dir}}</span>
+    <span class="note-card-time">{{.UpdatedAt}}</span>
   </div>
 </div>
 {{end}}{{if .NextURL}}

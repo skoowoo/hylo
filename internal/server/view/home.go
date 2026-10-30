@@ -501,7 +501,7 @@ func (vh *ViewHandler) HomeSectionMore(w http.ResponseWriter, r *http.Request) {
 }
 
 // todoRingRadius matches the <circle r="..."> in the "rows" template's
-// .home-note-badge--todo markup — keep the two in sync if that ever changes.
+// .note-badge--todo markup — keep the two in sync if that ever changes.
 const todoRingRadius = 8.0
 
 var todoRingCircumference = 2 * math.Pi * todoRingRadius

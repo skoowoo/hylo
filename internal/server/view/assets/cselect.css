@@ -82,3 +82,18 @@
 .cselect-btn--ghost:focus { outline: none; }
 .cselect-btn--ghost:focus-visible { outline: 2px solid var(--accent-focus); outline-offset: 1px; }
 .cselect-btn--ghost.open { color: var(--fg); }
+
+/* The cards' ⋯ menu (card_menu.js): a dropdown in the top layer, placed by
+   script, so it drops the dropdown's own anchoring and the popover UA box. */
+.cselect-dropdown.card-menu {
+  position: fixed; inset: auto; right: auto; margin: 0;
+  width: max-content; min-width: 10rem; max-height: none;
+  color: var(--fg);
+}
+.card-menu:focus { outline: none; }
+.card-menu .cselect-option:focus-visible { outline: none; background: var(--card-hov); }
+.card-menu .cselect-option svg { width: 14px; height: 14px; flex-shrink: 0; color: var(--muted); }
+.card-menu .card-menu-danger:hover,
+.card-menu .card-menu-danger:focus-visible,
+.card-menu .card-menu-danger:hover svg,
+.card-menu .card-menu-danger:focus-visible svg { color: var(--s-err); background: var(--s-err-bg); }

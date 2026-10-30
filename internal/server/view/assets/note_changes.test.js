@@ -38,7 +38,8 @@ test('a rename touches both places, and a batch merges', () => {
 });
 
 test('pins, shorts and resync', () => {
-  assert.deepEqual(keys(affect([{ op: 'pin', path: '/a.md' }]).refetch), ['folder', 'pinned', 'recent']);
+  assert.deepEqual(keys(affect([{ op: 'pin', path: '/a.md' }]).refetch), ['folder', 'pinned', 'recent', 'tags']);
+  assert.deepEqual(keys(affect([{ op: 'pin', path: '/_knowledge/k.md' }]).refetch), ['knowledge', 'pinned']);
   assert.deepEqual(keys(affect([{ op: 'write', path: '/_shorts/2026-10-13.md' }]).refetch), ['recent', 'shorts']);
   const r = affect([{ op: 'resync' }]);
   assert.equal(r.all && r.sidebar, true);

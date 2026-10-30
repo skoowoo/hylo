@@ -1182,7 +1182,7 @@ func (g *Vault) SetNotePinned(p Path, pinned bool) error {
 	}()
 	g.mu.Unlock()
 	if err == nil {
-		g.emit(string(plugin.EventVaultPin), p.String(), false, time.Now())
+		g.emitEvent(plugin.Event{Type: plugin.EventVaultPin, Path: p.String(), Time: time.Now(), Pinned: pinned})
 	}
 	return err
 }

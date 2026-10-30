@@ -104,8 +104,6 @@
     .shorts-entry { position: relative; }
     .shorts-entry + .shorts-entry { margin-top: var(--space-sm); }
     .shorts-stream-groups .shorts-entry[hidden] { display: none; } /* a delete waiting out its undo */
-    .shorts-entry.is-menu-open { z-index: 2; }
-
     .shorts-entry-actions {
       position: absolute;
       z-index: 1; /* above a grid card's positioned cover */
@@ -116,29 +114,7 @@
       padding: 2px;
       background: var(--surface-soft);
       border-radius: var(--r-md);
-      opacity: 0; /* not visibility: the buttons stay in the tab order */
     }
-    .shorts-entry:hover .shorts-entry-actions,
-    .shorts-entry:focus-within .shorts-entry-actions,
-    .shorts-entry.is-menu-open .shorts-entry-actions { opacity: 1; }
-    .shorts-entry-actions .icon-btn-ghost.active { color: var(--fg); background: var(--icon-hov); }
-    /* The menu is pinned to its button and flips above it when the window
-       has no room below (the last cards), instead of running off the pane. */
-    @supports (position-try-fallbacks: flip-block) {
-      .shorts-entry.is-menu-open .shorts-entry-more { anchor-name: --short-more; }
-      .shorts-entry-actions .cselect-dropdown {
-        position: fixed;
-        position-anchor: --short-more;
-        inset: auto;
-        min-width: 0;
-        position-area: bottom span-left;
-        margin-block: 3px;
-        position-try-fallbacks: flip-block;
-      }
-    }
-    .shorts-entry-actions .cselect-option svg { width: 14px; height: 14px; flex-shrink: 0; color: var(--muted); }
-    .shorts-entry-actions .shorts-entry-menu-danger:hover,
-    .shorts-entry-actions .shorts-entry-menu-danger:hover svg { color: var(--s-err); background: var(--s-err-bg); }
 
     /* Editing: the card's own content gives way to the composer. */
     .shorts-entry.is-editing { padding: 0; background: transparent; }

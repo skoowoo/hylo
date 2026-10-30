@@ -270,6 +270,16 @@
     /* Kept as a no-op alias: every card is soft by default now. */
     .list-card--soft { border-color: transparent; background: var(--surface-soft); }
 
+    /* ── Card controls (.card-reveal): shown while their card is hovered,
+       holds focus or has its ⋯ menu (card_menu.js) open. Opacity flips
+       instantly; animating it composites the controls and WebKit draws them
+       a pixel off until it ends. ── */
+    .list-card .card-reveal { opacity: 0; }
+    .list-card:hover .card-reveal,
+    .list-card:focus-within .card-reveal,
+    .list-card.is-menu-open .card-reveal { opacity: 1; }
+    .card-more[aria-expanded="true"] { color: var(--fg); background: var(--icon-hov); }
+
     /* ── Shared empty-state block — icon + title + description, centered.
        One recipe backs every "nothing here yet" screen app-wide (Graph's
        no-notes state, Images' no-images state, …) instead of each one
@@ -506,6 +516,10 @@
       -webkit-backdrop-filter: var(--glass-scrim-filter);
       border-radius: 0; /* full-viewport scrim — never rounds */
     }
+    /* Trapped overlays hide with [hidden], not x-show: x-show reveals a frame
+       later, and x-trap, activating on a timer, can find nothing to focus yet. */
+    .dialog-overlay[hidden],
+    .settings-modal-overlay[hidden] { display: none; }
     .dialog-card {
       background: var(--bg);
       border: var(--bd-w) solid var(--line-edge);

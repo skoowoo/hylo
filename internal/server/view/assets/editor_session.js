@@ -79,20 +79,20 @@
   }
   // Patches every rendered row, including parked sections, since a save doesn't refetch them.
   function __hyloPatchNoteRowAfterSave(path, note) {
-    var rows = document.querySelectorAll('.home-note-row[data-note-path="' + CSS.escape(path) + '"]');
+    var rows = document.querySelectorAll('.note-card[data-note-path="' + CSS.escape(path) + '"]');
     for (var r = 0; r < rows.length; r++) __hyloPatchOneNoteRow(rows[r], note);
   }
   function __hyloPatchOneNoteRow(row, note) {
-    var meta = row.querySelector('.home-note-row-meta');
+    var meta = row.querySelector('.note-card-meta');
     if (!meta) return;
 
-    var previewEl = meta.querySelector('.home-note-row-preview');
+    var previewEl = row.querySelector('.note-card-preview');
     var previewText = (note.preview && note.preview.text) || '';
     if (previewText) {
       if (!previewEl) {
-        previewEl = document.createElement('span');
-        previewEl.className = 'home-note-row-preview';
-        meta.insertBefore(previewEl, meta.firstChild);
+        previewEl = document.createElement('p');
+        previewEl.className = 'note-card-preview';
+        row.insertBefore(previewEl, meta);
       }
       previewEl.textContent = previewText;
     } else if (previewEl) {
@@ -101,7 +101,7 @@
 
     // formatRelativeTime (search.go) returns exactly this for anything under
     // a minute old, which a just-completed save always is.
-    var timeEl = meta.querySelector('.home-note-row-time');
+    var timeEl = meta.querySelector('.note-card-time');
     if (timeEl) timeEl.textContent = 'just now';
   }
 

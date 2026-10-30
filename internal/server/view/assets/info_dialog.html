@@ -1,7 +1,7 @@
 
   <div id="info-dialog"
        x-data="infoDialogCtrl()"
-       x-show="open"
+       :hidden="!open"
        x-trap.inert.noreturn="open"
        x-cloak
        class="dialog-overlay info-overlay"
