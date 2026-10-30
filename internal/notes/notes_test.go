@@ -125,12 +125,11 @@ func TestSectionAndTags(t *testing.T) {
 	_, err = Section(src, "missing")
 	wantErr(t, err, "no heading matching")
 
-	hasFM, tags := Tags(src)
-	if !hasFM || len(tags) != 2 {
-		t.Errorf("tags = %v %v", hasFM, tags)
+	if tags := Tags(src).All(); len(tags) != 2 {
+		t.Errorf("tags = %v", tags)
 	}
-	if hasFM, tags := Tags([]byte("# plain\n")); hasFM || tags == nil || len(tags) != 0 {
-		t.Errorf("no front matter: %v %#v", hasFM, tags)
+	if tags := Tags([]byte("# plain\n")).All(); tags == nil || len(tags) != 0 {
+		t.Errorf("no front matter: %#v", tags)
 	}
 }
 

@@ -28,7 +28,7 @@ If all units are already indexed, report and stop.
 
 For each unindexed unit, read its YAML front matter and first non-heading paragraph. Build an internal list:
 
-`extract_tag` returns the front-matter tags and `extract_segment` with `head` the opening lines, without a full `read`.
+`extract_tag` returns the tags (front matter and inline `#tag`) and `extract_segment` with `head` the opening lines, without a full `read`.
 
 ```
 title          | entity_type | tags          | summary (≤80 chars)                              | vault-absolute path

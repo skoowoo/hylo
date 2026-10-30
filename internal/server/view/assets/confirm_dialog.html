@@ -12,10 +12,14 @@
         <span x-show="titleHTML"  x-html="titleHTML"></span>
       </p>
       <p class="confirm-message" x-text="message"></p>
+      <input class="field-input confirm-input" type="text" spellcheck="false" x-ref="input"
+             :hidden="!hasInput" x-model="inputValue" :placeholder="inputPlaceholder"
+             @keydown.enter.prevent="inputValue.trim() && confirm()">
       <div class="dialog-actions confirm-actions">
         <button class="btn-outline confirm-btn"  @click="cancel()">Cancel</button>
         <button class="btn-solid confirm-btn"
                 :class="{ 'btn-solid--danger': danger }"
+                :disabled="hasInput && !inputValue.trim()"
                 x-text="confirmLabel"
                 @click="confirm()"></button>
         <button class="btn-solid confirm-btn"

@@ -534,6 +534,13 @@ function decorateWikiLink(node, view, decos, options) {
   );
 }
 
+// ── #tag — styled in place and never hidden, so there is nothing to reveal.
+
+function decorateHashTag(node, view, decos) {
+  const editing = caretTouchesRange(view.state, node.from, node.to);
+  styleRange(node.from, node.to, editing ? 'cm-lp-tag cm-lp-tag-editing' : 'cm-lp-tag', decos);
+}
+
 export const nodeDecorators = {
   ATXHeading1: decorateHeading(1),
   ATXHeading2: decorateHeading(2),
@@ -565,6 +572,7 @@ export const nodeDecorators = {
   FencedCode: decorateFencedCode,
   WikiLink: decorateWikiLink,
   WikiImage: decorateImageSource,
+  HashTag: decorateHashTag,
   TableHeader: decorateTableHeader,
   TableRow: decorateTableBodyRow,
   TableDelimiter: decorateTableDelimiterRow,

@@ -27,16 +27,9 @@ func Section(source []byte, heading string) (string, error) {
 	return string(sec), nil
 }
 
-// Tags returns the front matter tags and whether the note has front matter at all.
-func Tags(source []byte) (hasFrontMatter bool, tags []string) {
-	fm, _ := util.ParseFrontmatter(source)
-	if !fm.HasMeta() {
-		return false, []string{}
-	}
-	if fm.Tags == nil {
-		return true, []string{}
-	}
-	return true, fm.Tags
+// Tags returns a note's tags: front matter `tags` plus inline #tags.
+func Tags(source []byte) util.NoteTags {
+	return util.ExtractTags(source)
 }
 
 // SegmentSpec selects lines by Head, Tail, or the 1-based inclusive Start/End range; exactly one form.

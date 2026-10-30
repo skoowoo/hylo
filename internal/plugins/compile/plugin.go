@@ -146,7 +146,8 @@ func (p *Plugin) handleKnowledgeDirNote(vaultPath string) {
 	}
 }
 
-// handleKnowledgeNoteUpdate syncs title, origin, and compile_count to the DB,
+// handleKnowledgeNoteUpdate syncs title and compile_count to the DB (tags come
+// from the write itself, see storage.fileNoteMeta),
 // updates knowledge_deps from the source_notes list in the frontmatter, and
 // incrementally updates knowledge_links from wikilinks in the note body.
 func (p *Plugin) handleKnowledgeNoteUpdate(sp storage.Path, fm util.Frontmatter, body []byte) {
@@ -161,17 +162,11 @@ func (p *Plugin) handleKnowledgeNoteUpdate(sp storage.Path, fm util.Frontmatter,
 			}
 		case "source_notes":
 			kfm.sourceNotes = e.List
-		case "tags":
-			kfm.tags = e.List
 		case "entity_type":
 			kfm.entityType = strings.TrimSpace(e.Value)
 		}
 	}
-	tags := kfm.tags
-	if kfm.entityType != "" {
-		tags = append([]string{kfm.entityType}, kfm.tags...)
-	}
-	if err := p.vault.MarkNoteAsKnowledge(sp, kfm.title, kfm.compileCount, tags); err != nil {
+	if err := p.vault.MarkNoteAsKnowledge(sp, kfm.title, kfm.compileCount); err != nil {
 		p.logger.Warn("compile: knowledge metadata update: db update failed", "path", sp, "err", err)
 		return
 	}
@@ -240,7 +235,6 @@ type knowledgeFrontmatter struct {
 	title        string
 	compileCount int
 	sourceNotes  []string
-	tags         []string
 	entityType   string
 }
 

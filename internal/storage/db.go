@@ -567,6 +567,20 @@ func dbGetByName(db *sql.DB, name string) ([]Note, error) {
 	return dbScan_(rows)
 }
 
+// dbListByTag returns every note whose tags column holds tag (normalized).
+// instr, not LIKE: '_' is a tag character and a LIKE wildcard.
+func dbListByTag(db *sql.DB, tag string) ([]Note, error) {
+	rows, err := db.Query(`
+		SELECT dir, name, size, created_at, updated_at, indexed, kind, title, pinned, compile_count, tags, preview
+		FROM notes
+		WHERE instr(char(10) || tags || char(10), char(10) || ? || char(10)) > 0`, tag)
+	if err != nil {
+		return nil, fmt.Errorf("storage: notes by tag %q: %w", tag, err)
+	}
+	defer rows.Close()
+	return dbScan_(rows)
+}
+
 // dbScan_ reads all rows from a notes query result into a []Note slice.
 func dbScan_(rows *sql.Rows) ([]Note, error) {
 	var notes []Note
@@ -1133,19 +1147,19 @@ func dbSetCompileCount(db *sql.DB, p Path, count int) error {
 	return err
 }
 
-// dbSetKindKnowledge sets kind = 'knowledge', compile_count, tags, and optionally title for the note at p.
+// dbSetKindKnowledge sets kind = 'knowledge', compile_count, and optionally title for the note at p.
 // title may be empty to leave the column unchanged.
-func dbSetKindKnowledge(db *sql.DB, p Path, title string, compileCount int, tags []string) error {
+func dbSetKindKnowledge(db *sql.DB, p Path, title string, compileCount int) error {
 	if title != "" {
 		_, err := db.Exec(
-			`UPDATE notes SET kind = ?, title = ?, compile_count = ?, tags = ? WHERE dir = ? AND name = ?`,
-			string(KindKnowledge), title, compileCount, joinTags(tags), p.Dir(), p.Base(),
+			`UPDATE notes SET kind = ?, title = ?, compile_count = ? WHERE dir = ? AND name = ?`,
+			string(KindKnowledge), title, compileCount, p.Dir(), p.Base(),
 		)
 		return err
 	}
 	_, err := db.Exec(
-		`UPDATE notes SET kind = ?, compile_count = ?, tags = ? WHERE dir = ? AND name = ?`,
-		string(KindKnowledge), compileCount, joinTags(tags), p.Dir(), p.Base(),
+		`UPDATE notes SET kind = ?, compile_count = ? WHERE dir = ? AND name = ?`,
+		string(KindKnowledge), compileCount, p.Dir(), p.Base(),
 	)
 	return err
 }
@@ -1163,29 +1177,6 @@ func dbSetKindIndex(db *sql.DB, p Path, title string) error {
 	_, err := db.Exec(
 		`UPDATE notes SET kind = ? WHERE dir = ? AND name = ?`,
 		string(KindIndex), p.Dir(), p.Base(),
-	)
-	return err
-}
-
-// dbUpsertKnowledgeNote inserts or updates a compile-plugin knowledge note, always
-// overwriting kind, title, size, and updated_at on conflict.
-func dbUpsertKnowledgeNote(db *sql.DB, n Note) error {
-	now := time.Now().UnixNano()
-	updNs := now
-	if !n.UpdatedAt.IsZero() {
-		updNs = n.UpdatedAt.UnixNano()
-	}
-	_, err := db.Exec(`
-		INSERT INTO notes(dir, name, size, created_at, updated_at, indexed, kind, title, tags)
-		VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?)
-		ON CONFLICT(dir, name) DO UPDATE SET
-		    size       = excluded.size,
-		    updated_at = excluded.updated_at,
-		    indexed    = 0,
-		    kind       = excluded.kind,
-		    title      = excluded.title,
-		    tags       = excluded.tags`,
-		n.Dir, n.Name, n.Size, now, updNs, string(n.Kind), n.Title, joinTags(n.Tags),
 	)
 	return err
 }

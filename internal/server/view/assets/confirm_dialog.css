@@ -30,6 +30,10 @@
       margin: 0;
     }
 
+    .confirm-input {
+      margin-top: 0.875rem;
+    }
+
     .confirm-card.is-wide .confirm-btn {
       padding: 0 0.65rem;
       font-size: var(--text-base);

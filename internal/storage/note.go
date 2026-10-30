@@ -115,7 +115,7 @@ type Note struct {
 	CompileCount int         `json:"compile_count,omitempty"`
 	Kind         Kind        `json:"kind,omitempty"`
 	Title        string      `json:"title,omitempty"` // human-readable title; set by plugins (e.g. compile), empty for raw notes
-	Tags         []string    `json:"tags,omitempty"`  // frontmatter tags
+	Tags         []string    `json:"tags,omitempty"`  // util.ExtractTags
 	Preview      NotePreview `json:"preview"`         // cached content summary, recomputed on every write
 }
 

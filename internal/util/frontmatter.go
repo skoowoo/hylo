@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"unicode"
 
 	"gopkg.in/yaml.v3"
 )
@@ -115,6 +116,10 @@ func ParseFrontmatter(src []byte) (Frontmatter, []byte) {
 			fm.Source = entry.Value
 		case "tags":
 			fm.Tags = entry.List
+			if !entry.IsList {
+				// Obsidian also accepts `tags: a, b` and `tags: a b`.
+				fm.Tags = strings.FieldsFunc(entry.Value, func(r rune) bool { return r == ',' || unicode.IsSpace(r) })
+			}
 		case "compiled", "distilled": // "distilled" for backward compat with older notes
 			fm.Compiled = entry.Value
 		case "kind":
@@ -151,32 +156,6 @@ func IsShortNote(content []byte) bool {
 // daily file: opening/closing "---" delimiters and a trailing blank line.
 func FormatShortFrontmatter(date time.Time) string {
 	return "---\nkind: short\ndate: " + date.Format("2006-01-02") + "\n---\n\n"
-}
-
-// NormalizeKnowledgeTag applies tag normalization for knowledge notes: internal spaces become hyphens.
-func NormalizeKnowledgeTag(tag string) string {
-	return strings.Replace(tag, " ", "-", -1)
-}
-
-// FormatKnowledgeStyleFrontmatter returns a YAML front matter block including the
-// opening and closing "---" lines and a trailing blank line after the block,
-// matching the format written by the compile plugin (tags as a block sequence
-// and compiled as a UTC YYYY-MM-DD date).
-//
-// An empty tags slice omits the tags key entirely, but compiled is always set.
-func FormatKnowledgeStyleFrontmatter(tags []string, compiledUTC time.Time) string {
-	var sb strings.Builder
-	sb.WriteString("---\n")
-	if len(tags) > 0 {
-		sb.WriteString("tags:\n")
-		for _, t := range tags {
-			t = NormalizeKnowledgeTag(t)
-			sb.WriteString("  - " + t + "\n")
-		}
-	}
-	sb.WriteString("compiled: " + compiledUTC.UTC().Format("2006-01-02") + "\n")
-	sb.WriteString("---\n\n")
-	return sb.String()
 }
 
 // renderMapping formats a YAML mapping node as "key: value" lines.

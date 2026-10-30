@@ -113,18 +113,12 @@ func (vh *ViewHandler) KnowledgeGraphData(w http.ResponseWriter, r *http.Request
 		if label == "" {
 			label = strings.TrimSuffix(n.Name, ".md")
 		}
-		// Prefer entity_type from knowledge_links (set at build time from frontmatter).
-		// Fall back to tags[0] which compile plugin also sets to entity_type.
-		et := entityTypeByPath[n.PathString()]
-		if et == "" && len(n.Tags) > 0 {
-			et = n.Tags[0]
-		}
 		apiNodes = append(apiNodes, graphAPINode{
 			ID:         n.PathString(),
 			Label:      label,
 			Path:       n.PathString(),
 			Tags:       n.Tags,
-			EntityType: et,
+			EntityType: entityTypeByPath[n.PathString()],
 		})
 	}
 

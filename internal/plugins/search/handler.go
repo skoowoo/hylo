@@ -13,7 +13,6 @@ type Searcher interface {
 	Search(query string, opts SearchOptions) ([]SearchResult, error)
 	TagDocCount(tag string) (uint64, error)
 	TagDistribution(topN int) ([]TagCount, error)
-	UnindexByTag(tag string) ([]string, error)
 }
 
 // Handler handles requests for full-text and filename search.
@@ -110,39 +109,6 @@ func (h *Handler) TagList(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]any{ //nolint:errcheck
 		"tags": rows,
-	})
-}
-
-type tagDeleteRequest struct {
-	Tag string `json:"tag"`
-}
-
-// TagDelete handles POST /api/tag/delete.
-// Removes all indexed notes that carry the given tag from the search index only.
-// Body: {"tag": "..."}
-func (h *Handler) TagDelete(w http.ResponseWriter, r *http.Request) {
-	var req tagDeleteRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid JSON body: "+err.Error(), http.StatusBadRequest)
-		return
-	}
-	if req.Tag == "" {
-		http.Error(w, `missing required field: "tag"`, http.StatusBadRequest)
-		return
-	}
-	paths, err := h.searcher.UnindexByTag(req.Tag)
-	if err != nil {
-		http.Error(w, "tag delete: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-	if paths == nil {
-		paths = []string{}
-	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]any{ //nolint:errcheck
-		"tag":     req.Tag,
-		"deleted": len(paths),
-		"paths":   paths,
 	})
 }
 

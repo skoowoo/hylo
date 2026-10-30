@@ -214,6 +214,8 @@ func newRouter(
 	mux.HandleFunc("POST /api/vault/delete", gh.Delete)
 	mux.HandleFunc("POST /api/vault/move", gh.Move)
 	mux.HandleFunc("POST /api/vault/rename", gh.Rename)
+	mux.HandleFunc("POST /api/tag/delete", gh.TagDelete)
+	mux.HandleFunc("POST /api/tag/rename", gh.TagRename)
 	mux.HandleFunc("GET /api/vault/check-name", gh.CheckName)
 	mux.Handle("GET /api/vault/overview", handler.NewVaultOverview(vault))
 	mux.HandleFunc("GET /api/vault/rename-status", gh.RenameStatus)
@@ -234,7 +236,6 @@ func newRouter(
 	mux.HandleFunc("POST /api/search", sh.Search)
 	mux.HandleFunc("POST /api/tag/list", sh.TagList)
 	mux.HandleFunc("POST /api/tag/count", sh.TagCount)
-	mux.HandleFunc("POST /api/tag/delete", sh.TagDelete)
 
 	if gitPlugin != nil {
 		gsh := gitsync.NewHandler(gitPlugin)

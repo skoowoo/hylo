@@ -139,7 +139,7 @@ func TestRenameNoteRejectsSystemKind(t *testing.T) {
 	if err := v.WriteNote(knowledge, []byte("---\nkind: knowledge\n---\n\nbody\n"), ""); err != nil {
 		t.Fatal(err)
 	}
-	if err := v.MarkNoteAsKnowledge(knowledge, "", 0, nil); err != nil {
+	if err := v.MarkNoteAsKnowledge(knowledge, "", 0); err != nil {
 		t.Fatal(err)
 	}
 	if _, _, err := v.RenameNote(knowledge, "renamed.md"); !errors.Is(err, ErrRenameNotAllowed) {
@@ -176,7 +176,7 @@ func TestRenameNoteRewritesKnowledgeSourceRef(t *testing.T) {
 	if err := v.WriteNote(knowledge, []byte(kBody), ""); err != nil {
 		t.Fatal(err)
 	}
-	if err := v.MarkNoteAsKnowledge(knowledge, "", 0, nil); err != nil {
+	if err := v.MarkNoteAsKnowledge(knowledge, "", 0); err != nil {
 		t.Fatal(err)
 	}
 	if err := v.SetKnowledgeDeps(knowledge, []Path{raw}); err != nil {

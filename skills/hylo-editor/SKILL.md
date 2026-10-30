@@ -91,7 +91,7 @@ For block targets, `content` is trimmed, and deleting whole blocks also removes 
 
 ## Frontmatter
 
-The editor tools never touch frontmatter: `editor_read` leaves it out, inserts land below it, rewrites refuse regions inside it, and content that would start a note with `---` is rejected. Never put frontmatter or tags in `content`; for metadata or tag changes, tell the user the editor tools don't touch them.
+The editor tools never touch frontmatter: `editor_read` leaves it out, inserts land below it, rewrites refuse regions inside it, and content that would start a note with `---` is rejected. Never put frontmatter in `content`; for metadata changes, tell the user the editor tools don't touch them. Tags can be written inline as `#tag` in the body: add or remove them only when the user asks; a tag in the frontmatter can't be changed from here.
 
 ## Markdown dialect
 

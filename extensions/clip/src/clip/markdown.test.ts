@@ -4,6 +4,26 @@ import { JSDOM } from 'jsdom';
 import { WEBSITE_TEST_CASES } from './test-cases';
 
 describe('Unit Tests', () => {
+  it('should escape page hashtags so they do not become vault tags', () => {
+    const html = `<!DOCTYPE html><html><head><title>Tags #weekly</title></head><body><article>
+      <p>Launch day #buildinpublic and 读书 #读书，C# stays, issue #42 stays. Enough words for Readability to keep this paragraph around.</p>
+      <p>Wrapped <span>#wrapped</span> tag and <a href="https://x.com/hashtag/ai">#ai</a> link. More sentences so the article body is long enough.</p>
+      <p>Inline <code>#notag</code> code.</p>
+      <pre><code>#!/bin/sh
+# comment</code></pre>
+    </article></body></html>`;
+    const dom = new JSDOM(html, { url: 'https://example.com/tags' });
+    const { markdown } = clipPageToMarkdown(dom.window.document, 'https://example.com/tags');
+    expect(markdown).toContain('\n# Tags \\#weekly\n');
+    expect(markdown).toContain('\\#buildinpublic');
+    expect(markdown).toContain('\\#读书，');
+    expect(markdown).toContain('C# stays, issue #42 stays');
+    expect(markdown).toContain('\\#wrapped');
+    expect(markdown).toContain('[\\#ai](https://x.com/hashtag/ai)');
+    expect(markdown).toContain('`#notag`');
+    expect(markdown).toContain('#!/bin/sh\n# comment');
+  });
+
   it('should promote WeChat-style lazy data-src over data: SVG placeholder', () => {
     const placeholder =
       "data:image/svg+xml,%3Csvg width='1px' height='1px' viewBox='0 0 1 1'%3E%3C/svg%3E";

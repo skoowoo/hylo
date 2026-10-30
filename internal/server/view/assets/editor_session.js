@@ -292,6 +292,16 @@
     });
   }
 
+  // "#" completion source: the vault's tags, most used first (server order).
+  async function __hyloEditorTags() {
+    var resp = await fetch('/api/tag/list', {
+      method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({limit: 2000}),
+    });
+    if (!resp.ok) return [];
+    var data = await resp.json();
+    return (data.tags || []).map(function(t) { return { label: t.tag, detail: String(t.count) }; });
+  }
+
   // A heading in the current note scrolls in place; otherwise open the note
   // and let the scroll restore land on the heading.
   async function __hyloEditorFollowWikiLink(target, heading) {
@@ -449,7 +459,7 @@
           sharedLanguage,
           cm.history(),
           // Ahead of the other Prec.highest Enter bindings: an open completion takes Enter first.
-          cm.wikiLinkCompletion(__hyloEditorSearchNotes),
+          cm.wikiLinkCompletion(__hyloEditorSearchNotes, __hyloEditorTags),
           // Tab/Enter inside a table, before the list bindings get them.
           cm.tableKeymap,
           // Closing ``` written as the opening one is typed.
@@ -472,7 +482,7 @@
           cm.search({ top: true, createPanel: __hyloCreateSearchPanel }),
           cm.EditorView.lineWrapping, cmTheme,
           cm.EditorView.contentAttributes.of({spellcheck: 'false'}),
-          cm.linkClickHandler(),
+          cm.linkClickHandler({ onTagClick: function(tag) { if (window._homeData) window._homeData.selectTag(tag); } }),
           // Outside the compartment so the collapsed flag survives a mode toggle.
           cm.frontmatterCollapseField,
           s.decoCompartment.of(decoInitial),

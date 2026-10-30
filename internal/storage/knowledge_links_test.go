@@ -28,7 +28,7 @@ func TestBackfillKnowledgeLinksKeepsLeafEntityType(t *testing.T) {
 	if err := v.WriteNote(leaf, []byte("---\nentity_type: concept\n---\n\nno links here\n"), ""); err != nil {
 		t.Fatal(err)
 	}
-	if err := v.MarkNoteAsKnowledge(leaf, "", 0, nil); err != nil {
+	if err := v.MarkNoteAsKnowledge(leaf, "", 0); err != nil {
 		t.Fatal(err)
 	}
 

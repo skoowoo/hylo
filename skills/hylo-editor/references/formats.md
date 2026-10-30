@@ -14,8 +14,9 @@ Hylo's editor renders GitHub-flavored markdown plus Obsidian-style wiki syntax, 
 | Quote | `> text`, nested `> >` | Fences and lists inside quotes work. |
 | Rule | `---` on its own line | Needs a blank line above, or it underlines the paragraph into a heading. Never as the note's first line: that reads as frontmatter. |
 | HTML | allowed | Shown as tinted markup, not rendered. Avoid it; use markdown. |
+| Tag | `#tag`, `#读书`, `#project/hylo` | After a space or at a line start, up to the first space or punctuation; letters, digits, `_`, `-`, `/`, not digits alone. Not in code. Case-insensitive. |
 
-There is no `==highlight==`, no inline `#tag` (tags live in frontmatter, which the editor tools never touch), no callouts (`> [!note]`), no math and no footnotes. They stay as literal text.
+There is no `==highlight==`, no callouts (`> [!note]`), no math and no footnotes. They stay as literal text.
 
 ## Lists and tasks
 

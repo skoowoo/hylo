@@ -86,7 +86,7 @@ func TestVaultRenameNotAllowedForSystemNote(t *testing.T) {
 	if err := v.WriteNote(knowledge, []byte("---\nkind: knowledge\n---\n\nbody\n"), ""); err != nil {
 		t.Fatal(err)
 	}
-	if err := v.MarkNoteAsKnowledge(knowledge, "", 0, nil); err != nil {
+	if err := v.MarkNoteAsKnowledge(knowledge, "", 0); err != nil {
 		t.Fatal(err)
 	}
 

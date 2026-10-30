@@ -6,6 +6,7 @@
  *   - Link text normalisation
  *   - Image preservation
  *   - GitHub code block detection
+ *   - Escaping page text that Hylo would read as a #tag
  */
 
 import TurndownService from "turndown";
@@ -34,6 +35,27 @@ function languageFromGithubWrapper(pre: HTMLElement): string {
   return hm ? hm[1] : "";
 }
 
+// Same rules as Hylo's util.InlineTags (internal/util/testdata/tags.json).
+const TAG_CANDIDATE = /(^|\s)#([\p{L}\p{N}\p{M}_\-/]+)/gu;
+
+function isTagRun(run: string): boolean {
+  if (run.startsWith("/")) return false;
+  const cut = run.indexOf("//");
+  const tag = (cut >= 0 ? run.slice(0, cut) : run).replace(/\/+$/, "");
+  return tag !== "" && !/^\p{Nd}+$/u.test(tag);
+}
+
+/**
+ * A page's own hashtags would land in the vault's tag list. A text node may
+ * follow inline markup ending in a space, so its start counts as a boundary;
+ * an extra `\#` there is harmless.
+ */
+export function escapeTags(text: string): string {
+  return text.replace(TAG_CANDIDATE, (m, lead: string, run: string) =>
+    isTagRun(run) ? `${lead}\\#${run}` : m,
+  );
+}
+
 /** Returns true if the node is a direct or nested descendant of a <td>/<th>. */
 function isInsideTableCell(node: Node): boolean {
   let p = node.parentNode;
@@ -59,6 +81,10 @@ function buildTurndown(): TurndownService {
   });
 
   td.use(gfm);
+
+  // Only text nodes outside code reach escape(), so code keeps its '#'.
+  const escapeMarkdown = td.escape.bind(td);
+  td.escape = (text: string) => escapeTags(escapeMarkdown(text));
 
   // ── Table cell inline conversion ─────────────────────────────────────────
   // GFM table rows must fit on a single line. Block-level elements inside

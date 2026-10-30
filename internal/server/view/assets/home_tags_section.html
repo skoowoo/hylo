@@ -43,6 +43,8 @@
       {{icon "grid"}}
     </button>
   </div>
+  <button type="button" class="icon-btn" title="More" aria-label="Tag actions" aria-haspopup="menu" aria-expanded="false"
+          data-tag="{{.Selected}}" @click="tagMenu($el, $el.dataset.tag, $event)">{{icon "more"}}</button>
 </div>
 <div class="sec-body home-list-body" id="home-list-body" :class="{'is-grid': currentListView() === 'grid'}">{{template "rows" .}}</div>
 {{if and (not .Items) .Empty.Title}}{{template "empty-state" .Empty}}{{end}}

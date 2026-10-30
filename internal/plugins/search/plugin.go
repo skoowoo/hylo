@@ -18,6 +18,7 @@ import (
 	"github.com/hardhacker/hylo/internal/config"
 	"github.com/hardhacker/hylo/internal/plugin"
 	"github.com/hardhacker/hylo/internal/storage"
+	"github.com/hardhacker/hylo/internal/util"
 )
 
 // Plugin is the search-index plugin. It is always registered; no config gate.
@@ -52,8 +53,13 @@ func New(cfg config.SearchConfig, vault *storage.Vault, logger *slog.Logger) *Pl
 func (p *Plugin) Name() string { return "search" }
 
 // Notify implements plugin.Plugin. A note being edited is reindexed once its
-// edits settle, not on every autosave.
+// edits settle, not on every autosave; a Final write is indexed right here,
+// so a batch is searchable when it returns and can't overflow eventCh.
 func (p *Plugin) Notify(e plugin.Event) {
+	if e.Final {
+		p.handleEvent(e)
+		return
+	}
 	switch e.Type {
 	case plugin.EventFSCreate, plugin.EventFSWrite,
 		plugin.EventVaultCreate, plugin.EventVaultWrite,
@@ -112,7 +118,7 @@ func (p *Plugin) DocCount() (uint64, error) {
 	return p.indexer.DocCount()
 }
 
-// TagDocCount returns how many indexed notes contain the given front matter tag.
+// TagDocCount returns how many indexed notes carry the given tag.
 // Returns an error if the search index is not ready.
 func (p *Plugin) TagDocCount(tag string) (uint64, error) {
 	if p.indexer == nil {
@@ -128,26 +134,6 @@ func (p *Plugin) TagDistribution(topN int) ([]TagCount, error) {
 		return nil, fmt.Errorf("search index not ready")
 	}
 	return p.indexer.TagDistribution(topN)
-}
-
-// UnindexByTag removes all indexed notes that carry the given tag from the
-// search index and returns the paths that were deleted.
-func (p *Plugin) UnindexByTag(tag string) ([]string, error) {
-	if p.indexer == nil {
-		return nil, fmt.Errorf("search index not ready")
-	}
-	results, err := p.indexer.Search(tag, SearchOptions{Type: "tag", Limit: 10000},
-		func(string) ([]byte, error) { return nil, fmt.Errorf("no content reader") })
-	if err != nil {
-		return nil, err
-	}
-	paths := make([]string, 0, len(results))
-	for _, r := range results {
-		path := storage.JoinPath(r.Dir, r.Name)
-		p.indexer.Delete(path)
-		paths = append(paths, path)
-	}
-	return paths, nil
 }
 
 // Search implements Searcher interface for the HTTP handler.
@@ -218,7 +204,7 @@ func (p *Plugin) indexFile(pathStr string) {
 		p.logger.Warn("search: could not stat note for indexing", "path", pathStr, "err", err)
 		return
 	}
-	tags := extractSearchTags(content)
+	tags := util.ExtractTags(content).All()
 	p.indexer.Upsert(pathStr, note.Name, string(content), tags, note.UpdatedAt, string(note.Kind))
 	if err := p.vault.MarkNoteIndexed(sp); err != nil {
 		p.logger.Warn("search: could not mark note indexed", "path", pathStr, "err", err)

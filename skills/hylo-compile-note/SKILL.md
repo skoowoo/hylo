@@ -18,6 +18,7 @@ The input is the note to compile (a vault-absolute or filesystem path). Units li
 Read it in full. Record:
 
 - `source_date`, its **original publication date**, from the first of: frontmatter `date` / `published`, a date prefix in the filename, an article or podcast header, a timestamp in the body. None found: unknown.
+- `source_tags`, the `#tags` and front matter tags the author put on it (`extract_tag`).
 - `source_perspective`, whose words it holds. `own`: the author's writing (short notes, journal, drafts, notes on their own projects, their own podcast or product). `external`: someone else's (clipped articles, transcripts of others' podcasts or talks, book excerpts). Judge by content, not folder; a clip with the author's comments stays `external` unless the comments carry the note.
 
 ## Step 2 — Load the relevant index
@@ -87,4 +88,4 @@ compile_count: 1
 ---
 ```
 
-**Tags.** Call `tag_list` first. Decide the tags that describe the unit, then swap each for an existing equivalent (same concept, other language or spelling: `独立开发` ↔ `indie-dev`). Keep a new tag only when no equivalent exists.
+**Tags.** Call `tag_list` first. Decide the tags that describe the unit, starting from the `source_tags` that fit it (the author chose them), then swap each other tag for an existing equivalent (same concept, other language or spelling: `独立开发` ↔ `indie-dev`). Keep a new tag only when no equivalent exists. Write them lowercase, without `#`, spaces as `-`.

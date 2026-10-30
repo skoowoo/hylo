@@ -21,7 +21,6 @@ import (
 	"github.com/blevesearch/bleve/v2/search/query"
 
 	"github.com/hardhacker/hylo/internal/storage"
-	"github.com/hardhacker/hylo/internal/util"
 )
 
 // nameKeywordAnalyzer is a custom analyzer name that stores the full filename
@@ -91,7 +90,7 @@ func (b *BleveIndexer) DocCount() (uint64, error) { return b.idx.DocCount() }
 
 const tagField = "tags"
 
-// TagDocCount returns how many indexed notes contain the given YAML front matter tag.
+// TagDocCount returns how many indexed notes carry the given tag (util.ExtractTags).
 // The tag is matched the same way as type=tag search: trimmed, lowercased, keyword field "tags".
 func (b *BleveIndexer) TagDocCount(tag string) (uint64, error) {
 	t := strings.TrimSpace(strings.ToLower(tag))
@@ -158,7 +157,7 @@ type SearchOptions struct {
 	// Type filters search to a specific field:
 	//   "name"    — filename search only
 	//   "content" — full-text content search only
-	//   "tag"     — YAML front matter tags only
+	//   "tag"     — tags only (front matter and inline #tags)
 	//   ""        — search name, content, and tags (default)
 	Type string
 
@@ -291,7 +290,7 @@ type indexDoc struct {
 	NameRaw   string    `json:"name_raw"`       // full filename, single lowercase token for prefix/fuzzy
 	Content   string    `json:"content"`        // English analyzer (stemming + stop-words)
 	ContentZh string    `json:"content_zh"`     // same text, jieba analyzer for Chinese segmentation
-	Tags      []string  `json:"tags,omitempty"` // YAML front matter tags; keyword analyzer per tag
+	Tags      []string  `json:"tags,omitempty"` // util.ExtractTags; keyword analyzer per tag
 	UpdatedAt time.Time `json:"updated_at"`
 	Kind      string    `json:"kind"` // "raw", "knowledge", "index", or "short"
 }
@@ -437,7 +436,7 @@ func buildQuery(queryStr, searchType string, useJieba bool) query.Query {
 		contentQ = contentEnQ
 	}
 
-	// -- tag queries (YAML front matter tags; one token per tag) --
+	// -- tag queries (one token per tag) --
 	tagQ := bleve.NewMatchQuery(queryStr)
 	tagQ.SetField("tags")
 
@@ -454,18 +453,6 @@ func buildQuery(queryStr, searchType string, useJieba bool) query.Query {
 		tagQ.SetBoost(1.8)
 		return bleve.NewDisjunctionQuery(nameQ, contentQ, tagQ)
 	}
-}
-
-// extractSearchTags returns front matter tags from a full note body using
-// util.ParseFrontmatter, or nil when there are no tags.
-func extractSearchTags(content []byte) []string {
-	fm, _ := util.ParseFrontmatter(content)
-	if len(fm.Tags) == 0 {
-		return nil
-	}
-	out := make([]string, len(fm.Tags))
-	copy(out, fm.Tags)
-	return out
 }
 
 func byteLocsToLines(content []byte, termLocs bleveSearch.TermLocationMap) []int {

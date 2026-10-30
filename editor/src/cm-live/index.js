@@ -5,6 +5,7 @@ import { GFM } from '@lezer/markdown';
 import { codeLanguages } from './code-languages.js';
 import { syntaxHighlighting } from '@codemirror/language';
 import { wikiSyntax } from './wiki-syntax.js';
+import { tagSyntax } from './tag-syntax.js';
 import { frontmatterSyntax } from './frontmatter-syntax.js';
 import { livePreviewPlugin, skipHairlines } from './live-preview.js';
 import { tableCaret } from './table-caret.js';
@@ -43,7 +44,7 @@ export { agentWritingExtension, planAgentInsert, planAgentRewrite, readAgentDoc,
 // scratch.
 // codeLanguages nests a matching grammar inside fenced code so codeHighlightStyle can color it.
 export function wikiMarkdownLanguage() {
-  return markdown({ extensions: [GFM, wikiSyntax, frontmatterSyntax], codeLanguages });
+  return markdown({ extensions: [GFM, wikiSyntax, tagSyntax, frontmatterSyntax], codeLanguages });
 }
 
 /**

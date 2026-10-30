@@ -10,7 +10,7 @@
 
 import { Readability } from "@mozilla/readability";
 import { captureCanvasDataUrls, prepareDocument } from "./pre-readability";
-import { turndown } from "./turndown";
+import { escapeTags, turndown } from "./turndown";
 import { convertRemainingHtmlTables } from "./post-markdown";
 import { appendOgFrontMatter, extractOgPreview } from "./og";
 
@@ -96,7 +96,7 @@ export function clipPageToMarkdown(doc: Document, locationHref: string): ClipRes
     fm.push(`author: ${yamlDoubleQuoted(article.byline.trim())}`);
   }
   appendOgFrontMatter(fm, og, yamlDoubleQuoted);
-  fm.push("---", "", `# ${title}`, "", body);
+  fm.push("---", "", `# ${escapeTags(title)}`, "", body);
   const markdown = fm.join("\n");
 
   return { title, url: base, markdown };

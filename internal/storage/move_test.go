@@ -110,7 +110,7 @@ func TestMoveNoteRewritesKnowledgeSourceRef(t *testing.T) {
 	if err := v.WriteNote(knowledge, []byte(kBody), ""); err != nil {
 		t.Fatal(err)
 	}
-	if err := v.MarkNoteAsKnowledge(knowledge, "", 0, nil); err != nil {
+	if err := v.MarkNoteAsKnowledge(knowledge, "", 0); err != nil {
 		t.Fatal(err)
 	}
 	if err := v.SetKnowledgeDeps(knowledge, []Path{raw}); err != nil {
@@ -151,7 +151,7 @@ func TestMoveNoteRewritesIndexKnowledgeRef(t *testing.T) {
 	if err := v.WriteNote(knowledge, []byte("---\nkind: knowledge\n---\n\nbody\n"), ""); err != nil {
 		t.Fatal(err)
 	}
-	if err := v.MarkNoteAsKnowledge(knowledge, "", 0, nil); err != nil {
+	if err := v.MarkNoteAsKnowledge(knowledge, "", 0); err != nil {
 		t.Fatal(err)
 	}
 	idxBody := "---\nkind: index\n---\n\n" +
@@ -200,7 +200,7 @@ func TestMoveNoteLeavesWikilinksAlone(t *testing.T) {
 		if err := v.WriteNote(p, []byte("body"), ""); err != nil {
 			t.Fatal(err)
 		}
-		if err := v.MarkNoteAsKnowledge(p, "", 0, nil); err != nil {
+		if err := v.MarkNoteAsKnowledge(p, "", 0); err != nil {
 			t.Fatal(err)
 		}
 	}

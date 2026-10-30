@@ -321,6 +321,52 @@ function homeCtrl() {
     // Switching tag from the filtered list's picker skips the tag wall.
     selectTag(tag) { this.go('/home/section?type=tags&tag=' + encodeURIComponent(tag)); },
 
+    tagMenu(btn, tag, e) {
+      var self = this;
+      __hyloCardMenu.toggle(btn, [
+        { icon: 'pencil', label: 'Rename', run: function() { void self.renameTag(tag); } },
+        'divider',
+        { icon: 'trash', label: 'Delete', danger: true, run: function() { void self.deleteTag(tag); } },
+      ], e);
+    },
+
+    async renameTag(tag) {
+      var to = await window.showConfirm({
+        title: 'Rename tag',
+        message: 'Every note with #' + tag + ' is rewritten. Renaming to a tag that already exists merges the two.',
+        input: { value: tag, placeholder: 'New tag' },
+        confirmLabel: 'Rename', danger: false,
+      });
+      if (!to || to.replace(/^#+/, '') === tag) return;
+      var resp = await this._rewriteTag('rename', { tag: tag, to: to });
+      if (resp) this._afterTagRewrite(resp.to);
+    },
+
+    async deleteTag(tag) {
+      var ok = await window.showConfirm({
+        titleHTML: '<span class="confirm-title-icon">' + hyloIcon('trash', 'width="13" height="13"') + '</span>Delete tag',
+        message: '#' + tag + ' is removed from every note. Inline tags keep their word, without the #. This can\'t be undone.',
+        confirmLabel: 'Delete', danger: true,
+      });
+      if (!ok) return;
+      if (await this._rewriteTag('delete', { tag: tag })) this._afterTagRewrite('');
+    },
+
+    async _rewriteTag(op, body) {
+      var resp = await fetch('/api/tag/' + op, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      if (!resp.ok) {
+        if (window.showError) window.showError((await resp.text()).trim() || 'Request failed', op === 'rename' ? 'Could not rename tag' : 'Could not delete tag');
+        return null;
+      }
+      return resp.json();
+    },
+
+    // Every parked list may show the old tag; the server is current on return.
+    _afterTagRewrite(tag) {
+      __hyloSectionCacheInvalidate();
+      this.go('/home/section?type=tags' + (tag ? '&tag=' + encodeURIComponent(tag) : ''));
+    },
+
     go(url) {
       // A maximized editor would cover the section the user just asked for.
       this.revealListPane();

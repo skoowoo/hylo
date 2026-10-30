@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/hardhacker/hylo/internal/client"
 	"github.com/hardhacker/hylo/internal/notes"
 	"github.com/spf13/cobra"
 )
@@ -15,12 +16,13 @@ func newTagCmd() *cobra.Command {
 		listTable   bool
 		countTable  bool
 		deleteTable bool
+		renameTable bool
 	)
 
 	cmd := &cobra.Command{
 		Use:   "tag",
-		Short: "List tags, count tag usage, or delete by tag",
-		Long:  `List tag usage across notes, count how many notes use a tag, or remove notes from the index by tag. To search notes by tag, use: hylo search <query> --field tag`,
+		Short: "List, count, rename or delete tags",
+		Long:  `List tag usage across notes, count how many notes use a tag, or rename or delete a tag in every note. To search notes by tag, use: hylo search <query> --field tag`,
 
 		SilenceUsage: true,
 	}
@@ -56,8 +58,8 @@ If you have many different tags, raise --limit to include more of them (0 uses t
 
 	deleteCmd := &cobra.Command{
 		Use:          "delete <tag>",
-		Short:        "Remove all notes with this tag from the search index",
-		Long:         `Searches the index for notes that have the given tag and removes them from the search index. The note files on disk are not affected.`,
+		Short:        "Delete a tag from every note",
+		Long:         `Rewrites every note that has the tag: it is dropped from front matter tags, and an inline #tag keeps its word without the '#'. There is no undo.`,
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -66,7 +68,19 @@ If you have many different tags, raise --limit to include more of them (0 uses t
 	}
 	deleteCmd.Flags().BoolVarP(&deleteTable, "table", "t", false, "output in table format")
 
-	cmd.AddCommand(listCmd, countCmd, deleteCmd)
+	renameCmd := &cobra.Command{
+		Use:          "rename <tag> <new-tag>",
+		Short:        "Rename a tag in every note",
+		Long:         `Rewrites every note that has the tag, in front matter and inline. A note that already has <new-tag> keeps one of them, so this also merges two tags. There is no undo.`,
+		Args:         cobra.ExactArgs(2),
+		SilenceUsage: true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runTagRename(args[0], args[1], renameTable)
+		},
+	}
+	renameCmd.Flags().BoolVarP(&renameTable, "table", "t", false, "output in table format")
+
+	cmd.AddCommand(listCmd, countCmd, deleteCmd, renameCmd)
 	return cmd
 }
 
@@ -110,12 +124,29 @@ func runTagDelete(tag string, table bool) error {
 	if err != nil {
 		return err
 	}
+	return printTagRewrite(resp, table)
+}
+
+func runTagRename(tag, to string, table bool) error {
+	c, err := openClient()
+	if err != nil {
+		return err
+	}
+	resp, err := c.TagRename(tag, to)
+	if err != nil {
+		return err
+	}
+	return printTagRewrite(resp, table)
+}
+
+func printTagRewrite(resp *client.TagRewriteResponse, table bool) error {
 	if table {
 		cols := []Column{
 			{Header: "TAG", MaxWidth: 80},
-			{Header: "DELETED"},
+			{Header: "TO", MaxWidth: 80},
+			{Header: "UPDATED"},
 		}
-		PrintTable(cols, [][]string{{resp.Tag, fmt.Sprintf("%d", resp.Deleted)}})
+		PrintTable(cols, [][]string{{resp.Tag, resp.To, fmt.Sprintf("%d", resp.Updated)}})
 		return nil
 	}
 	enc := json.NewEncoder(os.Stdout)

@@ -69,8 +69,9 @@ type segmentOut struct {
 }
 
 type extractTagsOut struct {
-	HasFrontMatter bool     `json:"has_front_matter"`
-	Tags           []string `json:"tags"`
+	Tags        []string `json:"tags" jsonschema:"all tags, normalized and deduplicated"`
+	Frontmatter []string `json:"frontmatter_tags" jsonschema:"tags from the front matter tags field"`
+	Inline      []string `json:"inline_tags" jsonschema:"#tags written in the body"`
 }
 
 func registerExtractTools(s *sdk.Server, c *client.Client) {
@@ -155,13 +156,13 @@ func registerExtractTools(s *sdk.Server, c *client.Client) {
 			return segmentOut{Total: total, Content: strings.Join(lines, "\n")}, nil
 		})
 
-	addTool(s, "extract_tag", "Extract tags from a note's front matter.", readOnly,
+	addTool(s, "extract_tag", "Extract a note's tags: front matter tags plus inline #tags.", readOnly,
 		func(_ context.Context, in extractReq) (extractTagsOut, error) {
 			b, err := src(in.Path)
 			if err != nil {
 				return extractTagsOut{}, err
 			}
-			hasFM, tags := notes.Tags(b)
-			return extractTagsOut{HasFrontMatter: hasFM, Tags: tags}, nil
+			t := notes.Tags(b)
+			return extractTagsOut{Tags: t.All(), Frontmatter: t.Frontmatter, Inline: t.Inline}, nil
 		})
 }

@@ -501,7 +501,7 @@ type TagStat struct {
 	Count uint64 `json:"count"`
 }
 
-// TagCount returns how many indexed notes contain the given front matter tag.
+// TagCount returns how many indexed notes carry the given tag.
 func (c *Client) TagCount(tag string) (*TagCountResponse, error) {
 	resp, err := c.postJSON(c.baseURL+"/api/tag/count", map[string]any{"tag": tag})
 	if err != nil {
@@ -545,27 +545,38 @@ func (c *Client) TagList(limit int) (*TagListResponse, error) {
 	return &out, nil
 }
 
-// TagDeleteResponse is the JSON body from POST /api/tag/delete.
-type TagDeleteResponse struct {
+// TagRewriteResponse is the JSON body from POST /api/tag/delete and /api/tag/rename.
+type TagRewriteResponse struct {
 	Tag     string   `json:"tag"`
-	Deleted int      `json:"deleted"`
+	To      string   `json:"to,omitempty"`
+	Updated int      `json:"updated"`
 	Paths   []string `json:"paths"`
 }
 
-// TagDelete removes all indexed notes that carry the given tag from the search index.
-func (c *Client) TagDelete(tag string) (*TagDeleteResponse, error) {
-	resp, err := c.postJSON(c.baseURL+"/api/tag/delete", map[string]any{"tag": tag})
+// TagDelete removes the tag from every note: front matter items are dropped,
+// inline #tags become plain words.
+func (c *Client) TagDelete(tag string) (*TagRewriteResponse, error) {
+	return c.tagRewrite("delete", map[string]any{"tag": tag})
+}
+
+// TagRename renames the tag in every note, merging it into `to` where both exist.
+func (c *Client) TagRename(tag, to string) (*TagRewriteResponse, error) {
+	return c.tagRewrite("rename", map[string]any{"tag": tag, "to": to})
+}
+
+func (c *Client) tagRewrite(op string, body map[string]any) (*TagRewriteResponse, error) {
+	resp, err := c.postJSON(c.baseURL+"/api/tag/"+op, body)
 	if err != nil {
 		return nil, wrapConnErr(err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		raw, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("tag delete: %s", statusMsg(resp.StatusCode, raw))
+		return nil, fmt.Errorf("tag %s: %s", op, statusMsg(resp.StatusCode, raw))
 	}
-	var out TagDeleteResponse
+	var out TagRewriteResponse
 	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
-		return nil, fmt.Errorf("tag delete: decode response: %w", err)
+		return nil, fmt.Errorf("tag %s: decode response: %w", op, err)
 	}
 	if out.Paths == nil {
 		out.Paths = []string{}

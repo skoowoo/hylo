@@ -1,5 +1,5 @@
-// "[[" note-name completion. The lookup is injected by the host, which owns the
-// vault API; this file only knows the syntax.
+// "[[" note-name and "#" tag completion. The lookups are injected by the host,
+// which owns the vault API; this file only knows the syntax.
 import { autocompletion } from '@codemirror/autocomplete';
 import { EditorView } from '@codemirror/view';
 import { resolveAncestor, nameIs } from './tree-utils.js';
@@ -50,6 +50,29 @@ function source(search) {
   };
 }
 
+// At least one character after '#', so typing a "# " heading never opens it.
+const TAG_OPEN_RE = /(?:^|\s)#[\p{L}\p{N}\p{M}_\-/]+$/u;
+
+function tagSource(search) {
+  return async (ctx) => {
+    const m = ctx.matchBefore(TAG_OPEN_RE);
+    if (!m) return null;
+    if (resolveAncestor(ctx.state, ctx.pos, nameIs(['InlineCode', 'FencedCode', 'CodeBlock', 'Frontmatter']), -1)) return null;
+    let items;
+    try {
+      items = await search();
+    } catch {
+      return null;
+    }
+    if (ctx.aborted || !items || !items.length) return null;
+    return {
+      from: m.from + m.text.indexOf('#') + 1,
+      validFor: /^[\p{L}\p{N}\p{M}_\-/]*$/u,
+      options: items.map((it) => ({ label: it.label, detail: it.detail })),
+    };
+  };
+}
+
 const completionTheme = EditorView.theme({
   '.cm-tooltip.cm-tooltip-autocomplete': {
     padding: '0.25rem',
@@ -77,7 +100,11 @@ const completionTheme = EditorView.theme({
 /**
  * @param {(query: string, signal: AbortSignal) => Promise<Array<{label: string, value?: string, detail?: string}>>} search
  *   `value` is what goes between the brackets; defaults to `label`.
+ * @param {() => Promise<Array<{label: string, detail?: string}>>} [searchTags]
+ *   Every tag in the vault; filtered here against what follows the '#'.
  */
-export function wikiLinkCompletion(search) {
-  return [autocompletion({ override: [source(search)], icons: false }), completionTheme];
+export function wikiLinkCompletion(search, searchTags) {
+  const sources = [source(search)];
+  if (searchTags) sources.push(tagSource(searchTags));
+  return [autocompletion({ override: sources, icons: false }), completionTheme];
 }

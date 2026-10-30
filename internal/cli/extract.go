@@ -106,7 +106,7 @@ Use --head N, --tail N, or --start/--end for a specific line range (1-based, inc
 
 	tagCmd := &cobra.Command{
 		Use:   "tag <path-or-name>",
-		Short: "Print tags from a note's front matter",
+		Short: "Print a note's tags (front matter and inline #tags)",
 		Example: `  hylo extract tag /notes/article.md
   hylo extract tag article.md`,
 		Args:         cobra.ExactArgs(1),
@@ -227,13 +227,9 @@ func runLinks(pathOrName string) error {
 
 func runExtractTags(pathOrName string) error {
 	return withSource(pathOrName, func(source []byte) error {
-		hasFM, tags := notes.Tags(source)
-		if !hasFM {
-			fmt.Println("(no YAML front matter found)")
-			return nil
-		}
+		tags := notes.Tags(source).All()
 		if len(tags) == 0 {
-			fmt.Println("(no tags in front matter)")
+			fmt.Println("(no tags)")
 			return nil
 		}
 		for _, t := range tags {

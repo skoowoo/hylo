@@ -117,12 +117,12 @@ func (g *Vault) Root() string { return g.root }
 
 // ── compile plugin hooks ──────────────────────────────────────────────────────
 
-// MarkNoteAsKnowledge sets kind = 'knowledge', compile_count, and tags on the note.
+// MarkNoteAsKnowledge sets kind = 'knowledge' and compile_count on the note.
 // title is optional; pass an empty string to leave the existing title unchanged.
-func (g *Vault) MarkNoteAsKnowledge(p Path, title string, compileCount int, tags []string) error {
+func (g *Vault) MarkNoteAsKnowledge(p Path, title string, compileCount int) error {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	return dbSetKindKnowledge(g.db, p, title, compileCount, tags)
+	return dbSetKindKnowledge(g.db, p, title, compileCount)
 }
 
 // MarkNoteCompiled sets compile_count = 1 on the raw note at p, marking it as
@@ -547,17 +547,22 @@ func (g *Vault) WriteNote(p Path, data []byte, kind Kind) error {
 // atomically in the same DB upsert. Use this instead of WriteNote
 // followed by separate Set* calls when the metadata is known up front.
 func (g *Vault) WriteNoteWithMeta(p Path, data []byte, meta Note) error {
+	return g.writeNote(p, data, meta, false)
+}
+
+// writeNote is WriteNoteWithMeta; final marks the write event plugin.Event.Final.
+func (g *Vault) writeNote(p Path, data []byte, meta Note, final bool) error {
 	g.mu.Lock()
 	isNew, modTime, err := g.writeNoteLocked(p, data, meta)
 	g.mu.Unlock()
 	if err != nil {
 		return err
 	}
+	typ := plugin.EventVaultWrite
 	if isNew {
-		g.emit("vault_create", p.String(), false, modTime)
-	} else {
-		g.emit("vault_write", p.String(), false, modTime)
+		typ = plugin.EventVaultCreate
 	}
+	g.emitEvent(plugin.Event{Type: typ, Path: p.String(), Time: modTime, Final: final})
 	return nil
 }
 
@@ -1262,55 +1267,7 @@ func (g *Vault) ListRecentShortNotes(limit int) ([]Note, error) {
 
 // ── vault initialisation ──────────────────────────────────────────────────────
 
-// ScanAndRegister walks the vault root recursively and upserts a metadata row
-// for every markdown file found on disk.
-// Hidden directories (any component beginning with ".") are skipped, which
-// excludes .hylo and editor temp files.
-// Returns the number of files registered (newly inserted or updated).
-func (g *Vault) ScanAndRegister() (int, error) {
-	g.mu.Lock()
-	defer g.mu.Unlock()
-
-	count := 0
-	err := filepath.WalkDir(g.root, func(path string, d os.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return nil // skip inaccessible entries
-		}
-		if d.IsDir() {
-			if strings.HasPrefix(d.Name(), ".") {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		if !util.IsMarkdownPath(d.Name()) {
-			return nil
-		}
-		rel, relErr := filepath.Rel(g.root, path)
-		if relErr != nil {
-			return nil
-		}
-		slashRel := "/" + filepath.ToSlash(rel)
-		dir, name := PathParts(slashRel)
-		info, infoErr := d.Info()
-		if infoErr != nil {
-			return nil
-		}
-		if dbErr := dbUpsert(g.db, Note{
-			Dir:       dir,
-			Name:      name,
-			Size:      info.Size(),
-			UpdatedAt: info.ModTime(),
-			Kind:      "",
-		}); dbErr != nil {
-			return fmt.Errorf("storage: register %q: %w", slashRel, dbErr)
-		}
-		count++
-		return nil
-	})
-	return count, err
-}
-
-// ScanAndRegisterFull is the init-time variant of ScanAndRegister.
+// ScanAndRegisterFull walks the vault root and registers every markdown file.
 // It always starts from a clean slate (clears the notes table) and correctly
 // distinguishes raw notes from knowledge notes:
 //
@@ -1436,25 +1393,21 @@ func (g *Vault) ScanAndRegisterFull() (int, error) {
 					n.Kind = KindKnowledge
 					n.Title = title
 					n.CompileCount = compileCount
-					n.Tags = fm.Tags
 					if len(srcNotes) > 0 {
 						depsToRecord = append(depsToRecord, kDep{
 							path:        Path(slashRel),
 							sourceNotes: srcNotes,
 						})
 					}
-					// Collect wikilink targets for K→K edge resolution after walk.
-					if wlNames := util.ExtractWikilinkNames(body); len(wlNames) > 0 {
-						linksToRecord = append(linksToRecord, kLink{
-							path:          Path(slashRel),
-							entityType:    entityType,
-							wikilinkNames: wlNames,
-						})
-					}
+					// Recorded even without wikilinks: a leaf's self-loop is where its entity_type lives.
+					linksToRecord = append(linksToRecord, kLink{
+						path:          Path(slashRel),
+						entityType:    entityType,
+						wikilinkNames: util.ExtractWikilinkNames(body),
+					})
 				case strings.EqualFold(kind, "index"):
 					n.Kind = KindIndex
 					n.Title = domain
-					n.Tags = fm.Tags
 					indexDepsToRecord = append(indexDepsToRecord, iDep{
 						path: Path(slashRel),
 						body: body,
@@ -1471,6 +1424,7 @@ func (g *Vault) ScanAndRegisterFull() (int, error) {
 		}
 
 		if readErr == nil {
+			n.Tags = util.ExtractTags(data).All()
 			n.Preview = notePreviewFromSummary(util.GeneratePreview(data, 0))
 		}
 
@@ -1576,9 +1530,7 @@ func (g *Vault) ScanAndRegisterFull() (int, error) {
 					targets = append(targets, tp)
 				}
 			}
-			if len(targets) > 0 {
-				_ = dbReplaceKnowledgeLinks(g.db, kl.path, kl.entityType, targets)
-			}
+			_ = dbReplaceKnowledgeLinks(g.db, kl.path, kl.entityType, targets)
 		}
 	}
 
@@ -1682,9 +1634,7 @@ func fileNoteMeta(meta Note, p Path, data []byte, info os.FileInfo) Note {
 	meta.Name = p.Base()
 	meta.Size = info.Size()
 	meta.UpdatedAt = info.ModTime()
-	if fm, _ := util.ParseFrontmatter(data); len(fm.Tags) > 0 {
-		meta.Tags = fm.Tags
-	}
+	meta.Tags = util.ExtractTags(data).All()
 	meta.Preview = notePreviewFromSummary(util.GeneratePreview(data, 0))
 	return meta
 }

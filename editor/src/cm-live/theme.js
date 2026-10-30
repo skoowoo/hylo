@@ -164,6 +164,16 @@ export const livePreviewTheme = EditorView.theme({
   '.cm-lp-link-editing': { cursor: 'text' },
   '.cm-lp-link-url': { color: 'var(--accent-text, #5e6ad2)', opacity: '0.7' },
   '.cm-lp-linkref': { color: 'var(--muted, #6d7080)' },
+  // Clicked like a link (link-click.js); the '#' stays, as in Obsidian.
+  '.cm-lp-tag': {
+    color: 'var(--accent-text, #5e6ad2)',
+    background: 'var(--tint-soft, rgba(94,106,210,0.06))',
+    borderRadius: 'var(--r-sm, 6px)',
+    padding: '0.1em 0.3em',
+    cursor: 'pointer',
+  },
+  '.cm-lp-tag:not(.cm-lp-tag-editing):hover': { color: 'var(--accent-hov, #4c56c8)' },
+  '.cm-lp-tag-editing': { cursor: 'text' },
 
   // ── Source shown as-is: HTML, comments, indented code.
   '.cm-lp-html': {

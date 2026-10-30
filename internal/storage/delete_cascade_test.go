@@ -17,7 +17,7 @@ func TestDeleteNoteCascadesRelations(t *testing.T) {
 			t.Fatalf("write %s: %v", p, err)
 		}
 	}
-	if err := v.MarkNoteAsKnowledge(knowledge, "", 0, nil); err != nil {
+	if err := v.MarkNoteAsKnowledge(knowledge, "", 0); err != nil {
 		t.Fatal(err)
 	}
 	if err := v.MarkNoteAsIndex(index, ""); err != nil {
@@ -105,10 +105,10 @@ func TestDeleteNoteKeepsCompileCountWhileOtherDependentsRemain(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if err := v.MarkNoteAsKnowledge(k1, "", 0, nil); err != nil {
+	if err := v.MarkNoteAsKnowledge(k1, "", 0); err != nil {
 		t.Fatal(err)
 	}
-	if err := v.MarkNoteAsKnowledge(k2, "", 0, nil); err != nil {
+	if err := v.MarkNoteAsKnowledge(k2, "", 0); err != nil {
 		t.Fatal(err)
 	}
 	if err := v.MarkNoteCompiled(raw); err != nil {
@@ -157,7 +157,7 @@ func TestDeleteNoteCascadesKnowledgeLinks(t *testing.T) {
 		if err := v.WriteNote(p, []byte("body"), ""); err != nil {
 			t.Fatal(err)
 		}
-		if err := v.MarkNoteAsKnowledge(p, "", 0, nil); err != nil {
+		if err := v.MarkNoteAsKnowledge(p, "", 0); err != nil {
 			t.Fatal(err)
 		}
 	}

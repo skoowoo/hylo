@@ -17,9 +17,9 @@ import (
 )
 
 // Commands deliberately not MCP tools: they manage the local install, or, like tag_delete
-// (which de-indexes notes rather than deleting a tag), would mislead an agent.
+// and tag_rename (which rewrite every note with the tag), are the user's call alone.
 var notMCPTools = map[string]bool{
-	"init": true, "start_server": true, "auth_show": true, "auth_rotate": true, "tag_delete": true,
+	"init": true, "start_server": true, "auth_show": true, "auth_rotate": true, "tag_delete": true, "tag_rename": true,
 }
 
 // Flags that exist only on the CLI because of how it prints or reads input. Keyed by tool; "*" applies to all.

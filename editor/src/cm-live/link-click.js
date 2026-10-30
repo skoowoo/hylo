@@ -5,7 +5,7 @@
 //   1. Drag: travel >= CLICK_DRAG_THRESHOLD → don't open (not "selection empty"
 //      — hand tremor alone can make a 1-char selection).
 //   2. Already editing: caretTouchesRange on pre-click selection → don't open.
-//   3. Hit test is the rendered link text itself (.cm-lp-link), so the first and
+//   3. Hit test is the rendered text itself (.cm-lp-link, .cm-lp-tag), so the first and
 //      last characters are as clickable as the middle.
 //   4. mouseup: raw capture-phase — CM6 MouseSelection preventDefault races domEventHandlers.
 //   5. A link clicked open keeps its rendered form until the caret moves on
@@ -15,6 +15,7 @@ import { syntaxTree, ensureSyntaxTree } from '@codemirror/language';
 import { caretTouchesRange } from './selection.js';
 import { setSuppressedLinkReveal, suppressedLinkRevealField } from './link-reveal-suppression.js';
 import { linkTarget } from './link-refs.js';
+import { tagKey } from './tag-syntax.js';
 
 // Bare GFM autolinks lack a scheme; window.open needs an absolute URL.
 function normalizeAutolinkUrl(raw) {
@@ -31,7 +32,9 @@ function linkNodeAt(view, pos) {
     from: pos,
     to: pos,
     enter(node) {
-      if (node.name === 'Link') {
+      if (node.name === 'HashTag') {
+        result = { tag: tagKey(view.state.doc.sliceString(node.from, node.to)), from: node.from, to: node.to };
+      } else if (node.name === 'Link') {
         const target = linkTarget(view.state, node.node);
         if (target) result = { ...target, from: node.from, to: node.to };
       } else if (node.name === 'Autolink') {
@@ -105,7 +108,8 @@ function openExternal(url) {
 // Matches CM6 MouseSelection "not yet a drag"; ignores hand-tremor jitter.
 const CLICK_DRAG_THRESHOLD = 10;
 
-export function linkClickHandler() {
+// onTagClick(tag) receives the normalized tag of a clicked #tag.
+export function linkClickHandler({ onTagClick } = {}) {
   let pending = null;
 
   const mouseupPlugin = ViewPlugin.fromClass(
@@ -131,7 +135,9 @@ export function linkClickHandler() {
             if (!this.view.state.selection.main.empty) {
               this.view.dispatch({ selection: { anchor: this.view.state.selection.main.head }, userEvent: 'select.pointer' });
             }
-            if (p.kind === 'anchor') {
+            if (p.kind === 'tag') {
+              if (onTagClick) onTagClick(p.tag);
+            } else if (p.kind === 'anchor') {
               jumpToHeading(this.view, p.target);
             } else {
               openExternal(p.url);
@@ -151,12 +157,16 @@ export function linkClickHandler() {
       pending = null;
       if (e.button !== 0) return false;
 
-      const hit = e.target.closest && e.target.closest('.cm-lp-link');
-      if (!hit || hit.classList.contains('cm-lp-link-editing')) return false;
+      const hit = e.target.closest && e.target.closest('.cm-lp-link, .cm-lp-tag');
+      if (!hit || hit.classList.contains('cm-lp-link-editing') || hit.classList.contains('cm-lp-tag-editing')) return false;
       const node = linkNodeAt(view, view.posAtDOM(hit));
       if (!node) return false;
       // Already editing raw markdown — leave alone.
       if (caretTouchesRange(view.state, node.from, node.to)) return false;
+      if (node.tag) {
+        pending = { kind: 'tag', tag: node.tag, startX: e.clientX, startY: e.clientY };
+        return false;
+      }
       pending = node.url.startsWith('#')
         ? { kind: 'anchor', target: node.url.slice(1), startX: e.clientX, startY: e.clientY }
         : { kind: 'url', url: node.url, startX: e.clientX, startY: e.clientY };

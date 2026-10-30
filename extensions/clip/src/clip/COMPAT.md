@@ -63,6 +63,16 @@ inside `<td>`/`<th>` produce newlines that break the row.
 
 ---
 
+### [All sites] Page hashtags — `escapeTags`
+
+**Problem:** Hylo reads Obsidian-style `#tag` in a note body as a vault tag, so a clipped
+page's own hashtags (tweets, blog tag lines) would flood the tag list.
+
+**Fix:** Turndown's `escape` (text outside code only) and the `# Title` line write `\#tag`,
+which renders as `#tag` but isn't one. `C#`, `#42` and code are left alone.
+
+---
+
 ### [All sites] Link text normalisation — `links`
 
 **Problem:** Some sites (e.g. GitHub) wrap link text across multiple DOM nodes with newlines,

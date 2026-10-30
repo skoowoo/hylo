@@ -81,6 +81,10 @@ type Event struct {
 
 	// Pinned is the note's new pinned state on an EventVaultPin.
 	Pinned bool
+
+	// Final marks a one-shot write outside any edit session (a vault-wide
+	// tag rewrite): the search index takes it before the write returns.
+	Final bool
 }
 
 // Plugin is the interface every Hylo plugin must implement.

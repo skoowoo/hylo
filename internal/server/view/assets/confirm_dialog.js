@@ -9,6 +9,9 @@
       threeButton: false,
       altLabel: '',
       altDanger: true,
+      hasInput: false,
+      inputValue: '',
+      inputPlaceholder: '',
       _resolve: null,
 
       init() { window._confirmDialogCtrl = this; },
@@ -22,6 +25,10 @@
         this.altLabel      = opts.altLabel      || '';
         this.threeButton   = !!this.altLabel;
         this.altDanger     = opts.altDanger !== false;
+        // opts.input {value, placeholder}: confirm resolves with the trimmed text.
+        this.hasInput         = !!opts.input;
+        this.inputValue       = this.hasInput ? (opts.input.value || '') : '';
+        this.inputPlaceholder = this.hasInput ? (opts.input.placeholder || '') : '';
         if (this.threeButton) {
           this.danger = opts.danger === true;
         } else {
@@ -29,6 +36,7 @@
         }
         var _self = this;
         this.openOverlay(function() { _self.cancel(); });
+        if (this.hasInput) this.$nextTick(function() { _self.$refs.input.focus(); _self.$refs.input.select(); });
         return new Promise(function(resolve) {
           window._confirmDialogCtrl._resolve = resolve;
         });
@@ -37,7 +45,7 @@
       confirm() {
         this.closeOverlay();
         if (this._resolve) {
-          this._resolve(this.threeButton ? 'confirm' : true);
+          this._resolve(this.hasInput ? this.inputValue.trim() : this.threeButton ? 'confirm' : true);
           this._resolve = null;
         }
       },
