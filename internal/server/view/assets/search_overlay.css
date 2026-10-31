@@ -15,7 +15,9 @@
     }
     .srch-row   { height: 48px; border-radius: 0; }
     .srch-icon  { color: var(--srch-ic); transition: color var(--motion-fast); }
+    /* A bare field: the global 8px radius would clip the caret at its edge. */
     .srch-input {
+      border-radius: 0;
       color: var(--fg);
       caret-color: var(--accent);
       font-size: var(--text-md);
