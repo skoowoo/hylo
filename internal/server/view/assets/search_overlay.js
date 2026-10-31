@@ -1,72 +1,57 @@
+  // Rows render from `results` keyed by path, so a keystroke only moves, adds
+  // or drops rows and the selection is plain state, never a DOM rescan.
+  var SEARCH_DELAY = 80;
+  // Long enough for held arrow keys to skip the rows they pass over.
+  var PREVIEW_DELAY = 70;
+
+  var SEARCH_MODES = [
+    { key: 'all',       label: 'All',       desc: 'Search everywhere',              field: '',        kind: '',          placeholder: 'Search notes…' },
+    { key: 'name',      label: 'Name',      desc: 'Search by filename',             field: 'name',    kind: '',          placeholder: 'Search by filename…' },
+    { key: 'content',   label: 'Content',   desc: 'Search in file content',         field: 'content', kind: '',          placeholder: 'Search in content…' },
+    { key: 'tag',       label: 'Tag',       desc: 'Search by tag',                  field: 'tag',     kind: '',          placeholder: 'Search by tag…' },
+    { key: 'knowledge', label: 'Knowledge', desc: 'Knowledge notes only',           field: '',        kind: 'knowledge', placeholder: 'Search knowledge notes…' },
+    { key: 'short',     label: 'Short',     desc: 'Short notes only',               field: '',        kind: 'short',     placeholder: 'Search short notes…' },
+    { key: 'raw',       label: 'Raw',       desc: 'Raw notes only',                 field: '',        kind: 'raw',       placeholder: 'Search raw notes…' },
+    { key: 'index',     label: 'Index',     desc: 'Index notes only',               field: '',        kind: 'index',     placeholder: 'Search index notes…' },
+  ];
+
   function searchOverlay() {
     return {
       show: false,
-      hasQuery: false,
-      activeIdx: -1,
-      _previewCtrl: null,
-      isMac: /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent),
-      modes: [
-        { key: 'all',       label: 'All',       desc: 'Search everywhere',              field: '',        kind: '',          placeholder: 'Search notes…' },
-        { key: 'name',      label: 'Name',      desc: 'Search by filename',             field: 'name',    kind: '',          placeholder: 'Search by filename…' },
-        { key: 'content',   label: 'Content',   desc: 'Search in file content',         field: 'content', kind: '',          placeholder: 'Search in content…' },
-        { key: 'tag',       label: 'Tag',       desc: 'Search by tag',                  field: 'tag',     kind: '',          placeholder: 'Search by tag…' },
-        { key: 'knowledge', label: 'Knowledge', desc: 'Knowledge notes only',           field: '',        kind: 'knowledge', placeholder: 'Search knowledge notes…' },
-        { key: 'short',     label: 'Short',     desc: 'Short notes only',               field: '',        kind: 'short',     placeholder: 'Search short notes…' },
-        { key: 'raw',       label: 'Raw',       desc: 'Raw notes only',                 field: '',        kind: 'raw',       placeholder: 'Search raw notes…' },
-        { key: 'index',     label: 'Index',     desc: 'Index notes only',               field: '',        kind: 'index',     placeholder: 'Search index notes…' },
-      ],
-      mode: { key: 'all', label: 'All', desc: 'Search everywhere', field: '', kind: '', placeholder: 'Search notes…' },
+      query: '',
+      results: [],
+      // A response has arrived for the current query; until then the body
+      // stays closed instead of opening onto an empty list.
+      ready: false,
+      active: 0,
+      showPreview: false,
+      previewPath: '',
+      previewHtml: '',
+      _searchKey: '',
+      _searchCtrl: null,
+      _searchTimer: 0,
+      _previewTimer: 0,
+      _fragments: new Map(),
+      _pointer: null,
+      modes: SEARCH_MODES,
+      mode: SEARCH_MODES[0],
       showModes: false,
       modeIdx: 0,
+      get hasQuery() { return this.query !== ''; },
       init() {
-        this.mode = this.modes[0];
         window.__hyloHotkeys.register('toggle-search', 'k', () => {
           this.show ? this.close() : this.open();
         });
       },
-      _items() { return Array.from(document.querySelectorAll('#search-results a')); },
-      _highlight(items) {
-        items.forEach((el, i) => el.classList.toggle('is-active', i === this.activeIdx));
-        if (this.activeIdx >= 0) {
-          items[this.activeIdx].scrollIntoView({ block: 'nearest' });
-          this._loadPreview(items[this.activeIdx]);
-        }
-      },
-      _loadPreview(el) {
-        const path = el && el.dataset.previewPath;
-        if (!path) return;
-        if (this._previewCtrl) this._previewCtrl.abort();
-        this._previewCtrl = new AbortController();
-        const panel = document.getElementById('search-preview');
-        if (!panel) return;
-        panel.innerHTML = '<div class="srch-prev-spin">…</div>';
-        fetch('/notes/fragment?path=' + encodeURIComponent(path), { signal: this._previewCtrl.signal, headers: { 'HX-Request': 'true' } })
-          .then(r => r.ok ? r.text() : Promise.reject())
-          .then(html => { panel.innerHTML = '<div class="srch-preview-pane">' + html + '</div>'; })
-          .catch(() => {});
-      },
-      _clearPreview() {
-        if (this._previewCtrl) { this._previewCtrl.abort(); this._previewCtrl = null; }
-        const p = document.getElementById('search-preview');
-        if (p) p.innerHTML = '<div class="srch-prev-hint">Navigate results to preview</div>';
-      },
-      _clearQuery() {
-        if (this.$refs.input) this.$refs.input.value = '';
-        this.hasQuery = false;
-        this.activeIdx = -1;
-        this._clearPreview();
-        const sr = document.getElementById('search-results');
-        if (sr) sr.innerHTML = '';
-        if (this.$refs.input) this.$refs.input.focus();
-      },
+
       open() {
         this.show = true;
         window.__hyloSearchOpen = true;
-        this.activeIdx = -1;
+        this._pointer = null;
         if (window.__hyloEscPush) window.__hyloEscPush('search', () => {
-          if (this.showModes) { this.closeModeMenu(); }
-          else if (this.hasQuery) { this._clearQuery(); }
-          else { this.close(); }
+          if (this.showModes) this.closeModeMenu();
+          else if (this.hasQuery) this._clearQuery();
+          else this.close();
         }, this.$el);
         this.$nextTick(() => this.$refs.input && this.$refs.input.focus());
       },
@@ -81,26 +66,83 @@
         if (window.__hyloEscPop) window.__hyloEscPop('search');
         this.show = false;
         window.__hyloSearchOpen = false;
-        this.activeIdx = -1;
-        if (this._previewCtrl) { this._previewCtrl.abort(); this._previewCtrl = null; }
+        this._stopSearch();
+        clearTimeout(this._previewTimer);
+        // After the leave transition, so the panel doesn't empty as it fades.
         setTimeout(() => {
           if (this.show) return;
-          this.hasQuery = false;
+          if (this.$refs.input) this.$refs.input.value = '';
+          this.query = '';
+          this._dropResults();
           this.showModes = false;
+          this.showPreview = false;
           this.mode = this.modes[0];
-          if (this.$refs.input) {
-            this.$refs.input.value = '';
-            const sr = document.getElementById('search-results');
-            if (sr) sr.innerHTML = '';
-          }
-          const p = document.getElementById('search-preview');
-          if (p) p.innerHTML = '<div class="srch-prev-hint">Navigate results to preview</div>';
+          this._fragments = new Map();
         }, 150);
       },
+
+      // ── Query ──────────────────────────────────────────
+      onInput(e) {
+        // Pinyin keystrokes aren't the query; compositionend delivers it.
+        if (e.isComposing) return;
+        this.onQuery(e.target);
+      },
+      onQuery(input) {
+        if (input.value === '/' && !this.hasQuery) {
+          input.value = '';
+          this.openModeMenu();
+          return;
+        }
+        this.query = input.value.trim();
+        if (!this.hasQuery) { this._dropResults(); return; }
+        clearTimeout(this._searchTimer);
+        this._searchTimer = setTimeout(() => this._search(), SEARCH_DELAY);
+      },
+      _search() {
+        const params = new URLSearchParams({ q: this.query, field: this.mode.field, kind: this.mode.kind });
+        const key = params.toString();
+        if (!this.hasQuery || key === this._searchKey) return;
+        this._searchKey = key;
+        if (this._searchCtrl) this._searchCtrl.abort();
+        const ctrl = this._searchCtrl = new AbortController();
+        fetch('/notes/search?' + key, { signal: ctrl.signal })
+          .then(r => r.ok ? r.json() : Promise.reject())
+          .then(items => {
+            if (ctrl !== this._searchCtrl) return;
+            this._searchCtrl = null;
+            this.results = items;
+            this.active = 0;
+            this.ready = true;
+            if (this.$refs.list) this.$refs.list.scrollTop = 0;
+            this._previewActive();
+          })
+          .catch(() => {
+            // A failed query (e.g. index still loading) must retry on the next keystroke.
+            if (ctrl === this._searchCtrl) { this._searchCtrl = null; this._searchKey = ''; }
+          });
+      },
+      _stopSearch() {
+        clearTimeout(this._searchTimer);
+        if (this._searchCtrl) { this._searchCtrl.abort(); this._searchCtrl = null; this._searchKey = ''; }
+      },
+      _dropResults() {
+        this._stopSearch();
+        this._searchKey = '';
+        this.results = [];
+        this.ready = false;
+        this.active = 0;
+        this._dropPreview();
+      },
+      _clearQuery() {
+        if (this.$refs.input) { this.$refs.input.value = ''; this.$refs.input.focus(); }
+        this.query = '';
+        this._dropResults();
+      },
+
+      // ── Modes ──────────────────────────────────────────
       openModeMenu() {
         this.showModes = true;
-        this.modeIdx = this.modes.findIndex(m => m.key === this.mode.key);
-        if (this.modeIdx < 0) this.modeIdx = 0;
+        this.modeIdx = Math.max(0, this.modes.findIndex(m => m.key === this.mode.key));
       },
       closeModeMenu() {
         this.showModes = false;
@@ -108,20 +150,11 @@
       selectMode(m) {
         this.mode = m;
         this.showModes = false;
-        this.$nextTick(() => {
-          if (this.$refs.input) this.$refs.input.focus();
-          if (this.hasQuery) htmx.trigger(this.$refs.input, 'search');
-        });
+        if (this.$refs.input) this.$refs.input.focus();
+        this._search();
       },
-      onInput(e) {
-        const val = e.target.value;
-        if (val === '/' && !this.hasQuery) {
-          e.target.value = '';
-          this.openModeMenu();
-          return;
-        }
-        this.hasQuery = val.trim().length > 0;
-      },
+
+      // ── Navigation ─────────────────────────────────────
       onInputKeydown(e) {
         if (e.isComposing || e.keyCode === 229) return;
         if (this.showModes) {
@@ -139,109 +172,107 @@
             this.closeModeMenu();
           } else if (e.key.length === 1 && !e.metaKey && !e.ctrlKey) {
             e.preventDefault();
-            const idx = this.modes.findIndex(m =>
-              m.label.toLowerCase().startsWith(e.key.toLowerCase())
-            );
+            const idx = this.modes.findIndex(m => m.label.toLowerCase().startsWith(e.key.toLowerCase()));
             if (idx >= 0) this.modeIdx = idx;
           }
           return;
         }
-        if (e.key === 'ArrowDown') { e.preventDefault(); this.moveDown(); }
-        else if (e.key === 'ArrowUp') { e.preventDefault(); this.moveUp(); }
-        else if (e.key === 'Enter') { e.preventDefault(); this.handleInputEnter(e); }
+        this._navKey(e);
       },
-      moveDown() {
-        const items = this._items();
-        if (!items.length) return;
-        this.activeIdx = Math.min(this.activeIdx + 1, items.length - 1);
-        this._highlight(items);
+      // Keeps the list driveable when focus has left the input (e.g. a click
+      // into the preview).
+      onKey(e) {
+        if (!this.show || document.activeElement === this.$refs.input) return;
+        if (this._navKey(e) && this.$refs.input) this.$refs.input.focus();
       },
-      moveUp() {
-        const items = this._items();
-        if (!items.length) return;
-        this.activeIdx = Math.max(this.activeIdx - 1, 0);
-        this._highlight(items);
+      _navKey(e) {
+        if (e.key === 'ArrowDown') this.move(1);
+        else if (e.key === 'ArrowUp') this.move(-1);
+        else if (e.key === 'Enter') this.choose(this.active);
+        else if (e.key === 'Tab') { if (this.hasQuery) this.togglePreview(); }
+        else return false;
+        e.preventDefault();
+        return true;
       },
-      confirm() {
-        if (this.activeIdx < 0) return;
-        const el = this._items()[this.activeIdx];
-        if (el) this.selectResult(el);
+      move(d) {
+        if (!this.results.length) return;
+        this.active = Math.max(0, Math.min(this.active + d, this.results.length - 1));
+        const row = this.$refs.list && this.$refs.list.querySelectorAll('.sr-row')[this.active];
+        if (row) row.scrollIntoView({ block: 'nearest' });
+        this._previewActive();
       },
-      // Same underlying action as chat's "@" mention (path_ac.js) — both
-      // just reference a note as a [[stem]] wikilink, this is only a
-      // different way to land on the note (global search vs typing inline).
-      confirmReference() {
-        if (this.activeIdx < 0) return;
-        const el = this._items()[this.activeIdx];
-        const path = el && el.dataset.previewPath;
-        if (!path) return;
-        const slash = path.lastIndexOf('/');
-        const stem = (slash === -1 ? path : path.slice(slash + 1)).replace(/\.(md|markdown)$/i, '');
-        try { navigator.clipboard.writeText('[[' + stem + ']]'); } catch(_) {}
-        window.dispatchEvent(new CustomEvent('hylo:reference-note', { detail: { stem } }));
-        this.close();
-      },
-      handleInputEnter(e) {
-        if (e.metaKey || e.ctrlKey) { this.confirmReference(); } else { this.confirm(); }
-      },
-      selectResult(el) {
-        if (!el) return;
-        if (typeof window.handleSearchResultSelection === 'function' &&
-            window.handleSearchResultSelection(el)) {
+      choose(i) {
+        const r = this.results[i];
+        if (!r) return;
+        if (typeof window.handleSearchResultSelection === 'function' && window.handleSearchResultSelection(r)) {
           this.close();
           return;
         }
-        window.location.href = el.href;
+        window.location.href = r.url;
+      },
+      // Scrolling the list under a resting pointer fires mousemove at the same
+      // coordinates; only a real move may take the selection from the keyboard.
+      _pointerMoved(e) {
+        const moved = !this._pointer || this._pointer.x !== e.clientX || this._pointer.y !== e.clientY;
+        this._pointer = { x: e.clientX, y: e.clientY };
+        return moved;
       },
       onModeHover(e) {
-        const el = e.target && e.target.closest ? e.target.closest('.srch-mode-item') : null;
+        if (!this._pointerMoved(e)) return;
+        const el = e.target.closest('.srch-mode-item');
         if (!el) return;
-        const items = Array.from(document.querySelectorAll('.srch-mode-item'));
-        const idx = items.indexOf(el);
-        if (idx >= 0 && idx !== this.modeIdx) this.modeIdx = idx;
+        const idx = Array.prototype.indexOf.call(el.parentNode.querySelectorAll('.srch-mode-item'), el);
+        if (idx >= 0) this.modeIdx = idx;
       },
       onResultHover(e) {
-        const el = e.target && e.target.closest ? e.target.closest('#search-results a') : null;
-        if (!el) return;
-        const items = this._items();
-        const idx = items.indexOf(el);
-        if (idx >= 0 && idx !== this.activeIdx) {
-          this.activeIdx = idx;
-          this._highlight(items);
-        }
+        if (!this._pointerMoved(e)) return;
+        const row = e.target.closest('.sr-row');
+        if (!row) return;
+        const i = +row.dataset.i;
+        if (i !== this.active) { this.active = i; this._previewActive(); }
       },
-      onResultClick(e) {
-        const el = e.target && e.target.closest ? e.target.closest('#search-results a') : null;
-        if (!el) return;
-        if (typeof window.handleSearchResultSelection === 'function' &&
-            window.handleSearchResultSelection(el)) {
-          e.preventDefault();
-          this.close();
-        }
+
+      // ── Preview ────────────────────────────────────────
+      // Opt-in so a plain search never fetches or renders a note.
+      togglePreview() {
+        this.showPreview = !this.showPreview;
+        if (this.showPreview) this._previewActive();
+        else this._dropPreview();
       },
-      onResultsSwap(e) {
-        if (e.detail && e.detail.ctx && e.detail.ctx.target && e.detail.ctx.target.id === 'search-results') {
-          this.activeIdx = -1;
-          this._clearPreview();
-          this.$nextTick(() => {
-            const items = this._items();
-            if (items.length) {
-              this.activeIdx = 0;
-              this._highlight(items);
-            }
-          });
-        }
+      _dropPreview() {
+        clearTimeout(this._previewTimer);
+        this.previewPath = '';
+        this.previewHtml = '';
       },
-      onKey(e) {
-        if (!this.show) return;
-        // When focus leaves the input (e.g. user scrolled the preview panel),
-        // still handle nav keys so the results list stays navigable.
-        if (document.activeElement === this.$refs.input) return;
-        const mod = this.isMac ? e.metaKey : e.ctrlKey;
-        if (e.key === 'ArrowDown')  { e.preventDefault(); this.moveDown(); }
-        else if (e.key === 'ArrowUp')   { e.preventDefault(); this.moveUp(); }
-        else if (e.key === 'Enter' && mod) { e.preventDefault(); this.confirmReference(); }
-        else if (e.key === 'Enter')     { e.preventDefault(); this.confirm(); }
-      }
+      // The shown note stays until the next one is ready, so moving never
+      // flashes an empty or loading card.
+      _previewActive() {
+        if (!this.showPreview) return;
+        clearTimeout(this._previewTimer);
+        const r = this.results[this.active];
+        if (!r) { this._dropPreview(); return; }
+        if (r.path === this.previewPath) return;
+        const path = r.path;
+        const load = () => this._fragment(path).then(html => {
+          const cur = this.results[this.active];
+          if (!this.showPreview || !cur || cur.path !== path) return;
+          this.previewPath = path;
+          this.previewHtml = html;
+          this.$nextTick(() => { if (this.$refs.preview) this.$refs.preview.scrollTop = 0; });
+        }, () => {});
+        if (this._fragments.has(path)) load();
+        else this._previewTimer = setTimeout(load, PREVIEW_DELAY);
+      },
+      // Cached per open; a note edited meanwhile shows fresh on the next open.
+      _fragment(path) {
+        let p = this._fragments.get(path);
+        if (!p) {
+          p = fetch('/notes/fragment?path=' + encodeURIComponent(path), { headers: { 'HX-Request': 'true' } })
+            .then(r => r.ok ? r.text() : Promise.reject());
+          p.catch(() => this._fragments.delete(path));
+          this._fragments.set(path, p);
+        }
+        return p;
+      },
     }
   }

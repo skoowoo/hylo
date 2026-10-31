@@ -38,6 +38,12 @@ type runner interface {
 	Run(ctx context.Context) error
 }
 
+// pusher is a link that can write to its owner unasked. WeChat can't: it only
+// answers within a day of the user's last message.
+type pusher interface {
+	OwnerChat(ctx context.Context) (chatID string, err error)
+}
+
 // Hub starts and stops one connection per binding.
 type Hub struct {
 	store  *mate.Store
@@ -69,6 +75,9 @@ type heldImages struct {
 
 type live struct {
 	fp     string
+	ch     mate.Channel
+	link   runner
+	ctx    context.Context
 	cancel context.CancelFunc
 	done   chan struct{}
 }
@@ -209,7 +218,7 @@ func (h *Hub) spawn(parent context.Context, ch mate.Channel) {
 		h.log.Warn("channels: open", "kind", ch.Kind, "mate", ch.MateID, "err", err)
 		return
 	}
-	l := &live{fp: fingerprint(ch), cancel: cancel, done: make(chan struct{})}
+	l := &live{fp: fingerprint(ch), ch: ch, link: link, ctx: ctx, cancel: cancel, done: make(chan struct{})}
 	h.mu.Lock()
 	h.running[ch.ID] = l
 	h.mu.Unlock()
@@ -231,6 +240,33 @@ func (h *Hub) spawn(parent context.Context, ch mate.Channel) {
 			h.log.Error("channels: stopped", "kind", ch.Kind, "mate", ch.MateID, "err", err)
 		}
 	}()
+}
+
+// PushWake sends a bot's wake reply to each of its live apps that can start a
+// chat. It returns at once; a link that stops cancels its send.
+func (h *Hub) PushWake(mateID, text string) {
+	if strings.TrimSpace(text) == "" {
+		return
+	}
+	h.mu.Lock()
+	var to []*live
+	for _, l := range h.running {
+		if _, ok := l.link.(pusher); ok && l.ch.MateID == mateID {
+			to = append(to, l)
+		}
+	}
+	h.mu.Unlock()
+	for _, l := range to {
+		go func() {
+			chatID, err := l.link.(pusher).OwnerChat(l.ctx)
+			if err == nil {
+				err = h.send(l.ctx, l.link, l.ch.Kind, chatID, text)
+			}
+			if err != nil && l.ctx.Err() == nil {
+				h.log.Warn("channels: push wake", "kind", l.ch.Kind, "mate", l.ch.MateID, "err", err)
+			}
+		}()
+	}
 }
 
 func (l *live) stop() {
@@ -408,18 +444,14 @@ func (h *Hub) reset(ctx context.Context, ch mate.Channel, chatID string, out out
 }
 
 func (h *Hub) send(ctx context.Context, out outbound, kind, chatID, text string) error {
-	text = unwrapCards(text)
-	formatted := strings.TrimSpace(text)
 	limit := discord.TextChunkLimit
 	switch kind {
 	case mate.ChannelTelegram:
-		formatted = plainText(text)
 		limit = telegram.TextChunkLimit
 	case mate.ChannelWechat:
-		formatted = plainText(text)
 		limit = wechat.TextChunkLimit
 	}
-	for _, seg := range splitText(formatted, limit) {
+	for _, seg := range splitText(plainText(text), limit) {
 		if strings.TrimSpace(seg) == "" {
 			continue
 		}

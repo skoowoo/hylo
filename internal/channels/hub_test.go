@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/hardhacker/hylo/internal/config"
 	"github.com/hardhacker/hylo/internal/mate"
@@ -141,5 +142,49 @@ func TestSweepKeepsOnlyBoundState(t *testing.T) {
 	}
 	if _, err := os.Stat(h.stateDir("gone")); !os.IsNotExist(err) {
 		t.Fatalf("stale state kept: %v", err)
+	}
+}
+
+type fakeLink struct {
+	chat string
+	sent chan string
+}
+
+func (f *fakeLink) SendText(_ context.Context, chatID, text string) error {
+	f.sent <- chatID + ":" + text
+	return nil
+}
+func (f *fakeLink) Typing(context.Context, string) {}
+func (f *fakeLink) Run(ctx context.Context) error  { <-ctx.Done(); return nil }
+
+type fakePushLink struct{ fakeLink }
+
+func (f *fakePushLink) OwnerChat(context.Context) (string, error) { return f.chat, nil }
+
+func TestPushWakeReachesOnlyThisBotsPushableApps(t *testing.T) {
+	h := NewHub(nil, t.TempDir(), "", nil, config.Proxy{})
+	tg := &fakePushLink{fakeLink{chat: "tg", sent: make(chan string, 4)}}
+	wx := &fakeLink{chat: "wx", sent: make(chan string, 4)}
+	other := &fakePushLink{fakeLink{chat: "other", sent: make(chan string, 4)}}
+	add := func(id, mateID, kind string, link runner) {
+		h.running[id] = &live{ch: mate.Channel{ID: id, MateID: mateID, Kind: kind}, link: link, ctx: t.Context()}
+	}
+	add("1", "a", mate.ChannelTelegram, tg)
+	add("2", "a", mate.ChannelWechat, wx)
+	add("3", "b", mate.ChannelDiscord, other)
+
+	h.PushWake("a", "Time to **review**")
+	if got := <-tg.sent; got != "tg:Time to review" {
+		t.Fatalf("telegram got %q", got)
+	}
+	h.PushWake("a", "  ")
+	select {
+	case got := <-wx.sent:
+		t.Fatalf("wechat can't push, got %q", got)
+	case got := <-other.sent:
+		t.Fatalf("another bot's app got %q", got)
+	case got := <-tg.sent:
+		t.Fatalf("blank reply pushed: %q", got)
+	case <-time.After(50 * time.Millisecond):
 	}
 }

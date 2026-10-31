@@ -21,6 +21,7 @@ var albumWait = time.Second
 
 type telegramLink struct {
 	client *telegram.Client
+	owner  string
 	log    *slog.Logger
 	on     func(chatID, userID, text string, fetch imageFetch)
 
@@ -42,7 +43,7 @@ type telegramAlbum struct {
 
 func openTelegram(ch mate.Channel, proxy config.Proxy, log *slog.Logger, on func(chatID, userID, text string, fetch imageFetch)) (runner, error) {
 	c := telegram.NewClient(ch.Token, proxy)
-	return &telegramLink{client: c, log: log, on: on, albums: map[string]*telegramAlbum{}}, nil
+	return &telegramLink{client: c, owner: ch.OwnerUserID, log: log, on: on, albums: map[string]*telegramAlbum{}}, nil
 }
 
 func (t *telegramLink) Run(ctx context.Context) error {
@@ -264,6 +265,9 @@ func (t *telegramLink) SendText(ctx context.Context, chatID, text string) error 
 	}
 	return t.client.SendMessage(ctx, id, text)
 }
+
+// OwnerChat: only private chats are read, and a private chat's id is its user's.
+func (t *telegramLink) OwnerChat(context.Context) (string, error) { return t.owner, nil }
 
 func (t *telegramLink) Typing(ctx context.Context, chatID string) {
 	id, err := strconv.ParseInt(chatID, 10, 64)

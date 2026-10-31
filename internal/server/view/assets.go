@@ -30,7 +30,7 @@ func readAssets(names ...string) string {
 func init() {
 	static.Bundle("bundle/home.css", appTokensCSS+":root{"+lineIconVar("file", "file", "")+lineIconVar("tick", "check", tickStroke)+"}\n"+readAssets(
 		"info_dialog.css", "base.css", "cselect.css", "home.css", "images.css", "graph.css", "agent_chat.css",
-		"content_pane.css", "note_frontmatter.css", "note_shared_prose.css", "shorts.css", "search_overlay.css",
+		"content_pane.css", "note_shared_prose.css", "shorts.css", "search_overlay.css",
 		"confirm_dialog.css",
 		"settings_modal.css", "settings_appearance.css", "settings_server.css", "settings_chatlink.css",
 		"settings_agentcli.css", "settings_notifications.css", "settings_shortcuts.css", "settings_agentbots.css",

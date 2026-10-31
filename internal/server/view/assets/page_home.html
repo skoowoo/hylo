@@ -20,7 +20,7 @@
   <script src="{{asset "agents/logos.js"}}"></script>
   <link rel="stylesheet" href="{{asset "bundle/home.css"}}">
 </head>
-<body x-data="homeCtrl()" @hylo:reference-note.window="referenceNote($event)" @hylo:send-note-to-agent.window="sendNoteToAgentBot($event)">
+<body x-data="homeCtrl()" @hylo:send-note-to-agent.window="sendNoteToAgentBot($event)">
   <script type="application/json" id="home-boot">{{.Boot}}</script>
 {{template "search_overlay.html" .}}
 {{template "confirm_dialog.html" .}}

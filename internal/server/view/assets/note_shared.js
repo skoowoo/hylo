@@ -1,14 +1,3 @@
-var fmIconDown = hyloIcon('chevrons-down');
-var fmIconUp   = hyloIcon('chevrons-up');
-
-window.fmToggleGrid = function(btn) {
-  var details = btn.closest('details');
-  var grid = details && details.querySelector('.fm-grid');
-  if (!grid) return;
-  var expanded = grid.classList.toggle('fm-expanded');
-  btn.innerHTML = expanded ? fmIconUp : fmIconDown;
-};
-
 (function () {
   document.addEventListener('click', function (e) {
     var a = e.target.closest ? e.target.closest('a') : null;

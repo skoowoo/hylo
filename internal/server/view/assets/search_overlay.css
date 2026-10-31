@@ -1,101 +1,75 @@
     /* ── Search UI ─────────────────────────────────────── */
+    /* No seams inside the panel: the preview is a card on a bg step, and the
+       always-focused input gets no accent ring (it would never turn off). */
     .srch-panel {
-      border-color: var(--srch-panel-bd) !important;
-      border-width: var(--bd-w);
-      background: var(--bg);
-      box-shadow: var(--shadow-md) var(--shadow-color);
-      transition: border-color var(--motion-fast) ease;
-    }
-    /* Whole palette picks up the accent border the moment anything inside
-       it has focus — the input is autofocused on open, so this reads as
-       "the panel itself is the active control", the same affordance a
-       single text-input gets elsewhere in the app. */
-    .srch-panel:focus-within {
-      border-color: var(--accent) !important;
+      overflow: hidden;
+      border-radius: var(--r-lg);
+      border: var(--bd-w) solid var(--srch-panel-bd);
+      background: var(--srch-panel-bg);
+      box-shadow: var(--shadow-lg) var(--shadow-color);
     }
     .srch-backdrop {
       background: var(--srch-backdrop);
       backdrop-filter: var(--glass-scrim-filter);
       -webkit-backdrop-filter: var(--glass-scrim-filter);
     }
-    .srch-row   { border-color: var(--srch-row-bd) !important; border-bottom-width: var(--bd-w); border-radius: 0; }
+    .srch-row   { height: 48px; border-radius: 0; }
     .srch-icon  { color: var(--srch-ic); transition: color var(--motion-fast); }
-    .srch-row:focus-within .srch-icon { color: var(--accent-text); }
     .srch-input {
       color: var(--fg);
       caret-color: var(--accent);
-      font-size: var(--text-body);
+      font-size: var(--text-md);
       font-family: var(--font-ui);
       letter-spacing: -0.006em;
     }
     .srch-input::placeholder { color: var(--srch-ph); }
-    #search-results a {
-      position: relative;
-      border: var(--bd-w) solid transparent;
-      transition: background var(--motion-fast) ease;
-    }
-    #search-results a::before {
-      display: none;
-    }
-    #search-results a.is-active {
-      background: var(--srch-av);
-    }
-    .sr-name  { color: var(--fg); font-size: var(--text-base); font-weight: 500; letter-spacing: -0.006em; }
-    .sr-dir   { color: var(--sr-dir); font-size: var(--text-xs); }
-    .sr-time  {
-      color: var(--sr-tm);
-      font-size: var(--text-xs);
-      font-family: var(--font-mono);
-      letter-spacing: 0.01em;
-      font-variant-numeric: tabular-nums;
-      min-width: 10ch;
-      text-align: right;
-      justify-self: end;
-    }
-    .sr-icon  { color: var(--sr-ic); transition: color var(--motion-fast); }
-    #search-results a.is-active .sr-name,
-    #search-results a.is-active .sr-dir,
-    #search-results a.is-active .sr-time,
-    #search-results a.is-active .sr-icon { color: var(--fg); }
-    .sr-empty {
-      color: var(--sr-em);
-      font-size: var(--text-sm);
-      font-family: var(--font-ui);
-    }
-    .srch-footer {
-      border-color: var(--line-hair) !important;
-      border-top-width: var(--bd-w);
-      border-radius: 0;
-    }
     .srch-hint {
       font-size: var(--text-xs);
       font-family: var(--font-ui);
       color: var(--muted);
       letter-spacing: 0.01em;
+      white-space: nowrap;
     }
-    #search-results::-webkit-scrollbar { display: none; }
-    /* ── Preview panel ─────────────────────────────────────── */
-    .srch-results-pane {
-      width: 300px; flex-shrink: 0;
-      border-right: var(--bd-w) solid var(--line-hair); border-radius: 0;
-      padding: 0.5rem; gap: 0;
-    }
-    .srch-preview-pane {
-      padding: 1.25rem 1.5rem 1.75rem;
-    }
-    .srch-preview-pane .frag-cover {
-      margin-bottom: 1rem;
-      padding-bottom: 0.75rem;
-      border-bottom: var(--bd-w) solid var(--line-hair);
+    .srch-hint-gap { margin-left: var(--space-xs); }
+
+    /* ── Results + preview ─────────────────────────────── */
+    .srch-body {
+      height: 432px;
+      gap: var(--space-xs);
+      padding: 0 var(--space-xs) var(--space-xs);
       border-radius: 0;
     }
-    .srch-preview-pane .frag-dir,
-    .srch-preview-pane .cover-dir {
+    .srch-results-pane { flex: 1; min-width: 0; border-radius: 0; }
+    .srch-results-pane.has-preview { flex: none; width: 280px; }
+    .srch-results-pane::-webkit-scrollbar { display: none; }
+    /* The highlight snaps: a fade trails behind held arrow keys. */
+    .sr-row {
+      height: 30px;
+      padding: 0 10px;
+      border-radius: var(--r-sm);
+    }
+    .sr-row.is-active { background: var(--srch-av); }
+    .sr-name { color: var(--fg); font-size: var(--text-base); letter-spacing: -0.006em; border-radius: 0; }
+    .sr-dir  { color: var(--srch-ph); font-size: var(--text-xs); max-width: 40%; flex-shrink: 0; border-radius: 0; }
+    .sr-icon { color: var(--sr-ic); }
+    .sr-row.is-active .sr-icon { color: var(--fg); }
+    .sr-row.is-active .sr-dir  { color: var(--sr-dir); }
+    .sr-empty {
+      color: var(--sr-em);
+      font-size: var(--text-sm);
+      font-family: var(--font-ui);
+    }
+    .srch-preview { background: var(--srch-card-bg); border-radius: var(--r-md); }
+    .srch-preview-pane { padding: 1.25rem 1.5rem 1.75rem; }
+    .srch-preview-pane .frag-cover { margin-bottom: 1.125rem; }
+    .srch-preview-pane .frag-dir {
+      display: flex; gap: 0.375rem; min-width: 0;
       font-size: var(--text-xs);
-      font-weight: 500;
       color: var(--sr-dir);
       margin: 0 0 0.3rem;
     }
+    .srch-preview-pane .frag-dir > * + *::before { content: '·'; margin-right: 0.375rem; }
+    .srch-preview-pane .frag-time { font-variant-numeric: tabular-nums; white-space: nowrap; }
     .srch-preview-pane .frag-title {
       font-family: inherit;
       font-size: var(--text-title-lg);
@@ -105,17 +79,13 @@
       color: var(--fg);
       margin: 0;
     }
-    .srch-preview-pane .frag-fm-wrap { display: none; }
     .srch-preview-pane .prose { font-size: var(--text-sm); }
-    .srch-prev-hint {
-      display: flex; height: 100%;
-      align-items: center; justify-content: center;
-      color: var(--muted-soft); font-size: var(--text-sm);
+    .srch-preview-pane .frag-more {
+      margin: 1.25rem 0 0;
+      color: var(--muted-soft);
+      font-size: var(--text-xs);
     }
-    .srch-prev-spin {
-      padding: 1.25rem 1.5rem;
-      color: var(--muted); font-size: var(--text-sm);
-    }
+
     /* ── Mode system ─────────────────────────────────────── */
     .srch-icon-area {
       cursor: pointer;
@@ -125,8 +95,7 @@
     }
     .srch-icon-area:hover { background: var(--icon-hov); }
     /* Icon + chip share the accent tint while a mode filter is active, so
-       they read as one "this search is filtered" signal instead of two
-       independently-colored pieces. */
+       they read as one "this search is filtered" signal. */
     .srch-icon-area.has-mode .srch-icon { color: var(--accent-text); }
     .srch-mode-chip {
       font-size: var(--text-2xs);
@@ -145,24 +114,23 @@
       font-weight: 400;
       opacity: 0.6;
     }
-    .srch-mode-menu { border-color: var(--line-hair) !important; border-bottom-width: var(--bd-w); border-radius: 0; }
+    .srch-mode-menu { padding: 0 var(--space-xs) var(--space-xs); border-radius: 0; }
     .srch-mode-item {
+      height: 30px;
       color: var(--fg);
       font-family: var(--font-ui);
-      transition: background var(--motion-fast) ease;
     }
-    .srch-mode-item.is-active { background: var(--control-active-bg); color: var(--control-active-fg); }
-    .srch-mode-name { font-size: var(--text-sm); font-weight: 500; min-width: 5rem; }
-    .srch-mode-desc { font-size: var(--text-xs); color: var(--muted); }
-    .srch-mode-footer { border-color: var(--line-hair) !important; border-top-width: var(--bd-w); border-radius: 0; }
-    .srch-hint-sep { color: var(--muted); opacity: 0.4; }
+    .srch-mode-item.is-active { background: var(--srch-av); color: var(--control-active-fg); }
+    .srch-mode-name  { font-size: var(--text-base); min-width: 5rem; }
+    .srch-mode-desc  { font-size: var(--text-xs); color: var(--muted); }
+    .srch-mode-check { color: var(--accent-text); font-size: var(--text-xs); }
 
     /* Placed on whole pixels: at a half pixel its open transition ends with a
-       one-pixel jump. */
+       one-pixel jump. Top centres the full (48 + 432px) panel. */
     .srch-wrap {
-      --srch-w: min(860px, 100vw - 2rem);
+      --srch-w: min(720px, 100vw - 2rem);
       position: absolute;
       left: round(down, (100vw - var(--srch-w)) / 2, 1px);
-      top: round(down, 50vh - 284px, 1px);
+      top: round(down, 50vh - 240px, 1px);
       width: var(--srch-w);
     }

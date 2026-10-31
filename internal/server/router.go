@@ -55,13 +55,17 @@ func newRouter(
 	}
 
 	// Triggers wake bots in their chats. A wake that ends with something for
-	// the user goes out on the live feed, to pages and the desktop notifier.
+	// the user goes out on the live feed, to pages and the desktop notifier,
+	// and to the bot's apps that can start a chat.
 	if mateRunner != nil {
 		ah.SetMateRunner(mateRunner)
 		mateRunner.SetWakeFunc(ah.Wake)
 	}
 	ah.SetWakeEnd(func(e handler.WakeEnd) {
 		feed.Publish(live.Change{Topic: live.TopicChat, Op: "wake", Data: e})
+		if channelHub != nil && e.Status == "succeeded" && !e.Silent && !e.Retry {
+			channelHub.PushWake(e.MateID, e.Text)
+		}
 	})
 
 	mux.Handle("GET /api/live", feed)
@@ -134,7 +138,7 @@ func newRouter(
 	mux.Handle("/mcp", hylomcp.NewHandler(client.NewInProcess(mux), hylomcp.WithEditorBus(editorBus)))
 
 	// Website routes
-	mux.HandleFunc("GET /notes/search", vh.SearchFragment)
+	mux.HandleFunc("GET /notes/search", vh.SearchResults)
 	mux.HandleFunc("GET /home", vh.Home)
 	mux.HandleFunc("GET /dev/icons", vh.IconSpecimen)
 	mux.HandleFunc("GET /home/refresh", vh.HomeRefresh)

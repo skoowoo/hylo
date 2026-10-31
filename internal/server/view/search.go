@@ -1,6 +1,7 @@
 package view
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -12,33 +13,29 @@ import (
 	"github.com/hardhacker/hylo/internal/storage"
 )
 
-// searchResultItem is passed to the search fragment template.
+// searchResultItem is one row of the search overlay's list.
 type searchResultItem struct {
-	Name        string
-	Dir         string
-	DirLabel    string // first path segment of Dir for display (empty for vault root)
-	UpdatedAt   string
-	URL         string
-	PreviewPath string
-	IsKnowledge bool
-	IsIndex     bool
-	CanCompile  bool
+	Name        string `json:"name"`
+	DirLabel    string `json:"dirLabel"` // first path segment of the dir ("/" for vault root)
+	URL         string `json:"url"`
+	Path        string `json:"path"`
+	IsKnowledge bool   `json:"isKnowledge"`
+	IsIndex     bool   `json:"isIndex"`
+	CanCompile  bool   `json:"canCompile"`
 }
 
-// SearchFragment handles GET /notes/search?q=…&field=… and returns an HTML
-// fragment with search results for HTMX to swap into the dropdown list.
-// field may be "name", "content", "tag", or "" (search all, default).
-func (vh *ViewHandler) SearchFragment(w http.ResponseWriter, r *http.Request) {
+// SearchResults handles GET /notes/search?q=…&field=…&kind=… and returns the
+// matches as JSON; the overlay renders them keyed by path so rows that survive
+// a keystroke keep their DOM. field may be "name", "content", "tag", or ""
+// (search all, default).
+func (vh *ViewHandler) SearchResults(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	if !htmxOnly(w, r, "/home") {
-		return
-	}
 	q := strings.TrimSpace(r.URL.Query().Get("q"))
 	if q == "" || vh.searcher == nil {
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		writeSearchJSON(w, []searchResultItem{})
 		return
 	}
 
@@ -100,10 +97,6 @@ func (vh *ViewHandler) SearchFragment(w http.ResponseWriter, r *http.Request) {
 	items := make([]searchResultItem, 0, len(results))
 	for _, res := range results {
 		name := strings.TrimSuffix(res.Name, ".md")
-		updatedAt := ""
-		if !res.UpdatedAt.IsZero() {
-			updatedAt = formatRelativeTime(res.UpdatedAt)
-		}
 		notePath := storage.JoinPath(res.Dir, res.Name)
 		q := url.Values{}
 		q.Set("name", res.Name)
@@ -112,20 +105,22 @@ func (vh *ViewHandler) SearchFragment(w http.ResponseWriter, r *http.Request) {
 		canCompile := !isKnowledge && !isIndex && compileCountByPath[notePath] == 0
 		items = append(items, searchResultItem{
 			Name:        name,
-			Dir:         res.Dir,
 			DirLabel:    firstDirSegment(res.Dir),
-			UpdatedAt:   updatedAt,
 			URL:         "/notes?" + q.Encode(),
-			PreviewPath: notePath,
+			Path:        notePath,
 			IsKnowledge: isKnowledge,
 			IsIndex:     isIndex,
 			CanCompile:  canCompile,
 		})
 	}
 
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := views.ExecuteTemplate(w, "search_results.html", items); err != nil {
-		http.Error(w, "render: "+err.Error(), http.StatusInternalServerError)
+	writeSearchJSON(w, items)
+}
+
+func writeSearchJSON(w http.ResponseWriter, items []searchResultItem) {
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(items); err != nil {
+		http.Error(w, "encode: "+err.Error(), http.StatusInternalServerError)
 	}
 }
 

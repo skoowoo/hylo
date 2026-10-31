@@ -5,6 +5,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/hardhacker/hylo/internal/config"
@@ -18,8 +19,12 @@ const discordTypingEvery = 8 * time.Second
 
 type discordLink struct {
 	session *discordgo.Session
+	owner   string
 	log     *slog.Logger
 	on      func(chatID, userID, text string, fetch imageFetch)
+
+	mu sync.Mutex
+	dm string
 }
 
 func openDiscord(ch mate.Channel, proxy config.Proxy, log *slog.Logger, on func(chatID, userID, text string, fetch imageFetch)) (runner, error) {
@@ -27,7 +32,7 @@ func openDiscord(ch mate.Channel, proxy config.Proxy, log *slog.Logger, on func(
 	if err != nil {
 		return nil, err
 	}
-	return &discordLink{session: s, log: log, on: on}, nil
+	return &discordLink{session: s, owner: ch.OwnerUserID, log: log, on: on}, nil
 }
 
 // Run hands messages to one worker, so they are handled in order like the
@@ -119,6 +124,21 @@ func (d *discordLink) download(ctx context.Context, rawURL string) ([]byte, erro
 func (d *discordLink) SendText(_ context.Context, channelID, text string) error {
 	_, err := d.session.ChannelMessageSend(channelID, text)
 	return err
+}
+
+// OwnerChat opens, or finds, the DM channel with the owner.
+func (d *discordLink) OwnerChat(ctx context.Context) (string, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if d.dm != "" {
+		return d.dm, nil
+	}
+	c, err := d.session.UserChannelCreate(d.owner, discordgo.WithContext(ctx))
+	if err != nil {
+		return "", err
+	}
+	d.dm = c.ID
+	return d.dm, nil
 }
 
 func (d *discordLink) Typing(ctx context.Context, channelID string) {

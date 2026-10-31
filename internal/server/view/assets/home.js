@@ -2,10 +2,10 @@
 // ── Search result selection ────────────────────────────────────────────────
 // While Knowledge's graph view is showing, focus the matching node instead of
 // opening the content pane; otherwise open the note in the content pane as usual.
-window.handleSearchResultSelection = function (el) {
-  if (!el || !el.dataset) return false;
-  var path = el.dataset.previewPath || '';
-  if (!path) return false;
+// r is a row of GET /notes/search.
+window.handleSearchResultSelection = function (r) {
+  if (!r || !r.path) return false;
+  var path = r.path;
 
   var hd = window._homeData;
   if (hd && hd.cy && hd.curType() === 'knowledge') {
@@ -18,12 +18,9 @@ window.handleSearchResultSelection = function (el) {
     // Not in the currently-loaded graph — fall through to open in the content pane.
   }
 
-  var nameEl = el.querySelector('.sr-name');
-  var title = nameEl ? nameEl.textContent.trim() : (path.split('/').pop().replace(/\.md$/, '') || 'Note');
   if (window.__hyloContentPane) {
-    void window.__hyloContentPane.openNoteInContentPane(path, title,
-      el.dataset.noteIsKnowledge === 'true', false, el.dataset.noteIsIndex === 'true',
-      el.dataset.noteCanCompile === 'true');
+    void window.__hyloContentPane.openNoteInContentPane(path, r.name || 'Note',
+      r.isKnowledge, false, r.isIndex, r.canCompile);
     return true;
   }
   return false;
@@ -417,11 +414,6 @@ function homeCtrl() {
 
     agentBotAvatar(name) {
       return window.agentBotAvatarSVG(name, this.agentBots);
-    },
-
-    referenceNote(e) {
-      var stem = (e && e.detail && e.detail.stem) || '';
-      if (this._chat) this._chat.insertWikilink(stem);
     },
 
     // Editor toolbar's "send to agent bot" — unlike selectChatAgentBot

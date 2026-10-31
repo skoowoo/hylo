@@ -86,8 +86,8 @@ const appTokensShared = `
 
       /* ═══ Layer 4: component-scoped ═══ */
       --srch-ic:var(--muted); --srch-ph:var(--muted-soft); --srch-av:var(--control-active-bg); --srch-backdrop:var(--overlay-bg);
-      --sr-dir:var(--cover-dir); --sr-tm:var(--muted); --sr-ic:var(--muted); --sr-em:var(--muted);
-      --srch-panel-bd:var(--line-edge); --srch-row-bd:var(--line-hair);
+      --sr-dir:var(--cover-dir); --sr-ic:var(--muted); --sr-em:var(--muted);
+      --srch-panel-bd:var(--line-edge); --srch-card-bg:var(--surface-soft);
 
       /* Lightbox/images — fixed veil over arbitrary photos. */
       --lightbox-overlay-bg:rgba(0,0,0,0.4); --lightbox-viewer-bg:#0c0c0c;
@@ -123,6 +123,7 @@ const appTokensDark = `
       /* macOS vibrancy wash — pull native material toward --surface-soft. */
       --sidebar-glass-bg:rgba(33,34,41,0.6); --sidebar-glass-border:rgba(255,255,255,0.1);
       --canvas:#ffffff; --muted-soft:#656a78; --body:#d0d6e0;
+      --srch-panel-bg:var(--bg);
             --accent-hov:#7b86e8;
       /* Accent as text on the canvas (links, active labels): lifted for dark; fills keep --accent. */
       --accent-text:#707ad7;
@@ -147,6 +148,8 @@ const appTokensLight = `
       /* Vibrancy reads dull alone — lean lighter while staying translucent. */
       --sidebar-glass-bg:rgba(250,250,251,0.72); --sidebar-glass-border:rgba(0,0,0,0.08);
       --canvas:#ffffff; --muted-soft:#9b9eac; --body:#3f4147;
+      /* bg and surface-soft nearly match in light; lift the panel so the preview card reads. */
+      --srch-panel-bg:var(--canvas);
             --accent-hov:#4c56c8;
       --accent-text:var(--accent);
       --cover-dir:#6b7280;

@@ -839,8 +839,7 @@
 
     // Wraps a note's filename stem in `[[ ]]` — the wikilink syntax
     // mdhtml.go's wikilinkRe resolves by stem, not a full path — matching
-    // the format both note-reference entry points produce: chat's "@"
-    // mention (path_ac.js) and global search's Cmd+Enter (search_overlay.js).
+    // chat's "@" mention (path_ac.js).
     function insertWikilink(stem) {
       if (!stem) return;
       if (view && view.insertWikilink) { view.insertWikilink(stem); return; }
