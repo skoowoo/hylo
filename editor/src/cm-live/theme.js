@@ -316,14 +316,14 @@ export const livePreviewTheme = EditorView.theme({
     padding: '0',
     border: 'none',
     background: 'transparent',
-    color: 'var(--muted, #6d7080)',
+    // Dimmed by colour: an opacity fade redraws it a pixel off on a fractional line.
+    color: 'color-mix(in srgb, var(--muted, #6d7080) 55%, transparent)',
     borderRadius: 'var(--r-sm, 6px)',
     cursor: 'pointer',
-    opacity: '0.55',
-    transition: 'opacity 0.15s ease, background-color 0.15s ease',
+    transition: 'color 0.15s ease, background-color 0.15s ease',
   },
-  '.cm-lp-code-copy:hover': { opacity: '1', background: 'var(--icon-hov, rgba(0,0,0,0.06))', color: 'var(--fg, #1a1a1a)' },
-  '.cm-lp-code-copy.is-done': { opacity: '1', color: 'var(--accent-text, #5e6ad2)' },
+  '.cm-lp-code-copy:hover': { background: 'var(--icon-hov, rgba(0,0,0,0.06))', color: 'var(--fg, #1a1a1a)' },
+  '.cm-lp-code-copy.is-done': { color: 'var(--accent-text, #5e6ad2)' },
   '.cm-lp-code-copy .line-icon': { width: '13px', height: '13px', display: 'block' },
 
   // ── Wikilink ────────────────────────────────────────────────────────────
@@ -399,8 +399,8 @@ export const livePreviewTheme = EditorView.theme({
     background: 'rgba(0,0,0,0.45)',
     color: '#fff',
     cursor: 'zoom-in',
+    // Shown without a fade: an opacity transition redraws it a pixel off.
     opacity: '0',
-    transition: 'opacity 0.15s ease',
   },
   '.cm-lp-wikiimage:hover .cm-lp-image-zoom': { opacity: '1' },
   '.cm-lp-image-zoom .line-icon': { width: '14px', height: '14px', display: 'block' },

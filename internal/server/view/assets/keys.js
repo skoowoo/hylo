@@ -168,6 +168,19 @@
     }, true);
   })();
 
+  // Centres a dialog card on whole pixels. Its height follows its content, so
+  // CSS centring lands on a fraction, where WebKit draws it a pixel off while
+  // it or anything in it animates.
+  window.__hyloCenterWhole = function(card) {
+    var overlay = card.parentElement;
+    var ro = new ResizeObserver(function() {
+      card.style.left = Math.floor((overlay.clientWidth - card.offsetWidth) / 2) + 'px';
+      card.style.top = Math.max(0, Math.floor((overlay.clientHeight - card.offsetHeight) / 2)) + 'px';
+    });
+    ro.observe(overlay);
+    ro.observe(card);
+  };
+
   window.hyloOverlay = function(escId, extra) {
     var base = {
       open: false,

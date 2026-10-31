@@ -156,3 +156,13 @@
     .srch-mode-desc { font-size: var(--text-xs); color: var(--muted); }
     .srch-mode-footer { border-color: var(--line-hair) !important; border-top-width: var(--bd-w); border-radius: 0; }
     .srch-hint-sep { color: var(--muted); opacity: 0.4; }
+
+    /* Placed on whole pixels: at a half pixel its open transition ends with a
+       one-pixel jump. */
+    .srch-wrap {
+      --srch-w: min(860px, 100vw - 2rem);
+      position: absolute;
+      left: round(down, (100vw - var(--srch-w)) / 2, 1px);
+      top: round(down, 50vh - 284px, 1px);
+      width: var(--srch-w);
+    }

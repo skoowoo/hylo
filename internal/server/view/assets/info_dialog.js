@@ -6,7 +6,10 @@
       closeLabel: 'Got it',
       isError: false,
 
-      init() { window._infoDialogCtrl = this; },
+      init() {
+        window._infoDialogCtrl = this;
+        window.__hyloCenterWhole(this.$el.querySelector('.dialog-card'));
+      },
 
       show(opts) {
         opts = opts || {};

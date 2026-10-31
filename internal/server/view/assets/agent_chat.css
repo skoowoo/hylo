@@ -200,9 +200,9 @@
        .chat-input-outer) is what it's positioned against. */
     .chat-scroll-bottom-btn {
       position: absolute;
-      left: 50%;
+      /* Whole pixels: its press scale ends with a jump at a half pixel. */
+      left: round(down, 50% - 16px, 1px);
       bottom: calc(var(--chat-composer-h, 88px) + 1.75rem);
-      transform: translateX(-50%);
       width: 32px;
       height: 32px;
       display: flex;
@@ -225,7 +225,7 @@
       transition: background var(--motion-fast) ease, transform var(--motion-fast) ease;
     }
     .chat-scroll-bottom-btn:hover { background: var(--surface-2); }
-    .chat-scroll-bottom-btn:active { background: var(--surface-2); transform: translateX(-50%) scale(0.9); }
+    .chat-scroll-bottom-btn:active { background: var(--surface-2); transform: scale(0.9); }
     .chat-scroll-bottom-btn svg { width: 15px; height: 15px; flex-shrink: 0; }
 
     /* Grows with its rows (never squeezed to the viewport) so a ResizeObserver
@@ -533,16 +533,16 @@
       max-width: 100%;
       font-size: var(--text-xs);
       font-family: inherit;
-      color: var(--muted);
       background: none;
       border: none;
       padding: 0;
       cursor: pointer;
-      opacity: 0.75;
-      transition: opacity var(--motion-fast);
+      /* Dimmed by colour: an opacity fade redraws the row a pixel off. */
+      color: color-mix(in srgb, var(--muted) 75%, transparent);
+      transition: color var(--motion-fast);
     }
 
-    .seg-trace-head:hover { opacity: 1; }
+    .seg-trace-head:hover { color: var(--muted); }
 
     .seg-trace-head svg {
       width: 9px;
@@ -616,18 +616,17 @@
       align-items: center;
       gap: 0.28rem;
       font-size: var(--text-xs);
-      color: var(--muted);
       cursor: pointer;
       background: none;
       border: none;
       padding: 0;
       font-family: inherit;
-      opacity: 0.55;
-      transition: opacity var(--motion-fast);
+      color: color-mix(in srgb, var(--muted) 55%, transparent);
+      transition: color var(--motion-fast);
     }
 
     .seg-thinking-toggle:hover {
-      opacity: 0.85;
+      color: color-mix(in srgb, var(--muted) 85%, transparent);
     }
 
     .seg-thinking-toggle svg {
@@ -686,17 +685,17 @@
 
     button.seg-tool-head {
       cursor: pointer;
-      opacity: 0.8;
-      transition: opacity var(--motion-fast);
+      color: color-mix(in srgb, var(--muted) 80%, transparent);
+      transition: color var(--motion-fast);
     }
 
-    button.seg-tool-head:hover {
-      opacity: 1;
+    button.seg-tool-head:hover,
+    .seg-tool-head:disabled {
+      color: var(--muted);
     }
 
     .seg-tool-head:disabled {
       cursor: default;
-      opacity: 1;
     }
 
     /* One box for spinner, check and dot, so the head never shifts as the call settles. */
@@ -713,7 +712,7 @@
       width: 9px;
       height: 9px;
       flex-shrink: 0;
-      opacity: 0.6;
+      color: color-mix(in srgb, currentColor 60%, transparent);
     }
 
     .seg-tool-head.open .seg-tool-chevron {
@@ -1010,22 +1009,21 @@
       border: none;
       border-radius: var(--r-full);
       background: transparent;
-      color: inherit;
+      color: color-mix(in srgb, currentColor 85%, transparent);
       font-size: var(--text-xs);
       font-weight: 500;
       font-family: inherit;
       cursor: pointer;
-      opacity: 0.85;
-      transition: opacity var(--motion-fast), background var(--motion-fast);
+      transition: color var(--motion-fast), background var(--motion-fast);
     }
 
     .msg-retry-btn:hover:not(:disabled) {
-      opacity: 1;
+      color: inherit;
       background: var(--btn-bg-hov);
     }
 
     .msg-retry-btn:disabled {
-      opacity: 0.4;
+      color: color-mix(in srgb, currentColor 40%, transparent);
       cursor: not-allowed;
     }
 
@@ -1052,21 +1050,18 @@
       border-radius: var(--r-xs);
       border: none;
       background: transparent;
-      color: var(--muted);
+      color: color-mix(in srgb, var(--muted) 50%, transparent);
       cursor: pointer;
-      opacity: 0.5;
-      transition: opacity var(--motion-fast), color var(--motion-fast), background var(--motion-fast);
+      transition: color var(--motion-fast), background var(--motion-fast);
       padding: 0;
     }
 
     .msg-copy-btn:hover {
-      opacity: 1 !important;
       color: var(--fg);
       background: var(--icon-hov);
     }
 
     .msg-copy-btn.copied {
-      opacity: 1 !important;
       color: var(--accent-text);
     }
 
@@ -1245,7 +1240,7 @@
        Same tinted wash as .field-input (base.css), but borderless even on
        focus; the transparent border keeps the box model stable. */
     .chat-input-card {
-      --composer-pad: 0.3rem;
+      --composer-pad: 5px; /* whole px: at a fraction the send button's press scale ends in a jump */
       /* Room for the caret at a line's ends: it straddles the text edge, and
          both the textarea and its scroller clip there. */
       --caret-room: 3px;
@@ -1660,16 +1655,15 @@
       border: none;
       background: transparent;
       cursor: pointer;
-      color: currentColor;
-      opacity: 0.5;
+      color: color-mix(in srgb, currentColor 50%, transparent);
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: opacity var(--motion-fast);
+      transition: color var(--motion-fast);
     }
 
     .run-toast-dismiss:hover {
-      opacity: 1;
+      color: inherit;
     }
 
     .run-toast-dismiss svg {

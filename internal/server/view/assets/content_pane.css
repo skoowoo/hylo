@@ -17,7 +17,7 @@
        divider line. */
     .content-pane-panel {
       position: absolute; top: 0; bottom: 0; left: 0;
-      width: calc(100cqw * var(--split-ratio-inv));
+      width: round(down, 100cqw * var(--split-ratio-inv), 1px);
       border-left: var(--bd-w) solid var(--line-hair);
       border-radius: 0;
       display: flex; flex-direction: column; overflow: hidden;
@@ -49,24 +49,30 @@
     }
     .note-draft-icon svg { width: 11px; height: 11px; }
     .content-pane-tool-bar {
+      position: relative;
       flex-shrink: 0; display: flex; align-items: center; gap: 0.5rem;
       padding: 0 0.625rem 0 0.75rem;
       background: var(--bg);
       border-radius: 0; /* flush chrome strip */
       height: var(--toolbar-h);
     }
-    .content-pane-tool-bar > * { transition: opacity var(--motion-fast); }
-    .content-pane-tool-bar[inert] > * { opacity: 0.4; }
+    /* Dimmed by a veil, not opacity: a fading group redraws its icons a pixel off. */
+    .content-pane-tool-bar::after {
+      content: ""; position: absolute; inset: 0; pointer-events: none;
+      background: transparent; transition: background-color var(--motion-fast);
+      border-radius: 0;
+    }
+    .content-pane-tool-bar[inert]::after { background: color-mix(in srgb, var(--bg) 60%, transparent); }
     /* dir / name ✓ — the folder gives way first when space runs out. */
     .content-pane-title {
-      flex: 1; min-width: 0; display: flex; align-items: center; gap: 0.35rem;
+      flex: 1; min-width: 0; align-self: stretch; display: flex; align-items: center; gap: 6px;
       font-size: var(--text-sm); white-space: nowrap;
     }
     .content-pane-title-dir {
       flex: 0 10 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis;
       color: var(--muted-soft);
     }
-    .content-pane-title-sep { flex-shrink: 0; color: var(--muted-soft); opacity: 0.6; }
+    .content-pane-title-sep { flex-shrink: 0; color: color-mix(in srgb, var(--muted-soft) 60%, transparent); }
     .content-pane-title-name {
       flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis;
       color: var(--fg); font-weight: var(--fw-medium);
@@ -80,7 +86,7 @@
       color: var(--fg);
     }
     .content-pane-rename-input.invalid { color: var(--s-err); border-bottom-color: var(--s-err); }
-    .content-pane-tool-actions { flex-shrink: 0; display: flex; align-items: center; gap: 0.3rem; margin-left: auto; }
+    .content-pane-tool-actions { flex-shrink: 0; display: flex; align-items: center; gap: var(--space-xxs); margin-left: auto; }
     .content-pane-save-status {
       flex-shrink: 0; display: flex; align-items: center; justify-content: center;
       width: 16px; height: 16px;
@@ -89,12 +95,17 @@
     .content-pane-save-status .ssi-saved { display: none; }
     .content-pane-save-status[data-state="pending"] .ssi-pending { display: block; }
     .content-pane-save-status[data-state="saved"] .ssi-saved { display: block; }
-    .ssi-pending { color: var(--fg); animation: ssi-pulse 1.2s ease-in-out infinite; }
+    /* Animated inside the svg: the icon trails text on a fractional x, and an
+       animated html box there redraws a pixel off as its animation ends. */
+    :is(.ssi-pending, .ssi-saved) > * { transform-box: fill-box; transform-origin: center; }
+    .ssi-pending { color: var(--fg); }
+    .ssi-pending > * { animation: ssi-pulse 1.2s ease-in-out infinite; }
     @keyframes ssi-pulse {
       0%, 100% { opacity: 0.35; transform: scale(0.85); }
       50%       { opacity: 1;    transform: scale(1); }
     }
-    .ssi-saved { color: var(--accent-text); animation: ssi-fadein 0.25s ease; }
+    .ssi-saved { color: var(--accent-text); }
+    .ssi-saved > * { animation: ssi-fadein 0.25s ease; }
     @keyframes ssi-fadein { from { opacity: 0; transform: scale(0.7); } to { opacity: 1; transform: scale(1); } }
     .content-pane-reading-btn.active { color: var(--accent-text); background: var(--tint-md); }
 

@@ -50,7 +50,8 @@
     }
     .skill-card--available .skill-name { color: var(--muted); }
     /* Remove is rare and destructive, so it stays out of sight until the card is in use. */
-    .skill-remove { opacity: 0; transition: opacity var(--motion-fast), color var(--motion-fast), background-color var(--motion-fast); }
+    /* Shown without a fade: an opacity transition redraws it a pixel off. */
+    .skill-remove { opacity: 0; transition: color var(--motion-fast), background-color var(--motion-fast); }
     .skill-card:hover .skill-remove, .skill-remove:focus-visible, .skill-remove:disabled { opacity: 1; }
     .skill-remove:hover:not(:disabled) { color: var(--s-err); background: var(--s-err-bg); }
     @media (hover: none) { .skill-remove { opacity: 1; } }
@@ -73,7 +74,7 @@
     .skill-source {
       min-width: 0; font-family: var(--font-mono); font-size: var(--text-2xs); color: var(--muted);
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-      text-decoration: none; opacity: 0.7; border-radius: 0;
-      transition: color var(--motion-fast), opacity var(--motion-fast);
+      text-decoration: none; color: color-mix(in srgb, var(--muted) 70%, transparent); border-radius: 0;
+      transition: color var(--motion-fast);
     }
-    a.skill-source:hover { color: var(--accent-text); opacity: 1; }
+    a.skill-source:hover { color: var(--accent-text); }

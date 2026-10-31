@@ -43,7 +43,7 @@ a.hy-embed-title:hover{text-decoration:underline}
 .hy-embed-video.is-started .hy-embed-play,.hy-embed-video.is-started .hy-embed-cap{display:none}
 .hy-embed-video.is-started{cursor:default}
 .hy-embed-open{all:unset;box-sizing:border-box;cursor:pointer;display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:var(--r-sm,6px)}
-.hy-embed-video .hy-embed-open{position:absolute;top:8px;left:8px;background:rgba(0,0,0,.5);color:#fff;opacity:0;pointer-events:none;transition:opacity var(--motion-fast,100ms)}
+.hy-embed-video .hy-embed-open{position:absolute;top:8px;left:8px;background:rgba(0,0,0,.5);color:#fff;opacity:0;pointer-events:none}
 .hy-embed-video:hover .hy-embed-open,.hy-embed-video:focus-within .hy-embed-open{opacity:1;pointer-events:auto}
 .hy-embed-file{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px}
 .hy-embed-kind{flex:none;font-size:var(--text-2xs,.6875rem);letter-spacing:.04em;color:var(--muted,#6d7080)}

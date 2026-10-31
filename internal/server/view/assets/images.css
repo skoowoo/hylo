@@ -106,8 +106,6 @@
     /* ── Lightbox overlay ────────────────────────────────────────── */
     .lb-overlay {
       position: fixed; inset: 0; z-index: 800;
-      display: flex; align-items: center; justify-content: center;
-      padding: 2rem;
       background: var(--lightbox-overlay-bg);
       backdrop-filter: var(--glass-scrim-filter);
       -webkit-backdrop-filter: var(--glass-scrim-filter);
@@ -129,9 +127,17 @@
     .lb-leave-end   .lb-panel { transform: scale(0.95); }
 
     /* ── Lightbox panel ──────────────────────────────────────────── */
+    /* On whole pixels: at a fractional offset WebKit redraws the panel shifted
+       once its open scale ends. */
     .lb-panel {
-      display: flex; width: 100%; max-width: 1080px;
-      height: 80vh; max-height: 820px;
+      --panel-w: min(1080px, 100vw - 4rem);
+      --panel-h: round(down, min(80vh, 820px), 1px);
+      --panel-top: round(down, (100vh - var(--panel-h)) / 2, 1px);
+      position: absolute;
+      left: round(down, (100vw - var(--panel-w)) / 2, 1px);
+      top: var(--panel-top);
+      width: var(--panel-w); height: var(--panel-h);
+      display: flex;
       overflow: hidden;
       background: var(--surface-soft);
       box-shadow: var(--shadow-lg) var(--shadow-color);
@@ -256,13 +262,16 @@
        reading column sized to its text. ───────────────────────────── */
     .lb-panel--short .lb-sidebar { flex: 0 0 clamp(340px, 38%, 420px); width: auto; }
     /* Text only: a reading card, never a strip; a lone short line sits
-       centred at the grid's quote size. */
+       centred at the grid's quote size. Its height follows the text, so it is
+       centred at its min height and grows down. */
     .lb-panel--text {
-      max-width: 560px; height: auto;
-      min-height: min(360px, 80vh); max-height: min(80vh, 820px);
+      --panel-w: min(560px, 100vw - 4rem);
+      --panel-h: round(down, min(360px, 80vh), 1px);
+      height: auto; min-height: var(--panel-h);
+      max-height: min(820px, 100vh - var(--panel-top) - 2rem);
     }
     .lb-panel--text .lb-sidebar { flex: 1; width: auto; border-left: none; }
-    .lb-panel--quote { max-width: 480px; }
+    .lb-panel--quote { --panel-w: min(480px, 100vw - 4rem); }
     .lb-panel--quote .lb-short-body { display: flex; flex-direction: column; justify-content: center; }
     .lb-panel--quote .lb-short-body .prose {
       padding-bottom: var(--space-lg); /* optical centre sits a little high */

@@ -14,7 +14,10 @@
       inputPlaceholder: '',
       _resolve: null,
 
-      init() { window._confirmDialogCtrl = this; },
+      init() {
+        window._confirmDialogCtrl = this;
+        window.__hyloCenterWhole(this.$el.querySelector('.dialog-card'));
+      },
 
       show(opts) {
         opts = opts || {};

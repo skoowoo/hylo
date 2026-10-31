@@ -509,8 +509,6 @@
        deltas (max-width, title margin, animations, button color variants). ── */
     .dialog-overlay {
       position: fixed; inset: 0; z-index: 9000;
-      display: flex; align-items: center; justify-content: center;
-      padding: 1.5rem;
       background: var(--overlay-bg);
       backdrop-filter: var(--glass-scrim-filter);
       -webkit-backdrop-filter: var(--glass-scrim-filter);
@@ -520,12 +518,14 @@
        later, and x-trap, activating on a timer, can find nothing to focus yet. */
     .dialog-overlay[hidden],
     .settings-modal-overlay[hidden] { display: none; }
+    /* Placed by __hyloCenterWhole (keys.js). */
     .dialog-card {
+      position: absolute;
+      width: calc(100vw - 3rem);
       background: var(--bg);
       border: var(--bd-w) solid var(--line-edge);
       border-radius: var(--r-xl);
       padding: 1.5rem 1.5rem 1.25rem;
-      width: 100%;
       box-shadow: var(--shadow-lg) var(--shadow-color);
     }
     .dialog-title {

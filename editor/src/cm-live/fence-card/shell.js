@@ -36,9 +36,9 @@ const CSS = `
 .hy-card-inline{background:none;overflow:visible;contain:inline-size}
 .hy-card-inline .hy-card-bar .hy-btn{background:var(--bg,#fff);box-shadow:0 0 0 1px var(--line-edge,rgba(24,24,27,.16))}
 .hy-card-error{padding:12px;font-size:var(--text-xs,.75rem);color:var(--s-err,#dc2626)}
-.hy-card-full{position:fixed;inset:0;z-index:800;display:flex;align-items:center;justify-content:center;padding:2rem;background:var(--lightbox-overlay-bg,rgba(0,0,0,.4));backdrop-filter:var(--glass-scrim-filter,blur(3px));-webkit-backdrop-filter:var(--glass-scrim-filter,blur(3px));-webkit-app-region:no-drag;transition:opacity var(--motion-base,160ms) ease}
+.hy-card-full{position:fixed;inset:0;z-index:800;background:var(--lightbox-overlay-bg,rgba(0,0,0,.4));backdrop-filter:var(--glass-scrim-filter,blur(3px));-webkit-backdrop-filter:var(--glass-scrim-filter,blur(3px));-webkit-app-region:no-drag;transition:opacity var(--motion-base,160ms) ease}
 .hy-card-full.hy-card-full-hidden{opacity:0}
-.hy-card-full>.hy-card{width:100%;height:100%;max-width:1400px;margin:0;border-radius:var(--r-xl,16px);background:var(--surface-soft,#f5f5f7);box-shadow:var(--shadow-lg,0 14px 34px) var(--shadow-color,rgba(15,15,25,.1))}
+.hy-card-full>.hy-card{--full-w:min(1400px,100vw - 4rem);position:absolute;top:2rem;left:round(down,(100vw - var(--full-w))/2,1px);width:var(--full-w);height:calc(100vh - 4rem);margin:0;border-radius:var(--r-xl,16px);background:var(--surface-soft,#f5f5f7);box-shadow:var(--shadow-lg,0 14px 34px) var(--shadow-color,rgba(15,15,25,.1))}
 .hy-card-full .hy-card-body{height:100%!important}
 .hy-card-full .hy-card-bar{opacity:1;top:12px;right:12px}
 .hy-card-full .markmap{--markmap-circle-open-bg:var(--surface-soft,#f5f5f7)}
