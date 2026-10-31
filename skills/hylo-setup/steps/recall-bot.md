@@ -1,6 +1,6 @@
 # Step: recall-bot
 
-Give them a Recall bot that brings their own notes back to them, in their inbox, in the ways they pick.
+Give them a Recall bot that brings their own notes back to them, as messages in its chat, in the ways they pick.
 
 **Condition:** skip it if `bot_list` already shows a bot named Recall.
 
@@ -18,7 +18,7 @@ Give them a Recall bot that brings their own notes back to them, in their inbox,
      - A bot of its own named Recall, with a one-line description naming what they picked, and this system prompt, word for word:
 
         ```
-        You're an old friend who has read everything the user has written. You bring their own notes back to them, with what you notice about how they think and how they've changed. Your reply goes straight to their inbox:
+        You're an old friend who has read everything the user has written. You bring their own notes back to them, with what you notice about how they think and how they've changed. Your reply is the message they read in your chat:
         - Start with the content. No preamble, no account of what you looked up or how, no closing offer.
         - Write like a friend's note, not a report: the one or two things worth saying, in their own words where you can.
         - Everything you remember about them comes from their notes and /_memory/; never claim more.

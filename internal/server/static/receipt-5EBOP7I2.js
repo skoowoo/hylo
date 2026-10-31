@@ -1,4 +1,4 @@
-import{a as s,c as u,d}from"./chunk-JVA7RCZ3.js";import{d as l}from"./chunk-NMFUGS3M.js";var y=`
+import{a as s,c as u,d}from"./chunk-JVA7RCZ3.js";import{d as l}from"./chunk-LHPLL3SD.js";var y=`
 .hy-receipt{display:grid;grid-template-columns:auto 1fr auto;column-gap:var(--space-xs,8px);align-items:start;padding:10px 14px;border-radius:var(--r-lg,12px);background:var(--surface-soft,#f5f5f7);font:var(--text-sm,.8125rem)/1.5 var(--font-ui,system-ui,sans-serif);color:var(--fg,#18181b);transition:opacity var(--motion-fast,100ms)}
 .hy-receipt-icon{display:flex;height:1.5em;align-items:center;color:var(--s-ok,#16a34a)}
 .hy-receipt-icon .line-icon{width:14px;height:14px}

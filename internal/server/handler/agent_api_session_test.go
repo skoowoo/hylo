@@ -8,17 +8,6 @@ import (
 	"github.com/hardhacker/hylo/internal/mate"
 )
 
-func TestResolveTriggerSession(t *testing.T) {
-	sid, first := resolveTriggerSession(agent.GetAgentDef("claude"))
-	if sid == "" || !first {
-		t.Fatalf("claude trigger session = %q first=%v", sid, first)
-	}
-	sid2, first2 := resolveTriggerSession(agent.GetAgentDef("codex"))
-	if sid2 != "" || first2 {
-		t.Fatalf("codex trigger session should be empty, got %q first=%v", sid2, first2)
-	}
-}
-
 func TestHostAssignsSessionID(t *testing.T) {
 	if !agent.HostAssignsSessionID("claude") {
 		t.Fatal("claude should host-assign session id")

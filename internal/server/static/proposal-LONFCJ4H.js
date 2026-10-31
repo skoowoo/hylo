@@ -1,4 +1,4 @@
-import{a as y,c as x,d as n}from"./chunk-JVA7RCZ3.js";import{d as h}from"./chunk-PEQCSZ7F.js";import"./chunk-NMFUGS3M.js";var v=`
+import{a as y,c as x,d as n}from"./chunk-JVA7RCZ3.js";import{d as h}from"./chunk-VXMLJ3B2.js";import"./chunk-LHPLL3SD.js";var v=`
 .hy-proposal{display:flex;flex-direction:column;gap:var(--space-xs,8px);padding:var(--space-sm,12px) 14px;border-radius:var(--r-lg,12px);background:var(--surface-soft,#f5f5f7);font:var(--text-sm,.8125rem)/1.5 var(--font-ui,system-ui,sans-serif);color:var(--fg,#18181b)}
 .hy-proposal-title{font-weight:var(--fw-semibold,600)}
 .hy-proposal-summary{color:var(--prose-body,#27272a)}

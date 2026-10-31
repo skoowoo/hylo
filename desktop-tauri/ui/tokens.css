@@ -91,7 +91,7 @@
       --space-xxs:4px; --space-xs:8px; --space-sm:12px; --space-md:16px; --space-lg:24px;
       --space-xl:32px; --space-xxl:48px;
       --topbar-h:40px; --toolbar-h:52px; --action-btn-sz:28px;
-      /* Sidebar width — content pane/inbox dock flush to this edge. */
+      /* Sidebar width — the content pane docks flush to this edge. */
       --home-side-w:248px;
       /* --btn-h primary; --btn-h-xs compact secondary; --btn-h-sm chrome-bar. */
       --btn-h:32px; --btn-h-sm:36px; --btn-h-xs:28px;

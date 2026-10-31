@@ -18,18 +18,23 @@
 
   // What the DB row looked like, so a reload can tell an unchanged message apart.
   function storedSig(m) {
-    return JSON.stringify([m.content || '', m.status || '', m.updatedAt || '', m.noteAccess || null, m.attachments || null]);
+    return JSON.stringify([m.content || '', m.status || '', m.updatedAt || '', m.noteAccess || null, m.attachments || null, m.triggerName || '', m.triggerSchedule || '']);
   }
 
   function formatStoredMessages(msgs) {
     var out = [];
     for (var i = 0; i < msgs.length; i++) {
       var m = msgs[i];
-      if (m.role === 'user') {
+      // A wake stands where the user's message would: the task the bot woke up to.
+      if (m.role === 'user' || m.role === 'wake') {
         out.push({
           id: m.id,
-          role: 'user', content: m.content,
+          role: m.role, content: m.content,
           attachments: m.attachments || [],
+          triggerEvent: m.triggerEvent || '',
+          triggerId: m.triggerId || '',
+          triggerName: m.triggerName || '',
+          triggerSchedule: m.triggerSchedule || '',
           createdAt: m.createdAt ? new Date(m.createdAt).getTime() : 0,
           stored: storedSig(m),
           rev: 1,
@@ -52,6 +57,8 @@
           content: m.content || '',
           triggerEvent: m.triggerEvent || '',
           triggerId: m.triggerId || '',
+          triggerName: m.triggerName || '',
+          triggerSchedule: m.triggerSchedule || '',
           segments: segments,
           status: m.status || 'succeeded',
           startTime: 0, duration: 0,
@@ -280,7 +287,7 @@
     ex.stored = nm.stored;
     if (nm.attachments) ex.attachments = nm.attachments;
     if (nm.triggerEvent) ex.triggerEvent = nm.triggerEvent;
-    if (nm.triggerId) ex.triggerId = nm.triggerId;
+    if (nm.triggerId) { ex.triggerId = nm.triggerId; ex.triggerName = nm.triggerName; ex.triggerSchedule = nm.triggerSchedule; }
     touch(ex);
   }
 

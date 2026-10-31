@@ -240,7 +240,7 @@
     .badge--accent { color: var(--accent-text); background: rgba(var(--accent-rgb), 0.12); }
 
     /* ── Shared bordered card/row box — the box itself (border-strong +
-       r-lg + bg + padding) is identical everywhere it appears (note/inbox
+       r-lg + bg + padding) is identical everywhere it appears (note
        rows, image grid, agent/agent-bot/skill list cards); only the
        interaction tier differs, so that's a modifier instead of a fourth
        copy:
@@ -458,7 +458,7 @@
 
     /* ── Shared segmented "pick one of N" toggle — tinted track + flat
        buttons, raised .active thumb (--seg-thumb). One definition backs
-       every picker app-wide (Inbox filter, chat mode toggle, settings
+       every picker app-wide (graph color mode, settings
        pickers) so they can't drift apart in size. Padding is 3px (was 2px
        + 1px border) so the overall size is unchanged; inner radius is the
        outer 8px minus that padding. ── */
@@ -492,14 +492,14 @@
        track, --scrollbar-thumb/-hov) so no page reinvents its own. A class
        selector here outranks the hide rule regardless of file order
        (0,0,1,1 vs 0,0,0,1). ── */
-    :is(.home-list-body, .home-inbox-list, .chat-scroll, .img-scroll, .inbox-sheet-scroll) {
+    :is(.home-list-body, .chat-scroll, .img-scroll) {
       scrollbar-width: thin;
       scrollbar-color: var(--scrollbar-thumb) transparent;
     }
-    :is(.home-list-body, .home-inbox-list, .chat-scroll, .img-scroll, .inbox-sheet-scroll)::-webkit-scrollbar { width: 5px; }
-    :is(.home-list-body, .home-inbox-list, .chat-scroll, .img-scroll, .inbox-sheet-scroll)::-webkit-scrollbar-track { background: transparent; }
-    :is(.home-list-body, .home-inbox-list, .chat-scroll, .img-scroll, .inbox-sheet-scroll)::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); }
-    :is(.home-list-body, .home-inbox-list, .chat-scroll, .img-scroll, .inbox-sheet-scroll)::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hov); }
+    :is(.home-list-body, .chat-scroll, .img-scroll)::-webkit-scrollbar { width: 5px; }
+    :is(.home-list-body, .chat-scroll, .img-scroll)::-webkit-scrollbar-track { background: transparent; }
+    :is(.home-list-body, .chat-scroll, .img-scroll)::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); }
+    :is(.home-list-body, .chat-scroll, .img-scroll)::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hov); }
 
     /* ── Shared modal dialog chrome ───────────────────────────────
        Backs confirm_dialog.css and info_dialog.css (small, single-purpose

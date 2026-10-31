@@ -242,7 +242,7 @@ Dark is the shipped default (bare `:root`). Light is Hylo's own from-scratch ada
 
 ### Surface
 - **Bg** (`{colors.bg-dark}` / `{colors.bg-light}`): The page canvas.
-- **Surface Soft**: One step up from bg — sidebars, dropdowns, floating toolbars, unread-cleared inbox cards.
+- **Surface Soft**: One step up from bg — sidebars, dropdowns, floating toolbars, note list cards.
 - **Surface 2**: Two steps up — selected tabs, featured/active states.
 - **Border** / **Border Strong**: 1px hairlines for cards, dividers, and input outlines; "strong" is used where the border itself needs to read as structure (icon-btn outline, drawer tab-bar-start divider) rather than a quiet separator.
 - **Canvas** (`{colors.canvas}` #ffffff, fixed in both themes): A theme-invariant white used only where an element must stay white regardless of mode (e.g. the drawer's expand-button icon against a filled accent-adjacent chrome bar).
@@ -310,7 +310,7 @@ The dark canvas IS the whitespace — sections separate by lifting onto `--surfa
 | Level                    | Treatment                                                  | Use                                                                                                     |
 | ------------------------ | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
 | 0 (flat)                 | No shadow, no border                                       | Default for body text, list rows, chrome strips                                                         |
-| 1 (soft lift)            | `--surface-soft` background                                | Sidebars, dropdowns, floating toolbars, cleared-inbox cards                                             |
+| 1 (soft lift)            | `--surface-soft` background                                | Sidebars, dropdowns, floating toolbars, note list cards                                                 |
 | 2 (surface-2 lift)       | `--surface-2` background                                   | Selected tabs/rows, active states                                                                       |
 | 3 (hairline)             | 1px `--border` / `--border-strong`                         | Card outlines, dividers, input outlines                                                                 |
 | 4 (focus ring)           | 2px `--accent-focus` outline at 50% opacity, 1px offset    | Focused input, focused button — the only glow-like effect in the system                                 |
@@ -360,7 +360,7 @@ Full-viewport or edge-docked chrome (drawer panel and its tab bar, scrims, `<htm
 
 **`icon-btn`** — Tonal icon-only action (`--btn-bg`, `{rounded.sm}`) with an `.active` toggle state (`--btn-bg-on` + `--control-active-fg`) for controls that need to show "this is currently on" (pin, compile, source toggle), not just hover feedback. `.icon-btn--lg` (32px) uses `{rounded.md}` to sit flush with inputs.
 
-**`seg`** / **`seg-btn`** — Segmented "pick one of N" control: a `--btn-bg` track with 3px padding and flat buttons inside (inner radius `{rounded.sm}`); `.active` is a raised thumb, `--seg-thumb` (`--control-active-bg-on-soft` on dark, `--canvas` on light) with `--control-active-fg` text. One shared definition backs every picker in the app (Inbox filter, chat mode toggle, settings pickers) so they can't drift apart in size.
+**`seg`** / **`seg-btn`** — Segmented "pick one of N" control: a `--btn-bg` track with 3px padding and flat buttons inside (inner radius `{rounded.sm}`); `.active` is a raised thumb, `--seg-thumb` (`--control-active-bg-on-soft` on dark, `--canvas` on light) with `--control-active-fg` text. One shared definition backs every picker in the app (graph color mode, settings pickers) so they can't drift apart in size.
 
 **Chips and choice cards** (agent-bot chip, variable chip, effect card, copy button, load-more) follow the same ladder; they are not a separate component family.
 
@@ -379,13 +379,13 @@ Full-viewport or edge-docked chrome (drawer panel and its tab bar, scrims, `<htm
 
 ### Sections
 
-**`sec`** — Every view in the home list pane (note lists, Tags, Inbox, Images, Shorts, Graph, Chat) is one `.sec`: a `.home-list-head` (`--toolbar-h`, count pill + right-aligned controls), one `.sec-body` that scrolls (`20px 24px 40px` padding; `.sec-body--flush` for the graph canvas), an optional floating footer (the chat composer), and its `.empty-state--page` as a direct child. A section overrides only what is truly its own: Images' tighter padding, Shorts' centered 600px column, Chat's reading column. Section DOM caching saves and restores scroll on `.sec-body` (except Chat, which sticks to the newest message), so a new section gets it for free.
+**`sec`** — Every view in the home list pane (note lists, Tags, Images, Shorts, Graph, Chat) is one `.sec`: a `.home-list-head` (`--toolbar-h`, count pill + right-aligned controls), one `.sec-body` that scrolls (`20px 24px 40px` padding; `.sec-body--flush` for the graph canvas), an optional floating footer (the chat composer), and its `.empty-state--page` as a direct child. A section overrides only what is truly its own: Images' tighter padding, Shorts' centered 600px column, Chat's reading column. Section DOM caching saves and restores scroll on `.sec-body` (except Chat, which sticks to the newest message), so a new section gets it for free.
 
 **`empty-state`** — A section with nothing yet: a neutral `--surface-soft` tile (hairline border, `--muted` sidebar icon), a `--fg` title, at most one `--muted` sentence, and at most one action, which alone carries the accent. No rings, glow or entry animation. On a page (`.empty-state--page`) the tile always sits at 40% of the window height, whatever head, composer or button surrounds it. Server-rendered sections use the `empty-state` template (home_section_rows.html).
 
 ### Lists & Cards
 
-**`list-card`** — Notes list rows, inbox cards. Note rows (Pinned, Folders, and the other lists that share that card) and a read/cleared inbox card sit on `--surface-soft` with no outline; the read card also dims its title/timestamp to `--muted` and drops its unread dot. An unread inbox card stays flat on `--bg` with a `--border-strong` outline.
+**`list-card`** — Notes list rows. Note rows (Pinned, Folders, and the other lists that share that card) sit on `--surface-soft` with no outline.
 
 **`note-badge`** — Small status marker on a note card. The pin variant is a plain accent-colored glyph with no fill; the "done" variant is a solid accent fill with `--accent-fg` text.
 
@@ -429,7 +429,7 @@ Four durations, chosen by what's moving, not per-component ad hoc values:
 | --------------- | -------- | ---------------------------------------------------------------------------------------------------------- |
 | `--motion-fast` | 100ms    | Hover/press feedback — background, color, opacity tweaks. No easing curve; too short to perceive one.      |
 | `--motion-base` | 160ms    | Small reveal/toggle transforms — chevron rotate, disclosure arrows, drag-state feedback.                   |
-| `--motion-slow` | 220ms    | Panel/overlay-scrim fades (drawer, inbox sheet, lightbox) — gives a spatial change room to read as motion. |
+| `--motion-slow` | 220ms    | Panel/overlay-scrim fades (drawer, lightbox) — gives a spatial change room to read as motion. |
 | `--motion-view` | 320ms    | Reserved for a bigger spatial change — a view switch or shared-element transition. Nothing uses it yet.    |
 
 Four named curves pair with the durations above:

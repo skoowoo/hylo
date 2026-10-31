@@ -9,7 +9,7 @@ Two jobs: **extract** memories from recent notes into seven files under `/_memor
 
 Tools named here are Hylo's MCP tools (server `hylo`, maybe shown as `mcp__hylo__read`). If they aren't in your tool list, search your deferred tools for "hylo"; if still missing, say Hylo's tools are unavailable and stop.
 
-**Extraction runs to the end without stopping or asking**, often in the background where nobody can answer. Speak only in Step 5.
+**Extraction runs to the end without stopping or asking**, often woken by a trigger with nobody there to answer. Speak only in Step 5.
 
 Inputs, both optional: a self-introduction in the request (name, role, projects), and extra vault paths to scan.
 

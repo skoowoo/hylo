@@ -1,4 +1,4 @@
-  // Content-pane chrome: tabs, split, rename, compile, and the inbox share of this shell.
+  // Content-pane chrome: tabs, split, rename, compile.
   // The editor session is editor_session.js, concatenated just before this file.
   var __hyloEditorTabSeq = 0;
   function __hyloEditorNewTabId() {
@@ -295,18 +295,18 @@
             window.dispatchEvent(new CustomEvent('hylo:split-moving', { detail: detail || {} }));
           };
           var commitLayout = function() {
-            self.layoutOpen = self.contentPaneOpen || self.inboxSheetOpen;
+            self.layoutOpen = self.contentPaneOpen;
             self.layoutRatio = self.splitRatio;
             // Settles now if the width didn't change (a drag's commit); otherwise transitionend does.
             self.$nextTick(self._settleSplit);
           };
-          this.$watch(function() { return (self.contentPaneOpen || self.inboxSheetOpen) + ':' + self.splitRatio; }, function() {
+          this.$watch(function() { return self.contentPaneOpen + ':' + self.splitRatio; }, function() {
             if (self.isPaneResizing) return;
             var list = document.getElementById('home-list-pane');
             var mainW = list ? list.parentElement.clientWidth : 0;
             self._beginSplitMotion(list ? {
               listFrom: list.getBoundingClientRect().width,
-              listTo: (self.contentPaneOpen || self.inboxSheetOpen) ? mainW * self.splitRatio : mainW,
+              listTo: self.contentPaneOpen ? mainW * self.splitRatio : mainW,
             } : null);
             requestAnimationFrame(commitLayout);
           });
@@ -322,9 +322,6 @@
             __hyloBlurActive();
             return;
           }
-          // The inbox detail panel shares this same pane (see content_pane.html's
-          // inbox-detail-panel) — always one or the other.
-          if (self.inboxSheetOpen) self.inboxSheetOpen = false;
           if (window.__hyloEscPush) window.__hyloEscPush('content-pane', _paneEscClose, document.querySelector('.content-pane'));
           if (self.activeTab >= 0 && !__hyloFocusInsideEditor()) __hyloFocusEditor();
         });
@@ -892,9 +889,17 @@
             }, 1500);
             return;
           }
+          if (st.status === 'busy') {
+            throw new Error('The bot has too many tasks waiting; try again later');
+          }
           if (st.status === 'failed' || st.status === 'canceled') {
             throw new Error('Compile agent ' + st.status);
           }
+          // The bot compiles in its chat once you've paused chatting with it, so the wait doesn't count.
+          var queued = st.status === 'queued';
+          if (queued) deadline = Date.now() + 10 * 60 * 1000;
+          btn.title = queued ? "Queued: compiles once you've paused chatting with the bot" : 'Compiling…';
+          __hyloEditorCompileLabel(btn, queued ? 'Queued…' : 'Compiling…');
         }
         await new Promise(function(r) { setTimeout(r, 1500); });
       }

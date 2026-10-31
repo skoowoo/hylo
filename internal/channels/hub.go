@@ -399,7 +399,7 @@ func (h *Hub) flushImages(key string, p *heldImages) {
 
 func (h *Hub) reset(ctx context.Context, ch mate.Channel, chatID string, out outbound) {
 	title := time.Now().Format("2006-01-02 15:04")
-	if _, err := h.store.EnsureNewConv(ch.MateID, mate.ConvTypeChat, title, 10); err != nil {
+	if _, err := h.store.EnsureNewConv(ch.MateID, title, 10); err != nil {
 		h.log.Warn("channels: new chat", "err", err)
 		_ = h.send(ctx, out, ch.Kind, chatID, "对话重置失败，请稍后再试")
 		return

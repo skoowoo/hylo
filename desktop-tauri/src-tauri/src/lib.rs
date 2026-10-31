@@ -62,9 +62,9 @@ pub fn run() {
                 local: local::LocalServer::new(data_dir.clone(), archive),
                 connected_url: Mutex::new(None),
                 landing: Mutex::new(None),
-                inboxes: Mutex::new(std::collections::HashMap::new()),
+                notifiers: Mutex::new(std::collections::HashMap::new()),
             });
-            servers::sync_inboxes(app.handle());
+            servers::sync_notifiers(app.handle());
 
             install_menu(app.handle())?;
 

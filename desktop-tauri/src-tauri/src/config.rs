@@ -7,7 +7,7 @@ pub const DEFAULT_SERVER_URL: &str = "http://127.0.0.1:54321";
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
-pub struct InboxNotify {
+pub struct NotifySettings {
     #[serde(default = "default_true")]
     pub text_enabled: bool,
     #[serde(default = "default_true")]
@@ -16,7 +16,7 @@ pub struct InboxNotify {
     pub sound: String,
 }
 
-impl Default for InboxNotify {
+impl Default for NotifySettings {
     fn default() -> Self {
         Self {
             text_enabled: true,
@@ -66,8 +66,9 @@ pub struct ConfigFile {
     /// Missing means on.
     #[serde(default = "default_true")]
     pub auto_start_server: bool,
-    #[serde(default)]
-    pub inbox_notify: InboxNotify,
+    /// What a bot reaching out on its own shows and plays.
+    #[serde(default, alias = "inboxNotify")]
+    pub notify: NotifySettings,
     /// Missing means done: only a fresh install starts with it pending.
     #[serde(default)]
     pub onboarding: Onboarding,
@@ -102,7 +103,7 @@ impl Default for ConfigFile {
             servers: Vec::new(),
             active_id: String::new(),
             auto_start_server: true,
-            inbox_notify: InboxNotify::default(),
+            notify: NotifySettings::default(),
             onboarding: Onboarding::default(),
             theme: String::new(),
         };
@@ -285,8 +286,8 @@ mod tests {
     fn missing_autostart_stays_on() {
         let cfg = parse("{}");
         assert!(cfg.auto_start_server);
-        assert!(cfg.inbox_notify.text_enabled);
-        assert_eq!(cfg.inbox_notify.sound, "beep");
+        assert!(cfg.notify.text_enabled);
+        assert_eq!(cfg.notify.sound, "beep");
     }
 
     #[test]

@@ -33,7 +33,7 @@ func (vh *ViewHandler) IconSpecimen(w http.ResponseWriter, r *http.Request) {
 	sort.Strings(names)
 	navRows := [][]specimenRow{
 		{{"open-tabs", "Open"}},
-		{{"inbox", "Inbox"}, {"bot", "Bots"}, {"knowledge", "Knowledge"}, {"tags", "Tags"}, {"memory", "Memory"}},
+		{{"bot", "Bots"}, {"knowledge", "Knowledge"}, {"tags", "Tags"}, {"memory", "Memory"}},
 		{{"pinned", "Pinned"}, {"recent", "Recent"}, {"shorts", "Shorts"}, {"images", "Images"}, {"folders", "Folders"}},
 	}
 	children := []specimenRow{{"note", "Weekly review"}, {"draft", "Untitled"}, {"folder", "projects"}}

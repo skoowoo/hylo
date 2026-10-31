@@ -235,3 +235,12 @@ func (h *MateAPI) MateDELETE(w http.ResponseWriter, r *http.Request) {
 	}
 	respondJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
+
+// MateSeenPOST handles POST /api/mates/{id}/seen: the user has read the bot's chat.
+func (h *MateAPI) MateSeenPOST(w http.ResponseWriter, r *http.Request) {
+	if err := h.store.MarkChatSeen(r.PathValue("id")); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	respondJSON(w, http.StatusOK, map[string]any{"ok": true})
+}

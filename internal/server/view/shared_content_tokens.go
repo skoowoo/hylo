@@ -8,7 +8,7 @@ package view
 //   - the CM6 live-preview editor (editor/src/cm-live/theme.js —
 //     same var() names, read at runtime via EditorView.theme())
 //   - every other surface that reuses .prose: agent chat (.msg-body),
-//     inbox (.inbox-sheet-body), shorts (.shorts-entry-prose)
+//     shorts (.shorts-entry-prose)
 // Same three-layer shape as the UI tokens (shared primitives, dark default,
 // light override); appTokensCSS (shared_tokens.go) concatenates both
 // palettes into the same :root blocks.

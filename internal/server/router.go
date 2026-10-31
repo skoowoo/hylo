@@ -3,21 +3,17 @@ package server
 import (
 	"log/slog"
 	"net/http"
-	"regexp"
-	"strings"
 
 	"github.com/hardhacker/hylo/internal/channels"
 	"github.com/hardhacker/hylo/internal/client"
 	"github.com/hardhacker/hylo/internal/config"
 	"github.com/hardhacker/hylo/internal/editorbus"
-	"github.com/hardhacker/hylo/internal/inbox"
 	"github.com/hardhacker/hylo/internal/live"
 	"github.com/hardhacker/hylo/internal/mate"
 	hylomcp "github.com/hardhacker/hylo/internal/mcp"
 	"github.com/hardhacker/hylo/internal/plugins/compile"
 	"github.com/hardhacker/hylo/internal/plugins/gitsync"
 	"github.com/hardhacker/hylo/internal/plugins/search"
-	"github.com/hardhacker/hylo/internal/prompt"
 	"github.com/hardhacker/hylo/internal/server/handler"
 	"github.com/hardhacker/hylo/internal/server/middleware"
 	"github.com/hardhacker/hylo/internal/server/static"
@@ -58,60 +54,15 @@ func newRouter(
 		channelHub.SetChatter(ah)
 	}
 
-	// Inbox: notifications for finished bot trigger runs. Shares mate.db's
-	// connection rather than opening its own file.
-	var inboxStore *inbox.Store
-	if mateStore != nil {
-		is, err := inbox.Open(mateStore.DB())
-		if err != nil {
-			logger.Warn("inbox store unavailable", "err", err)
-		} else {
-			inboxStore = is
-			// Pages hear of new messages on the live feed; the desktop app's
-			// notifier still streams /api/inbox/notifications.
-			is.SetOnCreate(func(m inbox.Message) {
-				feed.Publish(live.Change{Topic: live.TopicInbox, Op: "create", Data: m})
-			})
-		}
-	}
-
-	// Wire mate runner → agent API so trigger runs use the same execution path.
-	// Trigger run completions become inbox messages; inboxStore.Create fans them
-	// out on its own, so no separate push is needed here.
+	// Triggers wake bots in their chats. A wake that ends with something for
+	// the user goes out on the live feed, to pages and the desktop notifier.
 	if mateRunner != nil {
 		ah.SetMateRunner(mateRunner)
-		mateRunner.SetRunFunc(ah.FireTriggerRun)
-		mateRunner.SetRetryFunc(ah.FireTriggerRetry)
-		mateRunner.SetRunDoneHook(func(m *mate.Mate, result mate.RunResult) {
-			if inboxStore == nil {
-				return
-			}
-			if strings.TrimSpace(result.LastMessage) == "" || prompt.IsSilent(result.Prompt, result.LastMessage) {
-				return
-			}
-			title := m.Name
-			if h1 := firstMarkdownH1(result.LastMessage); h1 != "" {
-				title = m.Name + ": " + h1
-			}
-			if _, err := inboxStore.Create(inbox.Message{
-				Source: m.Name,
-				Title:  title,
-				Body:   result.LastMessage,
-			}); err != nil {
-				logger.Warn("inbox: create message", "err", err)
-			}
-		})
+		mateRunner.SetWakeFunc(ah.Wake)
 	}
-
-	if inboxStore != nil {
-		vh.SetInbox(inboxStore)
-		ih := handler.NewInboxAPI(inboxStore)
-		mux.HandleFunc("GET /api/inbox", ih.InboxGET)
-		mux.HandleFunc("GET /api/inbox/unread-count", ih.InboxUnreadCountGET)
-		mux.HandleFunc("POST /api/inbox/read-all", ih.InboxReadAllPOST)
-		mux.HandleFunc("POST /api/inbox/{id}/read", ih.InboxReadPOST)
-		mux.HandleFunc("GET /api/inbox/notifications", inboxStore.StreamSSE)
-	}
+	ah.SetWakeEnd(func(e handler.WakeEnd) {
+		feed.Publish(live.Change{Topic: live.TopicChat, Op: "wake", Data: e})
+	})
 
 	mux.Handle("GET /api/live", feed)
 	mux.HandleFunc("GET /api/agents", ah.AgentsGET)
@@ -124,7 +75,6 @@ func newRouter(
 	mux.HandleFunc("GET /api/runs/{id}/events", ah.RunEventsGET)
 	mux.HandleFunc("GET /api/runs/{id}", ah.RunGET)
 	mux.HandleFunc("POST /api/runs/{id}/cancel", ah.RunCancelPOST)
-	mux.HandleFunc("POST /api/runs/retry-trigger", ah.RunsRetryTriggerPOST)
 	mux.HandleFunc("POST /api/setup/hello", ah.SetupHelloPOST)
 	mux.HandleFunc("POST /api/setup/bot", ah.SetupBotPOST)
 
@@ -146,6 +96,7 @@ func newRouter(
 		mux.HandleFunc("GET /api/mates/{id}", mh.MateGET)
 		mux.HandleFunc("PUT /api/mates/{id}", mh.MatePUT)
 		mux.HandleFunc("DELETE /api/mates/{id}", mh.MateDELETE)
+		mux.HandleFunc("POST /api/mates/{id}/seen", mh.MateSeenPOST)
 		mux.HandleFunc("POST /api/mates/{id}/triggers/{tid}/run", ah.TriggerRunPOST)
 
 		chHTTP := handler.NewChannelHTTP(logger, mateStore, proxy)
@@ -252,19 +203,4 @@ func newRouter(
 		middleware.Logger(logger),
 		middleware.Authenticator(apiKey, logger, view.RenderLogin),
 	)
-}
-
-// markdownH1Pattern matches the first ATX H1 heading ("# ...", not "##...")
-// on its own line, multiline mode so ^/$ match at line boundaries.
-var markdownH1Pattern = regexp.MustCompile(`(?m)^#[ \t]+(.+?)[ \t]*$`)
-
-// firstMarkdownH1 returns the text of the first H1 heading in body, so an
-// inbox message's title can read "<mate name>: <H1>" instead of just the
-// mate name. Returns "" if body has no H1.
-func firstMarkdownH1(body string) string {
-	m := markdownH1Pattern.FindStringSubmatch(body)
-	if m == nil {
-		return ""
-	}
-	return m[1]
 }

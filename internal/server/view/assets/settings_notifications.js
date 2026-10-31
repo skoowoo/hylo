@@ -14,14 +14,14 @@
       },
 
       async loadNotifySettings() {
-        if (!window.hyloDesktop?.inboxNotify) return;
+        if (!window.hyloDesktop?.notify) return;
         try {
-          this.notifySettings = await window.hyloDesktop.inboxNotify.getSettings();
+          this.notifySettings = await window.hyloDesktop.notify.getSettings();
         } catch(_) {}
       },
 
       async saveNotifySettings() {
-        if (!window.hyloDesktop?.inboxNotify) return;
+        if (!window.hyloDesktop?.notify) return;
         try {
           // Spread to a plain object so the desktop IPC bridge's structured clone
           // doesn't silently drop the Alpine.js reactive Proxy wrapper.
@@ -30,7 +30,7 @@
             soundEnabled: this.notifySettings.soundEnabled,
             sound:        this.notifySettings.sound,
           };
-          this.notifySettings = await window.hyloDesktop.inboxNotify.setSettings(snap);
+          this.notifySettings = await window.hyloDesktop.notify.setSettings(snap);
         } catch(e) { console.error('[notify] saveNotifySettings error:', e); }
       },
     };

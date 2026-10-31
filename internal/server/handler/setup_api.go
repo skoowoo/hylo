@@ -130,11 +130,10 @@ func (a *AgentAPI) SetupHelloPOST(w http.ResponseWriter, r *http.Request) {
 		lang = body.Lang
 	}
 	chat := chatBody{
-		AgentID:    body.AgentID,
-		Model:      body.Model,
-		Message:    prompt.HelloMessage(helloOf(o, body.helloApps, lang, body.Now)),
-		TriggerRun: true,
-		oneShot:    true,
+		AgentID: body.AgentID,
+		Model:   body.Model,
+		Message: prompt.HelloMessage(helloOf(o, body.helloApps, lang, body.Now)),
+		oneShot: true,
 	}
 	run := a.hub.CreateRun(map[string]string{"agentId": body.AgentID})
 	run.AgentID = body.AgentID
@@ -190,7 +189,7 @@ func (a *AgentAPI) SetupBotPOST(w http.ResponseWriter, r *http.Request) {
 	}
 	// The bot works without its greeting, so a failure here doesn't fail setup.
 	if g := strings.TrimSpace(body.Greeting); g != "" {
-		if conv, err := a.store.EnsureNewConv(m.ID, mate.ConvTypeChat, "", 10); err == nil {
+		if conv, err := a.store.EnsureNewConv(m.ID, "", 10); err == nil {
 			msg := mate.Message{ConversationID: conv.ID, Role: "assistant", Content: g, MateID: m.ID, AgentID: m.AgentID, Status: "succeeded"}
 			if _, err := a.store.InsertMessage(msg); err != nil {
 				a.logger.Warn("setup: greeting", slog.String("err", err.Error()))

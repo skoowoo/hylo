@@ -13,8 +13,8 @@ type CompileResult struct {
 	Path   string `json:"path,omitempty"`
 }
 
-// Compile calls POST /api/compile/trigger: the bot compiles the note in the
-// background. A note already compiled isn't an error.
+// Compile calls POST /api/compile/trigger: the bot compiles the note as a
+// turn in its chat. A note already compiled isn't an error.
 func (c *Client) Compile(pathOrName string) (*CompileResult, error) {
 	resp, err := c.postJSON(c.baseURL+"/api/compile/trigger", noteReadBody(pathOrName))
 	if err != nil {

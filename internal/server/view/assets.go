@@ -47,7 +47,7 @@ func init() {
 		"search_overlay.js", "confirm_dialog.js", "info_dialog.js", "servers_store.js",
 		"settings_modal.js", "settings_appearance.js", "settings_server.js", "settings_agentcli.js",
 		"settings_notifications.js", "settings_shortcuts.js", "settings_agentbots.js", "settings_skills.js",
-		"section_cache.js", "home_images.js", "home_graph.js", "home_inbox.js", "home_shorts.js", "tag_cloud.js",
+		"section_cache.js", "home_images.js", "home_graph.js", "home_shorts.js", "tag_cloud.js",
 		"home_drag.js", "home.js", "note_shared.js",
 	))
 

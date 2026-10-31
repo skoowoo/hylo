@@ -18,7 +18,9 @@ import (
 func (s *Store) ListMates() ([]Mate, error) {
 	rows, err := s.db.Query(
 		`SELECT m.id, m.name, m.description, m.agent_id, m.model, m.color, m.cwd, m.main, m.system_prompt, m.enabled, m.created_at, m.updated_at,
-		        (SELECT COUNT(*) FROM mate_triggers t WHERE t.mate_id = m.id) AS trigger_count
+		        (SELECT COUNT(*) FROM mate_triggers t WHERE t.mate_id = m.id) AS trigger_count,
+		        (SELECT COUNT(*) FROM chat_messages c WHERE c.mate_id = m.id AND c.role = 'assistant' AND c.trigger_event != ''
+		           AND c.status NOT IN ('', 'running') AND c.updated_at > m.seen_at) AS unread
          FROM mates m ORDER BY m.sort_order ASC, m.created_at ASC`,
 	)
 	if err != nil {
@@ -26,6 +28,12 @@ func (s *Store) ListMates() ([]Mate, error) {
 	}
 	defer rows.Close()
 	return scanMatesWithTriggerCount(rows)
+}
+
+// MarkChatSeen clears the bot's unread wake replies: the user has looked at its chat.
+func (s *Store) MarkChatSeen(id string) error {
+	_, err := s.db.Exec(`UPDATE mates SET seen_at = ? WHERE id = ?`, time.Now().UnixMilli(), id)
+	return err
 }
 
 func (s *Store) GetMate(id string) (*Mate, error) {
@@ -183,6 +191,22 @@ func (s *Store) ListTriggers(mateID string) ([]MateTrigger, error) {
 	}
 	defer rows.Close()
 	return scanTriggers(rows)
+}
+
+func (s *Store) getTrigger(id string) (*MateTrigger, error) {
+	rows, err := s.db.Query(
+		`SELECT id, mate_id, event_types, prompt, enabled, created_at, schedule, last_fired_at, path_prefixes, name
+         FROM mate_triggers WHERE id = ?`, id,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	ts, err := scanTriggers(rows)
+	if err != nil || len(ts) == 0 {
+		return nil, err
+	}
+	return &ts[0], nil
 }
 
 // ListAllEnabledTriggers returns all enabled triggers for all enabled mates.
@@ -382,13 +406,13 @@ func scanMateRow(rows *sql.Rows, withTriggerCount bool) (Mate, error) {
 	var m Mate
 	var createdMs, updatedMs int64
 	var enabled, main int
-	var triggerCount int
+	var triggerCount, unread int
 	var cols = []any{
 		&m.ID, &m.Name, &m.Description, &m.AgentID, &m.Model, &m.Color, &m.Cwd, &main,
 		&m.SystemPrompt, &enabled, &createdMs, &updatedMs,
 	}
 	if withTriggerCount {
-		cols = append(cols, &triggerCount)
+		cols = append(cols, &triggerCount, &unread)
 	}
 	if err := rows.Scan(cols...); err != nil {
 		return Mate{}, err
@@ -399,6 +423,7 @@ func scanMateRow(rows *sql.Rows, withTriggerCount bool) (Mate, error) {
 	m.UpdatedAt = time.UnixMilli(updatedMs)
 	if withTriggerCount {
 		m.TriggerCount = triggerCount
+		m.Unread = unread
 	}
 	return m, nil
 }

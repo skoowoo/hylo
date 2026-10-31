@@ -1,6 +1,6 @@
 // Chat pane. Mounted while #chat-root is in the document and discarded on
 // HTMX swap. Message rows come from chat_rows.js; this keeps them in order and
-// owns the scroll model, the composer and the trigger tab's run log.
+// owns the scroll model and the composer.
 (function (root) {
   var R = root.__hyloChatReduce;
   var Rows = root.__hyloChatRows;
@@ -101,17 +101,6 @@
     node.style.display = on ? '' : 'none';
   }
 
-  // A run's body re-renders whole; chat rows render block by block (chat_rows.js).
-  function setProse(node, text, streaming) {
-    if (streaming) text = Rows.streamable(text);
-    var openTail = !!streaming && Rows.endsInOpenFence(text);
-    if (node._raw === text && node._openTail === openTail) return;
-    node._raw = text;
-    node._openTail = openTail;
-    node.innerHTML = root.__hyloRenderMarkdown(text, { cache: !streaming });
-    root.__hyloHydrateFenceCards(node, { openTail: openTail });
-  }
-
   function kbd(text) {
     var k = el('kbd', 'kbd');
     k.textContent = text;
@@ -188,67 +177,6 @@
     return box;
   }
 
-  // ── Trigger tab: a run log, not a conversation ──────────────────────
-  var runOpen = new Set();
-
-  var TRIG_ICONS = {
-    clock: hyloIcon('recent'),
-    note: hyloIcon('file'),
-    layers: hyloIcon('layers'),
-    bolt: hyloIcon('zap'),
-  };
-  var READ_SVG = hyloIcon('eye');
-  var WRITE_SVG = hyloIcon('draft');
-
-  function triggerIcon(et) {
-    if (et === 'scheduled') return TRIG_ICONS.clock;
-    if (et === 'compile_requested') return TRIG_ICONS.layers;
-    if (/note/.test(et)) return TRIG_ICONS.note;
-    return TRIG_ICONS.bolt;
-  }
-
-  function triggerName(t, i) { return t.name || ('Trigger ' + (i + 1)); }
-
-  function triggerWhen(t, snap) {
-    var et = (t.eventTypes || [])[0] || '';
-    var label = snap.triggerLabel(et);
-    if (!t.enabled) return 'Paused';
-    if (et === 'scheduled' && t.schedule) return t.schedule.charAt(0).toUpperCase() + t.schedule.slice(1);
-    if ((t.pathPrefixes || []).length) return label + ' · ' + t.pathPrefixes.join(', ');
-    return label;
-  }
-
-  function pad2(n) { return (n < 10 ? '0' : '') + n; }
-
-  function dayLabel(d, now) {
-    var today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    var diff = Math.round((today - new Date(d.getFullYear(), d.getMonth(), d.getDate())) / 86400000);
-    if (diff === 0) return 'Today';
-    if (diff === 1) return 'Yesterday';
-    var s = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-    return d.getFullYear() === now.getFullYear() ? s : s + ', ' + d.getFullYear();
-  }
-
-  // One chip per note, a write outranking a read of the same note.
-  function touchedNotes(msg) {
-    var byPath = {}, order = [];
-    (msg.segments || []).forEach(function (s) {
-      if (s.type !== 'note_access') return;
-      (s.items || []).forEach(function (it) {
-        if (!(it.path in byPath)) order.push(it.path);
-        if (byPath[it.path] !== 'write') byPath[it.path] = it.action;
-      });
-    });
-    return order.map(function (p) { return { path: p, write: byPath[p] === 'write' }; });
-  }
-
-  function runText(msg) {
-    return (msg.segments || [])
-      .filter(function (s) { return s.type === 'text'; })
-      .map(function (s) { return s.content || ''; })
-      .join('').trim();
-  }
-
   root.__hyloChatMount = function (rootEl, api) {
     var isMac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
     var thread = rootEl.querySelector('#chat-thread');
@@ -270,7 +198,6 @@
     var newBtn = rootEl.querySelector('#chat-new-btn');
     var jumpBtn = rootEl.querySelector('#chat-jump');
     var descEl = rootEl.querySelector('#chat-bot-desc');
-    var seg = rootEl.querySelector('#chat-conv-seg');
     var triggersBtn = rootEl.querySelector('#chat-triggers-btn');
     var spacer = el('div', 'chat-scroll-spacer');
     spacer.id = 'chat-scroll-spacer';
@@ -296,9 +223,6 @@
     var scrollRaf = 0;
     var timeTimer = 0;
     var emptyKind = '';
-    var runsEl = null;
-    var runsSig = '';
-    var triggerMode = false;
 
     function onCopied(id, onIcon) {
       var row = rows.get(id);
@@ -340,8 +264,8 @@
     function reversed() { return scrollEl.classList.contains('is-stuck'); }
 
     function syncOrigin() {
-      var want = api.stick() && !triggerMode;
-      if (reversed() === want || (userScrolling() && !triggerMode)) return;
+      var want = api.stick();
+      if (reversed() === want || userScrolling()) return;
       var top = fromTop();
       scrollEl.classList.toggle('is-stuck', want);
       scrollEl.scrollTop = want ? 0 : top;
@@ -377,7 +301,7 @@
 
     // After anything that can move content: a render, a card or image settling, a resize.
     function settle() {
-      if (!scrollEl || triggerMode || detaching || !rows.size) return;
+      if (!scrollEl || detaching || !rows.size) return;
       // Rows landing mid-glide would shove the view up; the glide places it each time.
       if (glide) { placeGlide(); return; }
       // A place that's gone (another chat, a reload that dropped older pages) falls back to the bottom.
@@ -399,7 +323,7 @@
     var splitHeld = null;
     var splitCols = [];
     function splitMoving(d) {
-      if (!scrollEl || triggerMode || !rows.size || !thread.offsetParent) return;
+      if (!scrollEl || !rows.size || !thread.offsetParent) return;
       if (!splitHeld) splitHeld = parkOutOfView();
       if (d.listTo == null || d.listFrom == null) return;
       var delta = d.listTo - d.listFrom;
@@ -477,7 +401,7 @@
       if (i < 0 || msgs[i].role !== 'assistant') return { mode: 'static' };
       var next = msgs[i + 1];
       if (next) return { mode: 'answered', picked: next.role === 'user' ? next.content || '' : '' };
-      if (snap.convType === 'chat' && !snap.busy && msgs[i].status !== 'running') return { mode: 'active' };
+      if (!snap.busy && msgs[i].status !== 'running') return { mode: 'active' };
       return { mode: 'answered' };
     }
     // A receipt's undo stays usable on older replies, since its text names what it
@@ -493,7 +417,6 @@
       for (var j = i + 1; j < msgs.length; j++) {
         if (msgs[j].role === 'user' && (msgs[j].content || '').trim() === undo) return { mode: 'done' };
       }
-      if (snap.convType !== 'chat') return { mode: 'static' };
       var last = msgs[msgs.length - 1];
       return { mode: snap.busy || (last && last.status === 'running') ? 'busy' : 'active' };
     }
@@ -613,7 +536,7 @@
 
     function updateJump(snap) {
       var st = snap || api.state();
-      show(jumpBtn, st.convType === 'chat' && !st.stick && st.messages.length > 0);
+      show(jumpBtn, !st.stick && st.messages.length > 0);
     }
 
     function syncComposerBox() {
@@ -670,24 +593,9 @@
         descEl.textContent = desc;
         show(descEl, !!desc);
       }
-      show(seg, !!snap.mateId);
-      if (seg) {
-        var btns = seg.querySelectorAll('.seg-btn');
-        for (var i = 0; i < btns.length; i++) {
-          btns[i].classList.toggle('active', btns[i].getAttribute('data-conv') === snap.convType);
-          btns[i].disabled = busy;
-        }
-      }
-      if (newBtn) {
-        show(newBtn, snap.convType === 'chat');
-        newBtn.disabled = busy || !snap.mateId || snap.messages.length === 0;
-      }
-      show(triggersBtn, snap.convType === 'trigger' && !!snap.mateId);
-      show(panel, snap.convType === 'chat' && !(snap.matesLoaded && !snap.mates.length));
-      if (spacer) {
-        if (snap.convType !== 'chat') spacer.style.height = '2rem';
-        else spacer.style.height = '';
-      }
+      if (newBtn) newBtn.disabled = busy || !snap.mateId || snap.messages.length === 0;
+      show(triggersBtn, !!snap.mateId);
+      show(panel, !(snap.matesLoaded && !snap.mates.length));
       if (hintName) {
         hintName.textContent = mate ? ('Ask ' + mate.name + '…') : 'Select a bot from the sidebar';
       }
@@ -817,199 +725,6 @@
       window.dispatchEvent(new CustomEvent('hylo:open-settings', { detail: { tab: 'agent-bots' } }));
     }
 
-    function buildTriggerCards(snap) {
-      var grid = el('div', 'trig-cards');
-      snap.triggers.forEach(function (t, i) {
-        var et = (t.eventTypes || [])[0] || '';
-        var card = el('button', 'trig-card' + (snap.triggerFilter === t.id ? ' active' : '') + (t.enabled ? '' : ' is-paused'));
-        card.type = 'button';
-        card.setAttribute('aria-pressed', snap.triggerFilter === t.id ? 'true' : 'false');
-        var head = el('div', 'trig-card-head');
-        var icon = el('span', 'trig-card-icon');
-        icon.appendChild(svg(triggerIcon(et)));
-        head.appendChild(icon);
-        var name = el('span', 'trig-card-name');
-        name.textContent = triggerName(t, i);
-        head.appendChild(name);
-        card.appendChild(head);
-        var when = el('div', 'trig-card-when');
-        when.textContent = triggerWhen(t, snap);
-        card.appendChild(when);
-        card.title = (t.prompt || '').slice(0, 300);
-        card.addEventListener('click', function () { api.setTriggerFilter(t.id); });
-        grid.appendChild(card);
-      });
-      return grid;
-    }
-
-    function buildRun(msg, snap, names, last) {
-      var status = msg.status || 'succeeded';
-      var row = el('div', 'trig-run');
-      var at = msg.createdAt || R.msgAt(msg);
-      var time = el('div', 'trig-run-time');
-      if (at) { var d = new Date(at); time.textContent = pad2(d.getHours()) + ':' + pad2(d.getMinutes()); }
-      row.appendChild(time);
-      var rail = el('div', 'trig-run-rail');
-      rail.appendChild(el('span', 'trig-run-dot is-' + status));
-      if (!last) rail.appendChild(el('span', 'trig-run-line'));
-      row.appendChild(rail);
-
-      var main = el('div', 'trig-run-main');
-      var head = el('div', 'trig-run-head');
-      var name = el('span', 'trig-run-name');
-      name.textContent = names[msg.triggerId] || (msg.triggerEvent ? snap.triggerLabel(msg.triggerEvent) : 'Trigger');
-      head.appendChild(name);
-      if (status === 'running') {
-        var st = el('span', 'trig-run-status');
-        st.textContent = 'Running';
-        head.appendChild(st);
-      }
-      main.appendChild(head);
-
-      var text = runText(msg);
-      if (status === 'running' && !text) main.appendChild(Rows.dots('Working'));
-      var body = null;
-      if (text) {
-        body = el('div', 'trig-run-body prose' + (runOpen.has(msg.id) ? '' : ' is-clamped'));
-        setProse(body, text, status === 'running');
-        main.appendChild(body);
-      }
-      var banner = Rows.statusBanner(msg, snap, api);
-      if (banner) main.appendChild(banner);
-
-      if (status !== 'running') {
-        var foot = el('div', 'trig-run-foot');
-        if (body) {
-          var more = el('button', 'trig-run-more');
-          more.type = 'button';
-          more.textContent = runOpen.has(msg.id) ? 'Show less' : 'Show more';
-          more.hidden = true;
-          more.addEventListener('click', function () {
-            var on = !runOpen.has(msg.id);
-            if (on) runOpen.add(msg.id); else runOpen.delete(msg.id);
-            body.classList.toggle('is-clamped', !on);
-            more.textContent = on ? 'Show less' : 'Show more';
-          });
-          foot.appendChild(more);
-          body._more = more;
-        }
-        var notes = touchedNotes(msg);
-        var chips = [];
-        notes.forEach(function (n) {
-          var stem = noteStem(n.path);
-          var chip = el('button', 'trig-note' + (n.write ? ' is-write' : ''));
-          chips.push(chip);
-          chip.type = 'button';
-          chip.title = (n.write ? 'Wrote ' : 'Read ') + n.path;
-          chip.appendChild(svg(n.write ? WRITE_SVG : READ_SVG));
-          chip.appendChild(document.createTextNode(stem));
-          chip.addEventListener('click', function () {
-            if (window.__hyloContentPane) void window.__hyloContentPane.openNoteInContentPane(n.path, stem, false, false);
-          });
-          foot.appendChild(chip);
-        });
-        // Same rule as the chat's note cards: a note gone from the vault gets no chip.
-        if (notes.length) {
-          Rows.fetchNoteInfo(notes.map(function (n) { return n.path; })).then(function () {
-            notes.forEach(function (n, k) { if (Rows.noteInfo(n.path) === null) chips[k].remove(); });
-          });
-        }
-        var took = status === 'succeeded' && msg.createdAt && msg.completedAt ? Rows.fmtDur(msg.completedAt - msg.createdAt) : '';
-        if (took) {
-          var dur = el('span', 'trig-run-dur');
-          dur.textContent = took;
-          foot.appendChild(dur);
-        }
-        if (foot.firstChild) main.appendChild(foot);
-      }
-      row.appendChild(main);
-      return row;
-    }
-
-    // "Show more" only where the clamp actually hides something.
-    function measureRuns() {
-      if (!runsEl) return;
-      runsEl.querySelectorAll('.trig-run-body').forEach(function (body) {
-        if (!body._more || !body.classList.contains('is-clamped')) return;
-        body._more.hidden = body.scrollHeight <= body.clientHeight + 2;
-      });
-    }
-
-    function renderRuns(snap) {
-      var runs = [];
-      for (var i = snap.messages.length - 1; i >= 0; i--) {
-        var m = snap.messages[i];
-        if (m.role !== 'assistant') continue;
-        if (snap.triggerFilter && m.triggerId !== snap.triggerFilter) continue;
-        runs.push(m);
-      }
-      var sig = [snap.mateId, snap.triggerFilter, snap.catalogEpoch, snap.busy ? 1 : 0, snap.triggersLoaded ? 1 : 0, snap.hasOlder ? 1 : 0,
-        JSON.stringify(snap.triggers.map(function (t) { return [t.id, t.name, t.enabled, t.eventTypes, t.schedule, t.pathPrefixes]; })),
-        new Date().toDateString()];
-      runs.forEach(function (m) { sig.push(m.id + ':' + m.rev); });
-      sig = sig.join('|');
-      if (runsEl && runsSig === sig && runsEl.parentNode === thread) return;
-      runsSig = sig;
-      var scrollTop = scrollEl && runsEl && runsEl._mate === snap.mateId ? scrollEl.scrollTop : 0;
-      if (runsEl) { root.__hyloReleaseFenceCards(runsEl); runsEl.remove(); }
-      runsEl = el('div', 'trig-log');
-      runsEl._mate = snap.mateId;
-      thread.insertBefore(runsEl, spacer);
-      // Names come with the triggers; drawing runs before them would relabel every row.
-      if (!snap.triggersLoaded) return;
-
-      if (!snap.triggers.length && !runs.length && !snap.hasOlder) {
-        var empty = el('div', 'empty-state trig-empty');
-        var title = el('div', 'empty-state-title');
-        title.textContent = 'No runs yet';
-        empty.appendChild(title);
-        var desc = el('div', 'empty-state-desc');
-        desc.textContent = 'Add a trigger to run this bot on a schedule or when notes change. Every run shows up here.';
-        empty.appendChild(desc);
-        var actions = el('div', 'empty-state-actions');
-        var manage = el('button', 'btn-outline');
-        manage.type = 'button';
-        manage.textContent = 'Manage triggers';
-        manage.addEventListener('click', openTriggerSettings);
-        actions.appendChild(manage);
-        empty.appendChild(actions);
-        runsEl.appendChild(empty);
-        return;
-      }
-
-      if (snap.triggers.length) runsEl.appendChild(buildTriggerCards(snap));
-      var names = {};
-      snap.triggers.forEach(function (t, i) { names[t.id] = triggerName(t, i); });
-
-      var now = new Date();
-      var day = null, dayKey = '';
-      runs.forEach(function (m, idx) {
-        var d = new Date(m.createdAt || R.msgAt(m) || Date.now());
-        var key = d.toDateString();
-        if (key !== dayKey) {
-          dayKey = key;
-          day = el('section', 'trig-day');
-          var h = el('div', 'trig-day-head');
-          var label = el('span', 'trig-day-label');
-          label.textContent = dayLabel(d, now);
-          h.appendChild(label);
-          h.appendChild(el('span', 'trig-day-rule'));
-          day.appendChild(h);
-          runsEl.appendChild(day);
-        }
-        var next = runs[idx + 1];
-        var last = !next || new Date(next.createdAt || R.msgAt(next) || Date.now()).toDateString() !== key;
-        day.appendChild(buildRun(m, snap, names, last));
-      });
-      if (!runs.length && !snap.hasOlder) {
-        var none = el('div', 'trig-none');
-        none.textContent = snap.triggerFilter ? 'No runs for this trigger yet.' : 'No runs yet.';
-        runsEl.appendChild(none);
-      }
-      if (scrollEl) scrollEl.scrollTop = scrollTop;
-      requestAnimationFrame(measureRuns);
-    }
-
     function updateTimes() {
       var snap = api.state();
       var now = Date.now();
@@ -1033,24 +748,6 @@
     function paint() {
       var snap = api.state();
       renderChrome(snap);
-      var wasTrigger = triggerMode;
-      triggerMode = snap.convType === 'trigger';
-      if (triggerMode) {
-        if (scrollEl) syncOrigin();
-        if (!wasTrigger) {
-          Array.from(rows.keys()).forEach(retire);
-          var stale = rootEl.querySelector('.chat-empty');
-          if (stale) stale.remove();
-          emptyKind = '';
-          if (scrollEl) scrollEl.scrollTop = 0;
-        }
-        renderRuns(snap);
-        updateJump(snap);
-        // A narrowed list can come up short; keep paging until it fills or runs out.
-        if (snap.hasOlder && scrollEl && scrollEl.scrollHeight - scrollEl.scrollTop - scrollEl.clientHeight < 400) void api.loadOlder();
-        return;
-      }
-      if (runsEl) { root.__hyloReleaseFenceCards(runsEl); runsEl.remove(); runsEl = null; runsSig = ''; }
       renderThread(snap);
       syncRetry(snap);
       settle();
@@ -1059,7 +756,7 @@
     }
 
     function onScroll() {
-      if (scrollEl && !triggerMode && rows.size) {
+      if (scrollEl && rows.size) {
         var wasStuck = api.stick();
         // The reader's direction decides: up leaves the bottom at once, down into
         // its last stretch rejoins it. scrollTop grows toward the bottom in both origins.
@@ -1088,10 +785,6 @@
       scrollRaf = requestAnimationFrame(function () {
         scrollRaf = 0;
         if (!scrollEl) return;
-        if (triggerMode) {
-          if (scrollEl.scrollHeight - scrollEl.scrollTop - scrollEl.clientHeight < 400) void api.loadOlder();
-          return;
-        }
         if (fromTop() < 400) void api.loadOlder();
       });
     }
@@ -1384,13 +1077,6 @@
     on(newBtn, 'click', function () { void api.newChat(); });
     on(triggersBtn, 'click', openTriggerSettings);
     on(jumpBtn, 'click', jumpToBottom);
-    if (seg) {
-      on(seg, 'click', function (e) {
-        var btn = e.target.closest && e.target.closest('.seg-btn');
-        if (!btn || btn.disabled) return;
-        api.setConvType(btn.getAttribute('data-conv'));
-      });
-    }
 
     if (ta) {
       ta.value = api.draft();
@@ -1415,7 +1101,6 @@
         splitSettled();
         setAttachOpen(false);
         endGlide();
-        if (runsEl) root.__hyloReleaseFenceCards(runsEl);
         rows.forEach(function (row) { row.destroy(); });
         shelf.forEach(function (row) { row.destroy(); });
         shelf.clear();

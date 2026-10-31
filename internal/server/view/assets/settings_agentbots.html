@@ -259,18 +259,18 @@
                             </template>
                             <template x-if="hasPathFilter(t)">
                               <div class="settings-field">
-                                <span class="settings-label"><span x-text="agentBotFilterFor(t).title"></span> <small>(optional)</small></span>
-                                <span class="settings-desc" x-text="agentBotFilterFor(t).hint"></span>
+                                <span class="settings-label">Path Prefixes <small>(optional)</small></span>
+                                <span class="settings-desc">Only fire when the event path starts with one of these prefixes. Leave empty to match all paths. One prefix per line, e.g. /journal/</span>
                                 <textarea class="field-input agent-bot-form-textarea"
                                           rows="2" x-effect="t._open; agentBotAutoGrow($el)" @input="agentBotAutoGrow($el)"
                                           :value="(t.pathPrefixes || []).join('\n')"
                                           @change="t.pathPrefixes = $event.target.value.split('\n').map(function(s){return s.trim();}).filter(Boolean)"
-                                          :placeholder="agentBotFilterFor(t).placeholder"></textarea>
+                                          placeholder="/journal/&#10;/projects/work/"></textarea>
                               </div>
                             </template>
                             <div class="settings-field agent-bot-trigger-prompt">
                               <span class="settings-label">Prompt template</span>
-                              <span class="settings-desc">Message sent to the agent when this trigger fires. Click a variable below to insert at cursor.</span>
+                              <span class="settings-desc">The task the bot wakes up to, in its chat, when this trigger fires. Click a variable below to insert at cursor.</span>
                               <div class="agent-bot-var-panel">
                                 <span class="agent-bot-var-panel-label">Variables</span>
                                 <div class="agent-bot-var-chips">

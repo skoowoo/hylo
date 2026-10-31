@@ -17,24 +17,14 @@
     var bootstrapped = false;
 
     var mateId = '';
-    var convType = 'chat';
-    // Remembers each mate's own chat/trigger tab choice (keyed by mateId) —
-    // convType itself stays a single live variable (everything below reads
-    // it directly), this is just what switchMate restores it from so
-    // flipping the tab for one bot doesn't leak into the next bot you open.
-    var convTypeByMate = {};
     var conversationId = '';
     var messages = [];
     // False until the open conversation's messages are known, so its empty state never flashes.
     var loaded = false;
-    // Each mate and tab's last conversation, shown at once on return while a reload catches up.
+    // Each mate's last conversation, shown at once on return while a reload catches up.
     var parked = Object.create(null);
-    // The trigger tab's cards and the one it narrows the runs to.
-    var triggers = [];
-    var triggersFor = '';
-    var triggerFilter = '';
     // Only the newest PAGE messages load on open; scrolling up pages in older
-    // ones. Rendering a whole long trigger log made every bot switch stall.
+    // ones. Rendering a whole long history made every bot switch stall.
     var PAGE = 50;
     var hasOlder = false;
     var loadingOlder = false;
@@ -144,14 +134,24 @@
       view.render();
     }
 
+    // A wake is no row: its reply says what woke the bot. That reply shows once
+    // it's done, so one the bot keeps silent never appears and no turn ever has
+    // to leave the thread. A retry the user started is theirs to watch.
+    function shown() {
+      var live = run && run.assistantMsgId;
+      return messages.filter(function (m) {
+        if (m.role === 'wake') return false;
+        return !(m.role === 'assistant' && m.triggerEvent && m.status === 'running' && m.id !== live);
+      });
+    }
+
     function state() {
       return {
         mateId: mateId,
         mate: mateById(mateId),
         mates: mates,
         matesLoaded: matesLoaded,
-        convType: convType,
-        messages: messages,
+        messages: shown(),
         loaded: loaded,
         catalogEpoch: catalogEpoch,
         draft: draft,
@@ -163,9 +163,6 @@
         stoppingId: activeStoppingId(),
         stick: stick,
         hasOlder: hasOlder,
-        triggers: triggers,
-        triggersLoaded: triggersFor === mateId,
-        triggerFilter: triggerFilter,
         triggerLabel: triggerLabel,
         mateName: mateName,
       };
@@ -216,7 +213,45 @@
         if (sig !== matesSig) { matesSig = sig; catalogEpoch++; }
         if (host.onMates) host.onMates(mates);
         requestRender();
+        if (watching()) markSeen(mateId);
       } catch (e) { notify("Couldn't load bots"); }
+    }
+
+    // The user is looking at this bot's chat right now.
+    function watching(id) {
+      return !!view && !!mateId && (!id || id === mateId) && document.visibilityState === 'visible';
+    }
+
+    // Opening a bot's chat reads what it sent on its own.
+    function markSeen(id) {
+      var m = mateById(id);
+      if (!m || !m.unread) return;
+      // A new object: the sidebar's rows are bound to these, and an edit in place goes unseen.
+      mates = mates.map(function (x) { return x === m ? Object.assign({}, x, { unread: 0 }) : x; });
+      if (host.onMates) host.onMates(mates);
+      fetch('/api/mates/' + encodeURIComponent(id) + '/seen', { method: 'POST' }).catch(function () { /* the next open retries */ });
+    }
+
+    // A wake's turn is over. A silent one leaves the chat; any other is unread
+    // until the user looks.
+    function onWakes(changes) {
+      var unread = false, mine = false, drop = false;
+      changes.forEach(function (c) {
+        if (c.op === 'resync') { unread = mine = true; return; }
+        var e = c.data;
+        if (c.op !== 'wake' || !e) return;
+        if (e.silent) {
+          var before = messages.length;
+          messages = messages.filter(function (m) { return m.id !== e.wakeId && m.id !== e.replyId; });
+          if (messages.length !== before) drop = true;
+          return;
+        }
+        unread = true;
+        if (e.mateId === mateId) mine = true;
+      });
+      if (drop) requestRender();
+      if (unread) void loadMates();
+      if (mine && conversationId && !busy()) void refresh(true);
     }
 
     async function loadEvents() {
@@ -227,22 +262,6 @@
         catalogEpoch++;
         requestRender();
       } catch (e) { notify("Couldn't load triggers"); }
-    }
-
-    async function loadTriggers() {
-      var id = mateId;
-      if (!id) return;
-      try {
-        var m = await fetchJSON('/api/mates/' + encodeURIComponent(id));
-        if (id !== mateId) return;
-        triggers = (m && m.mate && m.mate.triggers) || [];
-        if (triggerFilter && !triggers.some(function (t) { return t.id === triggerFilter; })) triggerFilter = '';
-      } catch (e) {
-        if (id !== mateId) return;
-        notify("Couldn't load triggers");
-      }
-      triggersFor = id;
-      requestRender();
     }
 
     function cancelRunPoller() { stopLoop(runCtrl); }
@@ -294,9 +313,7 @@
       syncingConv = convId;
       loop(syncCtrl, async function (seq) {
         if (liveRun() || !convId || document.visibilityState !== 'visible') return 5000;
-        var mateNow = mateId;
-        var typeNow = convType;
-        var data = await fetchJSON('/api/conversations?mateId=' + encodeURIComponent(mateNow) + '&type=' + encodeURIComponent(typeNow));
+        var data = await fetchJSON('/api/conversations?mateId=' + encodeURIComponent(mateId));
         if (syncCtrl.seq !== seq) return false;
         var convs = (data && data.conversations) || [];
         if (convs.length > 0 && convs[0].id !== convId) {
@@ -360,9 +377,8 @@
     async function refresh(keepPlace) {
       if (busy() || !mateId) return;
       var seq = ++refreshSeq;
-      if (convType === 'trigger') void loadTriggers();
       try {
-        var resp = await fetch('/api/conversations?mateId=' + encodeURIComponent(mateId) + '&type=' + encodeURIComponent(convType), { cache: 'no-store' });
+        var resp = await fetch('/api/conversations?mateId=' + encodeURIComponent(mateId), { cache: 'no-store' });
         if (seq !== refreshSeq) return;
         if (!resp.ok) { notify("Couldn't load the conversation"); return; }
         var convs = (await resp.json()).conversations || [];
@@ -479,6 +495,8 @@
             userMessageId: userMsgId,
             assistantMessageId: assistant.id,
             retryOf: (extra && extra.retryOf) || '',
+            triggerEvent: (extra && extra.triggerEvent) || '',
+            triggerId: (extra && extra.triggerId) || '',
             intro: !!(extra && extra.intro),
             introLang: (extra && extra.lang) || '',
           }),
@@ -509,66 +527,6 @@
       }
     }
 
-    // Re-fires a failed/canceled trigger-originated message through
-    // /api/runs/retry-trigger instead of runTurn's /api/chat — that endpoint
-    // goes through mate.Runner.RetryRun, so the retried run's completion
-    // still reaches the mate runner's onDone hook (inbox message on
-    // completion) the way the original automatic trigger fire did. There's
-    // no SSE stream for this path (it's a background run, like /api/runs),
-    // so it leans on the same runId poller + conversation resync runTurn
-    // already uses to recover from a dropped SSE connection.
-    async function retryTriggerRun(text, userMsgId, triggerEvent, triggerId, mate, retryOf) {
-      if (!mate) return;
-      var assistant = {
-        id: R.genId(),
-        role: 'assistant', agentId: mate.agentId, agentBotId: mate.id,
-        triggerEvent: triggerEvent,
-        triggerId: triggerId,
-        createdAt: Date.now(),
-        segments: [], status: 'running',
-        startTime: Date.now(), duration: 0, completedAt: 0,
-        rev: 1,
-      };
-      messages.push(assistant);
-      phase = 'streaming';
-      requestRender(true);
-      try {
-        var resp = await fetch('/api/runs/retry-trigger', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            mateId: mate.id,
-            conversationId: conversationId,
-            prompt: text,
-            triggerEvent: triggerEvent,
-            triggerId: triggerId,
-            retryOf: retryOf,
-            userMessageId: userMsgId,
-            assistantMessageId: assistant.id,
-          }),
-        });
-        if (!resp.ok) {
-          var errText = await resp.text();
-          assistant.segments.push({ type: 'error', message: errText || 'Request failed' });
-          assistant.status = 'failed';
-          R.touch(assistant);
-          return;
-        }
-        var data = await resp.json();
-        if (data && data.runId) spawnRunPoller(data.runId, assistant.id);
-      } catch (e) {
-        if (messages.indexOf(assistant) !== -1) {
-          assistant.segments.push({ type: 'error', message: (e && e.message) || 'Connection error' });
-          assistant.status = 'failed';
-          R.touch(assistant);
-        }
-      } finally {
-        phase = 'idle';
-        ensureSync(conversationId);
-        requestRender();
-      }
-    }
-
     var facade = {
       state: state,
       busy: busy,
@@ -587,11 +545,6 @@
       retry: function (id) { return retry(id); },
       newChat: function () { return newChat(); },
       loadOlder: function () { return loadOlder(); },
-      setConvType: function (t) { return setConvType(t); },
-      setTriggerFilter: function (id) {
-        triggerFilter = triggerFilter === id ? '' : (id || '');
-        requestRender();
-      },
     };
 
     function attach(el) {
@@ -603,6 +556,7 @@
       if (jump) stick = true;
       view.render();
       view.focusComposer();
+      if (watching()) markSeen(mateId);
     }
 
     function detach() {
@@ -619,16 +573,14 @@
       if (busy()) return false;
       bootstrapped = true;
       if (id !== mateId) {
-        openConversation(id, convTypeByMate[id] || 'chat');
-        triggers = [];
-        triggersFor = '';
-        triggerFilter = '';
+        openConversation(id);
       }
       mateId = id;
       try { sessionStorage.setItem('hylo_agent_bot_id', id); } catch (e) { /* ignore */ }
       if (host.onMate) host.onMate(id);
       if (view) view.focusComposer();
       requestRender();
+      if (watching()) markSeen(id);
       return true;
     }
 
@@ -637,7 +589,6 @@
     // in flight finishes first; its last render settles it.
     async function reloadMates() {
       await loadMates();
-      if (convType === 'trigger') void loadTriggers();
       if (!bootstrapped) return;
       mateGone = !mateById(mateId);
       settleMate();
@@ -673,33 +624,22 @@
       return true;
     }
 
-    // Parks the open conversation and brings back the one last seen for this mate and tab.
-    function openConversation(id, type) {
+    // Parks the open conversation and brings back the one last seen for this mate.
+    function openConversation(id) {
       cancelRunPoller();
       cancelSync();
       if (mateId && loaded) {
-        parked[mateId + '/' + convType] = { conversationId: conversationId, messages: messages, hasOlder: hasOlder, lastMsgMs: lastMsgMs };
+        parked[mateId] = { conversationId: conversationId, messages: messages, hasOlder: hasOlder, lastMsgMs: lastMsgMs };
       }
-      var back = parked[id + '/' + type];
+      var back = parked[id];
       conversationId = back ? back.conversationId : '';
       messages = back ? back.messages : [];
       hasOlder = back ? back.hasOlder : false;
       lastMsgMs = back ? back.lastMsgMs : 0;
       loaded = !!back;
-      convType = type;
       stoppingMsgId = '';
       stick = true;
       refreshSeq++;
-    }
-
-    function setConvType(t) {
-      if (t === convType || busy()) return;
-      openConversation(mateId, t);
-      triggerFilter = '';
-      if (mateId) convTypeByMate[mateId] = t;
-      if (view) view.focusComposer();
-      requestRender();
-      if (mateId) void refresh();
     }
 
     async function newChat() {
@@ -851,29 +791,25 @@
       if (idx < 0) return;
       var msg = messages[idx];
       if (!msg || msg.role !== 'assistant' || (msg.status !== 'failed' && msg.status !== 'canceled')) return;
+      // What a reply answers: the user's message, or the wake the bot started on.
+      function opens(m) { return !!m && (m.role === 'user' || m.role === 'wake'); }
       var prompt = idx > 0 ? messages[idx - 1] : await fetchPrompt(msg.id);
       // Only the prompt right before the reply goes with it; an older one stays put.
-      var drop = !!prompt && prompt.role === 'user';
+      var drop = opens(prompt);
       for (var j = idx - 2; !drop && j >= 0; j--) {
-        if (messages[j].role === 'user') { prompt = messages[j]; break; }
+        if (opens(messages[j])) { prompt = messages[j]; break; }
       }
       var atts = (prompt && prompt.attachments) || [];
-      if (!prompt || prompt.role !== 'user' || (!prompt.content && !atts.length) || messages.indexOf(msg) === -1 || busy()) return;
+      if (!opens(prompt) || (!prompt.content && !atts.length) || messages.indexOf(msg) === -1 || busy()) return;
       var text = prompt.content || '';
-      var triggerEvent = msg.triggerEvent || '';
       var mate = mateById(mateId);
       // The server drops the same rows once the retry starts.
       messages.splice(messages.indexOf(msg), 1);
       if (drop && messages.indexOf(prompt) !== -1) messages.splice(messages.indexOf(prompt), 1);
       var userMsgId = R.genId();
-      messages.push({ id: userMsgId, role: 'user', content: text, attachments: atts, createdAt: Date.now(), rev: 1 });
-      // A trigger run is retried through the trigger pipeline, so its
-      // completion still reaches the inbox the way the original fire did.
-      if (triggerEvent) {
-        await retryTriggerRun(text, userMsgId, triggerEvent, msg.triggerId || '', mate, msg.id);
-      } else {
-        await runTurn(text, userMsgId, mate, { retryOf: msg.id, attachments: atts });
-      }
+      var src = prompt.role === 'wake' ? { triggerEvent: prompt.triggerEvent, triggerId: prompt.triggerId } : {};
+      messages.push(Object.assign({ id: userMsgId, role: prompt.role, content: text, attachments: atts, createdAt: Date.now(), rev: 1 }, src));
+      await runTurn(text, userMsgId, mate, Object.assign({ retryOf: msg.id, attachments: atts }, src));
     }
 
     // The prompt of the oldest loaded reply sits on the page not loaded yet.
@@ -932,7 +868,11 @@
     return {
       start: function () {
         matesReady = Promise.all([loadMates(), loadEvents()]);
-        if (root.__hyloLive) root.__hyloLive.on('bots', reloadMates);
+        if (root.__hyloLive) {
+          root.__hyloLive.on('bots', reloadMates);
+          root.__hyloLive.on('chat', onWakes);
+        }
+        document.addEventListener('visibilitychange', function () { if (watching()) markSeen(mateId); });
       },
       bootstrap: async function () {
         if (bootstrapped) return;
@@ -965,6 +905,7 @@
         try { sessionStorage.setItem('hylo_agent_bot_id', id); } catch (e) { /* ignore */ }
         if (host.onMate) host.onMate(id);
         await refresh();
+        if (watching()) markSeen(id);
         if (intro) await maybeIntro(introLang);
       },
       attach: attach,
@@ -974,10 +915,6 @@
         if (!bootstrapped) return;
         await reloadMates();
         await refresh(true);
-      },
-      clearFilter: function () {
-        triggerFilter = '';
-        requestRender();
       },
       openFreshChat: openFreshChat,
       busy: busy,

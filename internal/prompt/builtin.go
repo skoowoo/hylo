@@ -9,15 +9,23 @@ import (
 // base, memory and wiki links; this one gives the main bot its job.
 var HyloBot = load("bot_hylo")
 
-// SilentReply is what a trigger run answers when it has nothing worth sending;
-// the reply then stays out of the inbox.
+// SilentReply is what a woken bot answers when it has nothing worth sending;
+// the turn then leaves the chat.
 const SilentReply = "[silent]"
 
-// IsSilent reports whether a trigger run asked to may answer SilentReply did;
-// agents often narrate before it, and that narration is all the reply holds.
-// Other runs never go silent, so a stray marker can't swallow a real result.
-func IsSilent(asked, reply string) bool {
-	return strings.Contains(asked, SilentReply) && strings.HasSuffix(strings.TrimSpace(reply), SilentReply)
+// IsSilent reports whether a wake's reply is SilentReply. Agents often narrate
+// before it, and that narration is all the reply holds.
+func IsSilent(reply string) bool {
+	return strings.HasSuffix(strings.TrimSpace(reply), SilentReply)
+}
+
+var wakeTmpl = parse("wake")
+
+// WakeRequest is what the agent reads for a wake: who started the turn, how
+// its reply reaches the user, and the task. reason names the source, e.g.
+// `Your trigger "Memory" (daily 09:00)`.
+func WakeRequest(reason, task string) string {
+	return execute(wakeTmpl, struct{ Reason, Task string }{reason, task})
 }
 
 // Trigger templates of the Hylo bot.

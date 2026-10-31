@@ -42,10 +42,6 @@
           placeholder: 'Compile {Path} into knowledge units.',
           hint: 'Fires when the user manually triggers compilation via the API — Path carries the note',
         },
-        agent_run_completed: {
-          placeholder: '{Name} just finished — review its output and take action.',
-          hint: "Fires when another bot's run succeeds. Filter by source bot names below",
-        },
       },
       agentBotSchedulePresets: {
         every: [
@@ -631,27 +627,8 @@
       eventOf(t) { return (t.eventTypes || [])[0] || ''; },
       agentBotEventKind(t) { return this.AGENT_BOT_EVENT_KINDS[this.eventOf(t)] || null; },
 
-      // Scheduled triggers carry no path; the rest filter by path prefix
-      // (or, for agent_run_completed, by source bot name — same field).
-      filterKindOf(et) {
-        if (et === 'scheduled') return 'none';
-        return et === 'agent_run_completed' ? 'bots' : 'path';
-      },
-      hasPathFilter(t) { return this.filterKindOf(this.eventOf(t)) !== 'none'; },
-      agentBotFilterFor(t) {
-        if (this.eventOf(t) === 'agent_run_completed') {
-          return {
-            title: 'Source Bots',
-            hint: 'Only fire when the run was completed by one of these bots. Leave empty to fire on any bot. One bot name per line.',
-            placeholder: 'Summarizer\nCompiler',
-          };
-        }
-        return {
-          title: 'Path Prefixes',
-          hint: 'Only fire when the event path starts with one of these prefixes. Leave empty to match all paths. One prefix per line, e.g. /journal/',
-          placeholder: '/journal/\n/projects/work/',
-        };
-      },
+      // Scheduled triggers carry no path; the rest filter by path prefix.
+      hasPathFilter(t) { return this.eventOf(t) !== 'scheduled'; },
 
       agentBotPromptVarsForTrigger(t) {
         const et = this.eventOf(t);
@@ -670,10 +647,9 @@
       },
 
       setAgentBotET(trigger, et) {
-        // Paths and bot names share pathPrefixes; a value meant for the old kind
-        // would linger hidden, or fail the backend's "/" check.
-        if (this.filterKindOf(this.eventOf(trigger)) !== this.filterKindOf(et)) trigger.pathPrefixes = [];
+        // A schedule has no path; one left from the old event would linger hidden.
         if (et === 'scheduled') {
+          trigger.pathPrefixes = [];
           trigger.eventTypes = ['scheduled'];
           if (!trigger.schedule) trigger.schedule = 'daily 09:00';
         } else {

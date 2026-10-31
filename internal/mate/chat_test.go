@@ -1,6 +1,7 @@
 package mate
 
 import (
+	"errors"
 	"path/filepath"
 	"testing"
 	"time"
@@ -252,5 +253,155 @@ func TestDeleteRetried(t *testing.T) {
 	}
 	if len(msgs) != 2 || msgs[1].ID != ok.ID {
 		t.Fatalf("want only the first exchange left, got %+v", msgs)
+	}
+}
+
+func TestDeleteRetriedTakesTheWake(t *testing.T) {
+	store, err := Open(filepath.Join(t.TempDir(), "vault"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	conv, err := store.CreateConversation("mate-1", "Chat")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.InsertMessage(Message{ConversationID: conv.ID, Role: "wake", Content: "task", TriggerEvent: "scheduled"}); err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(2 * time.Millisecond)
+	failed, err := store.InsertMessage(Message{ConversationID: conv.ID, Role: "assistant", Status: "failed", TriggerEvent: "scheduled"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.DeleteRetried(conv.ID, failed.ID, "task"); err != nil {
+		t.Fatal(err)
+	}
+	if msgs, _ := store.ListMessages(conv.ID); len(msgs) != 0 {
+		t.Fatalf("a retried wake should replace both rows, got %+v", msgs)
+	}
+}
+
+func TestUnreadCountsFinishedWakeReplies(t *testing.T) {
+	store, err := Open(filepath.Join(t.TempDir(), "vault"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	m := &Mate{Name: "Recall", Enabled: true}
+	if err := store.CreateMate(m); err != nil {
+		t.Fatal(err)
+	}
+	conv, err := store.CreateConversation(m.ID, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	add := func(msg Message) {
+		msg.ConversationID, msg.MateID = conv.ID, m.ID
+		if _, err := store.InsertMessage(msg); err != nil {
+			t.Fatal(err)
+		}
+	}
+	unread := func() int {
+		list, err := store.ListMates()
+		if err != nil || len(list) != 1 {
+			t.Fatal(err, list)
+		}
+		return list[0].Unread
+	}
+	add(Message{Role: "assistant", Status: "succeeded"})
+	add(Message{Role: "assistant", Status: "running", TriggerEvent: "scheduled"})
+	add(Message{Role: "assistant", Status: "succeeded", TriggerEvent: "scheduled"})
+	add(Message{Role: "assistant", Status: "failed", TriggerEvent: "note_created"})
+	if n := unread(); n != 2 {
+		t.Fatalf("unread = %d, want the two finished wake replies", n)
+	}
+	time.Sleep(2 * time.Millisecond)
+	if err := store.MarkChatSeen(m.ID); err != nil {
+		t.Fatal(err)
+	}
+	if n := unread(); n != 0 {
+		t.Fatalf("unread after seen = %d", n)
+	}
+}
+
+func TestWakesCarryTheirTriggerName(t *testing.T) {
+	store, err := Open(filepath.Join(t.TempDir(), "vault"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	m := &Mate{Name: "Recall", Enabled: true}
+	if err := store.CreateMate(m); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.ReplaceTriggersForMate(m.ID, []MateTrigger{{Name: "Look back", EventTypes: []string{"scheduled"}, Schedule: "daily 15:00", Prompt: "p", Enabled: true}}); err != nil {
+		t.Fatal(err)
+	}
+	ts, _ := store.ListTriggers(m.ID)
+	conv, _ := store.CreateConversation(m.ID, "")
+	for _, msg := range []Message{
+		{Role: "wake", Content: "p", TriggerEvent: "scheduled", TriggerID: ts[0].ID},
+		{Role: "assistant", Status: "succeeded", TriggerEvent: "scheduled", TriggerID: ts[0].ID},
+	} {
+		msg.ConversationID = conv.ID
+		if _, err := store.InsertMessage(msg); err != nil {
+			t.Fatal(err)
+		}
+	}
+	msgs, _, err := store.ListMessagesPage(conv.ID, "", 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if msgs[0].TriggerName != "Look back" || msgs[0].TriggerSchedule != "daily 15:00" {
+		t.Fatalf("wake = %+v", msgs[0])
+	}
+	if msgs[1].TriggerName != "Look back" {
+		t.Fatal("the reply carries the trigger's name too")
+	}
+}
+
+func TestTurnBotRefusesAWakeWhoseSourceWentAway(t *testing.T) {
+	store, err := Open(filepath.Join(t.TempDir(), "vault"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	m := &Mate{Name: "Recall", Enabled: true}
+	if err := store.CreateMate(m); err != nil {
+		t.Fatal(err)
+	}
+	trig := MateTrigger{EventTypes: []string{"scheduled"}, Schedule: "daily 15:00", Prompt: "p", Enabled: true}
+	if err := store.ReplaceTriggersForMate(m.ID, []MateTrigger{trig}); err != nil {
+		t.Fatal(err)
+	}
+	ts, _ := store.ListTriggers(m.ID)
+	if _, err := store.TurnBot(m.ID, ts[0].ID); err != nil {
+		t.Fatalf("a live wake: %v", err)
+	}
+
+	trig.ID, trig.Enabled = ts[0].ID, false
+	if err := store.ReplaceTriggersForMate(m.ID, []MateTrigger{trig}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.TurnBot(m.ID, ts[0].ID); !errors.Is(err, ErrTriggerDisabled) {
+		t.Fatalf("paused trigger: %v", err)
+	}
+	if _, err := store.TurnBot(m.ID, "gone"); !errors.Is(err, ErrTriggerDisabled) {
+		t.Fatalf("deleted trigger: %v", err)
+	}
+
+	m.Enabled = false
+	if err := store.UpdateMate(m); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.TurnBot(m.ID, ""); !errors.Is(err, ErrTriggerDisabled) {
+		t.Fatalf("disabled bot: %v", err)
+	}
+	if err := store.DeleteMate(m.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.TurnBot(m.ID, ""); !errors.Is(err, ErrTriggerDisabled) {
+		t.Fatalf("deleted bot: %v", err)
 	}
 }

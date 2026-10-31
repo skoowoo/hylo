@@ -1,10 +1,7 @@
   <div class="content-pane"
-       :class="{ open: contentPaneOpen || inboxSheetOpen }"
+       :class="{ open: contentPaneOpen }"
        @close-content-pane.document="closeContentPane()">
-    <!-- Shared with the inbox message detail below — only one of the two
-         is ever visible (contentPaneOpen/inboxSheetOpen watchers), so both
-         ride the same split motion. -->
-    <div class="content-pane-panel" x-show="!inboxSheetOpen">
+    <div class="content-pane-panel">
 
       <!-- ① Tool bar: maximize | note title | note actions -->
       <div class="content-pane-tool-bar" :inert="agentWriting">
@@ -244,32 +241,6 @@
            note/tab switches swap in a fresh EditorState via view.setState()
            (see content_pane.js) rather than mounting a separate editor. -->
       <div id="content-pane-edit-area" tabindex="-1"></div>
-    </div>
-
-    <!-- Inbox message detail — read-only, distinct from the note editor
-         above but sharing this same pane (see the comment on
-         .content-pane). Entirely driven by homeCtrl's inboxSelected/
-         inboxSheetOpen (home.js's selectInboxMessage/closeInboxSheet). -->
-    <div class="content-pane-panel inbox-detail-panel" x-show="inboxSheetOpen">
-      <div class="content-pane-tool-bar">
-        <button type="button" class="icon-btn-ghost inbox-sheet-close" @click="closeInboxSheet()" title="Close">
-          {{icon "close"}}
-        </button>
-      </div>
-      <div class="inbox-sheet-scroll">
-        <div class="inbox-sheet-column">
-          <div class="inbox-sheet-sender">
-            <span class="avatar avatar--lg" x-html="inboxSelected ? agentBotAvatar(inboxSelected.source) : ''"></span>
-            <div class="inbox-sheet-sender-text">
-              <span class="inbox-sheet-sender-name" x-text="inboxSelected ? inboxSelected.source : ''"></span>
-              <span class="inbox-sheet-sender-time" x-text="inboxSelected ? fullTime(inboxSelected.createdAt) : ''"></span>
-            </div>
-          </div>
-          <div class="inbox-sheet-divider hairline" role="separator"></div>
-          <div class="prose inbox-sheet-body" x-html="inboxSelected ? __hyloRenderMarkdown(inboxSelected.body) : ''"
-               x-effect="inboxSelected; $nextTick(() => __hyloHydrateFenceCards($el))"></div>
-        </div>
-      </div>
     </div>
   </div>
 

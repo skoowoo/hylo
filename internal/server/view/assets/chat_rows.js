@@ -719,11 +719,6 @@
     var nameEl = el('div', 'msg-agent-name');
     nameEl.textContent = name;
     h.appendChild(nameEl);
-    if (msg.triggerEvent) {
-      var badge = el('span', 'badge badge--accent');
-      badge.textContent = snap.triggerLabel(msg.triggerEvent);
-      h.appendChild(badge);
-    }
     return h;
   }
 
@@ -753,18 +748,49 @@
     return label;
   }
 
+  // ── Wake source: a reply the bot sent on its own says, quietly, what woke it ──
+  var WAKE_ICONS = {
+    scheduled: hyloIcon('recent'),
+    compile_requested: hyloIcon('layers'),
+    note: hyloIcon('file'),
+    other: hyloIcon('zap'),
+  };
+
+  function wakeIcon(et) {
+    if (WAKE_ICONS[et]) return WAKE_ICONS[et];
+    return /note/.test(et) ? WAKE_ICONS.note : WAKE_ICONS.other;
+  }
+
+  // The trigger as named in settings, sent along with the reply; an unnamed or
+  // deleted one goes by its event.
+  function wakeSource(m, snap) {
+    var label = snap.triggerLabel(m.triggerEvent);
+    var s = m.triggerSchedule || '';
+    var when = s ? s.charAt(0).toUpperCase() + s.slice(1) : label;
+    var name = m.triggerName || label;
+    return { name: name, title: 'Sent on its own, woken by ' + name + (when !== name ? ' · ' + when : '') };
+  }
+
+  function openTriggers() {
+    window.dispatchEvent(new CustomEvent('hylo:open-settings', { detail: { tab: 'agent-bots' } }));
+  }
+
   // Same height in every state: only what's in it changes.
   function Footer() {
     var foot = el('div', 'msg-footer');
     var stateEl = el('span', 'msg-footer-state');
     var time = el('span', 'msg-agent-time');
+    var source = el('button', 'msg-wake-source');
+    source.type = 'button';
+    source.addEventListener('click', openTriggers);
     var copy = el('button', 'msg-copy-btn');
     copy.type = 'button';
     copy.title = 'Copy reply';
     foot.appendChild(stateEl);
     foot.appendChild(time);
+    foot.appendChild(source);
     foot.appendChild(copy);
-    var shownState = null, msg = null;
+    var shownState = null, shownSource = null, msg = null;
     copy.addEventListener('click', function () {
       var text = answerText(msg);
       if (!text || !navigator.clipboard) return;
@@ -790,6 +816,20 @@
         var label = !running && R.msgAt(m) ? R.formatTime(R.msgAt(m)) : '';
         setText(time, label);
         show(time, !!label);
+        var src = m.triggerEvent && !running ? wakeSource(m, snap) : null;
+        var srcKey = src ? m.triggerEvent + '\0' + src.name + '\0' + src.title : '';
+        if (srcKey !== shownSource) {
+          shownSource = srcKey;
+          source.replaceChildren();
+          if (src) {
+            source.appendChild(svg(wakeIcon(m.triggerEvent)));
+            var name = el('span');
+            name.textContent = src.name;
+            source.appendChild(name);
+            source.title = src.title;
+          }
+          show(source, !!src);
+        }
         var canCopy = !running && !!answerText(m);
         if (canCopy && !copy.firstChild) setCopyIcon(copy, copiedNow(m.id));
         show(copy, canCopy);
@@ -840,7 +880,7 @@
       var keys = stepKeys(segs);
       var ai = R.answerIndex(segs, running);
 
-      var sig = [s.mateName(m), m.agentBotId, m.triggerEvent || '', s.catalogEpoch].join('\0');
+      var sig = [s.mateName(m), m.agentBotId, s.catalogEpoch].join('\0');
       if (built && sig !== headSig) {
         var nh = header(m, s);
         wrap.replaceChild(nh, head);

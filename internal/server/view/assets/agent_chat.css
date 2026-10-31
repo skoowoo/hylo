@@ -149,9 +149,6 @@
       height: 13px;
     }
 
-    /* Conv-type toggle now uses the shared .home-seg/.home-seg-btn
-       component (home.css) — see there for why. */
-
     /* ── Messages ───────────────────────────────────────────────── */
     /* .chat-scroll is the full-width scroll viewport (scrollbar sits at the
        pane's true edge); .chat-scroll-inner is the actual reading column,
@@ -189,12 +186,7 @@
        (__hyloSyncChatComposerHeight in home.js); the fallback covers the
        first paint before that observer fires. .chat-scroll-inner's own gap
        supplies the breathing room between the last message and this spacer,
-       same as between any two messages. The trigger tab has no composer to
-       clear, so home.go pins this to a flat 2rem there instead of the
-       composer height (:style overrides the var-driven height below — see
-       home.go) — same "real flex child" technique, just a fixed floor
-       instead of a measured one, since padding alone already proved
-       unreliable for this. */
+       same as between any two messages. */
     .chat-scroll-spacer {
       flex-shrink: 0;
       width: 100%;
@@ -325,6 +317,7 @@
     }
 
     /* ── Message rows ────────────────────────────────────────────── */
+
     .msg-row {
       display: flex;
       width: 100%;
@@ -431,7 +424,25 @@
       font-variant-numeric: tabular-nums;
     }
 
-    /* .msg-trigger-badge now uses the shared .badge / .badge--accent (base.css). */
+    /* What woke the bot, read like the time beside it: metadata, not content. */
+    .msg-wake-source {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      min-width: 0;
+      padding: 0;
+      border: none;
+      background: none;
+      font-family: inherit;
+      font-size: var(--text-2xs);
+      color: var(--muted-soft);
+      cursor: pointer;
+      transition: color var(--motion-fast);
+    }
+    .msg-wake-source::before { content: "·"; margin: 0 0.25rem 0 -0.25rem; }
+    .msg-wake-source:hover { color: var(--muted); }
+    .msg-wake-source svg { width: 10px; height: 10px; flex-shrink: 0; }
+    .msg-wake-source span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border-radius: 0; }
 
     .msg-body {
       --row-gap: 0.35rem;
@@ -454,18 +465,15 @@
        the loose 1.75 leading stays the same as the editor's paragraphs.
        Headings/inline code stay proportional (.prose sizes them in em off
        this). */
-    .msg-body .prose,
-    .trig-run-body.prose {
+    .msg-body .prose {
       font-size: var(--text-md);
       word-break: break-word;
       min-width: 0;
     }
 
     .msg-body .prose> :last-child,
-    .trig-run-body.prose> :last-child,
     /* A card's margin sits inside its slot, out of reach of the rule above. */
-    .msg-body .prose> .hy-card-slot:last-child> .hy-card,
-    .trig-run-body.prose> .hy-card-slot:last-child> .hy-card {
+    .msg-body .prose> .hy-card-slot:last-child> .hy-card {
       margin-bottom: 0;
     }
 
@@ -481,34 +489,27 @@
       cursor: zoom-in;
     }
 
-    .msg-body .prose li>p,
-    .trig-run-body.prose li>p {
+    .msg-body .prose li>p {
       margin-top: 0;
       margin-bottom: 0;
     }
 
     .msg-body .prose p,
-    .trig-run-body.prose p,
-    .msg-body .prose li,
-    .trig-run-body.prose li {
+    .msg-body .prose li {
       line-height: 1.75;
     }
 
-    .msg-body .prose p,
-    .trig-run-body.prose p {
+    .msg-body .prose p {
       margin-bottom: 0.75em;
     }
 
     .msg-body .prose ul,
-    .trig-run-body.prose ul,
-    .msg-body .prose ol,
-    .trig-run-body.prose ol {
+    .msg-body .prose ol {
       margin-top: 0;
       margin-bottom: 0.75em;
     }
 
-    .msg-body .prose li,
-    .trig-run-body.prose li {
+    .msg-body .prose li {
       margin-top: 0.15em;
       margin-bottom: 0.15em;
     }
@@ -1696,153 +1697,3 @@
     .chat-toolbar .lib-action-btn svg {
       transition: none !important;
     }
-
-    /* ── Trigger tab: run log ──────────────────────────────────── */
-    .trig-log {
-      display: flex;
-      flex-direction: column;
-      gap: 1.75rem;
-    }
-
-    .trig-cards {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
-      gap: 0.625rem;
-    }
-
-    .trig-card {
-      display: flex;
-      flex-direction: column;
-      gap: 0.375rem;
-      min-width: 0;
-      padding: 0.75rem;
-      border: var(--bd-w) solid var(--line-hair);
-      border-radius: var(--r-md);
-      background: var(--surface-soft);
-      color: var(--fg);
-      font-family: inherit;
-      text-align: left;
-      cursor: pointer;
-      transition: border-color var(--motion-fast), background var(--motion-fast), opacity var(--motion-fast);
-    }
-    .trig-card:hover { border-color: var(--line-edge); }
-    .trig-card.active { border-color: var(--accent); background: var(--tint-md); }
-    .trig-card.is-paused { opacity: 0.55; }
-
-    .trig-card-head { display: flex; align-items: center; gap: 0.5rem; min-width: 0; }
-    .trig-card-icon {
-      width: 22px;
-      height: 22px;
-      flex-shrink: 0;
-      display: grid;
-      place-items: center;
-      border-radius: var(--r-sm);
-      background: var(--btn-bg);
-      color: var(--muted);
-    }
-    .trig-card.active .trig-card-icon { color: var(--accent-text); }
-    .trig-card-icon svg { width: 14px; height: 14px; }
-    .trig-card-name,
-    .trig-card-when {
-      min-width: 0;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-    .trig-card-name { font-size: var(--text-sm); font-weight: var(--fw-semibold); }
-    .trig-card-when { font-size: var(--text-xs); color: var(--muted); }
-
-    .trig-day { display: flex; flex-direction: column; }
-    .trig-day-head { display: flex; align-items: center; gap: 0.625rem; padding-bottom: 0.875rem; }
-    .trig-day-label { font-size: var(--text-xs); font-weight: var(--fw-semibold); color: var(--fg); }
-    .trig-day-rule { flex: 1; height: 1px; background: var(--line-hair); }
-
-    .trig-run {
-      display: grid;
-      grid-template-columns: 2.75rem 1.25rem minmax(0, 1fr);
-      column-gap: 0.625rem;
-    }
-    .trig-run-time {
-      padding-top: 1px;
-      text-align: right;
-      font-size: var(--text-xs);
-      color: var(--muted-soft);
-      font-variant-numeric: tabular-nums;
-    }
-    .trig-run-rail { display: flex; flex-direction: column; align-items: center; }
-    .trig-run-dot {
-      width: 9px;
-      height: 9px;
-      margin-top: 4px;
-      flex-shrink: 0;
-      box-sizing: border-box;
-      border-radius: 50%;
-      background: var(--muted-soft);
-    }
-    .trig-run-dot.is-succeeded { background: transparent; border: 2px solid var(--s-ok); }
-    .trig-run-dot.is-failed { background: var(--s-err); }
-    .trig-run-dot.is-running { background: var(--accent); animation: trig-pulse 1.6s ease-out infinite; }
-    @keyframes trig-pulse {
-      0% { box-shadow: 0 0 0 0 rgba(var(--accent-rgb), 0.55); }
-      70%, 100% { box-shadow: 0 0 0 6px rgba(var(--accent-rgb), 0); }
-    }
-    .trig-run-line { flex: 1; width: 1px; margin-top: 6px; background: var(--line-hair); }
-
-    .trig-run-main {
-      display: flex;
-      flex-direction: column;
-      gap: 0.5rem;
-      min-width: 0;
-      padding-bottom: 1.625rem;
-    }
-    .trig-run:last-child .trig-run-main { padding-bottom: 0; }
-    .trig-run-main .msg-status-banner { margin-left: 0; }
-    .trig-run-head { display: flex; align-items: center; gap: 0.5rem; }
-    .trig-run-name { font-size: var(--text-sm); font-weight: var(--fw-semibold); color: var(--fg); }
-    .trig-run-status { margin-left: auto; font-size: var(--text-xs); color: var(--accent-text); }
-
-    .trig-run-body.is-clamped {
-      max-height: 5em;
-      overflow: hidden;
-      -webkit-mask-image: linear-gradient(#000 55%, transparent);
-      mask-image: linear-gradient(#000 55%, transparent);
-    }
-
-    .trig-run-foot {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 0.25rem;
-      margin-left: -0.5rem;
-    }
-    .trig-run-more,
-    .trig-note {
-      height: 24px;
-      padding: 0 0.5rem;
-      border: none;
-      border-radius: var(--r-sm);
-      background: transparent;
-      color: var(--muted);
-      font-family: inherit;
-      font-size: var(--text-xs);
-      cursor: pointer;
-      transition: background var(--motion-fast), color var(--motion-fast);
-    }
-    .trig-run-more[hidden] { display: none; }
-    .trig-run-more:hover,
-    .trig-note:hover { background: var(--btn-bg); color: var(--fg); }
-    .trig-note {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.3rem;
-      max-width: 16rem;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-    .trig-note svg { width: 11px; height: 11px; flex-shrink: 0; }
-    .trig-note.is-write svg { color: var(--s-ok); }
-    .trig-run-dur { margin-left: auto; padding-right: 0.125rem; font-size: var(--text-xs); color: var(--muted-soft); }
-
-    .trig-none { font-size: var(--text-sm); color: var(--muted); }
-    .trig-empty { padding-top: 22vh; }

@@ -35,7 +35,7 @@ Hylo brings three libraries together. The notes library holds their ideas, thoug
      ## AI bots
      - Made in chat
      - Schedules & events
-     - Results in Inbox
+     - Messages you first
      - Knows you
      ```
      ````
@@ -44,7 +44,7 @@ Hylo brings three libraries together. The notes library holds their ideas, thoug
      - **Notes:** jot down ideas and sparks the moment they come, as shorts or web clips; AI tags them, so nothing to file. If your opening words were about an Obsidian vault or another note app, say how to bring it in: point Hylo at the vault in Settings → Server → Config → Vault, or export to Markdown into this folder. Link one or two of their real notes if they have any.
      - **Knowledge:** good articles, podcasts and papers get compiled into a wiki of the people, ideas and companies in them, each page linked back to its sources and browsable as a knowledge graph.
      - **Material:** when they write or need inspiration, you pull what's relevant from their notes and knowledge, with sources, or write with them in the note, like this guide. Give one example request built from their notes.
-     - **AI bots:** what drives the three. Describe a bot in this chat and you set it up; it runs on a schedule or on events, knows them through their memory, and leaves results in the Inbox. Give one example bot (a news digest, a plan).
+     - **AI bots:** what drives the three. Describe a bot in this chat and you set it up; it runs on a schedule or on events, knows them through their memory, and messages them in its chat when it has something. Give one example bot (a news digest, a plan).
    - One closing line: plain .md files on their disk, no Hylo account, and it runs the agent they already use.
 
    Keep the text under 250 words, or 500 characters in Chinese or Japanese, not counting the mindmap. No frontmatter.

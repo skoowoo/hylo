@@ -34,7 +34,7 @@ flowchart LR
 - `Bot`：bot 存在 DB 里的 system prompt（调用方可覆盖）。
 - `Main`：是不是主 bot。
 - `MCP`：这个 agent 是否注入了 Hylo MCP。
-- `Kind`：`oneShot` → OneShot，`TriggerRun` → Trigger，其余 → Chat。
+- `Kind`：`oneShot` → OneShot，其余 → Chat（trigger 唤醒的轮次也是 Chat，任务外包一层 `prompt.WakeRequest`）。
 - `Intro`：onboarding 后的第一次聊天。
 - `Overrides[global]`：用户设置里的 `agent.system_prompt`。
 
@@ -51,7 +51,7 @@ Your working directory: <cwd> (the vault root | vault path /_bots/_xxx)
 
 # User request
 
-<用户消息 或 trigger prompt>
+<用户消息，或 trigger 唤醒时的 WakeRequest（text/wake.md：谁唤醒的、回复会作为 bot 主动发的消息、可回 [silent]，再加 trigger prompt）>
 ```
 
 agent CLI 没有独立的 system prompt 参数，所以指令只随第一轮发送；**续聊（resume）只发用户消息**。改了 section 文本，已有会话不会生效，要新开会话才能验证。
@@ -81,12 +81,11 @@ agent CLI 没有独立的 system prompt 参数，所以指令只随第一轮发�
 | 主 bot 聊天 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
 | 其他 bot 聊天 | ✅ | ✅ | ✅ | ✅ | ✅ | | |
 | setup 首聊（主 bot） | ✅ | ✅ | ✅ | ✅ | ✅ | | ✅ |
-| Trigger | ✅ | ✅ | ✅ | ✅ | | | |
 | OneShot | | | 有则 ✅ | | | | |
 
 由此推出两点：
 
-- **Trigger 运行没有 `choices`**。微信 / Discord / Telegram 的消息是 bot 聊天里的一轮，有 `choices`，但 app 里画不出卡片：这一轮的请求开头会注明来源并要求纯文本，skill 里凡是要出卡片的地方也要写明“在微信 / Discord / Telegram 里改用纯文本”（hylo-bots `references/cards.md` 已经这样写）。
+- **Trigger 唤醒的轮次就是 bot 聊天里的一轮**（主动消息），用的是同一个会话和同一套 sections，结果不再进收件箱。微信 / Discord / Telegram 的消息也是 bot 聊天里的一轮，有 `choices`，但 app 里画不出卡片：这一轮的请求开头会注明来源并要求纯文本，skill 里凡是要出卡片的地方也要写明“在微信 / Discord / Telegram 里改用纯文本”（hylo-bots `references/cards.md` 已经这样写）。
 - **只有主 bot 会主动提议升级**：主 bot 是用户唯一的总入口，其他 bot 专职做一件事，不需要路由能力。
 
 ---
@@ -127,7 +126,7 @@ flowchart TB
 | --- | --- | --- | --- |
 | Weekly review | `scheduled`，weekly mon 09:05 | `trigger_recall_weekly.md` | 点名 hylo-recall（周回顾） |
 | Look back | `scheduled`，daily 15:00 | `trigger_recall_random.md` | 点名 hylo-recall（随机翻历史） |
-| Short notes | `short_note_created` | `trigger_recall_short.md` | 点名 hylo-recall（回应：放在过往笔记里看）；没结果时只回 `[silent]`，不进收件箱 |
+| Short notes | `short_note_created` | `trigger_recall_short.md` | 点名 hylo-recall（回应：放在过往笔记里看）；没结果时只回 `[silent]`，这一轮从聊天里删掉 |
 
 **Trigger prompt 的写法**（hylo-bots `references/triggers.md` + `references/skills.md`）：只写做什么、点名用哪个 skill、加上用户偏好（话题、数量、语言），不写方法。不写 curl、URL、API 参数，这些属于 skill。
 

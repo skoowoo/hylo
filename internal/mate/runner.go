@@ -13,69 +13,33 @@ import (
 	"github.com/hardhacker/hylo/internal/prompt"
 )
 
-// RunResult carries the outcome of a completed trigger agent run.
+// RunResult is how a chat turn ended.
 type RunResult struct {
 	Success     bool
-	Duration    time.Duration
 	LastMessage string
-	EventType   MateEventType // the MateEvent type that triggered this run
-	Prompt      string        // what the run was asked, so the hook can tell what reply it allowed
 }
 
-// RunDoneHook is called when a trigger run reaches a terminal state.
-type RunDoneHook func(m *Mate, result RunResult)
-
-// RunFunc is called by the Runner to fire a background agent run.
-// onDone must be called exactly once when the run reaches a terminal state.
-type RunFunc func(ctx context.Context, m *Mate, convID, prompt string, ev MateEvent, onDone func(RunResult))
-
-// RetryFunc is called by the Runner to re-fire a trigger run the UI is
-// retrying. It differs from RunFunc only in taking the client's
-// pre-allocated user/assistant message IDs, so the UI's optimistic
-// placeholders reconcile against the real DB rows instead of duplicating
-// them, and in returning the hub run ID synchronously so the caller (an HTTP
-// handler) can hand it back to the client to watch. onDone must be called
-// exactly once when the run reaches a terminal state.
-type RetryFunc func(ctx context.Context, m *Mate, convID, prompt, userMsgID, assistantMsgID string, ev MateEvent, onDone func(RunResult)) string
-
-// Runner implements plugin.Plugin and fires mate triggers in response to vault events
-// and configured schedules.
+// Runner implements plugin.Plugin and wakes bots whose triggers match vault
+// events or come due.
 type Runner struct {
-	store    *Store
-	runFn    atomic.Value // stores RunFunc
-	retryFn  atomic.Value // stores RetryFunc
-	doneHook atomic.Value // stores RunDoneHook
-	logger   *slog.Logger
-	sem      chan struct{} // concurrency limiter
-	settle   *plugin.Coalescer
+	store  *Store
+	wakeFn atomic.Value // stores WakeFunc
+	logger *slog.Logger
+	settle *plugin.Coalescer
 }
 
-// NewRunner creates a Runner. Call SetRunFunc before the vault watcher fires events.
+// NewRunner creates a Runner. Call SetWakeFunc before the vault watcher fires events.
 func NewRunner(store *Store, logger *slog.Logger) *Runner {
-	r := &Runner{
-		store:  store,
-		logger: logger,
-		sem:    make(chan struct{}, 3),
-	}
+	r := &Runner{store: store, logger: logger}
 	// note_created and note_updated wait for the edit session to end instead
-	// of running an agent on the first keystroke and every autosave.
+	// of waking a bot on the first keystroke and every autosave.
 	r.settle = plugin.NewCoalescer(plugin.AgentWindow, r.dispatch)
 	return r
 }
 
-// SetRunFunc wires in the function that fires an agent run for a trigger match.
-func (r *Runner) SetRunFunc(fn RunFunc) {
-	r.runFn.Store(fn)
-}
-
-// SetRetryFunc wires in the function that re-fires a trigger run for a UI retry.
-func (r *Runner) SetRetryFunc(fn RetryFunc) {
-	r.retryFn.Store(fn)
-}
-
-// SetRunDoneHook registers a hook called when a trigger run reaches a terminal state.
-func (r *Runner) SetRunDoneHook(fn RunDoneHook) {
-	r.doneHook.Store(fn)
+// SetWakeFunc wires in what runs a wake in a bot's chat.
+func (r *Runner) SetWakeFunc(fn WakeFunc) {
+	r.wakeFn.Store(fn)
 }
 
 func (r *Runner) Name() string { return "mate_runner" }
@@ -115,9 +79,6 @@ func (r *Runner) dispatchMateEvents(mateEvents []MateEvent) {
 		}
 		matched, ok := matchMateEvent(t.EventTypes, mateEvents)
 		if !ok {
-			continue
-		}
-		if matched.SourceMateID != "" && t.MateID == matched.SourceMateID {
 			continue
 		}
 		if !matchPathPrefixes(t.PathPrefixes, matched) {
@@ -170,140 +131,30 @@ func (r *Runner) tickScheduled() {
 	}
 }
 
-func (r *Runner) fireTrigger(t MateTrigger, me MateEvent) {
-	fn, _ := r.runFn.Load().(RunFunc)
+func (r *Runner) fireTrigger(t MateTrigger, me MateEvent) error {
+	fn, _ := r.wakeFn.Load().(WakeFunc)
 	if fn == nil {
-		return
+		return errors.New("mate runner: wake unavailable")
 	}
-	go func(tr MateTrigger, ev MateEvent) {
-		select {
-		case r.sem <- struct{}{}:
-		default:
-			r.logger.Warn("mate_runner: semaphore full, skipping trigger", "triggerID", tr.ID)
-			return
-		}
-		defer func() { <-r.sem }()
-		r.runTrigger(fn, tr, ev)
-	}(t, me)
-}
-
-// runTrigger runs tr with r.sem already held by the caller.
-func (r *Runner) runTrigger(fn RunFunc, tr MateTrigger, ev MateEvent) {
-	m, err := r.store.GetMate(tr.MateID)
-	if err != nil || m == nil {
-		return
-	}
-
-	convID, err := r.store.GetOrCreateDefaultTriggerConv(m.ID)
-	if err != nil {
-		r.logger.Warn("mate_runner: get trigger conv", "err", err)
-		return
-	}
-
-	ev.TriggerID = tr.ID
-	prompt := renderPrompt(tr.Prompt, ev)
-	fields := []any{"mate", m.Name, "trigger", tr.ID, "event", ev.Type, "conv", convID}
-	if ev.Path != "" {
-		fields = append(fields, "path", ev.Path)
-	}
-	r.logger.Info("mate_runner: trigger fired", fields...)
-
-	fn(context.Background(), m, convID, prompt, ev, r.buildOnDone(m, ev, prompt))
-}
-
-var (
-	ErrTriggerDisabled = errors.New("the trigger or its bot is disabled")
-	ErrRunnerBusy      = errors.New("too many trigger runs in flight, try again shortly")
-)
-
-// FireNow fires t once, off its schedule, the way a scheduled fire would.
-// Unlike an automatic fire it reports a skipped run instead of dropping it.
-func (r *Runner) FireNow(t MateTrigger) error {
-	if !t.Enabled {
-		return ErrTriggerDisabled
-	}
-	m, err := r.store.GetMate(t.MateID)
+	m, err := r.store.TurnBot(t.MateID, t.ID)
 	if err != nil {
 		return err
 	}
-	if m == nil || !m.Enabled {
-		return ErrTriggerDisabled
+	w := Wake{
+		Event: me.Type, TriggerID: t.ID, Prompt: renderPrompt(t.Prompt, me),
+		Key: t.ID + "\x00" + me.Path, Path: me.Path,
 	}
-	fn, _ := r.runFn.Load().(RunFunc)
-	if fn == nil {
-		return errors.New("mate runner: run unavailable")
+	fields := []any{"mate", m.Name, "trigger", t.ID, "event", me.Type}
+	if me.Path != "" {
+		fields = append(fields, "path", me.Path)
 	}
-	select {
-	case r.sem <- struct{}{}:
-	default:
-		return ErrRunnerBusy
-	}
-	go func() {
-		defer func() { <-r.sem }()
-		r.runTrigger(fn, t, MateEvent{Type: MateEventScheduled, FiredAt: time.Now()})
-	}()
-	return nil
+	r.logger.Info("mate_runner: trigger fired", fields...)
+	return fn(m, w)
 }
 
-// buildOnDone returns the completion hook shared by every path that fires an
-// agent run through this Runner — automatic trigger fires (fireTrigger) and
-// UI retries of a failed/canceled trigger-originated message (RetryRun). It
-// feeds the registered RunDoneHook (inbox message on completion) and, on
-// success, fans out agent_run_completed so other mates' triggers can react —
-// the same behavior a fresh automatic fire would have produced.
-func (r *Runner) buildOnDone(m *Mate, ev MateEvent, prompt string) func(RunResult) {
-	start := time.Now()
-	dh, _ := r.doneHook.Load().(RunDoneHook)
-	return func(result RunResult) {
-		result.Duration = time.Since(start)
-		result.EventType = ev.Type
-		result.Prompt = prompt
-		if dh != nil {
-			dh(m, result)
-		}
-		if result.Success {
-			// Notify other mates that this run succeeded.
-			// Path carries the source mate name; PathPrefixes on agent_run_completed triggers filters by mate name.
-			// SourceMateID prevents the same mate from triggering itself.
-			r.dispatchMateEvents([]MateEvent{{
-				Type:         MateEventAgentRunCompleted,
-				Path:         m.Name,
-				Content:      result.LastMessage,
-				FiredAt:      time.Now(),
-				SourceMateID: m.ID,
-			}})
-		}
-	}
-}
-
-// RetryRun re-fires a trigger-originated run that previously failed or was
-// canceled, through the same completion pipeline (RunDoneHook → inbox,
-// agent_run_completed fan-out) an automatic trigger fire uses — so retrying
-// from the UI still produces an inbox message on completion, instead of the
-// result only ever landing in the conversation. prompt is the already-
-// rendered text the UI recovered from the conversation history, so no
-// MateTrigger/template lookup is needed. userMsgID/assistantMsgID are the
-// client's pre-allocated optimistic message IDs. Returns the hub run ID for
-// the caller to hand back to the client to watch.
-func (r *Runner) RetryRun(mateID, convID, prompt, userMsgID, assistantMsgID string, eventType MateEventType, triggerID string) (string, error) {
-	fn, _ := r.retryFn.Load().(RetryFunc)
-	if fn == nil {
-		return "", errors.New("mate runner: retry unavailable")
-	}
-	m, err := r.store.GetMate(mateID)
-	if err != nil || m == nil {
-		return "", errors.New("mate runner: mate not found")
-	}
-	select {
-	case r.sem <- struct{}{}:
-	default:
-		return "", errors.New("mate runner: too many trigger runs in flight, try again shortly")
-	}
-	defer func() { <-r.sem }()
-
-	ev := MateEvent{Type: eventType, FiredAt: time.Now(), TriggerID: triggerID}
-	runID := fn(context.Background(), m, convID, prompt, userMsgID, assistantMsgID, ev, r.buildOnDone(m, ev, prompt))
-	return runID, nil
+// FireNow fires t once, off its schedule, the way a scheduled fire would.
+func (r *Runner) FireNow(t MateTrigger) error {
+	return r.fireTrigger(t, MateEvent{Type: MateEventScheduled, FiredAt: time.Now()})
 }
 
 // matchMateEvent returns the first MateEvent whose type appears in triggerTypes.

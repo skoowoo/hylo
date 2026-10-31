@@ -180,7 +180,7 @@ func TestNewChatReusingAnEmptyOneMakesItCurrent(t *testing.T) {
 	if _, err := store.db.Exec(`UPDATE conversations SET updated_at = updated_at - 60000 WHERE id = ?`, empty.ID); err != nil {
 		t.Fatal(err)
 	}
-	conv, err := store.EnsureNewConv(m.ID, ConvTypeChat, "", 10)
+	conv, err := store.EnsureNewConv(m.ID, "", 10)
 	if err != nil || conv.ID != empty.ID {
 		t.Fatalf("new chat %s %v, want the empty one", conv.ID, err)
 	}

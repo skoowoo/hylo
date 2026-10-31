@@ -79,20 +79,14 @@
           })();
         </script>
 
-        <button type="button" class="side-nav-item home-side-item" :class="{'is-active': curType() === 'inbox'}"
-                x-press="go('/home/section?type=inbox')">
-          {{sideIcon "inbox"}}
-          <span class="home-side-label">Inbox</span>
-          <span class="home-side-count" x-show="unreadCount > 0" {{xshow (gt .Boot.UnreadCount 0)}} x-text="unreadCount">{{.Boot.UnreadCount}}</span>
-        </button>
-
         <div class="home-side-group">
           <button type="button" class="side-nav-item home-side-item home-side-item--parent"
                   :class="{'is-active': botsEmpty() && curType() === 'chat'}"
                   x-press="botsEmpty() ? go('/home/section?type=chat') : (chatsOpen = !chatsOpen)">
             {{sideIcon "bot"}}
             <span class="home-side-label">Bots</span>
-            <span class="home-side-count home-side-count--plain" x-show="!chatsOpen && agentBots.length" x-cloak x-text="agentBots.length"></span>
+            <span class="home-side-count home-side-count--plain" x-show="!chatsOpen && agentBots.length && !botsUnread()" x-cloak x-text="agentBots.length"></span>
+            <span class="home-side-count" x-show="!chatsOpen && botsUnread()" x-cloak x-text="botsUnread()"></span>
             <span class="home-side-chevron is-open" :class="{'is-open': chatsOpen}" x-show="!botsEmpty()" {{xshow (gt (len .Boot.Bots) 0)}}>{{icon "chevron-right"}}</span>
           </button>
           {{/* Open with the boot's row count reserved, so nothing below moves when the rows render. */}}
@@ -106,6 +100,7 @@
                   <span class="avatar avatar--sm home-side-child-lead" data-blink
                         x-html="agentBotAvatar(m.name)"></span>
                   <span class="home-side-child-name" x-text="m.name"></span>
+                  <span class="home-side-count home-side-count--unread" x-show="m.unread > 0" x-text="m.unread"></span>
                 </button>
               </template>
             </div>

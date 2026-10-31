@@ -1,6 +1,6 @@
 // Package prompt owns every prompt Hylo hands an agent: the layered system
-// prompt, the first-turn message envelope, trigger templates and the built-in
-// texts under text/.
+// prompt, the first-turn message envelope, the wake envelope, trigger
+// templates and the built-in texts under text/.
 package prompt
 
 import (
@@ -12,10 +12,8 @@ import (
 type Kind int
 
 const (
-	// Chat is the user talking in Hylo's own chat UI.
+	// Chat is a turn in a bot's chat: the user talking, or the bot woken.
 	Chat Kind = iota
-	// Trigger is a bot run fired by an event, including chat app replies.
-	Trigger
 	// OneShot is an internal single-shot ask, like the setup hello: its
 	// message is self-contained and must not read the vault or use tools.
 	OneShot

@@ -286,3 +286,14 @@ test('a stored user message keeps its image attachments', function () {
   assert.equal(msgs[0].attachments[0].id, 'a.png');
   assert.equal(msgs[0].attachments[0].name, 'shot.png');
 });
+
+test('a stored wake keeps its role and source instead of reading as a reply', function () {
+  var out = R.formatStoredMessages([
+    { id: 'w', role: 'wake', content: 'Update my memory.', triggerEvent: 'scheduled', triggerId: 't1', createdAt: '2026-10-30T09:00:00.000Z' },
+    { id: 'a', role: 'assistant', content: 'Done.', status: 'succeeded', triggerEvent: 'scheduled', triggerId: 't1', mateId: 'm' },
+  ]);
+  assert.equal(out[0].role, 'wake');
+  assert.equal(out[0].content, 'Update my memory.');
+  assert.equal(out[0].triggerId, 't1');
+  assert.equal(out[1].role, 'assistant');
+});

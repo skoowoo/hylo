@@ -19,13 +19,11 @@ func TestSectionsApplyByRun(t *testing.T) {
 		want string
 	}{
 		{Run{}, "global,vault,choices,embed"},
-		{Run{Kind: Trigger}, "global,vault,embed"},
-		{Run{Kind: Trigger, Bot: " ", MCP: true}, "global,vault,mcp,embed"},
+		{Run{Bot: " ", MCP: true}, "global,vault,mcp,choices,embed"},
 		{Run{Bot: "be brief", MCP: true, Intro: &Intro{}}, "global,vault,bot,mcp,choices,embed,intro"},
 		{Run{Kind: OneShot, MCP: true}, ""},
 		{Run{Main: true, MCP: true}, "global,vault,mcp,choices,embed,capabilities"},
 		{Run{Main: true}, "global,vault,choices,embed"},
-		{Run{Kind: Trigger, Main: true, MCP: true}, "global,vault,mcp,embed"},
 		{Run{Main: true, MCP: true, Intro: &Intro{}}, "global,vault,mcp,choices,embed,intro"},
 	}
 	for _, c := range cases {
@@ -36,11 +34,11 @@ func TestSectionsApplyByRun(t *testing.T) {
 }
 
 func TestOverrideReplacesGlobal(t *testing.T) {
-	got := System(Run{Kind: Trigger, Bot: "bot", Overrides: map[string]string{SectionGlobal: " mine "}})
-	if got != "mine\n\n---\n\n"+vaultText+"\n\n---\n\nbot\n\n---\n\n"+strings.TrimSpace(embedText) {
+	got := System(Run{Bot: "bot", Overrides: map[string]string{SectionGlobal: " mine "}})
+	if got != "mine\n\n---\n\n"+vaultText+"\n\n---\n\nbot\n\n---\n\n"+strings.TrimSpace(choicesText)+"\n\n---\n\n"+strings.TrimSpace(embedText) {
 		t.Fatalf("%q", got)
 	}
-	if got := System(Run{Kind: Trigger, Overrides: map[string]string{SectionGlobal: "  "}}); !strings.HasPrefix(got, GlobalDefault+"\n") {
+	if got := System(Run{Overrides: map[string]string{SectionGlobal: "  "}}); !strings.HasPrefix(got, GlobalDefault+"\n") {
 		t.Fatal("blank override must fall back to the default")
 	}
 }
@@ -150,8 +148,8 @@ func TestFillIsSinglePass(t *testing.T) {
 }
 
 func TestSilentReply(t *testing.T) {
-	if !strings.Contains(TriggerRecallShort, "`"+SilentReply+"`") {
-		t.Error("the short-note trigger doesn't ask for the silent reply")
+	if !strings.Contains(WakeRequest("Your trigger", "task"), "`"+SilentReply+"`") {
+		t.Error("a wake doesn't offer the silent reply")
 	}
 	for reply, want := range map[string]bool{
 		"[silent]":                            true,
@@ -159,12 +157,9 @@ func TestSilentReply(t *testing.T) {
 		"":                                    false,
 		"# Recall\n\nNothing [silent] here.":  false,
 	} {
-		if got := IsSilent(TriggerRecallShort, reply); got != want {
+		if got := IsSilent(reply); got != want {
 			t.Errorf("IsSilent(%q) = %v", reply, got)
 		}
-	}
-	if IsSilent(TriggerRecallWeekly, "# Week\n\nLots happened.\n\n[silent]") {
-		t.Error("a trigger that never asked for the silent reply went silent")
 	}
 }
 

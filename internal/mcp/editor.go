@@ -64,11 +64,12 @@ type editorRewriteOut struct {
 	Message     string `json:"message,omitempty"`
 }
 
-// errNoEditor guarantees nothing was written, so writing the note another way is safe;
+// errNoEditor and errUnwatched guarantee nothing was written, so writing the note another way is safe;
 // the others don't, and a write racing an editor still typing would duplicate text.
 var (
 	errNoEditor    = errors.New("no editor is open in Hylo, so nothing was written. If the user asked to watch the writing, ask them to open the app and retry; otherwise write the note with the note tools")
 	errEditorGone  = errors.New("the editor disconnected while working on the note; part of it may be written. Call editor_read once the user reopens it; do not write the note with other tools instead")
+	errUnwatched   = errors.New("this turn started on its own, not with the user watching, so nothing was written in the editor. Write the note with the note tools")
 	errEditorStuck = errors.New("the editor stopped responding and was told to stop; part of the text may be written. Call editor_read and continue from what is there; do not write the note with other tools instead")
 )
 
@@ -97,6 +98,8 @@ func dispatch(ctx context.Context, bus *editorbus.Bus, op editorbus.Op) (editorb
 	switch {
 	case errors.Is(err, editorbus.ErrNoEditor):
 		return res, errNoEditor
+	case errors.Is(err, editorbus.ErrUnwatched):
+		return res, errUnwatched
 	case errors.Is(err, editorbus.ErrEditorGone):
 		return res, errEditorGone
 	case errors.Is(err, editorbus.ErrEditorStuck):

@@ -7,7 +7,7 @@ use tauri::{AppHandle, Manager, State};
 use crate::commands::ShellState;
 use crate::config::{normalize_url, ServerEntry, ServerKind, LOCAL_ID};
 use crate::local::{self, StartError};
-use crate::notify::{InboxHandle, Target};
+use crate::notify::{Notifier, Target};
 use crate::remote::{self, Health, ServerError, Session};
 use crate::session::{self, show_start, show_start_at};
 
@@ -148,7 +148,7 @@ pub async fn add_server(app: AppHandle, opts: AddOpts) -> CmdResult<()> {
 
     let name = non_empty(opts.name).unwrap_or_default();
     state.edit_config(|cfg| cfg.add_remote(&name, &url, key).map(|_| ()))?;
-    sync_inboxes(&app);
+    sync_notifiers(&app);
     Ok(())
 }
 
@@ -171,7 +171,7 @@ pub async fn update_server(app: AppHandle, id: String, opts: UpdateOpts) -> CmdR
         }
         Ok(())
     })?;
-    sync_inboxes(&app);
+    sync_notifiers(&app);
     Ok(())
 }
 
@@ -179,7 +179,7 @@ pub async fn update_server(app: AppHandle, id: String, opts: UpdateOpts) -> CmdR
 pub fn remove_server(app: AppHandle, id: String) -> CmdResult<ServerList> {
     let state = app.state::<ShellState>();
     state.edit_config(|cfg| cfg.remove(&id))?;
-    sync_inboxes(&app);
+    sync_notifiers(&app);
     Ok(snapshot(&state)?)
 }
 
@@ -208,7 +208,7 @@ pub async fn local_key(app: &AppHandle, base: &str) -> Result<Option<String>, Se
     if let Some(key) = &fresh {
         if fresh != stored {
             let _ = state.edit_config(|cfg| cfg.set_key(LOCAL_ID, key.clone()));
-            sync_inboxes(app);
+            sync_notifiers(app);
         }
     }
     Ok(fresh)
@@ -278,7 +278,7 @@ pub async fn enter_server(app: AppHandle, id: String) -> CmdResult<()> {
         let session = remote::login(&entry.url, key).await?;
         inject_session(&app, &entry.url, &session);
     }
-    sync_inboxes(&app);
+    sync_notifiers(&app);
     let state = app.state::<ShellState>();
     let landing = match entry.kind {
         ServerKind::Local => state.landing.lock().ok().and_then(|mut l| l.take()),
@@ -342,9 +342,9 @@ fn inject_session(app: &AppHandle, url: &str, session: &Session) {
     let _ = window.set_cookie(cookie);
 }
 
-/// One inbox stream per server that can authenticate. Safe to call whenever
+/// One notification stream per server that can authenticate. Safe to call whenever
 /// the registry or a key changes; unchanged streams are left running.
-pub fn sync_inboxes(app: &AppHandle) {
+pub fn sync_notifiers(app: &AppHandle) {
     let state = app.state::<ShellState>();
     let wanted: Vec<(String, Target)> = {
         let Ok(cfg) = state.config.lock() else {
@@ -368,7 +368,7 @@ pub fn sync_inboxes(app: &AppHandle) {
             .collect()
     };
 
-    let Ok(mut live) = state.inboxes.lock() else {
+    let Ok(mut live) = state.notifiers.lock() else {
         return;
     };
     let keep: HashSet<&String> = wanted.iter().map(|(id, _)| id).collect();
@@ -385,13 +385,13 @@ pub fn sync_inboxes(app: &AppHandle) {
     for (id, target) in wanted {
         if live
             .get(&id)
-            .is_some_and(|h: &InboxHandle| h.matches(&target))
+            .is_some_and(|h: &Notifier| h.matches(&target))
         {
             continue;
         }
         if let Some(old) = live.remove(&id) {
             old.shutdown();
         }
-        live.insert(id, InboxHandle::start(app.clone(), target));
+        live.insert(id, Notifier::start(app.clone(), target));
     }
 }

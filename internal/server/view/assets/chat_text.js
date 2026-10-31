@@ -1,4 +1,4 @@
-// Shared text helpers: markdown (chat, inbox), fence cards, and the composer
+// Shared text helpers: markdown (chat), fence cards, and the composer
 // height rule (chat, Shorts).
 (function (root) {
   var mdCache = new Map();

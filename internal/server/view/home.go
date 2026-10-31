@@ -30,28 +30,25 @@ type homePageData struct {
 // from it and homeCtrl starts from it (#home-boot), so first paint already
 // matches what Alpine will show.
 type homeBoot struct {
-	UnreadCount int       `json:"unreadCount"`
-	Vault       string    `json:"vault"`
-	Bots        []bootBot `json:"bots"`
+	Vault string    `json:"vault"`
+	Bots  []bootBot `json:"bots"`
 }
 
 // bootBot is what a sidebar bot row draws; /api/mates fills in the rest.
 type bootBot struct {
-	ID    string `json:"id"`
-	Name  string `json:"name"`
-	Color string `json:"color"`
+	ID     string `json:"id"`
+	Name   string `json:"name"`
+	Color  string `json:"color"`
+	Unread int    `json:"unread"`
 }
 
 func (vh *ViewHandler) homeBoot() homeBoot {
 	b := homeBoot{Vault: vh.vault.Root(), Bots: []bootBot{}}
-	if vh.inbox != nil {
-		b.UnreadCount, _ = vh.inbox.UnreadCount()
-	}
 	if vh.mates != nil {
 		list, _ := vh.mates.ListMates()
 		for _, m := range list {
 			if m.Enabled {
-				b.Bots = append(b.Bots, bootBot{ID: m.ID, Name: m.Name, Color: m.Color})
+				b.Bots = append(b.Bots, bootBot{ID: m.ID, Name: m.Name, Color: m.Color, Unread: m.Unread})
 			}
 		}
 	}
@@ -270,8 +267,8 @@ func homeSectionMoreURL(typ, path string, nextNs int64) string {
 // #home-list-pane contents for whichever sidebar item is active. This is the
 // dispatch point between the right pane's different "view kinds": today a
 // generic note list (pinned/folder), the rendered Shorts stream, the image
-// gallery grid, the tag cloud/picker, the knowledge graph canvas, the inbox
-// message list, or the agent chat panel; more kinds can be added here as new
+// gallery grid, the tag cloud/picker, the knowledge graph canvas, or the
+// agent chat panel (the default); more kinds can be added here as new
 // cases without touching the sidebar's swap mechanism (see home.js go()).
 func (vh *ViewHandler) renderHomeSectionHTML(r *http.Request) (template.HTML, error) {
 	switch r.URL.Query().Get("type") {
@@ -281,12 +278,7 @@ func (vh *ViewHandler) renderHomeSectionHTML(r *http.Request) (template.HTML, er
 		return vh.renderHomeImagesSection(r)
 	case "tags":
 		return vh.renderHomeTagsSection(r)
-	case "inbox", "":
-		// The message list is client-rendered (home.js fetches /api/inbox once
-		// #home-inbox-list lands — see __hyloSectionArrived); only the head
-		// renders the unread count.
-		return renderHTML("home_inbox_section.html", homePageData{Boot: vh.homeBoot()})
-	case "chat":
+	case "chat", "":
 		// Static shell. home.js attaches the chat kernel once #chat-root
 		// lands in the DOM (__hyloSectionArrived); the markup itself never varies.
 		return renderHTML("home_chat_section.html", nil)
@@ -461,7 +453,7 @@ func (vh *ViewHandler) renderHomeTagsSection(r *http.Request) (template.HTML, er
 	return renderHTML("tags", data)
 }
 
-// HomeSection handles GET /home/section?type=pinned|folder|shorts|images|tags|knowledge|inbox|chat[&path=DIR][&tag=NAME][&index=PATH&view=list|grid|graph]
+// HomeSection handles GET /home/section?type=pinned|folder|shorts|images|tags|knowledge|chat[&path=DIR][&tag=NAME][&index=PATH&view=list|grid|graph]
 // Returns the full #home-list-pane contents, used when the sidebar selection changes.
 func (vh *ViewHandler) HomeSection(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {

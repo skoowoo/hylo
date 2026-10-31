@@ -11,7 +11,7 @@ const RETRY_FIRST: Duration = Duration::from_secs(5);
 /// A server that stays away (a laptop's remote, off for the night) is asked rarely.
 const RETRY_MAX: Duration = Duration::from_secs(120);
 
-/// Connection to one server's inbox stream.
+/// Connection to one server's live feed, for bots reaching out.
 #[derive(Clone, PartialEq, Eq)]
 pub struct Target {
     pub base_url: String,
@@ -20,13 +20,13 @@ pub struct Target {
     pub label: Option<String>,
 }
 
-pub struct InboxHandle {
+pub struct Notifier {
     stop: watch::Sender<bool>,
     /// What the loop was started with, to detect a changed URL, key or label.
     target: Target,
 }
 
-impl InboxHandle {
+impl Notifier {
     pub fn start(app: AppHandle, target: Target) -> Self {
         let (stop, rx) = watch::channel(false);
         let handle = Self {
@@ -55,7 +55,7 @@ enum Loop {
 }
 
 async fn run_loop(app: AppHandle, target: Target, mut stop: watch::Receiver<bool>) {
-    let Some(endpoint) = join_notifications(&target.base_url) else {
+    let Some(endpoint) = join_live(&target.base_url) else {
         return;
     };
     let Ok(client) = reqwest::Client::builder().no_proxy().build() else {
@@ -116,7 +116,7 @@ async fn connect(
                     Ok(Ok(Some(bytes))) => {
                         buf.push_str(&String::from_utf8_lossy(&bytes));
                         for raw in drain_events(&mut buf) {
-                            show_message(app, &raw, target.label.as_deref());
+                            show_wake(app, &raw, target.label.as_deref());
                         }
                     }
                     _ => return Loop::Retry(true),
@@ -144,40 +144,66 @@ pub fn drain_events(buf: &mut String) -> Vec<String> {
     out
 }
 
+/// One change on the server's live feed (internal/live).
 #[derive(Debug, Deserialize)]
-struct InboxMsg {
-    title: Option<String>,
-    body: Option<String>,
-    source: Option<String>,
+struct Change {
+    topic: String,
+    op: String,
+    data: Option<WakeEnd>,
 }
 
-fn show_message(app: &AppHandle, raw: &str, label: Option<&str>) {
-    let Ok(msg) = serde_json::from_str::<InboxMsg>(raw) else {
+/// A bot's turn it started on its own, now over (handler.WakeEnd).
+#[derive(Debug, Deserialize)]
+struct WakeEnd {
+    bot: Option<String>,
+    status: Option<String>,
+    #[serde(default)]
+    silent: bool,
+    /// The user ran it again and is watching it.
+    #[serde(default)]
+    retry: bool,
+    text: Option<String>,
+}
+
+/// What a bot sent on its own, unless it chose to say nothing.
+fn wake_message(raw: &str) -> Option<(String, String)> {
+    let c = serde_json::from_str::<Change>(raw).ok()?;
+    if c.topic != "chat" || c.op != "wake" {
+        return None;
+    }
+    let w = c.data?;
+    if w.silent || w.retry || w.status.as_deref() != Some("succeeded") {
+        return None;
+    }
+    let title = w
+        .bot
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| "Hylo".to_string());
+    let body = w
+        .text
+        .unwrap_or_default()
+        .trim()
+        .chars()
+        .take(150)
+        .collect();
+    Some((title, body))
+}
+
+fn show_wake(app: &AppHandle, raw: &str, label: Option<&str>) {
+    let Some((title, body)) = wake_message(raw) else {
         return;
     };
     let Ok(settings) = app
         .state::<ShellState>()
-        .read_config(|cfg| cfg.inbox_notify.clone())
+        .read_config(|cfg| cfg.notify.clone())
     else {
         return;
     };
     if settings.text_enabled {
-        let title = msg
-            .title
-            .filter(|s| !s.is_empty())
-            .or(msg.source)
-            .unwrap_or_else(|| "Inbox".to_string());
         let title = match label {
             Some(l) => format!("[{l}] {title}"),
             None => title,
         };
-        let body: String = msg
-            .body
-            .unwrap_or_default()
-            .trim()
-            .chars()
-            .take(150)
-            .collect();
         let handle = app.clone();
         let _ = app.run_on_main_thread(move || {
             let _ = notify(&handle, &title, &body);
@@ -227,12 +253,12 @@ pub fn play_sound(sound: &str) {
     }
 }
 
-fn join_notifications(base: &str) -> Option<String> {
+fn join_live(base: &str) -> Option<String> {
     let base = base.trim().trim_end_matches('/');
     if base.is_empty() {
         return None;
     }
-    Some(format!("{base}/api/inbox/notifications"))
+    Some(format!("{base}/api/live"))
 }
 
 #[cfg(test)]
@@ -245,5 +271,23 @@ mod tests {
         let ev = drain_events(&mut buf);
         assert_eq!(ev, vec!["{\"title\":\"A\"}", "{\"title\":\"B\"}"]);
         assert_eq!(buf, "partial");
+    }
+
+    #[test]
+    fn notifies_only_what_a_bot_said() {
+        let said = r#"{"topic":"chat","op":"wake","data":{"bot":"Recall","status":"succeeded","text":" Two notes disagree. "}}"#;
+        assert_eq!(
+            wake_message(said),
+            Some(("Recall".to_string(), "Two notes disagree.".to_string()))
+        );
+        let silent = r#"{"topic":"chat","op":"wake","data":{"bot":"Recall","status":"succeeded","silent":true}}"#;
+        assert_eq!(wake_message(silent), None);
+        let retried = r#"{"topic":"chat","op":"wake","data":{"bot":"Recall","status":"succeeded","retry":true,"text":"Again."}}"#;
+        assert_eq!(wake_message(retried), None);
+        assert_eq!(
+            wake_message(r#"{"topic":"notes","op":"write","path":"/a.md"}"#),
+            None
+        );
+        assert_eq!(wake_message("{}"), None);
     }
 }

@@ -4,11 +4,11 @@
               <div class="settings-status" x-show="!isDesktop">Available in the desktop app only.</div>
               <template x-if="isDesktop">
                 <div class="settings-list">
-{{template "notify-toggle-row" (dict "Field" `textEnabled` "Label" `Text notifications` "Desc" `Show a system notification when a new inbox message arrives.`)}}{{template "notify-toggle-row" (dict "Field" `soundEnabled` "Label" `Sound` "Desc" `Play a sound when a new inbox message arrives.`)}}
+{{template "notify-toggle-row" (dict "Field" `textEnabled` "Label" `Text notifications` "Desc" `Show a system notification when a bot reaches out on its own.`)}}{{template "notify-toggle-row" (dict "Field" `soundEnabled` "Label" `Sound` "Desc" `Play a sound when a bot reaches out on its own.`)}}
                   <div class="settings-row hairline" x-show="notifySettings.soundEnabled">
                     <div>
                       <span class="settings-label">Notification sound</span>
-                      <span class="settings-desc">Played when a new inbox message arrives.</span>
+                      <span class="settings-desc">Played when a bot reaches out on its own.</span>
                     </div>
                     <div class="settings-row-ctrl">
                       <div class="notif-sound">
@@ -16,7 +16,7 @@
                       </div>
                       <button type="button" class="icon-btn icon-btn--lg" title="Preview sound"
                               :disabled="notifySettings.sound === 'none'"
-                              @click="window.hyloDesktop?.inboxNotify?.previewSound(notifySettings.sound)">
+                              @click="window.hyloDesktop?.notify?.previewSound(notifySettings.sound)">
                         {{icon "play"}}
                       </button>
                     </div>

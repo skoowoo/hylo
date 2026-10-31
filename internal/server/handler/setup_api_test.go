@@ -46,7 +46,7 @@ func TestSetupBotOnlyForAnEmptyVault(t *testing.T) {
 	if got := strings.Join(names, ","); got != "Compiler,Compiler,Memory" {
 		t.Fatalf("trigger names in order: %s", got)
 	}
-	convs, _ := store.ListConversationsByType(id, mate.ConvTypeChat)
+	convs, _ := store.ListConversations(id)
 	msgs, _ := store.ListMessages(convs[0].ID)
 	if len(msgs) != 1 || msgs[0].Role != "assistant" || msgs[0].AgentID != "pi" {
 		t.Fatalf("greeting: %+v", msgs)

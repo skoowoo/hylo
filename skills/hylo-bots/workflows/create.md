@@ -39,4 +39,4 @@ If step 1 fails, nothing was made. If a later step fails, the bot exists: say so
 
 ## 6. Tell them
 
-The receipt: the bot's name, what it will do and when, and that results arrive in the inbox.
+The receipt: the bot's name, what it will do and when, and that its results arrive as messages in its chat.

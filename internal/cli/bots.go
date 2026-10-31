@@ -160,7 +160,7 @@ func newTriggerCmd() *cobra.Command {
 	addCmd := &cobra.Command{
 		Use:   "add <bot-id>",
 		Short: "Add a trigger to a bot",
-		Long:  `Adds a trigger that runs the bot on a schedule, or when the given events happen. Its output goes to your inbox.`,
+		Long:  `Adds a trigger that wakes the bot on a schedule, or when the given events happen. It does the task as a turn in its chat and reaches out there.`,
 		Example: `  hylo trigger add <bot-id> --schedule "daily 08:00" --prompt "Use the hackernews skill to get today's news."
   hylo trigger add <bot-id> --events note_created --path-prefixes "/Web Clips/" --prompt "Summarize {Path}"`,
 		Args:         cobra.ExactArgs(1),
@@ -232,7 +232,7 @@ func newTriggerCmd() *cobra.Command {
 
 	runCmd := &cobra.Command{
 		Use:          "run <bot-id> <trigger-id>",
-		Short:        "Run a scheduled trigger once now; the result goes to your inbox",
+		Short:        "Run a scheduled trigger once now, as a turn in the bot's chat",
 		Args:         cobra.ExactArgs(2),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -243,7 +243,7 @@ func newTriggerCmd() *cobra.Command {
 			if err := c.RunTrigger(args[0], args[1]); err != nil {
 				return err
 			}
-			fmt.Println("Started; the result arrives in your inbox when it's done.")
+			fmt.Println("Queued; the bot runs it once you've paused chatting with it, and replies in its chat.")
 			return nil
 		},
 	}

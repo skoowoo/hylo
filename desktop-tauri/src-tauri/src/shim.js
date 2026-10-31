@@ -107,15 +107,15 @@
     pickFolder: function (opts) {
       return invoke("pick_folder", { opts: opts || {} });
     },
-    inboxNotify: {
+    notify: {
       getSettings: function () {
-        return invoke("inbox_notify_get_settings");
+        return invoke("notify_get_settings");
       },
       setSettings: function (settings) {
-        return invoke("inbox_notify_set_settings", { settings: settings || {} });
+        return invoke("notify_set_settings", { settings: settings || {} });
       },
       previewSound: function (sound) {
-        return invoke("inbox_notify_preview_sound", { sound: sound || "" });
+        return invoke("notify_preview_sound", { sound: sound || "" });
       },
     },
   };

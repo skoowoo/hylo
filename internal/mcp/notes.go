@@ -128,7 +128,7 @@ func registerNoteTools(s *sdk.Server, c *client.Client) {
 			return readOut{Path: p, Content: content}, err
 		})
 
-	addTool(s, "compile", "Compile a note into the knowledge base. Runs in the background; the result goes to the user's inbox. A note already compiled comes back as already_compiled.", additiveIdempotent,
+	addTool(s, "compile", "Compile a note into the knowledge base. The main bot does it as a turn in its chat, once the user has paused chatting with it for a few minutes. A note already compiled comes back as already_compiled.", additiveIdempotent,
 		func(_ context.Context, in readReq) (*client.CompileResult, error) {
 			return c.Compile(in.Path)
 		})

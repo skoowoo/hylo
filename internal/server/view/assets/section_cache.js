@@ -30,7 +30,7 @@ var __hyloSectionShownAt = Date.now();
 var __hyloSectionShownStale = false;
 var __hyloSectionCacheableTypes = {
   pinned: true, recent: true, folder: true, memory: true, knowledge: true,
-  tags: true, images: true, shorts: true, inbox: true,
+  tags: true, images: true, shorts: true,
 };
 
 function __hyloSectionKey(raw) {
@@ -67,7 +67,7 @@ function __hyloSectionType(key) {
 
 function __hyloInitialSectionURL() {
   var u = new URL(window.location.href);
-  var type = u.searchParams.get('type') || 'inbox';
+  var type = u.searchParams.get('type') || 'chat';
   var q = new URLSearchParams();
   q.set('type', type);
   var path = u.searchParams.get('path');
@@ -351,7 +351,6 @@ function __hyloSectionArrived(url, entry) {
       }
     }
     if (!entry) {
-      if (document.getElementById('home-inbox-list')) hd.loadInbox();
       if (document.getElementById('chat-root')) hd.initChatSection();
     }
   }

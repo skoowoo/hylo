@@ -29,6 +29,28 @@ func TestDispatchNoEditor(t *testing.T) {
 	}
 }
 
+func TestUnwatchedRunNeverReachesTheEditor(t *testing.T) {
+	b := New()
+	s := b.subscribe("")
+	done := b.Unwatched("wake-run")
+	if _, err := b.Dispatch(context.Background(), Op{Path: "/a.md", Content: "x", Run: "wake-run"}); !errors.Is(err, ErrUnwatched) {
+		t.Fatalf("err = %v", err)
+	}
+	select {
+	case e := <-s.ch:
+		t.Fatalf("the editor got %+v", e)
+	default:
+	}
+	done()
+	go func() {
+		op := (<-s.ch).data.(Op)
+		b.Ack(Result{ID: op.ID, OK: true})
+	}()
+	if _, err := b.Dispatch(context.Background(), Op{Path: "/a.md", Run: "wake-run"}); err != nil {
+		t.Fatalf("once done, err = %v", err)
+	}
+}
+
 func TestDispatchAck(t *testing.T) {
 	b := New()
 	s := b.subscribe("")

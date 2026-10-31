@@ -181,7 +181,7 @@ func registerBotTools(s *sdk.Server, c *client.Client) {
 			return okOut{OK: err == nil}, err
 		})
 
-	addTool(s, "trigger_add", "Add a trigger to a bot: give a schedule to run it on a timer, or events to run it when they happen. Its output goes to the user's inbox. Ask the user first.", additive,
+	addTool(s, "trigger_add", "Add a trigger to a bot: give a schedule to run it on a timer, or events to run it when they happen. The bot does the task as a turn in its own chat, which the user reads as the bot reaching out. Ask the user first.", additive,
 		func(_ context.Context, in triggerAddReq) (triggerIDOut, error) {
 			id, err := notes.TriggerAdd(c, in.BotID, notes.TriggerSpec{
 				Name: in.Name, Prompt: in.Prompt, Schedule: in.Schedule, Events: in.Events, PathPrefixes: in.PathPrefixes,
@@ -203,12 +203,12 @@ func registerBotTools(s *sdk.Server, c *client.Client) {
 			return okOut{OK: err == nil}, err
 		})
 
-	addTool(s, "trigger_run", "Run a scheduled trigger once now, in the background; the result goes to the user's inbox.", additive,
+	addTool(s, "trigger_run", "Run a scheduled trigger once now, as a turn in the bot's chat, once the user has paused chatting with that bot for a few minutes.", additive,
 		func(_ context.Context, in triggerReq) (okOut, error) {
 			if err := c.RunTrigger(in.BotID, in.TriggerID); err != nil {
 				return okOut{}, err
 			}
-			return okOut{OK: true, Message: "started; the result arrives in the inbox when it's done"}, nil
+			return okOut{OK: true, Message: "started; the reply arrives in the bot's chat when it's done"}, nil
 		})
 
 	addTool(s, "skills_list", "List the skills added to ~/.hylo/skills and the bots each is on for. Built-in skills are always on for the main bot.", readOnly,

@@ -6,9 +6,9 @@ use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager, State};
 use tauri_plugin_dialog::DialogExt;
 
-use crate::config::{ConfigFile, InboxNotify, LOCAL_ID};
+use crate::config::{ConfigFile, NotifySettings, LOCAL_ID};
 use crate::local::{self, LocalServer, ProcessStatus};
-use crate::notify::{self, InboxHandle};
+use crate::notify::{self, Notifier};
 use crate::server::{self, DiagPaths};
 use crate::servers;
 use crate::session::show_start;
@@ -20,8 +20,8 @@ pub struct ShellState {
     pub connected_url: Mutex<Option<String>>,
     /// Where the next entry into the local server lands, set once by onboarding.
     pub landing: Mutex<Option<String>>,
-    /// Inbox stream per server id; see servers::sync_inboxes.
-    pub inboxes: Mutex<HashMap<String, InboxHandle>>,
+    /// Notification stream per server id; see servers::sync_notifiers.
+    pub notifiers: Mutex<HashMap<String, Notifier>>,
 }
 
 impl ShellState {
@@ -99,7 +99,7 @@ struct PickResult {
 
 #[derive(Debug, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
-struct InboxPatch {
+struct NotifyPatch {
     text_enabled: Option<bool>,
     sound_enabled: Option<bool>,
     sound: Option<String>,
@@ -245,36 +245,36 @@ fn set_window_button_visibility(_visible: bool) {
 }
 
 #[tauri::command]
-fn inbox_notify_get_settings(state: State<ShellState>) -> InboxNotify {
+fn notify_get_settings(state: State<ShellState>) -> NotifySettings {
     state
         .config
         .lock()
-        .map(|c| c.inbox_notify.clone())
+        .map(|c| c.notify.clone())
         .unwrap_or_default()
 }
 
 #[tauri::command(rename_all = "camelCase")]
-fn inbox_notify_set_settings(
+fn notify_set_settings(
     state: State<ShellState>,
-    settings: InboxPatch,
-) -> Result<InboxNotify, String> {
+    settings: NotifyPatch,
+) -> Result<NotifySettings, String> {
     let mut cfg = state.config.lock().map_err(|e| e.to_string())?;
     if let Some(v) = settings.text_enabled {
-        cfg.inbox_notify.text_enabled = v;
+        cfg.notify.text_enabled = v;
     }
     if let Some(v) = settings.sound_enabled {
-        cfg.inbox_notify.sound_enabled = v;
+        cfg.notify.sound_enabled = v;
     }
     if let Some(v) = settings.sound {
-        cfg.inbox_notify.sound = v;
+        cfg.notify.sound = v;
     }
-    let out = cfg.inbox_notify.clone();
+    let out = cfg.notify.clone();
     cfg.save(&state.data_dir)?;
     Ok(out)
 }
 
 #[tauri::command]
-fn inbox_notify_preview_sound(sound: String) {
+fn notify_preview_sound(sound: String) {
     notify::play_sound(&sound);
 }
 
@@ -296,9 +296,9 @@ pub fn invoke_handler() -> impl Fn(tauri::ipc::Invoke<tauri::Wry>) -> bool + Sen
         pick_folder,
         set_view_bg_color,
         set_window_button_visibility,
-        inbox_notify_get_settings,
-        inbox_notify_set_settings,
-        inbox_notify_preview_sound,
+        notify_get_settings,
+        notify_set_settings,
+        notify_preview_sound,
         toggle_maximize,
         crate::onboarding::onboarding_get,
         crate::onboarding::onboarding_set_step,

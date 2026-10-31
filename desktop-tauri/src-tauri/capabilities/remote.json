@@ -21,9 +21,9 @@
     "allow-pick-folder",
     "allow-set-view-bg-color",
     "allow-set-window-button-visibility",
-    "allow-inbox-notify-get-settings",
-    "allow-inbox-notify-set-settings",
-    "allow-inbox-notify-preview-sound",
+    "allow-notify-get-settings",
+    "allow-notify-set-settings",
+    "allow-notify-preview-sound",
     "allow-toggle-maximize"
   ]
 }

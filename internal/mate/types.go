@@ -23,11 +23,12 @@ type Mate struct {
 	UpdatedAt    time.Time     `json:"updatedAt"`
 	Triggers     []MateTrigger `json:"triggers,omitempty"`
 	TriggerCount int           `json:"triggerCount,omitempty"` // populated in list views
+	Unread       int           `json:"unread,omitempty"`       // wake replies not yet seen; populated in list views
 	// Channels lists connected app kinds. Filled for the bots list, not stored on the row.
 	Channels []string `json:"channels,omitempty"`
 }
 
-// MateTrigger fires a run when a matching mate event occurs.
+// MateTrigger wakes its bot when a matching mate event occurs.
 type MateTrigger struct {
 	ID           string    `json:"id"`
 	MateID       string    `json:"mateId"`
@@ -43,18 +44,15 @@ type MateTrigger struct {
 
 // ── Chat ─────────────────────────────────────────────────────────────────────
 
-// Conversation type constants.
-const (
-	ConvTypeChat    = "chat"    // user-initiated, multi-turn
-	ConvTypeTrigger = "trigger" // background trigger runs, no reply, ephemeral session
-)
+// ConvTypeChat is the only conversation type; the column outlived the others.
+const ConvTypeChat = "chat"
 
 // Conversation is one chat session bound to a specific mate.
 type Conversation struct {
 	ID                  string    `json:"id"`
 	MateID              string    `json:"mateId"`
 	Title               string    `json:"title"`
-	Type                string    `json:"type"` // ConvTypeChat | ConvTypeTrigger
+	Type                string    `json:"type"`
 	AgentSessionID      string    `json:"agentSessionId,omitempty"`
 	AgentSessionAgentID string    `json:"agentSessionAgentId,omitempty"`
 	AgentSessionCwd     string    `json:"agentSessionCwd,omitempty"`
@@ -74,7 +72,7 @@ type Attachment struct {
 type Message struct {
 	ID             string       `json:"id"`
 	ConversationID string       `json:"conversationId"`
-	Role           string       `json:"role"`    // "user" | "assistant"
+	Role           string       `json:"role"`    // "user" | "wake" | "assistant"
 	Content        string       `json:"content"` // the reply: the run's last text, without narration
 	Attachments    []Attachment `json:"attachments,omitempty"`
 	AgentID        string       `json:"agentId"`
@@ -82,10 +80,14 @@ type Message struct {
 	ModelID        string       `json:"modelId"`
 	RunID          string       `json:"runId"`
 	Status         string       `json:"status"`                 // "running" | "succeeded" | "failed" | "canceled" | ""
-	TriggerEvent   string       `json:"triggerEvent,omitempty"` // mate event type when fired by trigger (assistant only)
-	TriggerID      string       `json:"triggerId,omitempty"`    // the MateTrigger that fired this run (assistant only)
-	CreatedAt      time.Time    `json:"createdAt"`
-	UpdatedAt      time.Time    `json:"updatedAt"`
+	TriggerEvent   string       `json:"triggerEvent,omitempty"` // event that woke the bot, on a wake and its reply
+	TriggerID      string       `json:"triggerId,omitempty"`    // the MateTrigger that woke it
+	// TriggerName and TriggerSchedule describe that trigger as it is now, on a
+	// wake and its reply. Joined on read, so the chat labels the reply without a second fetch.
+	TriggerName     string    `json:"triggerName,omitempty"`
+	TriggerSchedule string    `json:"triggerSchedule,omitempty"`
+	CreatedAt       time.Time `json:"createdAt"`
+	UpdatedAt       time.Time `json:"updatedAt"`
 
 	// NoteAccess lists the vault notes this run touched (assistant messages only).
 	// Populated on read via a join; not part of the chat_messages row itself.

@@ -11,13 +11,12 @@ import (
 type MateEventType string
 
 const (
-	MateEventNoteCreated       MateEventType = "note_created"
-	MateEventNoteUpdated       MateEventType = "note_updated"
-	MateEventNoteDeleted       MateEventType = "note_deleted"
-	MateEventShortNoteCreated  MateEventType = "short_note_created"
-	MateEventScheduled         MateEventType = "scheduled"
-	MateEventCompileRequested  MateEventType = "compile_requested"
-	MateEventAgentRunCompleted MateEventType = "agent_run_completed"
+	MateEventNoteCreated      MateEventType = "note_created"
+	MateEventNoteUpdated      MateEventType = "note_updated"
+	MateEventNoteDeleted      MateEventType = "note_deleted"
+	MateEventShortNoteCreated MateEventType = "short_note_created"
+	MateEventScheduled        MateEventType = "scheduled"
+	MateEventCompileRequested MateEventType = "compile_requested"
 )
 
 // EventDef describes a built-in mate event for display in the UI.
@@ -50,11 +49,6 @@ var BuiltinEvents = []EventDef{
 	{MateEventCompileRequested, "Compile Requested", "Fires when the user manually triggers knowledge compilation for a note — path carries the note to compile", []prompt.Var{
 		{Token: "{Path}", Desc: "Vault path of the note to compile"}, varName,
 	}},
-	{MateEventAgentRunCompleted, "Agent Run Completed", "Fires when another mate agent run succeeds — use source mate names to filter", []prompt.Var{
-		{Token: "{Name}", Desc: "Name of the bot whose run just succeeded"},
-		{Token: "{Content}", Desc: "Last assistant message from the completed run"},
-		varNow,
-	}},
 }
 
 // EventLabel returns the display label for a mate event type.
@@ -71,16 +65,9 @@ func EventLabel(t MateEventType) string {
 type MateEvent struct {
 	Type MateEventType
 	// Path holds the vault path for note/compile events.
-	// For agent_run_completed it carries the source mate name; PathPrefixes then filters by mate name.
 	Path    string
 	Content string    // populated for short_note_created
 	FiredAt time.Time // populated for scheduled: when the trigger fired
-
-	// SourceMateID is set for agent_run_completed to prevent the source mate from triggering itself.
-	SourceMateID string
-
-	// TriggerID is the trigger this event fired, set just before the run starts.
-	TriggerID string
 }
 
 // Translate converts a low-level plugin.Event to the matching set of MateEvents.

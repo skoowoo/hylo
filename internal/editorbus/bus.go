@@ -19,6 +19,7 @@ var (
 	ErrNoEditor    = errors.New("no editor connected")
 	ErrEditorGone  = errors.New("editor disconnected")
 	ErrEditorStuck = errors.New("editor did not finish in time")
+	ErrUnwatched   = errors.New("run is not one the user is watching")
 )
 
 // reconnectGrace is how long an op survives its page's SSE dropping; the page keeps
@@ -118,10 +119,24 @@ type Bus struct {
 	cancels map[string][]string
 	// dropped holds clients whose connection dropped, while they may still reconnect.
 	dropped map[string]bool
+	// unwatched holds runs the user didn't start, like a wake; they never drive the editor.
+	unwatched map[string]bool
 }
 
 func New() *Bus {
-	return &Bus{pending: map[string]*pending{}, cancels: map[string][]string{}, dropped: map[string]bool{}}
+	return &Bus{pending: map[string]*pending{}, cancels: map[string][]string{}, dropped: map[string]bool{}, unwatched: map[string]bool{}}
+}
+
+// Unwatched keeps run out of the editor until done is called.
+func (b *Bus) Unwatched(run string) (done func()) {
+	b.mu.Lock()
+	b.unwatched[run] = true
+	b.mu.Unlock()
+	return func() {
+		b.mu.Lock()
+		delete(b.unwatched, run)
+		b.mu.Unlock()
+	}
 }
 
 // Connected reports whether an editor page is listening or about to reconnect.
@@ -260,6 +275,10 @@ func (b *Bus) target() (string, *sub) {
 // Dispatch sends op to an editor and waits for its ack.
 func (b *Bus) Dispatch(ctx context.Context, op Op) (Result, error) {
 	b.mu.Lock()
+	if op.Run != "" && b.unwatched[op.Run] {
+		b.mu.Unlock()
+		return Result{}, ErrUnwatched
+	}
 	client, s := b.target()
 	if client == "" {
 		b.mu.Unlock()

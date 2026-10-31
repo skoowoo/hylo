@@ -1,6 +1,6 @@
 # Triggers
 
-A trigger tells a bot when to run and what to do. Its output goes to the user's inbox. `trigger_add` takes a `prompt` plus either a `schedule` or `events`, never both.
+A trigger tells a bot when to wake and what to do. The bot does it as a turn in its own chat, and the user reads the reply as a message the bot sent on its own. `trigger_add` takes a `prompt` plus either a `schedule` or `events`, never both.
 
 ## Scheduled
 
@@ -25,16 +25,15 @@ Several scheduled triggers on one bot: stagger them five minutes apart (`daily 0
 | `note_deleted`       | a note is deleted                           | `{Path}` `{Name}`            |
 | `short_note_created` | a short note is appended                    | `{Path}` `{Name}` `{Content}`|
 | `compile_requested`  | the user asks to compile a note             | `{Path}` `{Name}`            |
-| `agent_run_completed`| another bot's run succeeds                  | `{Name}` `{Content}` `{Now}` |
 
 Rules:
 
-- `path_prefixes` filters note events to folders and each must start with `/` (e.g. `/Web Clips/`). For `agent_run_completed` it holds bot names instead, without a slash. Ask which folder when the event is a note event, and recommend a folder over the whole vault; a bot on every note change runs a lot.
+- `path_prefixes` filters note events to folders and each must start with `/` (e.g. `/Web Clips/`). Ask which folder when the event is a note event, and recommend a folder over the whole vault; a bot on every note change runs a lot, and each run is a turn in its chat.
 - A trigger's events and folders can't be edited afterwards; change them by deleting and re-adding.
 - Scheduled events can't be mixed with the others in one trigger.
 
 ## The trigger prompt
 
-What the bot is asked each time. Say the task, name the skill to use if there is one ("Use the hackernews skill to get today's top stories."), and use placeholders for what the event carries ("Summarize the note at {Path}."). Never put curl commands, URLs or API parameters in it; fetching belongs to a skill (`references/skills.md`). Keep it to a sentence or two; standing rules belong in the system prompt. On the main bot, whose system prompt is for chatting, the trigger prompt also carries the output rules from `references/system-prompt.md` (start with the content, no closing offer, save nothing unless that is the job).
+What the bot is asked each time. Say the task, name the skill to use if there is one ("Use the hackernews skill to get today's top stories."), and use placeholders for what the event carries ("Summarize the note at {Path}."). Never put curl commands, URLs or API parameters in it; fetching belongs to a skill (`references/skills.md`). Keep it to a sentence or two; standing rules belong in the system prompt. Every woken turn is already told it's reaching out on its own, to start with the content with no closing offer, and that it may reply `[silent]` to send nothing; say when silence is right only if the job needs it ("nothing when my notes have nothing to add"). On the main bot, whose system prompt is for chatting, the trigger prompt also says to save nothing unless that is the job.
 
 `name` is a short label shown in the bot's trigger list; use the skill or task name.

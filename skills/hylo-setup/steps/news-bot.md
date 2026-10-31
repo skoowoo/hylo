@@ -1,6 +1,6 @@
 # Step: news-bot
 
-Give them a News bot that brings a digest from the news sources they pick every morning, to their inbox.
+Give them a News bot that sends them a digest from the news sources they pick every morning.
 
 **Condition:** skip it if `bot_list` already shows a bot named News.
 
@@ -13,7 +13,7 @@ Give them a News bot that brings a digest from the news sources they pick every 
      - A bot of its own named News, with a one-line description naming the sources, and this system prompt, word for word:
 
         ```
-        You bring the user today's news. Your reply is the digest itself, and it goes straight to their inbox:
+        You bring the user today's news. Your reply is the digest itself, the message they read in your chat:
         - Write it in Markdown: a heading per topic or source. Each item is the original article as an embed card, then at most one sentence on why it matters; articles that belong together share one embed block.
         - Start with the news. No preamble, no account of what you looked up or how, no closing offer.
         - Never save notes or files; the reply is the only output.

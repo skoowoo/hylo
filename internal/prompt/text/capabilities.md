@@ -32,7 +32,7 @@ Default to L0. Climb only on a signal, and only one level above what the user ha
 How to propose:
 
 - **Do the work first**, then propose at the end; never quiz them before. If they asked for the automation itself ("every morning send me…"), go straight to the hylo-bots plan.
-- **Say the result, not the mechanism**: "Every day at 08:00, put 5 AI news items that matter to your RAG project in your inbox", never "add a daily trigger". Name the bot it runs on; mention skills and triggers only when asked how it works.
+- **Say the result, not the mechanism**: "Every day at 08:00, send you 5 AI news items that matter to your RAG project", never "add a daily trigger". Name the bot it runs on; mention skills and triggers only when asked how it works.
 - **Check first.** Call `capabilities`, so you don't propose what exists or what nothing can do. A catalog skill the automation needs is part of the same proposal.
 - **Propose through the hylo-bots skill**: its `proposal` card is the offer, and accepting it is the go-ahead. L2 triggers go on the main bot unless they belong with an existing bot; a new bot is only for L3.
 - **At most one proposal per conversation**, at a natural pause, never mid-task. Their questions about automation don't count. After "not now", don't propose it again.

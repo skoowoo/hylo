@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 global.window = global;
-global.document = { visibilityState: 'visible', hidden: false };
+global.document = { visibilityState: 'visible', hidden: false, addEventListener: function () {} };
 global.sessionStorage = {
   getItem: function () { return null; },
   setItem: function () {},
@@ -155,7 +155,7 @@ test('phase, cancel, and cursor finisher', async function () {
   }
 });
 
-test('retry on a failed trigger-originated message goes through retry-trigger, not /api/chat', async function () {
+test('retry of a failed wake resends it as a wake, in the chat', async function () {
   var matesReady;
   var matesP = new Promise(function (resolve) { matesReady = resolve; });
   var api;
@@ -170,11 +170,11 @@ test('retry on a failed trigger-originated message goes through retry-trigger, n
     };
   };
 
-  var retryCalls = [];
+  var chatCalls = [];
   global.fetch = async function (url, opts) {
     var u = String(url);
     if (u === '/api/mates') {
-      return jsonResponse(200, { mates: [{ id: 'm1', name: 'Ada', enabled: true, agentId: 'cursor-agent' }] });
+      return jsonResponse(200, { mates: [{ id: 'm1', name: 'Ada', enabled: true, agentId: 'claude' }] });
     }
     if (u === '/api/mate-events') return jsonResponse(200, { events: [] });
     if (u.indexOf('/api/conversations?') === 0) {
@@ -183,19 +183,18 @@ test('retry on a failed trigger-originated message goes through retry-trigger, n
     if (u.split('?')[0] === '/api/conversations/c1') {
       return jsonResponse(200, {
         messages: [
-          { id: 'u1', role: 'user', content: 'do the thing', createdAt: 1 },
+          { id: 'w1', role: 'wake', content: 'Update my memory.', triggerEvent: 'scheduled', triggerId: 't1', triggerName: 'Memory', triggerSchedule: 'daily 09:00', createdAt: 1 },
           {
-            id: 'a1', role: 'assistant', status: 'failed', triggerEvent: 'vault_file_changed',
-            content: '', mateId: 'm1', agentId: 'cursor-agent', updatedAt: 2,
+            id: 'a1', role: 'assistant', status: 'failed', triggerEvent: 'scheduled', triggerId: 't1',
+            content: '', mateId: 'm1', agentId: 'claude', updatedAt: 2,
           },
         ],
       });
     }
-    if (u === '/api/runs/retry-trigger') {
-      retryCalls.push(JSON.parse(opts.body));
-      return jsonResponse(202, { runId: 'r9' });
+    if (u === '/api/chat') {
+      chatCalls.push(JSON.parse(opts.body));
+      return sseResponse(['event: end\ndata: {"status":"succeeded"}\n\n']);
     }
-    if (u === '/api/chat') throw new Error('retry of a trigger message must not use /api/chat');
     throw new Error('unmocked ' + u);
   };
 
@@ -208,26 +207,19 @@ test('retry on a failed trigger-originated message goes through retry-trigger, n
     await tick();
 
     var before = api.state();
-    var failed = before.messages[before.messages.length - 1];
-    assert.equal(failed.status, 'failed');
-    assert.equal(failed.triggerEvent, 'vault_file_changed');
+    assert.deepEqual(before.messages.map(function (m) { return m.id; }), ['a1'], 'a wake is no row of its own');
+    await api.retry('a1');
 
-    await api.retry(failed.id);
-
-    assert.equal(retryCalls.length, 1);
-    assert.deepEqual(retryCalls[0].mateId, 'm1');
-    assert.deepEqual(retryCalls[0].conversationId, 'c1');
-    assert.deepEqual(retryCalls[0].prompt, 'do the thing');
-    assert.deepEqual(retryCalls[0].triggerEvent, 'vault_file_changed');
-    assert.equal(retryCalls[0].retryOf, 'a1');
+    assert.equal(chatCalls.length, 1);
+    assert.equal(chatCalls[0].message, 'Update my memory.');
+    assert.equal(chatCalls[0].retryOf, 'a1');
+    assert.equal(chatCalls[0].triggerEvent, 'scheduled');
+    assert.equal(chatCalls[0].triggerId, 't1');
 
     var after = api.state();
-    assert.equal(after.phase, 'idle');
-    assert.equal(after.messages.length, 2, 'the retry replaces the failed exchange');
-    assert.equal(after.messages.some(function (m) { return m.id === 'u1' || m.id === 'a1'; }), false);
-    var retried = after.messages[after.messages.length - 1];
-    assert.equal(retried.triggerEvent, 'vault_file_changed');
-    assert.equal(retried.status, 'running');
+    assert.equal(after.messages.length, 1, 'the retry replaces the failed reply');
+    assert.equal(after.messages[0].role, 'assistant');
+    assert.equal(after.messages[0].id === 'a1', false);
   } finally {
     disarm();
   }
@@ -256,12 +248,12 @@ test('retry fetches the prompt when it sits on a page not loaded yet', async fun
     if (u.split('?')[0] === '/api/conversations/c1') {
       return jsonResponse(200, {
         hasMore: true,
-        messages: [{ id: 'a1', role: 'assistant', status: 'failed', triggerEvent: 'scheduled', triggerId: 't1', content: '', mateId: 'm1' }],
+        messages: [{ id: 'a1', role: 'assistant', status: 'failed', content: '', mateId: 'm1' }],
       });
     }
-    if (u === '/api/runs/retry-trigger') {
+    if (u === '/api/chat') {
       retryCalls.push(JSON.parse(opts.body));
-      return jsonResponse(202, { runId: 'r9' });
+      return sseResponse(['event: end\ndata: {"status":"succeeded"}\n\n']);
     }
     throw new Error('unmocked ' + u);
   };
@@ -278,78 +270,9 @@ test('retry fetches the prompt when it sits on a page not loaded yet', async fun
 
     assert.equal(promptFetches.length, 1);
     assert.equal(retryCalls.length, 1);
-    assert.equal(retryCalls[0].prompt, 'older prompt');
+    assert.equal(retryCalls[0].message, 'older prompt');
     assert.equal(retryCalls[0].retryOf, 'a1');
-    assert.equal(retryCalls[0].triggerId, 't1');
-  } finally {
-    disarm();
-  }
-});
-
-test('convType (chat/trigger tab) is remembered per mate, not globally', async function () {
-  var matesReady;
-  var matesP = new Promise(function (resolve) { matesReady = resolve; });
-  var api;
-  global.__hyloChatMount = function (el, facade) {
-    api = facade;
-    return {
-      render: function () {},
-      destroy: function () {},
-      draftValue: function () { return facade.draft(); },
-      clearComposer: function () {},
-      focusComposer: function () {},
-    };
-  };
-
-  var convReqs = [];
-  global.fetch = async function (url) {
-    var u = String(url);
-    if (u === '/api/mates') {
-      return jsonResponse(200, {
-        mates: [
-          { id: 'm1', name: 'Ada', enabled: true, agentId: 'cursor-agent' },
-          { id: 'm2', name: 'Bob', enabled: true, agentId: 'cursor-agent' },
-        ],
-      });
-    }
-    if (u === '/api/mate-events') return jsonResponse(200, { events: [] });
-    if (u.indexOf('/api/conversations?') === 0) {
-      convReqs.push(u);
-      return jsonResponse(200, { conversations: [] });
-    }
-    throw new Error('unmocked ' + u);
-  };
-
-  var chat = global.__hyloChatCreate({ onMates: function () { matesReady(); } });
-  try {
-    chat.start();
-    await matesP;
-    chat.attach({});
-
-    chat.tryOpen('m1');
-    await tick();
-    assert.equal(api.state().convType, 'chat');
-
-    api.setConvType('trigger');
-    await tick();
-    assert.equal(api.state().convType, 'trigger');
-
-    // Switching to a different bot must not inherit m1's tab choice.
-    chat.tryOpen('m2');
-    await tick();
-    assert.equal(api.state().convType, 'chat');
-
-    // Switching back to m1 must restore its own remembered choice.
-    chat.tryOpen('m1');
-    await tick();
-    assert.equal(api.state().convType, 'trigger');
-
-    assert.deepEqual(convReqs, [
-      '/api/conversations?mateId=m1&type=chat',
-      '/api/conversations?mateId=m1&type=trigger',
-      '/api/conversations?mateId=m2&type=chat',
-      '/api/conversations?mateId=m1&type=trigger',
-    ]);
+    assert.equal(retryCalls[0].triggerId, '');
   } finally {
     disarm();
   }
@@ -419,41 +342,50 @@ test('a bot removed anywhere moves the chat to the next one', async function () 
   }
 });
 
-test('clearFilter drops the trigger filter (a refresh returns to all runs)', async function () {
-  var matesReady;
-  var matesP = new Promise(function (resolve) { matesReady = resolve; });
+test('a wake reply shows only once it is done, so a silent one never appears', async function () {
+  var listeners = {};
+  global.__hyloLive = { on: function (topic, fn) { listeners[topic] = fn; } };
   var api;
   global.__hyloChatMount = function (el, facade) {
     api = facade;
-    return {
-      render: function () {},
-      destroy: function () {},
-      draftValue: function () { return facade.draft(); },
-      clearComposer: function () {},
-      focusComposer: function () {},
-    };
+    return { render: function () {}, destroy: function () {}, draftValue: function () { return facade.draft(); }, clearComposer: function () {}, focusComposer: function () {} };
   };
-  global.fetch = async function (url) {
+  var seen = [];
+  var unread = 1;
+  global.fetch = async function (url, opts) {
     var u = String(url);
-    if (u === '/api/mates') return jsonResponse(200, { mates: [{ id: 'm1', name: 'Ada', enabled: true, agentId: 'cursor-agent' }] });
+    if (u === '/api/mates') return jsonResponse(200, { mates: [{ id: 'm1', name: 'Ada', enabled: true, agentId: 'pi', unread: unread }] });
     if (u === '/api/mate-events') return jsonResponse(200, { events: [] });
-    if (u.indexOf('/api/conversations?') === 0) return jsonResponse(200, { conversations: [] });
-    return jsonResponse(200, {});
+    if (u === '/api/mates/m1/seen') { seen.push(opts.method); unread = 0; return jsonResponse(200, { ok: true }); }
+    if (u.indexOf('/api/conversations?') === 0) return jsonResponse(200, { conversations: [{ id: 'c1' }] });
+    if (u.split('?')[0] === '/api/conversations/c1') {
+      return jsonResponse(200, {
+        messages: [
+          { id: 'w0', role: 'wake', content: 'Recall', triggerEvent: 'short_note_created', triggerId: 't1', triggerName: 'Short notes', createdAt: 1 },
+          { id: 'a0', role: 'assistant', status: 'succeeded', content: 'Two notes disagree.', triggerEvent: 'short_note_created', triggerId: 't1', triggerName: 'Short notes', mateId: 'm1', updatedAt: 2 },
+          { id: 'w1', role: 'wake', content: 'Recall', triggerEvent: 'short_note_created', triggerId: 't1', createdAt: 3 },
+          { id: 'a1', role: 'assistant', status: 'running', triggerEvent: 'short_note_created', triggerId: 't1', mateId: 'm1', updatedAt: 4 },
+        ],
+      });
+    }
+    throw new Error('unmocked ' + u);
   };
-
-  var chat = global.__hyloChatCreate({ onMates: function () { matesReady(); } });
+  var shown = [];
+  var chat = global.__hyloChatCreate({ onMates: function (list) { shown = list; } });
   try {
     chat.start();
-    await matesP;
+    await chat.bootstrap();
     chat.attach({});
-    chat.tryOpen('m1');
     await tick();
+    assert.deepEqual(seen, ['POST'], 'looking at the chat reads what the bot sent');
+    assert.equal(shown[0].unread, 0);
+    assert.deepEqual(api.state().messages.map(function (m) { return m.id; }), ['a0'], 'the running wake waits off screen');
+    assert.equal(api.state().messages[0].triggerName, 'Short notes');
 
-    api.setTriggerFilter('t1');
-    assert.equal(api.state().triggerFilter, 't1');
-    chat.clearFilter();
-    assert.equal(api.state().triggerFilter, '');
+    listeners.chat([{ topic: 'chat', op: 'wake', data: { mateId: 'm1', wakeId: 'w1', replyId: 'a1', status: 'succeeded', silent: true } }]);
+    assert.deepEqual(api.state().messages.map(function (m) { return m.id; }), ['a0']);
   } finally {
+    delete global.__hyloLive;
     disarm();
   }
 });

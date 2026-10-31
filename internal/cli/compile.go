@@ -7,9 +7,9 @@ import (
 func newCompileCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "compile <path-or-name>",
-		Short: "Compile a note into the knowledge base, in the background",
+		Short: "Compile a note into the knowledge base",
 		Long: `Asks your Hylo bot to compile the note into structured knowledge under /_knowledge.
-It runs in the background and the result goes to your inbox. A note that's already compiled is left as is.`,
+The bot does it as a turn in its chat once you've paused chatting with it, and replies there. A note that's already compiled is left as is.`,
 		Example: `  hylo compile "/Projects/Q3 plan.md"
   hylo compile "Q3 plan.md"`,
 		Args:         cobra.ExactArgs(1),

@@ -21,13 +21,13 @@ func TestChannelRequestLeavesTheSavedTextAlone(t *testing.T) {
 
 func TestQueuedChatRunCanBeCanceled(t *testing.T) {
 	a := &AgentAPI{}
-	release, ok := a.queueChat(context.Background(), "first", "bot")
+	release, ok := a.queueChat(context.Background(), "first", "bot", nil)
 	if !ok {
 		t.Fatal("free chat was refused")
 	}
 	done := make(chan bool)
 	go func() {
-		_, ok := a.queueChat(context.Background(), "second", "bot")
+		_, ok := a.queueChat(context.Background(), "second", "bot", nil)
 		done <- ok
 	}()
 	for {
@@ -42,7 +42,7 @@ func TestQueuedChatRunCanBeCanceled(t *testing.T) {
 		t.Fatal("a canceled run still got the chat")
 	}
 	release()
-	if _, ok := a.queueChat(context.Background(), "third", "bot"); !ok {
+	if _, ok := a.queueChat(context.Background(), "third", "bot", nil); !ok {
 		t.Fatal("chat stayed busy after release")
 	}
 }

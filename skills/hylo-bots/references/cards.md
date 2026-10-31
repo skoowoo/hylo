@@ -1,6 +1,6 @@
 # Plan and receipt cards
 
-Hylo's chat draws these fenced blocks as cards. In a message from WeChat, Discord or Telegram, say the same in plain text instead. Write every visible line in the user's language, as results they'd notice ("every day at 08:00, 5 AI news items in your inbox"), not as tool calls.
+Hylo's chat draws these fenced blocks as cards. In a message from WeChat, Discord or Telegram, say the same in plain text instead. Write every visible line in the user's language, as results they'd notice ("every day at 08:00, 5 AI news items from the main bot"), not as tool calls.
 
 ## Plan: `proposal`
 
@@ -8,7 +8,7 @@ Shown before the first call that changes anything. Its buttons answer like `choi
 
 ```proposal
 title: Daily AI briefing
-summary: Every day at 08:00, 5 AI news items that matter to your RAG project, in your inbox
+summary: Every day at 08:00, the main bot sends you 5 AI news items that matter to your RAG project
 details: Main bot · daily-ai-news skill (to add) · daily 08:00
 - Go ahead
 - Run it once first
@@ -28,9 +28,9 @@ Ends the reply after the calls. It replaces a written report.
 
 ```receipt
 title: Daily AI briefing is on
-- Main bot runs it every day at 08:00; results go to your inbox
+- Main bot sends it every day at 08:00, in its chat
 - Added the daily-ai-news skill
-- Ran it once: the first briefing is in your inbox
+- Ran it once: the first briefing is on its way in the main bot's chat
 undo: Undo the daily AI briefing
 ids: trigger 9f2c/a81d; skill daily-ai-news on 9f2c (added now)
 ```

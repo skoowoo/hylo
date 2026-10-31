@@ -221,7 +221,7 @@ document.addEventListener('alpine:init', function () {
 // ── Home Alpine controller ────────────────────────────────────────────────
 function homeCtrl() {
   var boot = JSON.parse(document.getElementById('home-boot').textContent);
-  var ctrl = Object.assign(contentPaneCtrl(), homeImagesMixin(), homeGraphMixin(), homeInboxMixin(boot), homeShortsMixin(), {
+  var ctrl = Object.assign(contentPaneCtrl(), homeImagesMixin(), homeGraphMixin(), homeShortsMixin(), {
     curKey: __hyloSectionKey(__hyloInitialSectionURL()),
     // Each of Knowledge/Memory/Pinned/Folders keeps its own list-vs-grid
     // choice (all folders share the single 'folder' bucket, and all of
@@ -252,7 +252,6 @@ function homeCtrl() {
       this.initContentPane();
       this.initImages();
       this.initGraph();
-      this.initInbox();
       window._homeData = this;
       this.syncSideGroups();
       window.__hyloHotkeys.register('refresh', 'r', doHomeRefresh);
@@ -285,6 +284,7 @@ function homeCtrl() {
       Array.prototype.forEach.call(nav.children, function (c) { if (c.tagName !== 'SCRIPT') ro.observe(c); });
     },
     botsEmpty() { return this.agentBotsLoaded && this.agentBots.length === 0; },
+    botsUnread() { return this.agentBots.reduce(function (n, m) { return n + (m.unread || 0); }, 0); },
 
     // The groups' bodies are server-rendered and morphed by /home/refresh;
     // each carries a .home-side-meta with its count and emptiness.
@@ -373,8 +373,6 @@ function homeCtrl() {
       this.curKey = __hyloSectionKey(url);
       // Lightbox and image select-mode point at the section being left.
       // The pane itself is parked, so coming back reattaches the same nodes.
-      // The inbox detail stays open — it renders from inboxSelected, not the
-      // list DOM.
       this.lightbox = null;
       if (this.selectMode) this.exitSelectMode();
       if (!__hyloSectionTryRestore(url)) __hyloSectionFetch(url);
@@ -383,12 +381,9 @@ function homeCtrl() {
     reloadActiveSection() {
       // Explicit refresh: drop every parked section, then refetch what's on screen.
       __hyloSectionCacheInvalidate();
-      // It also drops every filter (__hyloSectionFilterParams, unread only, a
-      // trigger) but keeps where you are.
-      this.inboxFilter = 'all';
+      // It also drops every filter (__hyloSectionFilterParams) but keeps where you are.
       // The chat's DOM is the kernel's, so it refetches the conversation instead.
       if (this._chat && document.getElementById('chat-root')) {
-        this._chat.clearFilter();
         this._chat.reload();
         return;
       }

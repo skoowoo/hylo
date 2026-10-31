@@ -17,7 +17,6 @@ type ViewHandler struct {
 	vault    *storage.Vault
 	searcher search.Searcher
 	cfg      *config.Config
-	inbox    unreadCounter
 	mates    mateLister
 }
 
@@ -25,17 +24,10 @@ type mateLister interface {
 	ListMates() ([]mate.Mate, error)
 }
 
-type unreadCounter interface {
-	UnreadCount() (int, error)
-}
-
 // NewView creates a ViewHandler for the given Vault.
 func NewView(v *storage.Vault, s search.Searcher, cfg *config.Config) *ViewHandler {
 	return &ViewHandler{vault: v, searcher: s, cfg: cfg}
 }
-
-// SetInbox lets pages render the unread count; the inbox store opens after the view.
-func (vh *ViewHandler) SetInbox(c unreadCounter) { vh.inbox = c }
 
 // SetMates lets the sidebar render the bot list before its first fetch.
 func (vh *ViewHandler) SetMates(m mateLister) { vh.mates = m }

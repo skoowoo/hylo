@@ -15,16 +15,6 @@ func TriggerHasScheduled(t MateTrigger) bool {
 	return false
 }
 
-// TriggerHasAgentRunCompleted reports whether t listens for agent_run_completed events.
-func TriggerHasAgentRunCompleted(t MateTrigger) bool {
-	for _, et := range t.EventTypes {
-		if et == string(MateEventAgentRunCompleted) {
-			return true
-		}
-	}
-	return false
-}
-
 // ValidateTriggers checks all triggers before persistence.
 func ValidateTriggers(triggers []MateTrigger) error {
 	for i, t := range triggers {
@@ -55,10 +45,8 @@ func ValidateTrigger(t MateTrigger) error {
 	if schedule != "" {
 		return fmt.Errorf("schedule is only allowed when event type is scheduled")
 	}
-	hasAgentRunCompleted := TriggerHasAgentRunCompleted(t)
 	for _, p := range t.PathPrefixes {
-		// For agent_run_completed, PathPrefixes holds mate names (no leading slash).
-		if !hasAgentRunCompleted && !strings.HasPrefix(p, "/") {
+		if !strings.HasPrefix(p, "/") {
 			return fmt.Errorf("path prefix %q must start with /", p)
 		}
 	}

@@ -13,17 +13,13 @@ import (
 
 // ── Conversations ─────────────────────────────────────────────────────────────
 
-// CreateConversation creates a user-facing chat conversation bound to a mate (type='chat').
+// CreateConversation creates a chat bound to a mate.
 func (s *Store) CreateConversation(mateID, title string) (Conversation, error) {
-	return s.createConversation(mateID, title, ConvTypeChat)
-}
-
-func (s *Store) createConversation(mateID, title, convType string) (Conversation, error) {
 	now := time.Now().UnixMilli()
 	id := uuid.NewString()
 	_, err := s.db.Exec(
 		`INSERT INTO conversations(id, mate_id, title, type, agent_session_id, agent_session_agent_id, agent_session_cwd, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?)`,
-		id, mateID, title, convType, "", "", "", now, now,
+		id, mateID, title, ConvTypeChat, "", "", "", now, now,
 	)
 	if err != nil {
 		return Conversation{}, fmt.Errorf("mate: create conversation: %w", err)
@@ -32,7 +28,7 @@ func (s *Store) createConversation(mateID, title, convType string) (Conversation
 		ID:        id,
 		MateID:    mateID,
 		Title:     title,
-		Type:      convType,
+		Type:      ConvTypeChat,
 		CreatedAt: time.UnixMilli(now),
 		UpdatedAt: time.UnixMilli(now),
 	}, nil
@@ -72,37 +68,14 @@ func (s *Store) GetOrCreateActiveChatConvID(mateID string) (string, error) {
 	return conv.ID, nil
 }
 
-// GetOrCreateDefaultTriggerConv returns the single shared trigger conversation for a mate
-// (type='trigger'). All no-reply trigger runs append their messages here; each run uses
-// an independent ephemeral agent session.
-func (s *Store) GetOrCreateDefaultTriggerConv(mateID string) (string, error) {
-	var id string
-	err := s.db.QueryRow(
-		`SELECT id FROM conversations WHERE type = ? AND mate_id = ? ORDER BY created_at DESC LIMIT 1`,
-		ConvTypeTrigger, mateID,
-	).Scan(&id)
-	if err == nil {
-		return id, nil
-	}
-	if !errors.Is(err, sql.ErrNoRows) {
-		return "", fmt.Errorf("mate: get default trigger conv: %w", err)
-	}
-	conv, err := s.createConversation(mateID, "Auto runs", ConvTypeTrigger)
-	if err != nil {
-		return "", err
-	}
-	return conv.ID, nil
-}
-
-// EnsureNewConv returns a fresh empty conversation for the given (mateID, convType).
-// If the most recent conversation of that type is already empty (no messages), it is returned as-is.
+// EnsureNewConv returns a fresh empty chat for the mate.
+// If its most recent chat is already empty (no messages), it is returned as-is.
 // Otherwise a new conversation is created with the given title.
 // When keep > 0, conversations older than the most recent keep are pruned before creation.
-func (s *Store) EnsureNewConv(mateID, convType, title string, keep int) (Conversation, error) {
+func (s *Store) EnsureNewConv(mateID, title string, keep int) (Conversation, error) {
 	var latestID string
 	err := s.db.QueryRow(
-		`SELECT id FROM conversations WHERE type=? AND mate_id=? ORDER BY created_at DESC LIMIT 1`,
-		convType, mateID,
+		`SELECT id FROM conversations WHERE mate_id=? ORDER BY created_at DESC LIMIT 1`, mateID,
 	).Scan(&latestID)
 	if err == nil {
 		var msgCount int
@@ -116,32 +89,26 @@ func (s *Store) EnsureNewConv(mateID, convType, title string, keep int) (Convers
 	if keep > 0 {
 		_, _ = s.db.Exec(
 			`DELETE FROM conversations
-			 WHERE type=? AND mate_id=?
+			 WHERE mate_id=?
 			   AND id NOT IN (
 			     SELECT id FROM conversations
-			     WHERE type=? AND mate_id=?
+			     WHERE mate_id=?
 			     ORDER BY created_at DESC LIMIT ?
 			   )`,
-			convType, mateID,
-			convType, mateID, keep,
+			mateID, mateID, keep,
 		)
 	}
-	return s.createConversation(mateID, title, convType)
+	return s.CreateConversation(mateID, title)
 }
 
-// ListConversations returns chat-type conversations for a specific mate, ordered by most recent first.
+// ListConversations returns a mate's chats, most recent first.
 func (s *Store) ListConversations(mateID string) ([]Conversation, error) {
-	return s.ListConversationsByType(mateID, ConvTypeChat)
-}
-
-// ListConversationsByType returns conversations of a given type for a specific mate, ordered by most recent first.
-func (s *Store) ListConversationsByType(mateID, convType string) ([]Conversation, error) {
 	rows, err := s.db.Query(
-		`SELECT id, mate_id, title, type, agent_session_id, agent_session_agent_id, agent_session_cwd, created_at, updated_at FROM conversations WHERE type = ? AND mate_id = ? ORDER BY updated_at DESC`,
-		convType, mateID,
+		`SELECT id, mate_id, title, type, agent_session_id, agent_session_agent_id, agent_session_cwd, created_at, updated_at FROM conversations WHERE mate_id = ? ORDER BY updated_at DESC`,
+		mateID,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("mate: list conversations by type: %w", err)
+		return nil, fmt.Errorf("mate: list conversations: %w", err)
 	}
 	defer rows.Close()
 	return scanConversations(rows)
@@ -226,8 +193,8 @@ func (s *Store) MarkStalledRunMessagesAsFailed() error {
 }
 
 // DeleteRetried drops a failed or stopped reply that is being run again, plus
-// the prompt right before it when that is the prompt being resent, so a retry
-// replaces the attempt instead of piling up next to it.
+// the prompt (or wake) right before it when that is what's being resent, so a
+// retry replaces the attempt instead of piling up next to it.
 func (s *Store) DeleteRetried(convID, assistantID, prompt string) error {
 	tx, err := s.db.Begin()
 	if err != nil {
@@ -254,7 +221,7 @@ func (s *Store) DeleteRetried(convID, assistantID, prompt string) error {
 	if err != nil && err != sql.ErrNoRows {
 		return err
 	}
-	if prevRole == "user" && prevContent == prompt {
+	if (prevRole == "user" || prevRole == "wake") && prevContent == prompt {
 		if _, err := tx.Exec(`DELETE FROM chat_messages WHERE id = ?`, prevID); err != nil {
 			return err
 		}
@@ -263,6 +230,19 @@ func (s *Store) DeleteRetried(convID, assistantID, prompt string) error {
 		return err
 	}
 	return tx.Commit()
+}
+
+// DeleteMessages drops a turn the chat shouldn't show, like a wake the bot chose to stay silent on.
+func (s *Store) DeleteMessages(ids ...string) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	args := make([]any, len(ids))
+	for i, id := range ids {
+		args[i] = id
+	}
+	_, err := s.db.Exec(`DELETE FROM chat_messages WHERE id IN (?`+strings.Repeat(",?", len(ids)-1)+`)`, args...)
+	return err
 }
 
 // UpdateMessageDone stores a finished run: its reply, and the agent events
@@ -292,6 +272,9 @@ func (s *Store) ListMessages(conversationID string) ([]Message, error) {
 		return nil, err
 	}
 	if err := s.attachNoteAccess(msgs); err != nil {
+		return nil, err
+	}
+	if err := s.attachTriggers(msgs); err != nil {
 		return nil, err
 	}
 	return msgs, nil
@@ -328,6 +311,9 @@ func (s *Store) ListMessagesPage(conversationID, beforeID string, limit int) ([]
 	if err := s.attachNoteAccess(msgs); err != nil {
 		return nil, false, err
 	}
+	if err := s.attachTriggers(msgs); err != nil {
+		return nil, false, err
+	}
 	return msgs, more, nil
 }
 
@@ -348,6 +334,9 @@ func (s *Store) ListMessagesSince(conversationID string, sinceMs int64) ([]Messa
 		return nil, err
 	}
 	if err := s.attachNoteAccess(msgs); err != nil {
+		return nil, err
+	}
+	if err := s.attachTriggers(msgs); err != nil {
 		return nil, err
 	}
 	return msgs, nil
@@ -443,6 +432,45 @@ func (s *Store) attachNoteAccess(msgs []Message) error {
 	for i := range msgs {
 		if v, ok := byID[msgs[i].ID]; ok {
 			msgs[i].NoteAccess = v
+		}
+	}
+	return nil
+}
+
+// attachTriggers names the trigger behind every wake and wake reply in msgs, in one query.
+func (s *Store) attachTriggers(msgs []Message) error {
+	var ids []any
+	var marks []string
+	for _, m := range msgs {
+		if m.TriggerID != "" {
+			ids = append(ids, m.TriggerID)
+			marks = append(marks, "?")
+		}
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	rows, err := s.db.Query(`SELECT id, name, schedule FROM mate_triggers WHERE id IN (`+strings.Join(marks, ",")+`)`, ids...)
+	if err != nil {
+		return fmt.Errorf("mate: triggers for messages: %w", err)
+	}
+	defer rows.Close()
+	type named struct{ name, schedule string }
+	byID := map[string]named{}
+	for rows.Next() {
+		var id string
+		var t named
+		if err := rows.Scan(&id, &t.name, &t.schedule); err != nil {
+			return err
+		}
+		byID[id] = t
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	for i := range msgs {
+		if t, ok := byID[msgs[i].TriggerID]; ok {
+			msgs[i].TriggerName, msgs[i].TriggerSchedule = t.name, t.schedule
 		}
 	}
 	return nil

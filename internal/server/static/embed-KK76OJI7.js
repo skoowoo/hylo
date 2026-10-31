@@ -1,4 +1,4 @@
-import{c as T}from"./chunk-JVA7RCZ3.js";import{d as _}from"./chunk-NMFUGS3M.js";var D=`
+import{c as T}from"./chunk-JVA7RCZ3.js";import{d as _}from"./chunk-LHPLL3SD.js";var D=`
 .hy-embed{display:block;box-sizing:border-box;margin:0;border-radius:var(--r-lg,12px);background:var(--surface-soft,#f5f5f7);color:var(--fg,#18181b);font:var(--text-sm,.8125rem)/1.4 var(--font-ui,system-ui,sans-serif);overflow:hidden;text-decoration:none}
 .hy-card-embed{container-type:inline-size}
 .hy-embed-row{display:grid;grid-template-columns:minmax(0,1fr);gap:var(--space-xs,8px);width:100%;min-width:0}

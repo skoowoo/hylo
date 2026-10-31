@@ -8,7 +8,8 @@ import (
 )
 
 // TriggerRunPOST handles POST /api/mates/{id}/triggers/{tid}/run: fires a
-// scheduled trigger now, so a new one can show what it does right away.
+// scheduled trigger now, so a new one can show what it does right away. Like
+// any wake, it waits until the user is done in the bot's chat.
 func (a *AgentAPI) TriggerRunPOST(w http.ResponseWriter, r *http.Request) {
 	if a.runner == nil || a.store == nil {
 		http.Error(w, "triggers unavailable", http.StatusServiceUnavailable)
@@ -31,11 +32,8 @@ func (a *AgentAPI) TriggerRunPOST(w http.ResponseWriter, r *http.Request) {
 		}
 		if err := a.runner.FireNow(t); err != nil {
 			status := http.StatusInternalServerError
-			switch {
-			case errors.Is(err, mate.ErrTriggerDisabled):
+			if errors.Is(err, mate.ErrTriggerDisabled) || errors.Is(err, mate.ErrBotBusy) {
 				status = http.StatusConflict
-			case errors.Is(err, mate.ErrRunnerBusy):
-				status = http.StatusServiceUnavailable
 			}
 			http.Error(w, err.Error(), status)
 			return

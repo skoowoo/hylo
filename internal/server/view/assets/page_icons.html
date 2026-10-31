@@ -28,7 +28,7 @@
       {{range $gi, $g := .Nav}}
       {{if $gi}}<div class="spec-side-sep hairline"></div>{{end}}
       {{range $g}}
-      <div class="side-nav-item{{if eq .Icon "inbox"}} is-active{{end}}">{{sideIcon .Icon}}<span>{{.Label}}</span></div>
+      <div class="side-nav-item{{if eq .Icon "bot"}} is-active{{end}}">{{sideIcon .Icon}}<span>{{.Label}}</span></div>
       {{if eq .Icon "open-tabs"}}
       <div class="spec-side-children">
         {{range $.Children}}<div class="side-nav-item spec-side-child">{{icon .Icon "spec-child-icon"}}<span>{{.Label}}</span></div>{{end}}
