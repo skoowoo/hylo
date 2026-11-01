@@ -81,6 +81,11 @@ var _BOT_FACES = [
   { eyes: ['ovalW', 'ovalW'], gap: 13, at: _BOT_TL, anim: 'wave' },
 ];
 
+// The avatar's disc colour, for anything else that stands for the bot.
+window.agentBotColor = function(name, bots) {
+  return 'var(--bot' + _agentBotSlot(name, bots) + ')';
+};
+
 window.agentBotAvatarSVG = function(name, bots) {
   var slot = _agentBotSlot(name, bots), f = _BOT_FACES[slot], gap = f.gap || 12;
   var eye = function(k, x) { return '<g class="eye eye--' + k + '">' + _BOT_EYES[k](x) + '</g>'; };
@@ -417,6 +422,10 @@ function homeCtrl() {
 
     agentBotAvatar(name) {
       return window.agentBotAvatarSVG(name, this.agentBots);
+    },
+
+    agentBotColor(name) {
+      return window.agentBotColor(name, this.agentBots);
     },
 
     // Editor toolbar's "send to agent bot" — unlike selectChatAgentBot

@@ -27,6 +27,7 @@ func activityScore(c mate.ActivityCount) int { return 3*c.Write + c.Read }
 type activityMap struct {
 	Weeks   []activityWeek
 	Summary [3]string // all, user, bots
+	Share   []activityShare
 }
 
 type activityWeek struct {
@@ -53,12 +54,12 @@ func activityDayURL(day time.Time) string {
 }
 
 // activityData loads the year up to today, keeping only notes that still exist.
-func (vh *ViewHandler) activityData(today time.Time) (map[time.Time]map[string]*mate.NoteDay, time.Time, error) {
+func (vh *ViewHandler) activityData(today time.Time) (map[time.Time]map[string]*mate.NoteDay, map[string]storage.Note, time.Time, error) {
 	monday := today.AddDate(0, 0, -((int(today.Weekday()) + 6) % 7))
 	from := monday.AddDate(0, 0, -7*(activityWeeks-1))
 	rows, err := vh.mates.ListNoteActivity(from, today.AddDate(0, 0, 1))
 	if err != nil {
-		return nil, from, err
+		return nil, nil, from, err
 	}
 	seen := map[string]bool{}
 	var paths []storage.Path
@@ -70,13 +71,14 @@ func (vh *ViewHandler) activityData(today time.Time) (map[time.Time]map[string]*
 	}
 	notes, err := vh.vault.GetNotesByPaths(paths)
 	if err != nil {
-		return nil, from, err
+		return nil, nil, from, err
 	}
-	exists := make(map[string]bool, len(notes))
+	byPath := make(map[string]storage.Note, len(notes))
 	for _, n := range notes {
-		exists[n.PathString()] = true
+		byPath[n.PathString()] = n
 	}
-	return mate.NoteDays(rows, func(p string) bool { return exists[p] }), from, nil
+	keep := func(p string) bool { _, ok := byPath[p]; return ok }
+	return mate.NoteDays(rows, keep), byPath, from, nil
 }
 
 func (vh *ViewHandler) buildActivityMap(byDay map[time.Time]map[string]*mate.NoteDay, from, today, selected time.Time, names map[string]string) activityMap {
@@ -116,6 +118,7 @@ func (vh *ViewHandler) buildActivityMap(byDay map[time.Time]map[string]*mate.Not
 	slices.Reverse(m.Weeks)
 
 	m.Summary = vh.activitySummary(scores, today)
+	m.Share = activityShareRows(days, today.AddDate(0, 0, 1-activityShareDays), names)
 	return m
 }
 
@@ -209,6 +212,72 @@ func (vh *ViewHandler) activitySummary(scores [3][]int, today time.Time) [3]stri
 	return out
 }
 
+// activityShare is a row of the Who panel beside the map: how the last
+// activityShareDays' score splits between you and each bot.
+type activityShare struct {
+	Name string
+	Kind string // user | bot | other (Others, or a removed bot: no avatar colour)
+	Pct  int
+}
+
+const (
+	activityShareDays = 30
+	activityShares    = 4 // the last row folds the rest into Others
+)
+
+func activityShareRows(days []mate.ActivityDay, since time.Time, names map[string]string) []activityShare {
+	user, total := 0, 0
+	bots := map[string]int{}
+	for _, d := range days {
+		if d.Date.Before(since) {
+			continue
+		}
+		user += activityScore(d.User)
+		total += activityScore(d.User)
+		for id, c := range d.ByBot {
+			bots[id] += activityScore(c)
+			total += activityScore(c)
+		}
+	}
+	if total == 0 {
+		return nil
+	}
+	type row struct {
+		activityShare
+		score int
+	}
+	rows := []row{{activityShare{Name: "You", Kind: "user"}, user}}
+	removed := 0
+	for id, score := range bots {
+		if names[id] == "" {
+			removed += score
+			continue
+		}
+		rows = append(rows, row{activityShare{Name: names[id], Kind: "bot"}, score})
+	}
+	rows = append(rows, row{activityShare{Name: "Removed bots", Kind: "other"}, removed})
+	rows = slices.DeleteFunc(rows, func(r row) bool { return r.score == 0 })
+	slices.SortFunc(rows, func(a, b row) int {
+		if n := b.score - a.score; n != 0 {
+			return n
+		}
+		return strings.Compare(a.Name, b.Name)
+	})
+	if len(rows) > activityShares {
+		rest := 0
+		for _, r := range rows[activityShares-1:] {
+			rest += r.score
+		}
+		rows = append(rows[:activityShares-1], row{activityShare{Name: "Others", Kind: "other"}, rest})
+	}
+	out := make([]activityShare, len(rows))
+	for i, r := range rows {
+		r.Pct = max(1, (r.score*100+total/2)/total) // active, however little
+		out[i] = r.activityShare
+	}
+	return out
+}
+
 // botNames maps mate ids to names; a removed bot is simply missing.
 func (vh *ViewHandler) botNames() map[string]string {
 	names := map[string]string{}
@@ -224,7 +293,7 @@ func (vh *ViewHandler) botNames() map[string]string {
 // its list for the notes touched that day, most recent first.
 func (vh *ViewHandler) activitySection(data *homeSectionData, day time.Time) error {
 	today := localMidnight(time.Now())
-	byDay, from, err := vh.activityData(today)
+	byDay, notes, from, err := vh.activityData(today)
 	if err != nil {
 		return err
 	}
@@ -235,25 +304,11 @@ func (vh *ViewHandler) activitySection(data *homeSectionData, day time.Time) err
 		return nil
 	}
 	touched := mate.NotesOn(byDay, day)
-	paths := make([]storage.Path, len(touched))
-	for i, t := range touched {
-		paths[i] = storage.Path(t.Path)
-	}
-	notes, err := vh.vault.GetNotesByPaths(paths)
-	if err != nil {
-		return err
-	}
-	byPath := make(map[string]storage.Note, len(notes))
-	for _, n := range notes {
-		byPath[n.PathString()] = n
-	}
 	ordered := make([]storage.Note, 0, len(touched))
 	var touches []*noteTouch
 	for _, t := range touched {
-		if n, ok := byPath[t.Path]; ok {
-			ordered = append(ordered, n)
-			touches = append(touches, noteTouchFrom(t, names))
-		}
+		ordered = append(ordered, notes[t.Path])
+		touches = append(touches, noteTouchFrom(t, names))
 	}
 	data.Items = vh.noteItemsFromNotes(ordered)
 	for i := range data.Items {

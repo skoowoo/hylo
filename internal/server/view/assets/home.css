@@ -344,14 +344,16 @@
     /* ── Activity map ────────────────────────────────────────
        A year of days above the list, one column per week, Monday on top,
        today in the last column. Cells grow with the pane in whole pixels
-       (10–16px); the map and its foot hug the grid at the left. A pane too
+       (10–16px) out of what the Who column leaves; the map and its foot hug
+       the grid at the left, and Who takes the rest. A pane too
        narrow for 10px cells drops whole weeks, oldest first: weeks come
        newest first and wrap, and only the first line shows. Each
        cell carries a level per actor (--l-all/-user/-bots); data-actor picks
        one, so switching All/You/Bots never refetches. */
     .act-map {
       --act-gap: 3px;
-      --act-cell: clamp(10px, round(down, (100cqw - 52 * var(--act-gap)) / 53, 1px), 16px);
+      --act-side: 200px;
+      --act-cell: clamp(10px, round(down, (100cqw - var(--act-side) - var(--space-xxl) - 52 * var(--act-gap)) / 53, 1px), 16px);
       container-type: inline-size;
       --act-empty: var(--btn-bg);
       grid-column: 1 / -1; /* spans the grid view's columns */
@@ -359,8 +361,9 @@
       margin-bottom: var(--space-lg); padding-bottom: var(--space-md);
       border-bottom: 1px solid var(--line-hair); border-radius: 0;
     }
+    .act-row { display: flex; gap: var(--space-xxl); }
     .act-body {
-      width: max-content; max-width: 100%;
+      flex: 0 1 auto; min-width: 0; width: max-content;
       display: flex; flex-direction: column; gap: var(--space-sm);
     }
     /* --act-ring gives a selected or focused edge cell's outline room inside
@@ -409,6 +412,35 @@
       flex-shrink: 0; display: flex; align-items: center; gap: var(--act-gap);
       font-size: var(--text-2xs); color: var(--muted);
     }
+    .act-side {
+      flex: 1 0 var(--act-side); min-width: 0;
+      font-size: var(--text-xs);
+    }
+    /* As tall as the month labels, so rows start level with the cells. */
+    .act-side-head {
+      height: var(--space-md); margin: 0;
+      font-size: var(--text-2xs); font-weight: var(--fw-regular); line-height: 1; color: var(--muted);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-radius: 0;
+    }
+    .act-side-head span::before { content: " · "; }
+    .act-share { list-style: none; margin: 0; padding: 0; }
+    /* Bars wear the bot's avatar colour (set by Alpine), yours the accent. */
+    .act-share-row {
+      --share-c: var(--muted); --share-a: 100%;
+      display: grid; grid-template-columns: minmax(0, 7em) 1fr 4ch; align-items: center;
+      gap: var(--space-xs); height: 24px; color: var(--fg);
+    }
+    .act-share-row[data-kind="user"] { --share-c: var(--accent); }
+    .act-map[data-actor="user"] .act-share-row:not([data-kind="user"]),
+    .act-map[data-actor="bots"] .act-share-row[data-kind="user"] { --share-a: 30%; color: var(--muted); }
+    .act-share-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-radius: 0; }
+    .act-share-bar {
+      height: 6px; border-radius: var(--r-full);
+      background: linear-gradient(color-mix(in srgb, var(--share-c) var(--share-a), var(--act-empty)) 0 0) no-repeat left / var(--pct) 100%,
+                  var(--act-empty);
+    }
+    .act-share-pct { text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+    .act-none { margin: 0; padding: 3px 0; color: var(--muted); }
     /* Under the map, in the body: the section-wide spot falls inside the map on short panes. */
     .act-map ~ .empty-state--page { position: static; grid-column: 1 / -1; padding: var(--space-xxl) 1rem 0; }
 

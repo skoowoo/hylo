@@ -1,4 +1,5 @@
 {{define "activity-map"}}<section class="act-map" data-actor="all" :data-actor="activityActor" aria-label="Note activity">
+  <div class="act-row">
   <div class="act-body">
   <div class="act-weeks">
     {{range .Weeks}}<div class="act-week">
@@ -21,6 +22,17 @@
     <span class="act-legend" aria-hidden="true">Less
       <span class="act-cell" style="--l:0"></span><span class="act-cell" style="--l:1"></span><span class="act-cell" style="--l:2"></span><span class="act-cell" style="--l:3"></span><span class="act-cell" style="--l:4"></span>
     More</span>
+  </div>
+  </div>
+  <div class="act-side">
+    <h3 class="act-side-head">Who<span>30 days</span></h3>
+    {{with .Share}}<ul class="act-share">
+      {{range .}}<li class="act-share-row" data-kind="{{.Kind}}"{{if eq .Kind "bot"}} data-name="{{.Name}}" :style="'--share-c:' + agentBotColor($el.dataset.name)"{{end}}>
+        <span class="act-share-name">{{.Name}}</span>
+        <span class="act-share-bar" style="--pct:{{.Pct}}%"></span>
+        <span class="act-share-pct">{{.Pct}}%</span>
+      </li>{{end}}
+    </ul>{{else}}<p class="act-none">Nothing yet</p>{{end}}
   </div>
   </div>
 </section>{{end}}

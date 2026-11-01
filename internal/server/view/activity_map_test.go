@@ -109,3 +109,30 @@ func TestEverySectionRendersOnAnEmptyVault(t *testing.T) {
 		}
 	}
 }
+
+func TestActivityShareSplitsScoreAndFoldsOthers(t *testing.T) {
+	today := localMidnight(time.Now())
+	byBot := map[string]mate.ActivityCount{"a": {Write: 2}, "b": {Read: 2}, "c": {Read: 1}, "d": {Read: 1}, "gone1": {Read: 2}, "gone2": {Read: 2}}
+	days := []mate.ActivityDay{
+		{Date: today.AddDate(0, 0, -activityShareDays), User: mate.ActivityCount{Write: 9}},
+		{Date: today, User: mate.ActivityCount{Write: 1}, ByBot: byBot},
+	}
+	names := map[string]string{"a": "A", "b": "B", "c": "C", "d": "D"}
+	got := activityShareRows(days, today.AddDate(0, 0, 1-activityShareDays), names)
+	var rows []string
+	var pcts []int
+	for _, r := range got {
+		rows = append(rows, r.Name)
+		pcts = append(pcts, r.Pct)
+	}
+	// Two removed bots fold into one row, which outranks you on their sum.
+	if want := []string{"A", "Removed bots", "You", "Others"}; !slices.Equal(rows, want) {
+		t.Errorf("rows = %v, want %v", rows, want)
+	}
+	if want := []int{35, 24, 18, 24}; !slices.Equal(pcts, want) || got[0].Kind != "bot" || got[1].Kind != "other" || got[2].Kind != "user" || got[3].Kind != "other" {
+		t.Errorf("share = %+v", got)
+	}
+	if tiny := activityShareRows([]mate.ActivityDay{{Date: today, User: mate.ActivityCount{Write: 100}, ByBot: map[string]mate.ActivityCount{"a": {Read: 1}}}}, today, names); tiny[1].Pct != 1 {
+		t.Errorf("a sliver shows %d%%, want 1%%", tiny[1].Pct)
+	}
+}
