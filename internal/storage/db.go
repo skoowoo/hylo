@@ -512,20 +512,22 @@ func dbGetByNames(db *sql.DB, names []string) ([]Note, error) {
 	if len(names) == 0 {
 		return nil, nil
 	}
-	placeholders := strings.Repeat("?,", len(names))
-	placeholders = placeholders[:len(placeholders)-1]
-	args := make([]any, len(names))
-	for i, n := range names {
-		args[i] = n
-	}
 	rows, err := db.Query(`
 		SELECT dir, name, size, created_at, updated_at, indexed, kind, title, pinned, compile_count, tags, preview
-		FROM notes WHERE name IN (`+placeholders+`) ORDER BY updated_at DESC`, args...)
+		FROM notes WHERE name IN (SELECT value FROM json_each(?)) ORDER BY updated_at DESC`, jsonParam(names))
 	if err != nil {
 		return nil, fmt.Errorf("storage: notes by names: %w", err)
 	}
 	defer rows.Close()
 	return dbScan_(rows)
+}
+
+// jsonParam passes a list as one parameter, read back with json_each: one
+// bound parameter per item, or an OR per item, runs into SQLite's limits
+// (an OR chain fails past ~1000 items).
+func jsonParam(v any) string {
+	b, _ := json.Marshal(v)
+	return string(b)
 }
 
 // dbGetByPaths returns the metadata row for each (dir, name) pair in paths.
@@ -534,17 +536,14 @@ func dbGetByPaths(db *sql.DB, paths []Path) ([]Note, error) {
 	if len(paths) == 0 {
 		return nil, nil
 	}
-	// Build: WHERE (dir=? AND name=?) OR (dir=? AND name=?) …
-	clauses := make([]string, len(paths))
-	args := make([]any, 0, len(paths)*2)
+	pairs := make([][2]string, len(paths))
 	for i, p := range paths {
-		clauses[i] = "(dir = ? AND name = ?)"
-		args = append(args, p.Dir(), p.Base())
+		pairs[i] = [2]string{p.Dir(), p.Base()}
 	}
 	rows, err := db.Query(`
 		SELECT dir, name, size, created_at, updated_at, indexed, kind, title, pinned, compile_count, tags, preview
-		FROM notes WHERE `+strings.Join(clauses, " OR ")+`
-		ORDER BY updated_at DESC`, args...)
+		FROM notes WHERE (dir, name) IN (SELECT value->>0, value->>1 FROM json_each(?))
+		ORDER BY updated_at DESC`, jsonParam(pairs))
 	if err != nil {
 		return nil, fmt.Errorf("storage: notes by paths: %w", err)
 	}

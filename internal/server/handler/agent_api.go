@@ -688,7 +688,7 @@ func (a *AgentAPI) executeChat(ctx context.Context, run *agent.Run, body chatBod
 	var turn agent.TurnLog
 	// Tracks which vault notes this run's tool calls touched, normalized across
 	// every backend's tool_use shape. See agent.NoteAccessTracker.
-	noteTracker := agent.NewNoteAccessTracker(cwd, a.vault.Root())
+	noteTracker := agent.NewNoteAccessTracker(cwd, a.vault.Root(), hyloNotes{a.vault})
 	emit := func(ev string, data any) {
 		if ev == "agent" {
 			if m, ok := data.(map[string]any); ok {
@@ -904,7 +904,7 @@ func toMateNoteAccess(entries []agent.NoteAccess) []mate.NoteAccessEntry {
 	}
 	out := make([]mate.NoteAccessEntry, len(entries))
 	for i, e := range entries {
-		out[i] = mate.NoteAccessEntry{Path: e.Path, Action: e.Action, Tool: e.Tool, At: e.At}
+		out[i] = mate.NoteAccessEntry{Path: e.Path, Action: e.Action, Tool: e.Tool, At: e.At, Skim: e.Skim}
 	}
 	return out
 }

@@ -89,6 +89,7 @@ func newRouter(
 		mux.HandleFunc("GET /api/conversations/{id}", ch.ConversationGET)
 		mux.HandleFunc("DELETE /api/conversations/{id}", ch.ConversationDELETE)
 		mux.HandleFunc("PATCH /api/conversations/{id}/title", ch.ConversationTitlePATCH)
+		mux.HandleFunc("POST /api/activity/visit", handler.NewActivityAPI(mateStore).VisitPOST)
 
 		vh.SetMates(mateStore)
 		mh := handler.NewMateAPI(logger, mateStore, skillsMgr)

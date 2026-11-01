@@ -803,6 +803,9 @@ func (g *Vault) MoveNote(p Path, newDir string) (Path, error) {
 
 	g.rewriteDependentPathRefs(knowledgeDependents, indexDependents, p, newPath)
 
+	g.emitEvent(plugin.Event{
+		Type: plugin.EventVaultRename, Path: newPath.String(), OldPath: p.String(), Time: time.Now(),
+	})
 	g.emit("vault_delete", p.String(), false, time.Now())
 	g.emit("vault_create", newPath.String(), false, time.Now())
 	return newPath, nil

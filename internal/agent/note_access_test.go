@@ -3,7 +3,7 @@ package agent
 import "testing"
 
 func TestNoteAccessTracker_ClaudeStyleTools(t *testing.T) {
-	tr := NewNoteAccessTracker("/vault", "/vault")
+	tr := NewNoteAccessTracker("/vault", "/vault", nil)
 
 	got := tr.Feed(map[string]any{
 		"type": "tool_use", "name": "Read",
@@ -37,7 +37,7 @@ func TestNoteAccessTracker_ClaudeStyleTools(t *testing.T) {
 }
 
 func TestNoteAccessTracker_RelativeToVaultAndCwdSubdir(t *testing.T) {
-	tr := NewNoteAccessTracker("/vault/projects", "/vault")
+	tr := NewNoteAccessTracker("/vault/projects", "/vault", nil)
 	got := tr.Feed(map[string]any{
 		"type": "tool_use", "name": "write_file",
 		"input": map[string]any{"path": "notes/todo.md"},
@@ -46,7 +46,7 @@ func TestNoteAccessTracker_RelativeToVaultAndCwdSubdir(t *testing.T) {
 }
 
 func TestNoteAccessTracker_RejectsOutsideVaultAndNonMarkdown(t *testing.T) {
-	tr := NewNoteAccessTracker("/vault", "/vault")
+	tr := NewNoteAccessTracker("/vault", "/vault", nil)
 
 	cases := []map[string]any{
 		{"type": "tool_use", "name": "Read", "input": map[string]any{"file_path": "/etc/passwd.md"}},
@@ -65,7 +65,7 @@ func TestNoteAccessTracker_RejectsOutsideVaultAndNonMarkdown(t *testing.T) {
 }
 
 func TestNoteAccessTracker_RejectsGlobPatterns(t *testing.T) {
-	tr := NewNoteAccessTracker("/vault", "/vault")
+	tr := NewNoteAccessTracker("/vault", "/vault", nil)
 
 	cases := []map[string]any{
 		{"type": "tool_use", "name": "Glob", "input": map[string]any{"path": "*.md"}},
@@ -83,7 +83,7 @@ func TestNoteAccessTracker_RejectsGlobPatterns(t *testing.T) {
 }
 
 func TestNoteAccessTracker_BashHeuristic(t *testing.T) {
-	tr := NewNoteAccessTracker("/vault", "/vault")
+	tr := NewNoteAccessTracker("/vault", "/vault", nil)
 	got := tr.Feed(map[string]any{
 		"type": "tool_use", "name": "Bash",
 		"input": map[string]any{"command": "cat /vault/a.md && echo hi >> /vault/b.md"},
@@ -95,7 +95,7 @@ func TestNoteAccessTracker_BashHeuristic(t *testing.T) {
 }
 
 func TestNoteAccessTracker_ExplicitNotesOverride(t *testing.T) {
-	tr := NewNoteAccessTracker("/vault", "/vault")
+	tr := NewNoteAccessTracker("/vault", "/vault", nil)
 	got := tr.Feed(map[string]any{
 		"type": "tool_use", "name": "edit",
 		"input": map[string]any{"__notes": []any{
@@ -106,7 +106,7 @@ func TestNoteAccessTracker_ExplicitNotesOverride(t *testing.T) {
 }
 
 func TestNoteAccessTracker_IgnoresNonToolUseEvents(t *testing.T) {
-	tr := NewNoteAccessTracker("/vault", "/vault")
+	tr := NewNoteAccessTracker("/vault", "/vault", nil)
 	if got := tr.Feed(map[string]any{"type": "text_delta", "delta": "hello"}); got != nil {
 		t.Fatalf("expected nil for non tool_use event, got %+v", got)
 	}
@@ -125,7 +125,7 @@ func assertPaths(t *testing.T, got, want []NoteAccess) {
 }
 
 func TestNoteAccessTracker_BashOnlyDemonstrableChangesAreWrites(t *testing.T) {
-	tr := NewNoteAccessTracker("/vault", "/vault")
+	tr := NewNoteAccessTracker("/vault", "/vault", nil)
 	got := tr.Feed(map[string]any{
 		"type": "tool_use", "name": "Bash",
 		"input": map[string]any{"command": "grep -n x /vault/a.md 2>/dev/null; sed -n '1,9p' /vault/b.md; awk 'NR>=3' /vault/c.md; cat /vault/d.md > /vault/e.md; cp /vault/f.md /vault/g.md; sed -i s/a/b/ /vault/h.md"},
@@ -140,4 +140,61 @@ func TestNoteAccessTracker_BashOnlyDemonstrableChangesAreWrites(t *testing.T) {
 		{Path: "/g.md", Action: NoteActionWrite, Tool: "Bash"},
 		{Path: "/h.md", Action: NoteActionWrite, Tool: "Bash"},
 	})
+}
+
+type stubKnown struct{}
+
+func (stubKnown) Tool(name string, input map[string]any) ([]NoteAccess, bool) {
+	if name != "mcp__hylo__read" {
+		return nil, false
+	}
+	p, _ := input["path"].(string)
+	return []NoteAccess{{Path: p, Action: NoteActionRead}}, true
+}
+
+func (stubKnown) Command(args []string) ([]NoteAccess, bool) {
+	if len(args) < 2 || args[0] != "append" {
+		return nil, false
+	}
+	return []NoteAccess{{Path: args[1], Action: NoteActionWrite}}, true
+}
+
+// Known tools name vault paths, which must not be read as filesystem paths.
+func TestNoteAccessTracker_KnownToolsTakeVaultPaths(t *testing.T) {
+	tr := NewNoteAccessTracker("/vault/_bots/_a", "/vault", stubKnown{})
+	tr.Feed(map[string]any{"type": "tool_use", "name": "mcp__hylo__read", "input": map[string]any{"path": "/journal/today.md"}})
+	tr.Feed(map[string]any{"type": "tool_use", "name": "mcp__hylo__read", "input": map[string]any{"path": "/.hylo/x.md"}})
+	tr.Feed(map[string]any{"type": "tool_use", "name": "Bash", "input": map[string]any{"command": `cat x && /usr/local/bin/hylo append "/b.md" && hylo init`}})
+	assertPaths(t, tr.Entries(), []NoteAccess{
+		{Path: "/journal/today.md", Action: NoteActionRead, Tool: "mcp__hylo__read"},
+		{Path: "/b.md", Action: NoteActionWrite, Tool: "Bash"},
+	})
+}
+
+// Listing, searching and counting a note shows on the card but is no read of it.
+func TestNoteAccessTracker_SkimsAreNotReads(t *testing.T) {
+	tr := NewNoteAccessTracker("/vault", "/vault", nil)
+	for _, call := range []map[string]any{
+		{"name": "Grep", "input": map[string]any{"pattern": "x", "path": "/vault/g.md"}},
+		{"name": "Bash", "input": map[string]any{"command": `ls l.md && wc -l w.md; grep -n "a; b" r.md`}},
+		{"name": "Bash", "input": map[string]any{"command": "cat c.md"}},
+		{"name": "Read", "input": map[string]any{"file_path": "/vault/r.md"}},
+		{"name": "Bash", "input": map[string]any{"command": "ls x.md; rm x.md"}},
+	} {
+		call["type"] = "tool_use"
+		tr.Feed(call)
+	}
+	skim := map[string]bool{}
+	for _, e := range tr.Entries() {
+		skim[e.Path] = e.Skim
+	}
+	want := map[string]bool{"/g.md": true, "/l.md": true, "/w.md": true, "/r.md": false, "/c.md": false, "/x.md": false}
+	if len(skim) != len(want) {
+		t.Fatalf("entries = %+v", tr.Entries())
+	}
+	for p, w := range want {
+		if skim[p] != w {
+			t.Errorf("%s skim = %v, want %v", p, skim[p], w)
+		}
+	}
 }

@@ -144,3 +144,28 @@ func TestMCPToolsMatchCLI(t *testing.T) {
 		}
 	}
 }
+
+// A value flag the note-activity parser doesn't know would make it take the
+// flag's value for the note path.
+func TestCommandValueFlagsMatchTheCLI(t *testing.T) {
+	var walk func(c *cobra.Command)
+	walk = func(c *cobra.Command) {
+		c.Flags().VisitAll(func(f *pflag.Flag) {
+			takesValue := f.NoOptDefVal == ""
+			names := []string{"--" + f.Name}
+			if f.Shorthand != "" {
+				names = append(names, "-"+f.Shorthand)
+			}
+			for _, n := range names {
+				if hylomcp.CommandValueFlags(n) != takesValue {
+					t.Errorf("%s %s: takes a value = %v, but hylomcp.commandValueFlags says %v",
+						c.CommandPath(), n, takesValue, !takesValue)
+				}
+			}
+		})
+		for _, sub := range c.Commands() {
+			walk(sub)
+		}
+	}
+	walk(rootCmd)
+}

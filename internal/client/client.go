@@ -193,6 +193,12 @@ type NoteResolveResponse struct {
 	Count   int            `json:"count"`
 }
 
+// NotesByName lists the notes named name, most recently updated first.
+func (c *Client) NotesByName(name string) ([]storage.Note, error) {
+	res, err := c.ResolveNoteName(name)
+	return res.Matches, err
+}
+
 // ResolveNoteName resolves a bare filename (e.g. "today.md") to all vault locations
 // where a note with that name exists. Use storage.Note.PathString() to build the read path.
 func (c *Client) ResolveNoteName(name string) (NoteResolveResponse, error) {

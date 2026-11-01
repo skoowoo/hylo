@@ -1,0 +1,26 @@
+{{define "activity-map"}}<section class="act-map" data-actor="all" :data-actor="activityActor" aria-label="Note activity">
+  <div class="act-body">
+  <div class="act-weeks">
+    {{range .Weeks}}<div class="act-week">
+      {{if .Month}}<span class="act-month">{{.Month}}</span>{{end}}
+      {{range .Days}}{{if .Future}}<span class="act-cell act-cell--future"></span>
+      {{else if .Any}}<button type="button" class="act-cell{{if .Selected}} is-selected{{end}}" style="--l-all:{{.All}};--l-user:{{.User}};--l-bots:{{.Bots}}"
+              title="{{.Title}}" aria-pressed="{{.Selected}}" data-url="{{.URL}}" @click="go($el.dataset.url)"></button>
+      {{else}}<span class="act-cell" title="{{.Title}}"></span>{{end}}{{end}}
+    </div>{{end}}
+  </div>
+  <div class="act-foot">
+    <div class="seg" role="group" aria-label="Whose activity">
+      <button type="button" class="seg-btn" :class="activityActor === 'all' ? 'active' : ''" @click="activityActor = 'all'">All</button>
+      <button type="button" class="seg-btn" :class="activityActor === 'user' ? 'active' : ''" @click="activityActor = 'user'">You</button>
+      <button type="button" class="seg-btn" :class="activityActor === 'bots' ? 'active' : ''" @click="activityActor = 'bots'">Bots</button>
+    </div>
+    <span class="act-summary" data-for="all">{{index .Summary 0}}</span>
+    <span class="act-summary" data-for="user">{{index .Summary 1}}</span>
+    <span class="act-summary" data-for="bots">{{index .Summary 2}}</span>
+    <span class="act-legend" aria-hidden="true">Less
+      <span class="act-cell" style="--l:0"></span><span class="act-cell" style="--l:1"></span><span class="act-cell" style="--l:2"></span><span class="act-cell" style="--l:3"></span><span class="act-cell" style="--l:4"></span>
+    More</span>
+  </div>
+  </div>
+</section>{{end}}

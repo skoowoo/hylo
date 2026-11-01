@@ -1,6 +1,8 @@
 {{define "full"}}<div class="sec">
 <div class="home-list-head">
   <span class="home-list-count" id="home-list-count" title="{{.Title}}">{{.Count}}</span>
+  {{with .Filter}}<button type="button" class="badge badge--accent home-list-filter" title="Clear the day filter"
+          @click="go($el.dataset.url)" data-url="{{.ClearURL}}">{{.Label}}{{icon "close"}}</button>{{end}}
   <div class="home-list-head-spacer"></div>
   <div class="seg">
     <button type="button" class="seg-btn" :class="currentListView() === 'list' ? 'active' : ''"
@@ -20,6 +22,6 @@
   </div>
 </div>
 {{if eq .View "graph"}}{{template "graph-section" .}}{{else}}
-<div class="sec-body home-list-body" id="home-list-body" :class="{'is-grid': currentListView() === 'grid'}">{{template "rows" .}}</div>
-{{if and (not .Items) .Empty.Title}}{{template "empty-state" .Empty}}{{end}}
+<div class="sec-body home-list-body" id="home-list-body" :class="{'is-grid': currentListView() === 'grid'}">{{with .Activity}}{{template "activity-map" .}}{{end}}{{template "rows" .}}{{if and .Activity (not .Items) .Empty.Title}}{{template "empty-state" .Empty}}{{end}}</div>
+{{if and (not .Activity) (not .Items) .Empty.Title}}{{template "empty-state" .Empty}}{{end}}
 {{end}}</div>{{end}}

@@ -73,6 +73,9 @@ type homeSectionData struct {
 	// seg control — see selectKnowledgeIndex/setListView in home.js.
 	ShowGraphOption bool
 	View            string // "list" (default) | "grid" | "graph"
+	// Activity only: the activity map above the list, and the day it is narrowed to.
+	Activity *activityMap
+	Filter   *activityFilter
 }
 
 // emptyState is what a section shows when it has nothing yet.
@@ -207,14 +210,25 @@ func (vh *ViewHandler) homeSectionData(r *http.Request, itemsOnly bool) (homeSec
 				data.Items = vh.noteItemsFromNotes(notes)
 			}
 		}
-	case "recent":
-		notes, err := vh.vault.ListRecentNotes(time.Now().AddDate(0, 0, -7))
-		if err != nil {
-			return data, err
+	case "activity":
+		var day time.Time
+		if vh.mates != nil {
+			day, _ = time.ParseInLocation(time.DateOnly, r.URL.Query().Get("day"), time.Local)
 		}
-		data.Items = vh.noteItemsFromNotes(notes)
-		data.Title = "Recent"
-		data.Empty = emptyState{Icon: "recent", Title: "Nothing this week", Desc: "Notes you edit over the last 7 days show up here."}
+		if day.IsZero() {
+			notes, err := vh.vault.ListRecentNotes(time.Now().AddDate(0, 0, -7))
+			if err != nil {
+				return data, err
+			}
+			data.Items = vh.noteItemsFromNotes(notes)
+			data.Title = "Activity"
+			data.Empty = emptyState{Icon: "recent", Title: "Nothing this week", Desc: "Notes you edit over the last 7 days show up here."}
+		}
+		if vh.mates != nil && !itemsOnly {
+			if err := vh.activitySection(&data, day); err != nil {
+				return data, err
+			}
+		}
 		data.Count = len(data.Items)
 	default: // "pinned"
 		pinned, err := vh.vault.ListPinnedNotes()
@@ -223,7 +237,7 @@ func (vh *ViewHandler) homeSectionData(r *http.Request, itemsOnly bool) (homeSec
 		}
 		data.Items = vh.noteItemsFromNotes(pinned)
 		data.Title = "Pinned"
-		data.Empty = emptyState{Icon: "star", Title: "No pinned notes", Desc: "Pin the notes you come back to often to keep them here."}
+		data.Empty = emptyState{Icon: "pinned", Title: "No pinned notes", Desc: "Pin the notes you come back to often to keep them here."}
 		data.Count = len(data.Items)
 	}
 	return data, nil

@@ -11,7 +11,11 @@ import (
 
 // ReadSource returns the raw markdown of a note given a path or bare filename.
 func ReadSource(c *client.Client, pathOrName string) ([]byte, error) {
-	rc, err := c.ReadFile(pathOrName)
+	p, err := ResolveLatest(c, pathOrName)
+	if err != nil {
+		return nil, err
+	}
+	rc, err := c.ReadFile(p)
 	if err != nil {
 		return nil, err
 	}

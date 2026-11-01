@@ -260,6 +260,7 @@ function homeShortsMixin() {
         });
         if (!resp.ok) throw new Error((await resp.text()) || 'Save failed');
         var entry = await resp.json();
+        __hyloVisitWrote(entry.path);
         draft.images.forEach((i) => { if (i.previewUrl) URL.revokeObjectURL(i.previewUrl); });
         // Writing a new short clears the filters (a tag, a month) so it shows at the top.
         var unfiltered = __hyloSectionUnfiltered(this.curKey);
@@ -386,6 +387,7 @@ function homeShortsMixin() {
         }
         if (!resp.ok) throw new Error((await resp.text()) || 'Save failed');
         var entry = await resp.json();
+        __hyloVisitWrote(entry.path);
         __hyloShortLatest.set(entry.id, entry.hash);
         this._closeShortEdit(await __hyloShortRender(entry.id));
       } catch (err) {
@@ -423,6 +425,7 @@ function homeShortsMixin() {
       }).then(async (resp) => {
         // Already gone (deleted elsewhere meanwhile) is what was asked for.
         if (!resp.ok && resp.status !== 404) throw new Error((await resp.text()) || 'Delete failed');
+        if (resp.ok) __hyloVisitWrote(p.card.dataset.path);
         __hyloShortRemoveCard(p.card);
       }).catch((err) => {
         p.card.hidden = false;

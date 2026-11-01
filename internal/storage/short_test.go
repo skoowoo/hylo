@@ -55,7 +55,7 @@ func TestParseShortDayIDs(t *testing.T) {
 	if strings.Join(ids, ",") != strings.Join(want, ",") {
 		t.Fatalf("ids = %q, want %q", ids, want)
 	}
-	if got, _ := shortPathFromID("2026-10-29-090000-2"); got != p {
+	if got, _ := ShortPathFromID("2026-10-29-090000-2"); got != p {
 		t.Fatalf("path from id = %q", got)
 	}
 }
@@ -147,7 +147,7 @@ func TestAppendShortUniqueIDs(t *testing.T) {
 
 func TestAppendShortKeepsHandEditedFrontmatter(t *testing.T) {
 	v := newTestVault(t)
-	day := shortDayPath(time.Now())
+	day := ShortDayPath(time.Now())
 	if err := v.WriteNoteWithMeta(day, []byte("---\ntags: [x]\n---\n\nhand-written\n"), Note{Kind: KindShort}); err != nil {
 		t.Fatal(err)
 	}

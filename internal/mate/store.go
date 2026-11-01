@@ -76,6 +76,16 @@ CREATE TABLE IF NOT EXISTS chat_message_note_access (
     created_at  INTEGER NOT NULL
 );
 
+-- One touch of a note. A day folds its rows; a write counts over a read.
+-- Outlives the chat that caused it.
+CREATE TABLE IF NOT EXISTS note_activity (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    path        TEXT    NOT NULL,
+    actor       TEXT    NOT NULL,
+    action      TEXT    NOT NULL,
+    at          INTEGER NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS mate_triggers_mate_idx  ON mate_triggers(mate_id);
 -- A bot's folder, and the skills enabled there, belong to it alone.
 CREATE UNIQUE INDEX IF NOT EXISTS mates_cwd_idx ON mates(cwd) WHERE cwd NOT IN ('', '/');
@@ -84,6 +94,8 @@ CREATE INDEX IF NOT EXISTS conversations_mate_idx  ON conversations(mate_id, upd
 CREATE INDEX IF NOT EXISTS chat_messages_conv_idx  ON chat_messages(conversation_id, created_at);
 CREATE INDEX IF NOT EXISTS chat_message_note_access_msg_idx  ON chat_message_note_access(message_id);
 CREATE INDEX IF NOT EXISTS chat_message_note_access_path_idx ON chat_message_note_access(path);
+CREATE INDEX IF NOT EXISTS note_activity_at_idx ON note_activity(at);
+CREATE INDEX IF NOT EXISTS note_activity_path_idx ON note_activity(path);
 
 CREATE TABLE IF NOT EXISTS bot_channels (
     id            TEXT    PRIMARY KEY,
@@ -139,6 +151,12 @@ func Open(vaultRoot string) (*Store, error) {
 		db.Close()
 		return nil, fmt.Errorf("mate: foreign keys: %w", err)
 	}
+	// Activity briefly stored a visit as an interval. Charts only read a point,
+	// so keep the end and drop the span.
+	if err := noteActivityPoints(db); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("mate: note activity: %w", err)
+	}
 	if _, err := db.Exec(schemaSQL); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("mate: schema: %w", err)
@@ -192,6 +210,39 @@ func Open(vaultRoot string) (*Store, error) {
 		}
 	}
 	return &Store{db: db}, nil
+}
+
+// noteActivityPoints collapses the unreleased interval rows (started_at, ended_at)
+// into the touch at which they ended. A missing table, or one already on `at`, is left alone.
+func noteActivityPoints(db *sql.DB) error {
+	var n int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM pragma_table_info('note_activity') WHERE name = 'started_at'`).Scan(&n); err != nil {
+		return err
+	}
+	if n == 0 {
+		return nil
+	}
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback() //nolint:errcheck
+	if _, err := tx.Exec(`
+		CREATE TABLE note_activity_new (
+			id     INTEGER PRIMARY KEY AUTOINCREMENT,
+			path   TEXT    NOT NULL,
+			actor  TEXT    NOT NULL,
+			action TEXT    NOT NULL,
+			at     INTEGER NOT NULL
+		);
+		INSERT INTO note_activity_new(path, actor, action, at)
+			SELECT path, actor, action, ended_at FROM note_activity;
+		DROP TABLE note_activity;
+		ALTER TABLE note_activity_new RENAME TO note_activity;
+	`); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 // DB exposes the underlying connection for read-only diagnostic use.

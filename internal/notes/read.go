@@ -3,21 +3,28 @@ package notes
 import (
 	"fmt"
 	"io"
+	"path"
 	"strings"
 
 	"github.com/hardhacker/hylo/internal/client"
 	"github.com/hardhacker/hylo/internal/storage"
 )
 
+// NoteLookup is what resolving a note argument needs: *client.Client over
+// HTTP, or the server's vault directly, so a bot run's note activity resolves
+// a tool's argument exactly as the tool did.
+type NoteLookup interface {
+	// StatNote takes a vault path; a base name without extension gets ".md".
+	StatNote(p string) (storage.Note, error)
+	// NotesByName lists the notes with that filename, most recently updated first.
+	NotesByName(name string) ([]storage.Note, error)
+}
+
 // ResolvePath maps a vault path or a bare filename to exactly one vault path.
 // knowledgeOnly rejects notes that are not knowledge notes.
-func ResolvePath(c *client.Client, arg string, knowledgeOnly bool) (string, error) {
+func ResolvePath(l NoteLookup, arg string, knowledgeOnly bool) (string, error) {
 	if strings.Contains(arg, "/") {
-		p := arg
-		if !strings.HasPrefix(p, "/") {
-			p = "/" + p
-		}
-		note, err := c.StatNote(p)
+		note, err := l.StatNote(absPath(arg))
 		if err != nil {
 			return "", err
 		}
@@ -28,14 +35,14 @@ func ResolvePath(c *client.Client, arg string, knowledgeOnly bool) (string, erro
 	}
 
 	name := EnsureMarkdownExt(arg)
-	res, err := c.ResolveNoteName(name)
+	all, err := l.NotesByName(name)
 	if err != nil {
 		return "", err
 	}
-	matches := res.Matches
+	matches := all
 	if knowledgeOnly {
 		matches = nil
-		for _, n := range res.Matches {
+		for _, n := range all {
 			if n.Kind == storage.KindKnowledge {
 				matches = append(matches, n)
 			}
@@ -43,7 +50,7 @@ func ResolvePath(c *client.Client, arg string, knowledgeOnly bool) (string, erro
 	}
 	switch len(matches) {
 	case 0:
-		if knowledgeOnly && len(res.Matches) > 0 {
+		if knowledgeOnly && len(all) > 0 {
 			return "", fmt.Errorf("no knowledge note named %q", name)
 		}
 		return "", fmt.Errorf("no note found: %q", name)
@@ -56,6 +63,31 @@ func ResolvePath(c *client.Client, arg string, knowledgeOnly bool) (string, erro
 		}
 		return "", fmt.Errorf("multiple notes named %q; use a full path: %s", name, strings.Join(paths, ", "))
 	}
+}
+
+// ResolveLatest maps a vault path or a bare filename to the note a read of it
+// gets: the path itself, or the most recently updated note of that name.
+func ResolveLatest(l NoteLookup, arg string) (string, error) {
+	if strings.Contains(arg, "/") {
+		p := path.Clean(absPath(arg))
+		return path.Join(path.Dir(p), EnsureMarkdownExt(path.Base(p))), nil
+	}
+	name := EnsureMarkdownExt(arg)
+	matches, err := l.NotesByName(name)
+	if err != nil {
+		return "", err
+	}
+	if len(matches) == 0 {
+		return "", fmt.Errorf("no note found: %q", name)
+	}
+	return matches[0].PathString(), nil
+}
+
+func absPath(p string) string {
+	if !strings.HasPrefix(p, "/") {
+		return "/" + p
+	}
+	return p
 }
 
 // Resolve lists every vault location of a note filename; it is an error if there is none.

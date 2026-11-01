@@ -28,12 +28,11 @@ func (gh *VaultHandler) Stat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	p, ok := storage.ParsePath(req.Path)
+	p, ok := statPath(req.Path)
 	if !ok {
 		http.Error(w, `path must be absolute (start with "/")`, http.StatusBadRequest)
 		return
 	}
-	p, _ = storage.ParsePath(storage.JoinPath(p.Dir(), ensureMarkdownName(p.Base())))
 
 	note, err := gh.vault.StatNote(p)
 	if err != nil {
@@ -41,4 +40,13 @@ func (gh *VaultHandler) Stat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	respondJSON(w, http.StatusOK, note)
+}
+
+func statPath(raw string) (storage.Path, bool) {
+	p, ok := storage.ParsePath(raw)
+	if !ok {
+		return "", false
+	}
+	p, _ = storage.ParsePath(storage.JoinPath(p.Dir(), ensureMarkdownName(p.Base())))
+	return p, true
 }

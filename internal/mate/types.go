@@ -112,4 +112,6 @@ type NoteAccessEntry struct {
 	Action string    `json:"action"` // NoteAccessRead | NoteAccessWrite
 	Tool   string    `json:"tool"`   // originating tool/event name, for debugging
 	At     time.Time `json:"at"`
+	// Skim reads (see agent.NoteAccess.Skim) stay off note_activity; not stored.
+	Skim bool `json:"-"`
 }

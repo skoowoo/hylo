@@ -123,7 +123,7 @@ document.addEventListener('pointerover', function(e) {
 // drilldown shares the single 'tags' bucket — rather than one per selection).
 // Knowledge's value can also be 'graph' — see setListView()/listViewKey().
 function loadListViewModes() {
-  var defaults = { knowledge: 'list', memory: 'list', pinned: 'list', recent: 'list', folder: 'list', tags: 'list', shorts: 'list' };
+  var defaults = { knowledge: 'list', memory: 'list', pinned: 'list', activity: 'list', folder: 'list', tags: 'list', shorts: 'list' };
   try {
     return Object.assign(defaults, JSON.parse(localStorage.getItem('hylo-list-view') || '{}'));
   } catch (_) {
@@ -225,6 +225,8 @@ function homeCtrl() {
     // Knowledge's All/category items share the single 'knowledge' bucket,
     // rather than one per selection) — see listViewKey()/setListView().
     listViewModes: loadListViewModes(),
+    // Whose activity the Activity map shows; a view filter, so refresh drops it.
+    activityActor: 'all',
     foldersOpen: false,
     knowledgeOpen: false,
     openTabsOpen: true,
@@ -379,6 +381,7 @@ function homeCtrl() {
       // Explicit refresh: drop every parked section, then refetch what's on screen.
       __hyloSectionCacheInvalidate();
       // It also drops every filter (__hyloSectionFilterParams) but keeps where you are.
+      this.activityActor = 'all';
       // The chat's DOM is the kernel's, so it refetches the conversation instead.
       if (this._chat && document.getElementById('chat-root')) {
         this._chat.reload();

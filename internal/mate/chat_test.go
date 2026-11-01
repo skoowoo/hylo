@@ -3,6 +3,7 @@ package mate
 import (
 	"errors"
 	"path/filepath"
+	"slices"
 	"testing"
 	"time"
 )
@@ -403,5 +404,121 @@ func TestTurnBotRefusesAWakeWhoseSourceWentAway(t *testing.T) {
 	}
 	if _, err := store.TurnBot(m.ID, ""); !errors.Is(err, ErrTriggerDisabled) {
 		t.Fatalf("deleted bot: %v", err)
+	}
+}
+
+func TestNoteAccessLogsActivityThatFollowsRenamesAndOutlivesChat(t *testing.T) {
+	store, err := Open(filepath.Join(t.TempDir(), "vault"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+
+	conv, err := store.CreateConversation("mate-1", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	msg, err := store.InsertMessage(Message{ConversationID: conv.ID, Role: "assistant", MateID: "mate-1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	at := time.UnixMilli(1_700_000_000_000)
+	if err := store.InsertMessageNoteAccess(msg.ID, []NoteAccessEntry{
+		{Path: "/a.md", Action: NoteAccessRead, Tool: "Read", At: at},
+		{Path: "/b.md", Action: NoteAccessWrite, Tool: "Edit", At: at},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.RenameNotePath("/a.md", "/dir/a.md"); err != nil {
+		t.Fatal(err)
+	}
+
+	access, err := store.ListMessageNoteAccess(msg.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(access) != 2 || access[0].Path != "/dir/a.md" {
+		t.Fatalf("note access = %+v", access)
+	}
+
+	if err := store.DeleteConversation(conv.ID); err != nil {
+		t.Fatal(err)
+	}
+	rows, err := store.db.Query(`SELECT path, actor, action, at FROM note_activity ORDER BY path`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	type row struct {
+		path, actor, action string
+		at                  int64
+	}
+	var got []row
+	for rows.Next() {
+		var r row
+		if err := rows.Scan(&r.path, &r.actor, &r.action, &r.at); err != nil {
+			t.Fatal(err)
+		}
+		got = append(got, r)
+	}
+	want := []row{
+		{"/b.md", "mate-1", NoteAccessWrite, at.UnixMilli()},
+		{"/dir/a.md", "mate-1", NoteAccessRead, at.UnixMilli()},
+	}
+	if len(got) != len(want) {
+		t.Fatalf("activity = %+v", got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("activity[%d] = %+v, want %+v", i, got[i], want[i])
+		}
+	}
+}
+
+func TestBotActivityKeepsOnlyReadsThatReadTheNote(t *testing.T) {
+	store, err := Open(filepath.Join(t.TempDir(), "vault"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	conv, err := store.CreateConversation("mate-1", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	asked, err := store.InsertMessage(Message{ConversationID: conv.ID, Role: "assistant", MateID: "mate-1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	wake, err := store.InsertMessage(Message{ConversationID: conv.ID, Role: "assistant", MateID: "mate-1", TriggerEvent: "wake"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.InsertMessageNoteAccess(asked.ID, []NoteAccessEntry{
+		{Path: "/read.md", Action: NoteAccessRead},
+		{Path: "/listed.md", Action: NoteAccessRead, Skim: true},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.InsertMessageNoteAccess(wake.ID, []NoteAccessEntry{
+		{Path: "/swept.md", Action: NoteAccessRead},
+		{Path: "/wrote.md", Action: NoteAccessWrite},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	rows, err := store.ListNoteActivity(time.UnixMilli(0), time.Now().Add(time.Hour))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	for _, r := range rows {
+		got = append(got, r.Path)
+	}
+	slices.Sort(got)
+	if want := []string{"/read.md", "/wrote.md"}; !slices.Equal(got, want) {
+		t.Fatalf("activity = %v, want %v", got, want)
+	}
+	// The run's card still lists every note it touched.
+	if access, _ := store.ListMessageNoteAccess(asked.ID); len(access) != 2 {
+		t.Fatalf("card = %+v", access)
 	}
 }

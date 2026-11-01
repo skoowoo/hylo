@@ -100,7 +100,7 @@ func TestWatcherDropsEchoesOfVaultWrites(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	expectEvents(t, "move", l.take(), "vault_delete /a.md", "vault_create /sub/a.md")
+	expectEvents(t, "move", l.take(), "vault_rename /sub/a.md", "vault_delete /a.md", "vault_create /sub/a.md")
 
 	if err := v.DeleteNote(moved); err != nil {
 		t.Fatal(err)

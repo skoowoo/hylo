@@ -159,6 +159,7 @@
       tab.path = data.path;
       tab.title = __hyloStripMdExt(data.path.split('/').pop()) || data.path;
       delete tab._pendingContent;
+      __hyloVisitWrote(data.path);
       if (!__hyloEditorIsActiveTabId(tab.id)) return; // switched away while this was in flight — nothing to autosave right now
       var s = __hyloEditor;
       s.currentPath = data.path;
@@ -187,6 +188,7 @@
     }
     s.dirty = true;
     __hyloEditorScheduleSave();
+    if (!pane || !pane.agentWriting) __hyloVisitEdited();
   }
 
   // Mirrors internal/util/mdhtml.go's wikilinkRe + name normalization so the

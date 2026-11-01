@@ -138,16 +138,16 @@
 
         <div class="home-side-heading">Notes</div>
 
+        <button type="button" class="side-nav-item home-side-item" :class="{'is-active': curType() === 'activity'}"
+                x-press="go('/home/section?type=activity')">
+          {{sideIcon "recent"}}
+          <span class="home-side-label">Activity</span>
+        </button>
+
         <button type="button" class="side-nav-item home-side-item" :class="{'is-active': curType() === 'pinned'}"
                 x-press="go('/home/section?type=pinned')">
           {{sideIcon "pinned"}}
           <span class="home-side-label">Pinned</span>
-        </button>
-
-        <button type="button" class="side-nav-item home-side-item" :class="{'is-active': curType() === 'recent'}"
-                x-press="go('/home/section?type=recent')">
-          {{sideIcon "recent"}}
-          <span class="home-side-label">Recent</span>
         </button>
 
         <button type="button" class="side-nav-item home-side-item" :class="{'is-active': curType() === 'shorts'}"

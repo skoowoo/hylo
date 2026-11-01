@@ -337,10 +337,86 @@
       color: var(--cnt-tx); background: var(--cnt-bg);
       font-variant-numeric: tabular-nums;
     }
+    /* A filtered list's filter, beside its count; clicking clears it. */
+    .home-list-filter { border: none; font-family: inherit; cursor: pointer; }
+    .home-list-filter svg { width: 10px; height: 10px; }
+
+    /* ── Activity map ────────────────────────────────────────
+       A year of days above the list, one column per week, Monday on top,
+       today in the last column. Cells grow with the pane in whole pixels
+       (10–16px); the map and its foot hug the grid at the left. A pane too
+       narrow for 10px cells drops whole weeks, oldest first: weeks come
+       newest first and wrap, and only the first line shows. Each
+       cell carries a level per actor (--l-all/-user/-bots); data-actor picks
+       one, so switching All/You/Bots never refetches. */
+    .act-map {
+      --act-gap: 3px;
+      --act-cell: clamp(10px, round(down, (100cqw - 52 * var(--act-gap)) / 53, 1px), 16px);
+      container-type: inline-size;
+      --act-empty: var(--btn-bg);
+      grid-column: 1 / -1; /* spans the grid view's columns */
+      flex-shrink: 0;
+      margin-bottom: var(--space-lg); padding-bottom: var(--space-md);
+      border-bottom: 1px solid var(--line-hair); border-radius: 0;
+    }
+    .act-body {
+      width: max-content; max-width: 100%;
+      display: flex; flex-direction: column; gap: var(--space-sm);
+    }
+    /* --act-ring gives a selected or focused edge cell's outline room inside
+       the clip; the row gap keeps the hidden line's month labels out of it. */
+    .act-weeks {
+      --act-ring: 2px;
+      display: flex; flex-direction: row-reverse; flex-wrap: wrap;
+      justify-content: flex-end; align-content: flex-start; gap: var(--act-ring) var(--act-gap);
+      height: calc(var(--space-md) + 7 * var(--act-cell) + 6 * var(--act-gap) + 2 * var(--act-ring));
+      overflow: hidden; border-radius: 0;
+      margin: calc(-1 * var(--act-ring)); padding: var(--act-ring);
+    }
+    .act-week {
+      position: relative; flex-shrink: 0;
+      display: flex; flex-direction: column; gap: var(--act-gap);
+      padding-top: var(--space-md);
+    }
+    .act-month {
+      position: absolute; top: 0; left: 0;
+      font-size: var(--text-2xs); line-height: 1; color: var(--muted);
+      white-space: nowrap; border-radius: 0;
+    }
+    .act-cell {
+      display: block; flex-shrink: 0; width: var(--act-cell); height: var(--act-cell);
+      padding: 0; border: none; border-radius: 2px;
+      background: color-mix(in srgb, var(--accent) calc(var(--l, 0) * 25%), var(--act-empty));
+    }
+    .act-map[data-actor="all"] .act-cell { --l: var(--l-all, 0); }
+    .act-map[data-actor="user"] .act-cell { --l: var(--l-user, 0); }
+    .act-map[data-actor="bots"] .act-cell { --l: var(--l-bots, 0); }
+    .act-cell--future { visibility: hidden; }
+    button.act-cell { cursor: pointer; }
+    button.act-cell:hover { outline: 1px solid var(--muted); outline-offset: 1px; }
+    .act-cell.is-selected { outline: 1px solid var(--fg); outline-offset: 1px; }
+    button.act-cell:focus-visible { outline: 2px solid rgba(var(--accent-rgb), 0.5); outline-offset: 1px; }
+    .act-foot { display: flex; align-items: center; gap: var(--space-sm); min-width: 0; }
+    .act-summary {
+      display: none; flex: 1; min-width: 0;
+      font-size: var(--text-xs); color: var(--muted);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-radius: 0;
+    }
+    .act-map[data-actor="all"] .act-summary[data-for="all"],
+    .act-map[data-actor="user"] .act-summary[data-for="user"],
+    .act-map[data-actor="bots"] .act-summary[data-for="bots"] { display: block; }
+    .act-legend {
+      flex-shrink: 0; display: flex; align-items: center; gap: var(--act-gap);
+      font-size: var(--text-2xs); color: var(--muted);
+    }
+    /* Under the map, in the body: the section-wide spot falls inside the map on short panes. */
+    .act-map ~ .empty-state--page { position: static; grid-column: 1 / -1; padding: var(--space-xxl) 1rem 0; }
+
     /* ── Section shell ─────────────────────────────────────────
        Every section in the list pane is one .sec: a .home-list-head, one
        .sec-body that scrolls, an optional footer, and its .empty-state as a
-       direct child, so all of them anchor to the same box. A section only
+       direct child, so all of them anchor to the same box (Activity's sits
+       under its map instead). A section only
        overrides what is really its own (padding, column width). */
     .sec {
       position: relative; flex: 1; min-width: 0; min-height: 0;
@@ -394,6 +470,9 @@
     .note-card-meta { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; min-width: 0; }
     .note-card-dir { flex: 1; }
     .note-card-time { flex-shrink: 0; font-size: var(--text-sm); color: var(--muted); font-variant-numeric: tabular-nums; }
+    /* Activity's day list: the bots that touched the note, then the user, then when. */
+    .note-card-touch { flex-shrink: 0; display: flex; align-items: center; gap: var(--space-xxs); }
+    .note-card-touch-user { font-size: var(--text-sm); color: var(--muted); }
     /* The excerpt says more about a note than its folder does. */
     .note-card-preview + .note-card-meta .note-card-dir { display: none; }
 

@@ -17,18 +17,19 @@ type noteItem struct {
 	Preview     string // short content excerpt (storage.Note.Preview.Text); empty when not yet computed
 	Path        string
 	UpdatedAt   string
-	URL         string // full view page URL
-	FragmentURL string // content-pane fragment URL
-	CursorNs    int64  // Unix nanoseconds for pagination cursor
-	IsKnowledge bool   // true for knowledge notes; drives data-knowledge on the read button
-	IsIndex     bool   // true for index notes (origin = "plugin:index")
-	Pinned      bool   // true when the note is pinned by the user
-	CanCompile  bool   // true when this note is eligible to be compiled (raw, compile_count==0)
-	IsCompiled  bool   // true when raw note has been compiled at least once (compile_count>0, not knowledge/index)
-	DepCount    int    // number of knowledge deps; set on index cards
-	Cover       string // image filename only; empty = no cover
-	TodoTotal   int    // GFM task-list checkboxes anywhere in the note; 0 = no checklist
-	TodoDone    int    // how many of TodoTotal are checked
+	URL         string     // full view page URL
+	FragmentURL string     // content-pane fragment URL
+	CursorNs    int64      // Unix nanoseconds for pagination cursor
+	IsKnowledge bool       // true for knowledge notes; drives data-knowledge on the read button
+	IsIndex     bool       // true for index notes (origin = "plugin:index")
+	Pinned      bool       // true when the note is pinned by the user
+	CanCompile  bool       // true when this note is eligible to be compiled (raw, compile_count==0)
+	IsCompiled  bool       // true when raw note has been compiled at least once (compile_count>0, not knowledge/index)
+	DepCount    int        // number of knowledge deps; set on index cards
+	Cover       string     // image filename only; empty = no cover
+	TodoTotal   int        // GFM task-list checkboxes anywhere in the note; 0 = no checklist
+	TodoDone    int        // how many of TodoTotal are checked
+	Touch       *noteTouch // Activity's day list: who touched it that day, and when
 }
 
 // noteToItem converts a storage.Note to a noteItem for template rendering.

@@ -6,7 +6,7 @@
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (root) root.__hyloNoteChanges = api;
 })(typeof window !== 'undefined' ? window : global, function () {
-  var NOTE_LISTS = ['folder', 'pinned', 'recent', 'tags'];
+  var NOTE_LISTS = ['folder', 'pinned', 'activity', 'tags'];
 
   function under(path, dir) {
     return path === dir || (path || '').indexOf(dir + '/') === 0;
@@ -16,7 +16,7 @@
   function listsFor(path) {
     if (under(path, '/_knowledge')) return ['knowledge'];
     if (under(path, '/_memory')) return ['memory'];
-    if (under(path, '/_shorts')) return ['shorts', 'recent'];
+    if (under(path, '/_shorts')) return ['shorts', 'activity'];
     return NOTE_LISTS;
   }
 
@@ -34,7 +34,7 @@
         if (c.op !== 'write') out.sidebar = true;
         out.shorts.push(c.data);
         park(['shorts']);
-        refetch(['recent']);
+        refetch(['activity']);
         return;
       }
       switch (c.op) {
@@ -54,8 +54,8 @@
           break;
         case 'write':
           if (c.path === editing) {
-            // A save can't say whether tags or links changed, and it reorders Recent.
-            park(['tags', 'knowledge', 'recent']);
+            // A save can't say whether tags or links changed, and it reorders Activity.
+            park(['tags', 'knowledge', 'activity']);
           } else {
             refetch(listsFor(c.path));
             // Index notes title the sidebar's knowledge entries.

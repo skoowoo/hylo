@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"path"
+	"time"
 
 	"github.com/hardhacker/hylo/internal/config"
 	"github.com/hardhacker/hylo/internal/mate"
@@ -17,11 +18,13 @@ type ViewHandler struct {
 	vault    *storage.Vault
 	searcher search.Searcher
 	cfg      *config.Config
-	mates    mateLister
+	mates    mateReader
 }
 
-type mateLister interface {
+type mateReader interface {
 	ListMates() ([]mate.Mate, error)
+	ListNoteActivity(from, to time.Time) ([]mate.NoteActivity, error)
+	FirstNoteActivity() (time.Time, bool, error)
 }
 
 // NewView creates a ViewHandler for the given Vault.
@@ -29,8 +32,9 @@ func NewView(v *storage.Vault, s search.Searcher, cfg *config.Config) *ViewHandl
 	return &ViewHandler{vault: v, searcher: s, cfg: cfg}
 }
 
-// SetMates lets the sidebar render the bot list before its first fetch.
-func (vh *ViewHandler) SetMates(m mateLister) { vh.mates = m }
+// SetMates lets the sidebar render the bot list before its first fetch, and
+// Activity draw the note activity map.
+func (vh *ViewHandler) SetMates(m mateReader) { vh.mates = m }
 
 // writeVaultError maps storage sentinel errors to appropriate HTTP status codes.
 func writeVaultError(w http.ResponseWriter, err error) {

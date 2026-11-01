@@ -29,7 +29,7 @@ var __hyloSectionShownURL = '';
 var __hyloSectionShownAt = Date.now();
 var __hyloSectionShownStale = false;
 var __hyloSectionCacheableTypes = {
-  pinned: true, recent: true, folder: true, memory: true, knowledge: true,
+  pinned: true, activity: true, folder: true, memory: true, knowledge: true,
   tags: true, images: true, shorts: true,
 };
 
@@ -53,7 +53,7 @@ function __hyloSectionParams(key) {
 
 // Params that narrow a section rather than say where it is: a refresh, or
 // writing a new short, drops them (folder path, knowledge index and view stay).
-var __hyloSectionFilterParams = ['tag', 'from'];
+var __hyloSectionFilterParams = ['tag', 'from', 'day'];
 
 function __hyloSectionUnfiltered(key) {
   var params = new URLSearchParams(__hyloSectionParams(key));

@@ -43,7 +43,7 @@ func init() {
 	static.Bundle("bundle/home.js", modules+readAssets(
 		"shared_icons_line.js", "home_init.js", "live.js", "note_changes.js", "keys.js", "card_menu.js", "path_ac.js",
 		"chat_reduce.js", "chat_text.js", "chat_kernel.js", "chat_rows.js", "chat_view.js",
-		"list_tighten.js", "graph_layout.js", "editor_session.js", "editor_agent.js", "content_pane.js",
+		"list_tighten.js", "graph_layout.js", "editor_session.js", "editor_agent.js", "content_pane.js", "note_activity.js",
 		"search_overlay.js", "confirm_dialog.js", "info_dialog.js", "servers_store.js",
 		"settings_modal.js", "settings_appearance.js", "settings_server.js", "settings_agentcli.js",
 		"settings_notifications.js", "settings_shortcuts.js", "settings_agentbots.js", "settings_skills.js",

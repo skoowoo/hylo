@@ -7,7 +7,7 @@ const keys = (o) => Object.keys(o).sort();
 test('a new note anywhere refreshes the sidebar and the lists it shows in', () => {
   const a = affect([{ op: 'create', path: '/Projects/plan.md' }]);
   assert.equal(a.sidebar, true);
-  assert.deepEqual(keys(a.refetch), ['folder', 'pinned', 'recent', 'tags']);
+  assert.deepEqual(keys(a.refetch), ['activity', 'folder', 'pinned', 'tags']);
   const k = affect([{ op: 'create', path: '/_knowledge/ai/agents.md' }]);
   assert.deepEqual(keys(k.refetch), ['knowledge']);
 });
@@ -16,7 +16,7 @@ test('the open note saving only drops cached derived lists', () => {
   const a = affect([{ op: 'write', path: '/a.md' }], { editing: '/a.md' });
   assert.equal(a.sidebar, false);
   assert.deepEqual(keys(a.refetch), []);
-  assert.deepEqual(keys(a.park), ['knowledge', 'recent', 'tags']);
+  assert.deepEqual(keys(a.park), ['activity', 'knowledge', 'tags']);
 });
 
 test('someone else writing reloads where that note shows', () => {
@@ -33,14 +33,14 @@ test('a rename touches both places, and a batch merges', () => {
     { op: 'write', path: '/x.md' },
     { op: 'image', path: '/_assets/202610/p.png' },
   ], { editing: '/x.md' });
-  assert.deepEqual(keys(a.refetch), ['folder', 'images', 'knowledge', 'pinned', 'recent', 'tags']);
+  assert.deepEqual(keys(a.refetch), ['activity', 'folder', 'images', 'knowledge', 'pinned', 'tags']);
   assert.deepEqual(keys(a.park), []);
 });
 
 test('pins, shorts and resync', () => {
-  assert.deepEqual(keys(affect([{ op: 'pin', path: '/a.md' }]).refetch), ['folder', 'pinned', 'recent', 'tags']);
+  assert.deepEqual(keys(affect([{ op: 'pin', path: '/a.md' }]).refetch), ['activity', 'folder', 'pinned', 'tags']);
   assert.deepEqual(keys(affect([{ op: 'pin', path: '/_knowledge/k.md' }]).refetch), ['knowledge', 'pinned']);
-  assert.deepEqual(keys(affect([{ op: 'write', path: '/_shorts/2026-10-13.md' }]).refetch), ['recent', 'shorts']);
+  assert.deepEqual(keys(affect([{ op: 'write', path: '/_shorts/2026-10-13.md' }]).refetch), ['activity', 'shorts']);
   const r = affect([{ op: 'resync' }]);
   assert.equal(r.all && r.sidebar, true);
 });
@@ -50,7 +50,7 @@ test('a write naming its short entry updates that card, not the feed', () => {
     { op: 'write', path: '/_shorts/2026-10-29.md', data: { id: '2026-10-29-090000', hash: 'h' } },
     { op: 'delete', path: '/_shorts/2026-10-28.md', data: { id: '2026-10-28-100000' } },
   ]);
-  assert.deepEqual(keys(a.refetch), ['recent']);
+  assert.deepEqual(keys(a.refetch), ['activity']);
   assert.deepEqual(keys(a.park), ['shorts']);
   assert.deepEqual(a.shorts.map((s) => s.id), ['2026-10-29-090000', '2026-10-28-100000']);
   assert.equal(a.sidebar, true);

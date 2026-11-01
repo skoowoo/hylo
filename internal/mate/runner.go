@@ -26,11 +26,13 @@ type Runner struct {
 	wakeFn atomic.Value // stores WakeFunc
 	logger *slog.Logger
 	settle *plugin.Coalescer
+	// One worker applies renames in order: a→b then b→c must not swap.
+	renames chan plugin.Event
 }
 
 // NewRunner creates a Runner. Call SetWakeFunc before the vault watcher fires events.
 func NewRunner(store *Store, logger *slog.Logger) *Runner {
-	r := &Runner{store: store, logger: logger}
+	r := &Runner{store: store, logger: logger, renames: make(chan plugin.Event, 256)}
 	// note_created and note_updated wait for the edit session to end instead
 	// of waking a bot on the first keystroke and every autosave.
 	r.settle = plugin.NewCoalescer(plugin.AgentWindow, r.dispatch)
@@ -46,8 +48,22 @@ func (r *Runner) Name() string { return "mate_runner" }
 
 func (r *Runner) Start(ctx context.Context) error {
 	go r.runScheduler(ctx)
+	go r.runRenames(ctx)
 	<-ctx.Done()
 	return nil
+}
+
+func (r *Runner) runRenames(ctx context.Context) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case e := <-r.renames:
+			if err := r.store.RenameNotePath(e.OldPath, e.Path); err != nil {
+				r.logger.Warn("mate_runner: rename note path", "from", e.OldPath, "to", e.Path, "err", err)
+			}
+		}
+	}
 }
 
 func (r *Runner) Stop() error {
@@ -56,6 +72,14 @@ func (r *Runner) Stop() error {
 }
 
 func (r *Runner) Notify(e plugin.Event) {
+	if e.Type == plugin.EventVaultRename {
+		select {
+		case r.renames <- e:
+		default:
+			r.logger.Warn("mate_runner: rename queue full, path not updated", "from", e.OldPath, "to", e.Path)
+		}
+		return
+	}
 	r.settle.Add(e)
 }
 

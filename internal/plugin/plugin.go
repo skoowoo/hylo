@@ -24,16 +24,16 @@ const (
 	EventVaultWrite  EventType = "vault_write"  // existing note overwritten or appended via Vault API
 	EventVaultDelete EventType = "vault_delete" // note(s) permanently deleted via Vault API
 
-	// EventVaultRename is emitted by Vault.RenameNote once the filename change
-	// itself has committed (filesystem + metadata DB). Path carries the new
-	// vault-absolute path, OldPath the previous one. Always followed by a
-	// vault_delete(OldPath)+vault_create(Path) pair (same as MoveNote), so
-	// plugins that only care about content/index sync (e.g. search) don't
-	// need to special-case it — this event exists for plugins that care
-	// specifically about the rename itself, currently just
-	// internal/plugins/renamesync, which uses it purely as a low-latency
-	// wake-up to check for pending RenameJob rows (see storage.RenameJob);
-	// its correctness never depends on this event actually arriving.
+	// EventVaultRename is emitted by Vault.RenameNote and Vault.MoveNote once
+	// the path change itself has committed (filesystem + metadata DB). Path
+	// carries the new vault-absolute path, OldPath the previous one. Always
+	// followed by a vault_delete(OldPath)+vault_create(Path) pair, so plugins
+	// that only care about content/index sync (e.g. search) don't need to
+	// special-case it — this event exists for plugins that care about the
+	// path change itself: open editor tabs follow it, mate moves its
+	// per-note records, and internal/plugins/renamesync uses it purely as a
+	// low-latency wake-up to check for pending RenameJob rows (see
+	// storage.RenameJob; a move enqueues none, so it finds nothing to do).
 	EventVaultRename EventType = "vault_rename"
 
 	// EventVaultShortAppend is emitted after every successful AppendShort call,

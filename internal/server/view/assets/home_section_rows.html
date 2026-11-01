@@ -18,7 +18,11 @@
   {{if .Preview}}<p class="note-card-preview">{{.Preview}}</p>{{end}}
   <div class="note-card-meta">
     <span class="note-card-dir">{{.Dir}}</span>
-    <span class="note-card-time">{{.UpdatedAt}}</span>
+    {{with .Touch}}<span class="note-card-touch">
+      {{range .Bots}}<span class="avatar avatar--xs" title="{{.Title}}" data-bot="{{.Name}}" x-html="agentBotAvatar($el.dataset.bot)"></span>{{end}}
+      {{if .User}}<span class="note-card-touch-user">{{.User}}</span>{{end}}
+      <span class="note-card-time">{{.Time}}</span>
+    </span>{{else}}<span class="note-card-time">{{.UpdatedAt}}</span>{{end}}
   </div>
 </div>
 {{end}}{{if .NextURL}}

@@ -102,7 +102,7 @@
     }
     .agent-bot-time { width: 8.5rem; }
     .agent-bot-schedule-at { display: flex; align-items: center; gap: 0.6rem; font-size: var(--text-sm); color: var(--muted); }
-    .agent-bot-trigger-hdr .seg-btn { padding: 0.2rem 0.5rem; font-size: var(--text-xs); }
+    .agent-bot-trigger-hdr .seg-btn { height: auto; padding: 0.2rem 0.5rem; font-size: var(--text-xs); }
     .agent-bot-trigger-card.is-off .agent-bot-trigger-hdr-main { opacity: 0.5; }
     .agent-bot-trigger-add { align-self: flex-start; }
     .agent-bot-var-panel { margin-bottom: 0.5rem; }

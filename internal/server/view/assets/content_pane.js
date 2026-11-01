@@ -777,6 +777,7 @@
       // Autosave targets __hyloEditor.currentPath, not tab.path — miss it and
       // the next edit recreates the note at the old path.
       noteRenamed(oldPath, newPath) {
+        __hyloVisitRenamed(oldPath, newPath);
         var tab = this.tabs.find(function(t) { return t.path === oldPath; });
         if (!tab) return;
         tab.path = newPath;

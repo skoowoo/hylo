@@ -382,6 +382,7 @@
        one-shot .is-playing (hover, a new reply), and blinks only under
        [data-blink] (the sidebar and the latest reply). ── */
     .avatar { display: block; flex-shrink: 0; user-select: none; }
+    .avatar--xs { width: 14px; height: 14px; }
     .avatar--sm { width: 20px; height: 20px; }
     .avatar--md { width: 28px; height: 28px; }
     .avatar--lg { width: 36px; height: 36px; }
@@ -461,11 +462,13 @@
        every picker app-wide (graph color mode, settings
        pickers) so they can't drift apart in size. Padding is 3px (was 2px
        + 1px border) so the overall size is unchanged; inner radius is the
-       outer 8px minus that padding. ── */
+       outer 8px minus that padding. 28px tall like the icon buttons, on
+       whole pixels: rem padding made it 28.6px and shifted what follows. ── */
     .seg { flex-shrink: 0; display: inline-flex; background: var(--btn-bg); border: none; padding: 3px; gap: 2px; }
     .seg-btn {
       display: flex; align-items: center; gap: 0.375rem;
-      padding: 0.3rem 0.6rem; border: none; background: transparent;
+      height: calc(var(--action-btn-sz) - 6px);
+      padding: 0 0.6rem; border: none; background: transparent;
       border-radius: var(--r-sm);
       transition: background-color var(--motion-fast), color var(--motion-fast);
       font-family: inherit; font-size: var(--text-sm); font-weight: var(--fw-medium);

@@ -346,7 +346,9 @@ func (s *Store) ListMessagesSince(conversationID string, sinceMs int64) ([]Messa
 
 // InsertMessageNoteAccess records the notes an assistant run touched. Called once
 // per run after the agent process exits, from the normalized list any backend's
-// event stream produced (see agent.NoteAccessTracker).
+// event stream produced (see agent.NoteAccessTracker). Writes are also logged
+// as the message's bot's note activity, and so are reads that read the note in
+// a run the user asked for; a wake's sweep of notes is not reading them.
 func (s *Store) InsertMessageNoteAccess(messageID string, entries []NoteAccessEntry) error {
 	if len(entries) == 0 {
 		return nil
@@ -363,13 +365,28 @@ func (s *Store) InsertMessageNoteAccess(messageID string, entries []NoteAccessEn
 		return fmt.Errorf("mate: note access prepare: %w", err)
 	}
 	defer stmt.Close()
+	activity, err := tx.Prepare(
+		`INSERT INTO note_activity(path, actor, action, at)
+		 SELECT ?, mate_id, ?, ? FROM chat_messages WHERE id = ? AND mate_id != ''
+		   AND (? = 'write' OR trigger_event = '')`,
+	)
+	if err != nil {
+		return fmt.Errorf("mate: note activity prepare: %w", err)
+	}
+	defer activity.Close()
 	for _, e := range entries {
-		at := e.At.UnixMilli()
-		if at == 0 {
-			at = time.Now().UnixMilli()
+		at := e.At
+		if at.IsZero() {
+			at = time.Now()
 		}
-		if _, err := stmt.Exec(messageID, e.Path, e.Action, e.Tool, at); err != nil {
+		if _, err := stmt.Exec(messageID, e.Path, e.Action, e.Tool, at.UnixMilli()); err != nil {
 			return fmt.Errorf("mate: insert note access: %w", err)
+		}
+		if e.Skim && e.Action != NoteAccessWrite {
+			continue
+		}
+		if _, err := activity.Exec(e.Path, e.Action, at.UnixMilli(), messageID, e.Action); err != nil {
+			return fmt.Errorf("mate: insert note activity: %w", err)
 		}
 	}
 	return tx.Commit()

@@ -84,11 +84,13 @@ func shortHash(content string) string {
 	return hex.EncodeToString(sum[:6])
 }
 
-func shortDayPath(t time.Time) Path {
+// ShortDayPath is the daily file a short written at t goes to.
+func ShortDayPath(t time.Time) Path {
 	return Path(ShortDir + "/" + t.Format("2006-01-02") + ".md")
 }
 
-func shortPathFromID(id string) (Path, error) {
+// ShortPathFromID is the daily file that holds the short entry id.
+func ShortPathFromID(id string) (Path, error) {
 	m := shortIDRe.FindStringSubmatch(id)
 	if m == nil || strings.Contains(m[1], "/") {
 		return "", fmt.Errorf("invalid short id %q: %w", id, ErrNotFound)
@@ -140,7 +142,7 @@ func (g *Vault) AppendShort(content []byte) (ShortEntry, error) {
 	var p Path
 	var existing []byte
 	for {
-		p = shortDayPath(now)
+		p = ShortDayPath(now)
 		existing, err = g.readNoteLocked(p)
 		if err != nil && !errors.Is(err, ErrNotFound) {
 			g.mu.Unlock()
@@ -225,7 +227,7 @@ func (g *Vault) emitShort(typ plugin.EventType, p Path, t time.Time, id, hash st
 
 // GetShort returns the entry with the given id.
 func (g *Vault) GetShort(id string) (ShortEntry, error) {
-	p, err := shortPathFromID(id)
+	p, err := ShortPathFromID(id)
 	if err != nil {
 		return ShortEntry{}, err
 	}
@@ -279,7 +281,7 @@ func (g *Vault) DeleteShort(id, hash string) error {
 // hand-written text and other entries are left exactly as they were. after is
 // the entry's hash once edited, "" when edit removes it.
 func (g *Vault) spliceShort(id, hash, after string, edit func(raw []byte, segs []shortSegment, i int) []byte) error {
-	p, err := shortPathFromID(id)
+	p, err := ShortPathFromID(id)
 	if err != nil {
 		return err
 	}
