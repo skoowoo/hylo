@@ -21,8 +21,9 @@ const (
 // Change is one thing that changed. For notes, Op is create, write, delete,
 // rename, pin or image, and Path the note (or folder, or image); a write that
 // touched one short entry carries its ShortRef in Data, a pin its PinRef.
-// A chat "wake" carries the ended wake in Data; other topics only say that
-// something in them changed.
+// A chat "wake" carries the ended wake in Data. A chat "change" means the
+// transcript, or which chat is current, changed; Data lists the message ids it
+// touched, if any. Other topics only say that something in them changed.
 type Change struct {
 	Topic   string `json:"topic"`
 	Op      string `json:"op"`

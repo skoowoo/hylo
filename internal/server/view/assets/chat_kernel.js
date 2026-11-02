@@ -1,7 +1,8 @@
 // Page-lifetime chat session. Session owns the transcript, transport owns
-// SSE and the two pollers, and a single phase (idle | sending | streaming |
-// stopping) is the only busy flag. The view attaches only while the pane is
-// in the DOM; a run keeps going when the pane is swapped away.
+// SSE, the live feed, and a run poller for a stream that drops, and a single
+// phase (idle | sending | streaming | stopping) is the only busy flag. The
+// view attaches only while the pane is in the DOM; a run keeps going when
+// the pane is swapped away.
 (function (root) {
   var R = root.__hyloChatReduce;
 
@@ -42,8 +43,16 @@
 
     var refreshSeq = 0;
     var runCtrl = { seq: 0, timer: null, interval: 5000, firstDelay: 3000 };
-    var syncCtrl = { seq: 0, timer: null, interval: 5000, firstDelay: 5000 };
-    var syncingConv = '';
+    // A live "chat" change arrived. Pulled once the page is looking and no
+    // local turn is in flight; one that lands during a turn waits until it ends.
+    var transcriptGen = 0;
+    var transcriptEpoch = 0;
+    var transcriptPending = false;
+    var transcriptFull = false;
+    var transcriptFlying = false;
+    // Rows this page wrote and saw through to the end of their stream; the
+    // store's changes for them say nothing new.
+    var mine = {};
     var pollError = {};
 
     var view = null;
@@ -232,12 +241,13 @@
       fetch('/api/mates/' + encodeURIComponent(id) + '/seen', { method: 'POST' }).catch(function () { /* the next open retries */ });
     }
 
-    // A wake's turn is over. A silent one leaves the chat; any other is unread
-    // until the user looks.
-    function onWakes(changes) {
-      var unread = false, mine = false, drop = false;
+    // A wake's turn is over, or some other writer changed the transcript.
+    // A silent wake leaves the chat; any other wake is unread until the user looks.
+    function onChat(changes) {
+      var unread = false, drop = false, sync = false, full = false;
       changes.forEach(function (c) {
-        if (c.op === 'resync') { unread = mine = true; return; }
+        if (c.op === 'resync') { unread = true; full = true; return; }
+        if (c.op === 'change') { if (!ownChange(c.data)) sync = true; return; }
         var e = c.data;
         if (c.op !== 'wake' || !e) return;
         if (e.silent) {
@@ -247,11 +257,95 @@
           return;
         }
         unread = true;
-        if (e.mateId === mateId) mine = true;
+        if (e.mateId === mateId) sync = true;
       });
       if (drop) requestRender();
       if (unread) void loadMates();
-      if (mine && conversationId && !busy()) void refresh(true);
+      if (full) noteTranscript(true);
+      else if (sync) noteTranscript(false);
+    }
+
+    function ownChange(ids) {
+      return Array.isArray(ids) && ids.length > 0 && ids.every(function (id) { return mine[id]; });
+    }
+
+    function noteTranscript(full) {
+      transcriptEpoch++;
+      transcriptPending = true;
+      if (full) transcriptFull = true;
+      pumpTranscript();
+    }
+
+    function pumpTranscript() {
+      if (!transcriptPending || transcriptFlying || !mateId || liveRun() || phase === 'sending') return;
+      if (document.visibilityState !== 'visible') return;
+      void pullTranscript();
+    }
+
+    // One pass of what the old timer did: follow a newer chat, or merge rows
+    // updated since lastMsgMs. A resync reloads the page, since a gap can hide a delete.
+    async function pullTranscript() {
+      var full = transcriptFull;
+      transcriptPending = false;
+      transcriptFull = false;
+      transcriptFlying = true;
+      var gen = transcriptGen;
+      var epoch = transcriptEpoch;
+      var convId = conversationId;
+      var failed = false;
+      try {
+        if (gen !== transcriptGen) return;
+        if (full) {
+          await refresh(true);
+          return;
+        }
+        var data = await fetchJSON('/api/conversations?mateId=' + encodeURIComponent(mateId));
+        if (gen !== transcriptGen || liveRun()) return;
+        if (!data) { failed = true; reportPoll('sync', "Couldn't refresh the chat"); transcriptPending = true; return; }
+        clearPoll('sync');
+        var convs = data.conversations || [];
+        var newest = convs.length ? convs[0].id : '';
+        if (newest !== convId) {
+          await refresh();
+          return;
+        }
+        if (!convId) return;
+        var data2 = await fetchJSON('/api/conversations/' + convId + '?since=' + lastMsgMs);
+        if (gen !== transcriptGen || convId !== conversationId || liveRun()) return;
+        if (!data2) { failed = true; reportPoll('sync', "Couldn't refresh the chat"); transcriptPending = true; return; }
+        clearPoll('sync');
+        var msgs = data2.messages || [];
+        if (hasOlder && messages.length) {
+          var floor = messages[0].createdAt || 0;
+          msgs = msgs.filter(function (m) {
+            return findMsg(m.id) || (m.createdAt ? new Date(m.createdAt).getTime() : 0) > floor;
+          });
+        }
+        // A row still running here has newer tokens than the placeholder in the DB.
+        msgs = msgs.filter(function (m) {
+          var ex = m.id && findMsg(m.id);
+          return !(ex && ex.status === 'running' && m.status === 'running');
+        });
+        if (msgs.length > 0) {
+          var changed = R.mergeSynced(messages, msgs);
+          var lastTs = 0;
+          for (var j = 0; j < msgs.length; j++) {
+            var t = msgs[j].updatedAt ? new Date(msgs[j].updatedAt).getTime() : 0;
+            if (t > lastTs) lastTs = t;
+          }
+          if (lastTs > lastMsgMs) lastMsgMs = lastTs;
+          if (changed) requestRender();
+        }
+      } catch (e) {
+        failed = true;
+        reportPoll('sync', "Couldn't refresh the chat");
+        transcriptPending = true;
+      } finally {
+        transcriptFlying = false;
+        // A failure waits for the next change or for the tab to be shown again.
+        // Another change that arrived mid-fetch still runs.
+        if (!failed && transcriptPending && transcriptEpoch !== epoch) pumpTranscript();
+      }
     }
 
     async function loadEvents() {
@@ -265,11 +359,6 @@
     }
 
     function cancelRunPoller() { stopLoop(runCtrl); }
-
-    function cancelSync() {
-      stopLoop(syncCtrl);
-      syncingConv = '';
-    }
 
     runCtrl.onError = function () { reportPoll('run', "Couldn't check the run"); };
 
@@ -301,56 +390,6 @@
       });
     }
 
-    function ensureSync(convId) {
-      if (!convId || syncingConv === convId) return;
-      startSync(convId);
-    }
-
-    syncCtrl.onError = function () { reportPoll('sync', "Couldn't refresh the chat"); };
-
-    function startSync(convId) {
-      cancelSync();
-      syncingConv = convId;
-      loop(syncCtrl, async function (seq) {
-        if (liveRun() || !convId || document.visibilityState !== 'visible') return 5000;
-        var data = await fetchJSON('/api/conversations?mateId=' + encodeURIComponent(mateId));
-        if (syncCtrl.seq !== seq) return false;
-        var convs = (data && data.conversations) || [];
-        if (convs.length > 0 && convs[0].id !== convId) {
-          if (liveRun()) return 5000;
-          void refresh();
-          return false;
-        }
-        var data2 = await fetchJSON('/api/conversations/' + convId + '?since=' + lastMsgMs);
-        if (syncCtrl.seq !== seq) return false;
-        if (liveRun() || convId !== conversationId) return 5000;
-        if (!data2) {
-          reportPoll('sync', "Couldn't refresh the chat");
-          return 5000;
-        }
-        clearPoll('sync');
-        var msgs = data2.messages || [];
-        // Older rows outside the loaded window would land at the tail.
-        if (hasOlder && messages.length) {
-          var floor = messages[0].createdAt || 0;
-          msgs = msgs.filter(function (m) {
-            return findMsg(m.id) || (m.createdAt ? new Date(m.createdAt).getTime() : 0) > floor;
-          });
-        }
-        if (msgs.length > 0) {
-          var changed = R.mergeSynced(messages, msgs);
-          var lastTs = 0;
-          for (var j = 0; j < msgs.length; j++) {
-            var t = msgs[j].updatedAt ? new Date(msgs[j].updatedAt).getTime() : 0;
-            if (t > lastTs) lastTs = t;
-          }
-          if (lastTs > lastMsgMs) lastMsgMs = lastTs;
-          if (changed) requestRender();
-        }
-        return 5000;
-      });
-    }
-
     async function loadMessages(convId, seq, keepPlace) {
       try {
         var resp = await fetch('/api/conversations/' + convId + '?limit=' + PAGE, { cache: 'no-store' });
@@ -368,7 +407,6 @@
           if (t > lastMs) lastMs = t;
         }
         lastMsgMs = lastMs;
-        startSync(convId);
         requestRender(!keepPlace);
       } catch (e) { notify("Couldn't load the conversation"); }
     }
@@ -390,7 +428,6 @@
           messages = [];
           loaded = true;
           hasOlder = false;
-          cancelSync();
           requestRender();
         }
       } catch (e) { notify("Couldn't load the conversation"); }
@@ -479,10 +516,12 @@
         rev: 1,
       };
       messages.push(assistant);
+      mine[userMsgId] = mine[assistant.id] = true;
       phase = 'streaming';
       run = { id: null, assistantMsgId: assistant.id };
       requestRender(true);
       var sseGotEnd = true;
+      var settled = false;
       try {
         var resp = await fetch('/api/chat', {
           method: 'POST',
@@ -509,6 +548,7 @@
           return;
         }
         sseGotEnd = await consumeSSE(resp, assistant);
+        settled = sseGotEnd;
         var finish = finishers[mate.agentId];
         if (sseGotEnd && conversationId && finish) await finish(conversationId, assistant);
       } catch (e) {
@@ -522,7 +562,9 @@
         phase = 'idle';
         run = null;
         if (!sseGotEnd && runId) spawnRunPoller(runId, assistant.id);
-        ensureSync(conversationId);
+        // Without its end the reply here isn't final: the stored one is.
+        if (!settled) { delete mine[assistant.id]; noteTranscript(false); }
+        else pumpTranscript();
         requestRender();
       }
     }
@@ -627,7 +669,9 @@
     // Parks the open conversation and brings back the one last seen for this mate.
     function openConversation(id) {
       cancelRunPoller();
-      cancelSync();
+      transcriptGen++;
+      transcriptPending = false;
+      transcriptFull = false;
       if (mateId && loaded) {
         parked[mateId] = { conversationId: conversationId, messages: messages, hasOlder: hasOlder, lastMsgMs: lastMsgMs };
       }
@@ -667,13 +711,12 @@
           hasOlder = false;
           stoppingMsgId = '';
           lastMsgMs = 0;
-          cancelSync();
-          startSync(conversationId);
           requestRender();
         }
       } catch (e) { notify("Couldn't start a new chat"); }
       finally {
         if (phase === 'sending') phase = 'idle';
+        pumpTranscript();
         requestRender();
       }
     }
@@ -869,9 +912,13 @@
         matesReady = Promise.all([loadMates(), loadEvents()]);
         if (root.__hyloLive) {
           root.__hyloLive.on('bots', reloadMates);
-          root.__hyloLive.on('chat', onWakes);
+          root.__hyloLive.on('chat', onChat);
         }
-        document.addEventListener('visibilitychange', function () { if (watching()) markSeen(mateId); });
+        document.addEventListener('visibilitychange', function () {
+          if (document.visibilityState !== 'visible') return;
+          if (watching()) markSeen(mateId);
+          pumpTranscript();
+        });
       },
       bootstrap: async function () {
         if (bootstrapped) return;

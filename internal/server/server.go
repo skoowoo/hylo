@@ -129,6 +129,13 @@ func New(cfg *config.Config, cfgFileLoaded string, logger *slog.Logger, vault *s
 			feed.Notify(live.TopicBots)()
 			channelHub.Reload()
 		})
+		ms.SetOnChat(func(ids []string) {
+			c := live.Change{Topic: live.TopicChat, Op: "change"}
+			if len(ids) > 0 {
+				c.Data = ids
+			}
+			feed.Publish(c)
+		})
 		if err := ms.MarkStalledRunMessagesAsFailed(); err != nil {
 			logger.Warn("mate: mark stalled messages failed", "err", err)
 		}

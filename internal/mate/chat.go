@@ -24,6 +24,7 @@ func (s *Store) CreateConversation(mateID, title string) (Conversation, error) {
 	if err != nil {
 		return Conversation{}, fmt.Errorf("mate: create conversation: %w", err)
 	}
+	s.chatChanged()
 	return Conversation{
 		ID:        id,
 		MateID:    mateID,
@@ -83,6 +84,7 @@ func (s *Store) EnsureNewConv(mateID, title string, keep int) (Conversation, err
 		if msgCount == 0 {
 			// Reused, it must also become the current chat (most recently updated).
 			_, _ = s.db.Exec(`UPDATE conversations SET updated_at = ? WHERE id = ?`, time.Now().UnixMilli(), latestID)
+			s.chatChanged()
 			return s.GetConversation(latestID)
 		}
 	}
@@ -129,7 +131,11 @@ func (s *Store) touchConversation(id string) {
 
 func (s *Store) DeleteConversation(id string) error {
 	_, err := s.db.Exec(`DELETE FROM conversations WHERE id = ?`, id)
-	return err
+	if err != nil {
+		return err
+	}
+	s.chatChanged()
+	return nil
 }
 
 // SetConversationAgentSession stores the agent-native session id for multi-turn resume,
@@ -178,6 +184,7 @@ func (s *Store) InsertMessage(m Message) (Message, error) {
 		return Message{}, fmt.Errorf("mate: insert message: %w", err)
 	}
 	s.touchConversation(m.ConversationID)
+	s.chatChanged(m.ID)
 	return m, nil
 }
 
@@ -221,15 +228,21 @@ func (s *Store) DeleteRetried(convID, assistantID, prompt string) error {
 	if err != nil && err != sql.ErrNoRows {
 		return err
 	}
+	deleted := []string{assistantID}
 	if (prevRole == "user" || prevRole == "wake") && prevContent == prompt {
 		if _, err := tx.Exec(`DELETE FROM chat_messages WHERE id = ?`, prevID); err != nil {
 			return err
 		}
+		deleted = append(deleted, prevID)
 	}
 	if _, err := tx.Exec(`DELETE FROM chat_messages WHERE id = ?`, assistantID); err != nil {
 		return err
 	}
-	return tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	s.chatChanged(deleted...)
+	return nil
 }
 
 // DeleteMessages drops a turn the chat shouldn't show, like a wake the bot chose to stay silent on.
@@ -242,7 +255,11 @@ func (s *Store) DeleteMessages(ids ...string) error {
 		args[i] = id
 	}
 	_, err := s.db.Exec(`DELETE FROM chat_messages WHERE id IN (?`+strings.Repeat(",?", len(ids)-1)+`)`, args...)
-	return err
+	if err != nil {
+		return err
+	}
+	s.chatChanged(ids...)
+	return nil
 }
 
 // UpdateMessageDone stores a finished run: its reply, and the agent events
@@ -253,7 +270,11 @@ func (s *Store) UpdateMessageDone(id, content, trace, status string) error {
 		`UPDATE chat_messages SET content = ?, trace = ?, status = ?, updated_at = ? WHERE id = ?`,
 		content, trace, status, now, id,
 	)
-	return err
+	if err != nil {
+		return err
+	}
+	s.chatChanged(id)
+	return nil
 }
 
 const messageCols = `id, conversation_id, role, content, agent_id, mate_id, model_id, run_id, status, trigger_event, trigger_id, trace, attachments, created_at, updated_at`

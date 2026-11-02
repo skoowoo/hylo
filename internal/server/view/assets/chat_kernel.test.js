@@ -389,3 +389,128 @@ test('a wake reply shows only once it is done, so a silent one never appears', a
     disarm();
   }
 });
+
+test('a chat change pulls the transcript, and a hidden tab waits to be shown', async function () {
+  var listeners = {};
+  var onShow = [];
+  var prevListen = global.document.addEventListener;
+  global.document.addEventListener = function (type, fn) {
+    if (type === 'visibilitychange') onShow.push(fn);
+  };
+  global.__hyloLive = { on: function (topic, fn) { listeners[topic] = fn; } };
+  var api;
+  global.__hyloChatMount = function (el, facade) {
+    api = facade;
+    return { render: function () {}, destroy: function () {}, draftValue: function () { return facade.draft(); }, clearComposer: function () {}, focusComposer: function () {} };
+  };
+  var since = 0;
+  var extra = false;
+  global.fetch = async function (url) {
+    var u = String(url);
+    if (u === '/api/mates') return jsonResponse(200, { mates: [{ id: 'm1', name: 'Ada', enabled: true, agentId: 'pi' }] });
+    if (u === '/api/mate-events') return jsonResponse(200, { events: [] });
+    if (u.indexOf('/api/conversations?') === 0) return jsonResponse(200, { conversations: [{ id: 'c1' }] });
+    if (u.indexOf('since=') >= 0) {
+      since++;
+      var msgs = [{ id: 'u1', role: 'user', content: 'from the phone', createdAt: 1, updatedAt: 1 }];
+      if (extra) msgs.push({ id: 'a2', role: 'assistant', content: 'On my way.', status: 'succeeded', createdAt: 2, updatedAt: 5 });
+      return jsonResponse(200, { messages: msgs });
+    }
+    if (u.split('?')[0] === '/api/conversations/c1') {
+      return jsonResponse(200, { messages: [{ id: 'u0', role: 'user', content: 'earlier', createdAt: 1, updatedAt: 1 }] });
+    }
+    throw new Error('unmocked ' + u);
+  };
+  var chat = global.__hyloChatCreate({});
+  try {
+    global.document.visibilityState = 'hidden';
+    chat.start();
+    await chat.bootstrap();
+    chat.attach({});
+    await tick();
+    assert.equal(since, 0, 'opening a chat does not start a poll');
+
+    listeners.chat([{ topic: 'chat', op: 'change' }]);
+    await tick();
+    await tick();
+    assert.equal(since, 0, 'a hidden tab keeps the change until it is shown');
+    assert.deepEqual(api.state().messages.map(function (m) { return m.id; }), ['u0']);
+
+    global.document.visibilityState = 'visible';
+    onShow.forEach(function (fn) { fn(); });
+    await tick();
+    await tick();
+    assert.equal(since, 1);
+    assert.deepEqual(api.state().messages.map(function (m) { return m.content; }), ['earlier', 'from the phone']);
+
+    extra = true;
+    listeners.chat([{ topic: 'chat', op: 'change' }]);
+    await tick();
+    await tick();
+    assert.equal(since, 2);
+    assert.deepEqual(api.state().messages.map(function (m) { return m.id; }), ['u0', 'u1', 'a2']);
+  } finally {
+    global.document.visibilityState = 'visible';
+    global.document.addEventListener = prevListen;
+    delete global.__hyloLive;
+    disarm();
+  }
+});
+
+test('the changes from a turn this page streamed to its end pull nothing; a dropped one pulls', async function () {
+  var listeners = {};
+  global.__hyloLive = { on: function (topic, fn) { listeners[topic] = fn; } };
+  var api;
+  global.__hyloChatMount = function (el, facade) {
+    api = facade;
+    return { render: function () {}, destroy: function () {}, draftValue: function () { return facade.draft(); }, clearComposer: function () {}, focusComposer: function () {} };
+  };
+  var since = 0;
+  var drop = false;
+  global.fetch = async function (url, opts) {
+    var u = String(url);
+    if (u === '/api/mates') return jsonResponse(200, { mates: [{ id: 'm1', name: 'Ada', enabled: true, agentId: 'pi' }] });
+    if (u === '/api/mate-events') return jsonResponse(200, { events: [] });
+    if (u.indexOf('/api/conversations?') === 0) return jsonResponse(200, { conversations: [{ id: 'c1' }] });
+    if (u.indexOf('since=') >= 0) { since++; return jsonResponse(200, { messages: [] }); }
+    if (u.split('?')[0] === '/api/conversations/c1') return jsonResponse(200, { messages: [] });
+    if (u === '/api/chat') {
+      var body = JSON.parse(opts.body);
+      var ids = [body.userMessageId, body.assistantMessageId];
+      listeners.chat([{ topic: 'chat', op: 'change', data: ids.slice(0, 1) }, { topic: 'chat', op: 'change', data: ids.slice(1) }]);
+      return sseResponse(drop ? ['event: start\ndata: {}\n\n'] : [
+        'event: end\ndata: {"status":"succeeded"}\n\n',
+        { then: function (resolve) { listeners.chat([{ topic: 'chat', op: 'change', data: ids.slice(1) }]); resolve({ done: true }); } },
+      ]);
+    }
+    throw new Error('unmocked ' + u);
+  };
+  var chat = global.__hyloChatCreate({});
+  try {
+    chat.start();
+    await chat.bootstrap();
+    chat.attach({});
+    await tick();
+
+    api.setDraft('hello');
+    await api.send();
+    await tick();
+    await tick();
+    assert.equal(since, 0, 'its own rows are already here');
+
+    listeners.chat([{ topic: 'chat', op: 'change', data: ['x9'] }]);
+    await tick();
+    await tick();
+    assert.equal(since, 1, 'a row from elsewhere is pulled');
+
+    drop = true;
+    api.setDraft('again');
+    await api.send();
+    await tick();
+    await tick();
+    assert.equal(since, 2, 'a reply without its end comes from the store');
+  } finally {
+    delete global.__hyloLive;
+    disarm();
+  }
+});

@@ -118,11 +118,18 @@ CREATE UNIQUE INDEX IF NOT EXISTS bot_channels_identity ON bot_channels(kind, ex
 type Store struct {
 	db       *sql.DB
 	onChange func()
+	onChat   func(ids []string)
 }
 
 // SetOnChange registers fn to run after any change to bots or their triggers.
 // Set it before the store is in use.
 func (s *Store) SetOnChange(fn func()) { s.onChange = fn }
+
+// SetOnChat registers fn to run after the transcript changes, with the ids of
+// the messages written or deleted, or none when a chat was opened or removed.
+// Bot config goes through SetOnChange. Set it before the store is in use. fn
+// runs inline and must not call back into the store.
+func (s *Store) SetOnChat(fn func(ids []string)) { s.onChat = fn }
 
 // changed passes err through, telling the hook first when the change went in.
 func (s *Store) changed(err error) error {
@@ -130,6 +137,12 @@ func (s *Store) changed(err error) error {
 		s.onChange()
 	}
 	return err
+}
+
+func (s *Store) chatChanged(ids ...string) {
+	if s.onChat != nil {
+		s.onChat(ids)
+	}
 }
 
 // Open opens (or creates) the combined database at <vaultRoot>/.hylo/mate.db.
