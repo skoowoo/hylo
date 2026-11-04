@@ -7,10 +7,10 @@
   {{if .Cover}}<div class="note-card-cover" aria-hidden="true"><img src="{{coverURL .Cover}}" alt="" draggable="false" loading="lazy" decoding="async"></div>{{end}}
   <div class="note-card-head">
     <span class="note-card-title">{{label .}}</span>
-    {{if .TodoTotal}}{{if eq .TodoDone .TodoTotal}}<span class="note-badge note-badge--done" title="{{.TodoDone}}/{{.TodoTotal}} done">{{icon "check"}}</span>{{else}}<span class="note-badge note-badge--todo" title="{{.TodoDone}}/{{.TodoTotal}}"><svg viewBox="0 0 20 20"><circle class="note-badge--todo-track" cx="10" cy="10" r="8"/><circle class="note-badge--todo-fill" cx="10" cy="10" r="8" transform="rotate(-90 10 10)" stroke-dasharray="{{todoRingDash .TodoDone .TodoTotal}}"/></svg></span>{{end}}{{end}}
+    {{if .TodoTotal}}<span class="note-badge note-badge--todo{{if eq .TodoDone .TodoTotal}} is-done{{end}}" title="{{.TodoDone}}/{{.TodoTotal}} done"><svg viewBox="0 0 20 20"><circle class="note-badge--todo-track" cx="10" cy="10" r="8"/><circle class="note-badge--todo-fill" cx="10" cy="10" r="8" transform="rotate(-90 10 10)" stroke-dasharray="{{todoRingDash .TodoDone .TodoTotal}}"/></svg></span>{{end}}
     <span class="note-card-end">
-      {{if .Pinned}}<span class="note-badge note-badge--pin" title="Pinned">{{icon "bookmark" `fill="currentColor" stroke="none"`}}</span>{{end}}
-      {{if .IsCompiled}}<span class="note-badge note-badge--done" title="Compiled">{{icon "check"}}</span>{{end}}
+      {{if .Pinned}}<span class="note-badge note-badge--pin" title="Favorite">{{icon "favorite" `fill="currentColor" stroke="none"`}}</span>{{end}}
+      {{if .IsCompiled}}<span class="note-badge note-badge--compiled" title="Compiled">{{icon "check"}}</span>{{end}}
       <button type="button" class="icon-btn-ghost icon-btn-ghost--sm card-more card-reveal" title="More" aria-label="More" aria-haspopup="menu" aria-expanded="false"
               @click.stop="__hyloNoteCardMenu($el, $event)">{{icon "more"}}</button>
     </span>

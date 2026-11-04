@@ -113,41 +113,6 @@
       font-style: italic;
     }
 
-    /* Reset-chat button */
-    .new-chat-btn {
-      flex-shrink: 0;
-      width: var(--action-btn-sz);
-      height: var(--action-btn-sz);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border: none;
-      border-radius: var(--r-sm);
-      cursor: pointer;
-      background: var(--btn-bg);
-      color: var(--muted);
-      transition: background-color var(--motion-fast), color var(--motion-fast);
-    }
-
-    .new-chat-btn:hover:not(:disabled) {
-      background: var(--btn-bg-hov);
-      color: var(--fg);
-    }
-
-    .new-chat-btn:active:not(:disabled) {
-      background: var(--btn-bg-on);
-    }
-
-    .new-chat-btn:disabled {
-      opacity: 0.25;
-      cursor: not-allowed;
-    }
-
-    .new-chat-btn svg {
-      width: 13px;
-      height: 13px;
-    }
-
     /* ── Messages ───────────────────────────────────────────────── */
     /* .chat-scroll is the full-width scroll viewport (scrollbar sits at the
        pane's true edge); .chat-scroll-inner is the actual reading column,

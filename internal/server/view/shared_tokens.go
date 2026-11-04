@@ -26,6 +26,8 @@ const appTokensShared = `
       --overlay-bg:rgba(0,0,0,0.25);
       /* Hover is an ink wash like nav rows and buttons; an accent tint turns grey surfaces lavender. */
       --card-hov:rgba(var(--ink-rgb),0.05);
+      /* Note cards at rest: half the hover step, so a page of them isn't a wall of grey tiles. */
+      --card-rest:rgba(var(--ink-rgb),0.025);
       --icon-hov:rgba(var(--ink-rgb),0.08);
       --tint-soft:rgba(var(--accent-rgb),0.06);
       --tint-md:rgba(var(--accent-rgb),0.10);
@@ -128,7 +130,7 @@ const appTokensDark = `
       --seg-thumb:var(--control-active-bg-on-soft);
       /* macOS vibrancy wash: enough to hold a bright or saturated wallpaper on the neutral hue, thin enough to stay glass. */
       --sidebar-glass-bg:rgba(33,34,39,0.45);
-      --glass-bg:rgba(33,34,39,0.72); --sidebar-glass-border:rgba(255,255,255,0.1);
+      --glass-bg:rgba(33,34,39,0.72);
       --canvas:#ffffff; --muted-soft:#696b74;
       /* Secondary content (excerpts, table heads) — between --fg and --muted, ~8:1. */
       --fg-2:#b6b8c1;
@@ -154,7 +156,7 @@ const appTokensLight = `
       /* Brighter canvas needs a more visible thumb than the shared (dark-tuned) value. */
       --scrollbar-thumb:rgba(var(--ink-rgb),0.12); --scrollbar-thumb-hov:rgba(var(--ink-rgb),0.24);
       --sidebar-glass-bg:rgba(250,250,251,0.5);
-      --glass-bg:rgba(252,252,253,0.72); --sidebar-glass-border:rgba(0,0,0,0.08);
+      --glass-bg:rgba(252,252,253,0.72);
       --canvas:#ffffff; --muted-soft:#9c9ea7; --fg-2:#4d4f58;
             --accent-hov:#4c56c8;
       --accent-text:var(--accent);

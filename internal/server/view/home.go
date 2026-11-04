@@ -7,6 +7,7 @@ import (
 	"math"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -222,6 +223,7 @@ func (vh *ViewHandler) homeSectionData(r *http.Request, itemsOnly bool) (homeSec
 			if err != nil {
 				return data, err
 			}
+			notes = slices.DeleteFunc(notes, storage.Note.IsSystem)
 			data.Items = vh.noteItemsFromNotes(notes)
 			data.Title = "Activity"
 			data.Empty = emptyState{Icon: "recent", Title: "Nothing this week", Desc: "Notes you edit over the last 7 days show up here."}
@@ -238,9 +240,9 @@ func (vh *ViewHandler) homeSectionData(r *http.Request, itemsOnly bool) (homeSec
 			return data, err
 		}
 		data.Items = vh.noteItemsFromNotes(pinned)
-		data.Title = "Pinned"
+		data.Title = "Favorites"
 		data.HidePin = true
-		data.Empty = emptyState{Icon: "pinned", Title: "No pinned notes", Desc: "Pin the notes you come back to often to keep them here."}
+		data.Empty = emptyState{Icon: "favorite", Title: "No favorite notes", Desc: "Add the notes you come back to often to favorites to keep them here."}
 		data.Count = len(data.Items)
 	}
 	return data, nil

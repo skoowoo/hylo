@@ -100,9 +100,9 @@
                       :class="{ active: tabs[activeTab] && tabs[activeTab].pinned }"
                       x-show="tabs[activeTab] && tabs[activeTab].path"
                       @click.stop="moreOpen = false; togglePinActiveNote()"
-                      :title="tabs[activeTab] && tabs[activeTab].pinned ? 'Unpin note' : 'Pin note'">
-                {{icon "bookmark"}}
-                <span x-text="tabs[activeTab] && tabs[activeTab].pinned ? 'Unpin' : 'Pin'"></span>
+                      :title="tabs[activeTab] && tabs[activeTab].pinned ? 'Remove from favorites' : 'Add to favorites'">
+                {{icon "favorite"}}
+                <span x-text="tabs[activeTab] && tabs[activeTab].pinned ? 'Remove from favorites' : 'Add to favorites'"></span>
               </button>
               <button type="button" class="content-pane-more-item content-pane-compile-btn"
                       x-show="tabs[activeTab] && tabs[activeTab].canCompile"

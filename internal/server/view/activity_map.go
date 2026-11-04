@@ -13,13 +13,13 @@ import (
 
 const activityWeeks = 53
 
-// Levels step up past 1, 3 and 6 notes' worth of writing. A write counts as
-// three reads, so the steps are 3, 9 and 18.
-var activityFixedSteps = [3]int{3, 9, 18}
+// activityWriteWeight is how many reads a written note counts as.
+const activityWriteWeight = 10
 
-// activityScore weighs a day for the map: writing a note counts as much as
-// reading three.
-func activityScore(c mate.ActivityCount) int { return 3*c.Write + c.Read }
+// Levels step up past 1, 3 and 6 notes' worth of writing.
+var activityFixedSteps = [3]int{activityWriteWeight, 3 * activityWriteWeight, 6 * activityWriteWeight}
+
+func activityScore(c mate.ActivityCount) int { return activityWriteWeight*c.Write + c.Read }
 
 // activityMap is the Activity section's heatmap: a year of weeks, newest first, each Monday
 // first. Each cell carries a level per actor so switching All/You/Bots
@@ -53,7 +53,7 @@ func activityDayURL(day time.Time) string {
 	return "/home/section?type=activity&day=" + url.QueryEscape(day.Format(time.DateOnly))
 }
 
-// activityData loads the year up to today, keeping only notes that still exist.
+// activityData loads the year up to today, keeping only user notes that still exist.
 func (vh *ViewHandler) activityData(today time.Time) (map[time.Time]map[string]*mate.NoteDay, map[string]storage.Note, time.Time, error) {
 	monday := today.AddDate(0, 0, -((int(today.Weekday()) + 6) % 7))
 	from := monday.AddDate(0, 0, -7*(activityWeeks-1))
@@ -75,7 +75,9 @@ func (vh *ViewHandler) activityData(today time.Time) (map[time.Time]map[string]*
 	}
 	byPath := make(map[string]storage.Note, len(notes))
 	for _, n := range notes {
-		byPath[n.PathString()] = n
+		if !n.IsSystem() {
+			byPath[n.PathString()] = n
+		}
 	}
 	keep := func(p string) bool { _, ok := byPath[p]; return ok }
 	return mate.NoteDays(rows, keep), byPath, from, nil

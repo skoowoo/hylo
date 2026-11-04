@@ -34,7 +34,7 @@ func (vh *ViewHandler) IconSpecimen(w http.ResponseWriter, r *http.Request) {
 	navRows := [][]specimenRow{
 		{{"open-tabs", "Open"}},
 		{{"bot", "Bots"}, {"knowledge", "Knowledge"}, {"tags", "Tags"}, {"memory", "Memory"}},
-		{{"recent", "Activity"}, {"pinned", "Pinned"}, {"shorts", "Shorts"}, {"images", "Images"}, {"folders", "Folders"}},
+		{{"recent", "Activity"}, {"favorite", "Favorites"}, {"shorts", "Shorts"}, {"images", "Images"}, {"folders", "Folders"}},
 	}
 	children := []specimenRow{{"note", "Weekly review"}, {"draft", "Untitled"}, {"folder", "projects"}}
 	// Icons that stand in a nav list share one optical size; the rest sit

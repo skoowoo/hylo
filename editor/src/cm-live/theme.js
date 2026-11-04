@@ -229,15 +229,12 @@ export const livePreviewTheme = EditorView.theme({
     cursor: 'pointer',
     position: 'relative',
   },
-  // Checked = main-text fill, not brand. The checkmark can't just be a
-  // fixed white SVG on that fill (fill is near-white in dark mode, which
-  // would hide a white check) — instead it's a ::after masked to the
-  // checkmark shape with background-color: var(--bg), so it's always the
-  // page background color, guaranteed to contrast against the fill
-  // (main-text vs background is the one pair every theme keeps opposite).
+  // Checked recedes to a soft grey fill: done items shouldn't outweigh open
+  // ones. The check is ::after in var(--bg), not a fixed white SVG, so it
+  // stays opposite the fill in both themes.
   '.cm-lp-task-checkbox:checked': {
-    background: 'var(--prose-body, #3e3f46)',
-    borderColor: 'var(--prose-body, #3e3f46)',
+    background: 'var(--muted-soft, #9c9ea7)',
+    borderColor: 'var(--muted-soft, #9c9ea7)',
   },
   '.cm-lp-task-checkbox:checked::after': {
     content: '""',

@@ -158,6 +158,12 @@ func (n Note) PathString() string {
 	return JoinPath(n.Dir, n.Name)
 }
 
+// IsSystem reports whether the note is a system file (bot memory and the
+// like), whose filename starts with "_".
+func (n Note) IsSystem() bool {
+	return strings.HasPrefix(n.Name, "_")
+}
+
 // Dir is the metadata for a directory inside a Vault.
 // Each Dir is an independent storage unit; no parent/child relationships are
 // modelled between directories — that structure exists only on the filesystem.

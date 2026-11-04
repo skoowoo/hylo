@@ -104,12 +104,6 @@
       display: flex; flex-direction: column;
       min-height: 0; overflow: hidden;
       padding: 0;
-      border-right: var(--bd-w) solid var(--line-hair);
-    }
-    /* macOS desktop only: the fill itself now lives on .home-shell
-       (html.macos .home-shell above); this just swaps the border to match. */
-    html.macos .home-side {
-      border-right-color: var(--sidebar-glass-border);
     }
     /* Top row holds Search + the reading-pane toggle, right-aligned — it
        shares the window's true top edge with the macOS traffic lights
@@ -241,6 +235,10 @@
     /* Every slot is always laid out — hover and activation only change
        colour and opacity — so a title never re-truncates under the pointer. */
     .home-side-tab { transition: background var(--motion-fast) ease, color var(--motion-base) ease; }
+    /* The wash marks where you are (a section); the tab in the editor is marked by ink alone. */
+    .home-side-tab:not(.is-active) { color: var(--muted); }
+    .home-side-tab:not(.is-active):hover { color: var(--fg); }
+    .home-side-tab.is-active:not(:hover) { background: transparent; }
     .home-side-tab .note-draft-icon { width: 14px; height: 14px; }
     .home-side-tab .ssi-pending { color: var(--accent-text); }
     .home-side-tab-hint {
@@ -299,7 +297,7 @@
       /* No own background — .home-main is the opaque backstop for this
          whole region (see its own rule above). */
     }
-    /* The shared header row for sections that need one (Pinned, a folder,
+    /* The shared header row for sections that need one (Favorites, a folder,
        Knowledge, Images, Agents, Shorts) — same height/padding/no-border
        everywhere instead of each inventing its own toolbar. It carries no
        title (the sidebar selection already says where you are): only a
@@ -471,13 +469,13 @@
       margin-bottom: 0.5rem;
       flex-shrink: 0; /* a has-cover card's overflow:hidden zeroes its flex min-height */
     }
-    .note-card { position: relative; }
+    .note-card { position: relative; background: var(--card-rest); }
     .note-card.has-cover { isolation: isolate; }
     .note-card-cover {
       display: block; position: absolute; z-index: -1;
       border-radius: inherit; overflow: hidden; pointer-events: none;
     }
-    .note-card-cover img { display: block; width: 100%; height: 100%; object-fit: cover; }
+    .note-card-cover img { display: block; width: 100%; height: 100%; object-fit: cover; border-radius: 0; }
     .note-card-cover::after {
       content: ""; position: absolute; inset: 0;
       transition: background-color var(--motion-base);
@@ -516,21 +514,23 @@
       width: var(--space-md); height: var(--space-md);
       color: var(--fg); border-radius: var(--r-full);
     }
-    .note-badge svg { width: 10px; height: 10px; }
-    .note-badge--done { background: var(--fg); color: var(--bg); }
-    .note-badge--pin svg { width: 14px; height: 14px; }
+    /* Settled states (favorite, compiled, finished checklist) are muted
+       glyphs; only an open checklist keeps the accent. */
+    .note-badge svg { width: 14px; height: 14px; }
+    .note-badge--pin,
+    .note-badge--compiled { color: var(--muted); }
     [data-hide-pin] .note-badge--pin { display: none; }
-    /* Checklist progress in the accent next to the title; a finished list
-       becomes the same solid check a compiled note shows. */
     .note-badge--todo svg { width: 100%; height: 100%; }
     .note-badge--todo-track { fill: none; stroke: rgba(var(--accent-rgb), 0.22); stroke-width: 2.5; }
     .note-badge--todo-fill { fill: none; stroke: var(--accent); stroke-width: 2.5; stroke-linecap: round; }
+    .note-badge--todo.is-done .note-badge--todo-fill { stroke: var(--muted-soft); }
 
     /* List: title line, then excerpt (or folder) and time on one line; the
        cover is a masked strip along the right edge. */
     .home-list-body:not(.is-grid) .note-card {
       display: grid; grid-template-columns: minmax(0, 1fr) auto;
-      column-gap: 0.5rem; row-gap: 0.3rem;
+      column-gap: 0.5rem; row-gap: 0.125rem;
+      margin-bottom: var(--space-xxs); padding-block: 0.625rem;
     }
     .home-list-body:not(.is-grid) .note-card-head,
     .home-list-body:not(.is-grid) .note-card-meta { grid-column: 1 / -1; }
@@ -538,12 +538,14 @@
     .home-list-body:not(.is-grid) .note-card.has-cover { overflow: hidden; }
     .home-list-body:not(.is-grid) .note-card-cover {
       top: 0; right: 0; bottom: 0; width: min(42%, 13rem);
+      border-top-left-radius: 0; border-bottom-left-radius: 0; /* grows out of the card, not a tile on it */
       -webkit-mask-image: linear-gradient(to right, transparent, #000 42%);
       mask-image: linear-gradient(to right, transparent, #000 42%);
     }
     .home-list-body:not(.is-grid) .note-card-cover img { object-position: center 30%; }
     /* The title row's end sits on the photo, so its controls get a solid backing. */
-    .home-list-body:not(.is-grid) .has-cover :is(.card-more, .note-badge--pin) { background: var(--surface-soft); color: var(--fg); }
+    .home-list-body:not(.is-grid) .has-cover .card-more { background: var(--surface-soft); color: var(--fg); }
+    .home-list-body:not(.is-grid) .has-cover :is(.note-badge--pin, .note-badge--compiled) { background: var(--surface-soft); }
     .home-list-body:not(.is-grid) .has-cover .card-more:hover,
     .home-list-body:not(.is-grid) .has-cover .card-more[aria-expanded="true"] {
       background: color-mix(in srgb, var(--fg) 8%, var(--surface-soft));
@@ -552,7 +554,7 @@
       .home-list-body:not(.is-grid) .note-card-cover { display: none; }
     }
 
-    /* Grid (Pinned/Folder/Knowledge/Memory/Tags): two-line title, three-line
+    /* Grid (Favorites/Folder/Knowledge/Memory/Tags): two-line title, three-line
        excerpt, meta at the bottom; the cover fills the card under a scrim. */
     .home-list-body.is-grid {
       display: grid;
@@ -586,7 +588,6 @@
     .home-list-body.is-grid .has-cover :is(.note-card-preview, .note-card-dir, .note-card-time) { color: rgba(255, 255, 255, 0.78); }
     .home-list-body.is-grid .has-cover .card-more:hover,
     .home-list-body.is-grid .has-cover .card-more[aria-expanded="true"] { background: rgba(255, 255, 255, 0.16); }
-    .home-list-body.is-grid .has-cover .note-badge--done { background: #fff; color: #26262a; }
     .home-list-body.is-grid .has-cover .note-badge--todo-track { stroke: rgba(255, 255, 255, 0.4); }
     .home-list-body.is-grid .has-cover .note-badge--todo-fill { stroke: #fff; }
 
@@ -630,7 +631,6 @@
        same nudge plus a brief red flash so it reads as "this didn't work",
        not just "nothing happened". */
     @keyframes home-reject-flash {
-      0%, 100% { background: var(--surface-soft); }
       30% { background: var(--s-err-bg); }
     }
     .note-card.is-move-rejected {

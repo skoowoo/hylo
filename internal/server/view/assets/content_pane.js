@@ -39,7 +39,7 @@
 
   async function __hyloSetNotePinned(path, pinned) {
     var resp = await fetch('/api/vault/pin', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({path:path,pinned:!!pinned})});
-    if (!resp.ok) { await __hyloNoteActionFailed(resp, pinned ? 'Could not pin' : 'Could not unpin'); return false; }
+    if (!resp.ok) { await __hyloNoteActionFailed(resp, pinned ? 'Could not add to favorites' : 'Could not remove from favorites'); return false; }
     if (window.__hyloContentPane) window.__hyloContentPane.notePinned(path, !!pinned);
     return true;
   }
@@ -57,7 +57,7 @@
     var d = btn.closest('.note-card').dataset;
     var path = d.notePath, title = d.noteTitle, pinned = d.notePinned === 'true';
     __hyloCardMenu.toggle(btn, [
-      { icon: 'bookmark', label: pinned ? 'Unpin' : 'Pin', run: function() { __hyloSetNotePinned(path, !pinned); } },
+      { icon: 'favorite', label: pinned ? 'Remove from favorites' : 'Add to favorites', run: function() { __hyloSetNotePinned(path, !pinned); } },
       'divider',
       { icon: 'trash', label: 'Delete', danger: true, run: function() { __hyloDeleteNote(path, title); } },
     ], e);

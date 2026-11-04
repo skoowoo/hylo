@@ -239,7 +239,7 @@ Dark is the shipped default (bare `:root`). Light is Hylo's own from-scratch ada
 ## Colors
 
 ### Brand & Accent
-- **Accent** (`{colors.accent}`): The one chromatic color in the system — primary buttons, focus rings, selected-tab/row text, link emphasis. List markers (bullet, number, task checkbox) use the body ink (`--prose-body`), not accent, in every surface.
+- **Accent** (`{colors.accent}`): The one chromatic color in the system — primary buttons, focus rings, selected-tab/row text, link emphasis. List markers (bullet, number, task checkbox) use the body ink (`--prose-body`), not accent, in every surface; a checked box recedes to a `--muted-soft` fill so done items sit behind open ones.
 - **Accent Hover**: Lightens on dark (`{colors.accent-hov-dark}` #7b86e8), darkens on light (`{colors.accent-hov-light}` #4c56c8) — same hue, opposite direction per theme so it always reads as "brighter than resting state" against its own canvas.
 - **Customizable**: `{colors.accent}` is the default (indigo), not a constant. Settings → Appearance offers 8 luminance-matched presets (`internal/server/view/shared_accent.go`), applied as inline `--accent`/`--accent-rgb`/`--accent-hov` on `<html>` before first paint. Components must consume only these tokens (or `rgba(var(--accent-rgb), …)`) — never a literal accent hex — or the preset won't reach them. A new preset needs white text ≥4.5:1 on its accent.
 - **Accent Text** (`--accent-text`): Accent used as *text or icon color* on the canvas (links, active tab/row labels, badges). Equals `--accent` on light; on dark it is lifted to ≈4.6:1 (presets carry a `TextDark`), because the resting accent is tuned for white-on-fill (≥4.5:1) and reads dim as small text. Use `--accent` for fills, borders and rings, `--accent-text` for `color:`.
@@ -373,6 +373,8 @@ Full-viewport or edge-docked chrome (drawer panel and its tab bar, scrims, `<htm
 
 **`icon-btn-ghost`** — Icon-only action with no fill at rest, 28px square (24px `--sm` modifier for tighter contexts). Fills with `--icon-hov` (ink at 8%) on hover. Used for dismiss/close actions and any icon action that should sit quietly on its surface.
 
+**`btn-ghost`** — The labeled sibling of `icon-btn-ghost`: no fill at rest, `--muted` text, `--icon-hov` and `--fg` on hover. For text actions in a section head beside ghost icon buttons and dropdowns (Images' Select).
+
 **`icon-btn`** — Tonal icon-only action (`--btn-bg`, `{rounded.sm}`) with an `.active` toggle state (`--btn-bg-on` + `--control-active-fg`) for controls that need to show "this is currently on" (pin, compile, source toggle), not just hover feedback. `.icon-btn--lg` (32px) uses `{rounded.md}` to sit flush with inputs.
 
 **`seg`** / **`seg-btn`** — Segmented "pick one of N" control: a `--btn-bg` track with 3px padding and flat buttons inside (inner radius `{rounded.sm}`); `.active` is a raised thumb, `--seg-thumb` (`--control-active-bg-on-soft` on dark, `--canvas` on light) with `--control-active-fg` text. One shared definition backs every picker in the app (graph color mode, settings pickers) so they can't drift apart in size.
@@ -404,9 +406,9 @@ Full-viewport or edge-docked chrome (drawer panel and its tab bar, scrims, `<htm
 
 ### Lists & Cards
 
-**`list-card`** — Notes list rows. Note rows (Pinned, Folders, and the other lists that share that card) sit on `--surface-soft` with no outline. Title in `{typography.title-list}`, excerpt and time in `--muted` at `{typography.small}`.
+**`list-card`** — Notes list rows. Note rows (Favorites, Folders, and the other lists that share that card) sit on `--card-rest` (ink at 2.5%, half the hover step) with no outline. Title in `{typography.title-list}`, excerpt and time in `--muted` at `{typography.small}`.
 
-**`note-badge`** — Small status marker on a note card. The pin variant is a plain `--fg` glyph with no fill, hidden in Pinned (every row there is pinned, so it says nothing); the "done" variant is a solid `--fg` disc with a `--bg` check. Checklist progress is an accent ring after the title.
+**`note-badge`** — Small status marker on a note card. Settled states are plain `--muted` glyphs: the favorite star (hidden in Favorites, where every row is one) and the compiled check. Checklist progress is an accent ring after the title that turns `--muted-soft` once the list is finished.
 
 **`tag-cloud`** — The Tags wall: plain words packed by d3-cloud, no pills. Use shows twice — size (13–32px, 400 below 23px, 500 above) and ink (`--muted` up to `--fg`); hover turns a word `--accent-text`. The box is cropped to the placed words and centered in the section, scrolling once it outgrows it.
 

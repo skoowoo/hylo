@@ -122,7 +122,7 @@ document.addEventListener('pointerover', function(e) {
 });
 
 // ── Per-section list/grid layout preference ────────────────────────────────
-// Knowledge/Memory/Pinned/Folders/Tags/Shorts each get their own list-vs-grid choice
+// Knowledge/Memory/Favorites/Folders/Tags/Shorts each get their own list-vs-grid choice
 // (all folders share the single 'folder' bucket, all of Knowledge's
 // All/category items share the single 'knowledge' bucket, and every tag's
 // drilldown shares the single 'tags' bucket — rather than one per selection).
@@ -225,7 +225,7 @@ function homeCtrl() {
   var boot = JSON.parse(document.getElementById('home-boot').textContent);
   var ctrl = Object.assign(contentPaneCtrl(), homeImagesMixin(), homeGraphMixin(), homeShortsMixin(), {
     curKey: __hyloSectionKey(__hyloInitialSectionURL()),
-    // Each of Knowledge/Memory/Pinned/Folders keeps its own list-vs-grid
+    // Each of Knowledge/Memory/Favorites/Folders keeps its own list-vs-grid
     // choice (all folders share the single 'folder' bucket, and all of
     // Knowledge's All/category items share the single 'knowledge' bucket,
     // rather than one per selection) — see listViewKey()/setListView().

@@ -92,7 +92,10 @@
       border: none; background: transparent; color: var(--muted);
       cursor: pointer; padding: 0; flex-shrink: 0;
     }
-    .icon-btn-ghost:hover { color: var(--fg); background: var(--icon-hov); }
+    .icon-btn-ghost:hover:not(:disabled),
+    .icon-btn-ghost[aria-expanded="true"] { color: var(--fg); background: var(--icon-hov); }
+    /* Dimmed by colour, not opacity (WebKit re-snaps opacity groups). */
+    .icon-btn-ghost:disabled { color: color-mix(in srgb, var(--muted) 40%, transparent); }
     .icon-btn-ghost svg { width: 14px; height: 14px; flex-shrink: 0; }
     .icon-btn-ghost--sm { width: 24px; height: 24px; }
 
@@ -117,17 +120,19 @@
     .icon-btn--lg svg { width: 13px; height: 13px; }
 
     /* ── Shared text buttons — every rectangular labeled button in the app
-       is one of exactly two kinds, both borderless:
+       is one of exactly three kinds, all borderless:
 
        .btn-outline — neutral tonal fill (--btn-bg ladder). Secondary/
        cancel/toolbar actions. The class name predates the borderless
        redesign and is kept so templates don't churn.
        .btn-solid   — colored fill. Primary/destructive actions; add
        .btn-solid--danger for the latter.
+       .btn-ghost   — no fill until hover, like .icon-btn-ghost. Header
+       actions that sit beside ghost icon buttons and dropdowns.
 
        .btn--xs drops either to the compact --btn-h-xs tier used by inline
        row actions (list-item Edit/Delete, etc). ── */
-    .btn-outline, .btn-solid {
+    .btn-outline, .btn-solid, .btn-ghost {
       display: inline-flex; align-items: center; justify-content: center; gap: 0.35rem;
       height: var(--btn-h); padding: 0 0.875rem;
       border: none;
@@ -135,7 +140,9 @@
       cursor: pointer; white-space: nowrap; flex-shrink: 0;
       transition: background-color var(--motion-fast), color var(--motion-fast);
     }
-    .btn-outline svg, .btn-solid svg { width: 13px; height: 13px; flex-shrink: 0; }
+    .btn-outline svg, .btn-solid svg, .btn-ghost svg { width: 13px; height: 13px; flex-shrink: 0; }
+    .btn-ghost { background: transparent; color: var(--muted); }
+    .btn-ghost:hover:not(:disabled) { color: var(--fg); background: var(--icon-hov); }
     .btn-outline { background: var(--btn-bg); color: var(--fg); }
     .btn-outline:hover:not(:disabled) { background: var(--btn-bg-hov); }
     .btn-outline:active:not(:disabled) { background: var(--btn-bg-on); }
@@ -278,7 +285,6 @@
     .list-card:hover .card-reveal,
     .list-card:focus-within .card-reveal,
     .list-card.is-menu-open .card-reveal { opacity: 1; }
-    .card-more[aria-expanded="true"] { color: var(--fg); background: var(--icon-hov); }
 
     /* ── Shared empty-state block — icon + title + description, centered.
        One recipe backs every "nothing here yet" screen app-wide (Graph's

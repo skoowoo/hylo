@@ -12,15 +12,15 @@ import (
 )
 
 func TestActivityLevels(t *testing.T) {
-	if got, want := activityLevels([]int{0, 1, 3, 4, 10, 19}), []int{0, 1, 1, 2, 3, 4}; !slices.Equal(got, want) {
+	if got, want := activityLevels([]int{0, 1, 10, 11, 31, 61}), []int{0, 1, 1, 2, 3, 4}; !slices.Equal(got, want) {
 		t.Fatalf("levels = %v, want %v", got, want)
 	}
 }
 
 func TestActivityScoreWeighsWritesOverReads(t *testing.T) {
-	write, reads := activityScore(mate.ActivityCount{Write: 1}), activityScore(mate.ActivityCount{Read: 2})
-	if write <= reads || activityScore(mate.ActivityCount{Read: 3}) != write {
-		t.Fatalf("one write = %d, two reads = %d", write, reads)
+	write, reads := activityScore(mate.ActivityCount{Write: 1}), activityScore(mate.ActivityCount{Read: 9})
+	if write <= reads || activityScore(mate.ActivityCount{Read: 10}) != write {
+		t.Fatalf("one write = %d, nine reads = %d", write, reads)
 	}
 }
 
@@ -29,7 +29,7 @@ func TestActivityDayListsWhoTouchedEachNote(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, p := range []storage.Path{"/a.md", "/b.md", "/gone.md"} {
+	for _, p := range []storage.Path{"/a.md", "/b.md", "/gone.md", "/_memory/_state.md"} {
 		if err := v.WriteNote(p, []byte("x"), ""); err != nil {
 			t.Fatal(err)
 		}
@@ -52,6 +52,7 @@ func TestActivityDayListsWhoTouchedEachNote(t *testing.T) {
 	if err := ms.InsertMessageNoteAccess(msg.ID, []mate.NoteAccessEntry{
 		{Path: "/a.md", Action: mate.NoteAccessRead, At: now.Add(-time.Minute)},
 		{Path: "/gone.md", Action: mate.NoteAccessWrite, At: now.Add(-time.Minute)},
+		{Path: "/_memory/_state.md", Action: mate.NoteAccessWrite, At: now.Add(-time.Minute)},
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -80,6 +81,16 @@ func TestActivityDayListsWhoTouchedEachNote(t *testing.T) {
 	}
 	if strings.Contains(out, `data-note-path="/gone.md"`) {
 		t.Error("a deleted note is listed")
+	}
+	if strings.Contains(out, `data-note-path="/_memory/_state.md"`) {
+		t.Error("a system note is listed")
+	}
+	recent, err := vh.renderHomeSectionHTML(httptest.NewRequest("GET", "/home/section?type=activity", nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(recent), `data-note-path="/_memory/_state.md"`) {
+		t.Error("a system note is in the recent list")
 	}
 	if strings.Count(out, `class="act-week"`) != activityWeeks {
 		t.Errorf("weeks = %d, want %d", strings.Count(out, `class="act-week"`), activityWeeks)
@@ -112,7 +123,7 @@ func TestEverySectionRendersOnAnEmptyVault(t *testing.T) {
 
 func TestActivityShareSplitsScoreAndFoldsOthers(t *testing.T) {
 	today := localMidnight(time.Now())
-	byBot := map[string]mate.ActivityCount{"a": {Write: 2}, "b": {Read: 2}, "c": {Read: 1}, "d": {Read: 1}, "gone1": {Read: 2}, "gone2": {Read: 2}}
+	byBot := map[string]mate.ActivityCount{"a": {Write: 2}, "b": {Read: 2}, "c": {Read: 1}, "d": {Read: 1}, "gone1": {Read: 6}, "gone2": {Read: 6}}
 	days := []mate.ActivityDay{
 		{Date: today.AddDate(0, 0, -activityShareDays), User: mate.ActivityCount{Write: 9}},
 		{Date: today, User: mate.ActivityCount{Write: 1}, ByBot: byBot},
@@ -129,7 +140,7 @@ func TestActivityShareSplitsScoreAndFoldsOthers(t *testing.T) {
 	if want := []string{"A", "Removed bots", "You", "Others"}; !slices.Equal(rows, want) {
 		t.Errorf("rows = %v, want %v", rows, want)
 	}
-	if want := []int{35, 24, 18, 24}; !slices.Equal(pcts, want) || got[0].Kind != "bot" || got[1].Kind != "other" || got[2].Kind != "user" || got[3].Kind != "other" {
+	if want := []int{43, 26, 22, 9}; !slices.Equal(pcts, want) || got[0].Kind != "bot" || got[1].Kind != "other" || got[2].Kind != "user" || got[3].Kind != "other" {
 		t.Errorf("share = %+v", got)
 	}
 	if tiny := activityShareRows([]mate.ActivityDay{{Date: today, User: mate.ActivityCount{Write: 100}, ByBot: map[string]mate.ActivityCount{"a": {Read: 1}}}}, today, names); tiny[1].Pct != 1 {

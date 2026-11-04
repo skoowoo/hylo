@@ -27,7 +27,7 @@
          own gap. */
       --float-panel-gap: 0.5rem;
     }
-    /* Maximized, the edge sits on .home-side's border-right: one line, not two. */
+    /* Maximized, it meets the sidebar, whose change of fill is the edge. */
     .home-shell.is-editor-maximized .content-pane-panel { border-left-color: transparent; }
 
     /* ── Tool bar ────────────────────────────────────────────────── */

@@ -44,7 +44,6 @@
     /* ── Sidebar ──────────────────────────────────────────────── */
     .settings-sidebar {
       flex-shrink: 0; width: 196px;
-      border-right: var(--bd-w) solid var(--line-hair);
       background: var(--surface-soft);
       padding: 0 var(--space-xs) var(--space-md); display: flex; flex-direction: column;
       gap: 2px; user-select: none;

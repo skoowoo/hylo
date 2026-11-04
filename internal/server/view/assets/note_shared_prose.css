@@ -164,11 +164,10 @@
       flex-shrink: 0;
       transition: none;
     }
-    /* Checked = main-text fill with a --bg check (same as the editor's
-       .cm-lp-task-checkbox) — not brand, and a fixed white check would vanish
-       on the near-white dark-mode fill. */
+    /* Checked = soft grey fill with a --bg check, same as the editor's
+       .cm-lp-task-checkbox: done items recede behind open ones. */
     .prose li > input[type="checkbox"]:checked {
-      background: var(--ul-mk); border-color: var(--ul-mk);
+      background: var(--muted-soft); border-color: var(--muted-soft);
     }
     .prose li > input[type="checkbox"]:checked::after {
       content: ''; position: absolute; inset: 0; border-radius: 0;

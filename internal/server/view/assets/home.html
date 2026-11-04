@@ -146,8 +146,8 @@
 
         <button type="button" class="side-nav-item home-side-item" :class="{'is-active': curType() === 'pinned'}"
                 x-press="go('/home/section?type=pinned')">
-          {{sideIcon "pinned"}}
-          <span class="home-side-label">Pinned</span>
+          {{sideIcon "favorite"}}
+          <span class="home-side-label">Favorites</span>
         </button>
 
         <button type="button" class="side-nav-item home-side-item" :class="{'is-active': curType() === 'shorts'}"
