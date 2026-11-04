@@ -99,10 +99,9 @@
       previewEl.remove();
     }
 
-    // formatRelativeTime (search.go) returns exactly this for anything under
-    // a minute old, which a just-completed save always is.
+    // What formatRelativeTime (search.go) shows for a note saved today.
     var timeEl = meta.querySelector('.note-card-time');
-    if (timeEl) timeEl.textContent = 'just now';
+    if (timeEl) timeEl.textContent = window.__hyloChatReduce.formatClock(new Date());
   }
 
   // ── Misc helpers ─────────────────────────────────────────────────────────────

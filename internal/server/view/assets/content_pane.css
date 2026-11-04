@@ -120,7 +120,8 @@
       min-width: 200px; max-width: min(320px, 90vw);
       display: flex; flex-direction: column;
       padding: 0.25rem;
-      background: var(--surface-soft); border: var(--bd-w) solid var(--line-edge);
+      background: var(--glass-bg); -webkit-backdrop-filter: var(--glass-filter); backdrop-filter: var(--glass-filter);
+      border: var(--bd-w) solid var(--line-edge);
       border-radius: var(--r-lg);
       box-shadow: var(--shadow-sm) var(--shadow-color);
     }
@@ -149,7 +150,8 @@
       position: absolute; top: calc(100% + var(--float-panel-gap)); right: 0; z-index: 50;
       transform-origin: top;
       min-width: 190px; max-width: min(320px, 90vw); padding: 0.25rem;
-      background: var(--surface-soft); border: var(--bd-w) solid var(--line-edge);
+      background: var(--glass-bg); -webkit-backdrop-filter: var(--glass-filter); backdrop-filter: var(--glass-filter);
+      border: var(--bd-w) solid var(--line-edge);
       border-radius: var(--r-lg);
       box-shadow: var(--shadow-sm) var(--shadow-color);
     }
@@ -309,7 +311,7 @@
       left: auto !important; bottom: auto !important;
       width: max-content !important;
       z-index: 20;
-      background: var(--surface-soft); color: var(--fg);
+      background: var(--glass-bg); -webkit-backdrop-filter: var(--glass-filter); backdrop-filter: var(--glass-filter); color: var(--fg);
       border: var(--bd-w) solid var(--line-edge);
       border-radius: var(--r-md);
       box-shadow: var(--shadow-sm) var(--shadow-color);

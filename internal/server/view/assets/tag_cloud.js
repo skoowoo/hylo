@@ -28,15 +28,16 @@ function __hyloRenderTagCloud() {
 
   var maxCount = 0;
   for (var i = 0; i < tags.length; i++) { if (tags[i].count > maxCount) maxCount = tags[i].count; }
-  var MIN_SIZE = 14, MAX_SIZE = 56;
+  var MIN_SIZE = 13, MAX_SIZE = 32;
   var words = tags.map(function (t) {
-    var ratio = maxCount > 0 ? t.count / maxCount : 0;
-    var size = MIN_SIZE + (MAX_SIZE - MIN_SIZE) * Math.sqrt(ratio);
+    var ratio = maxCount > 0 ? Math.sqrt(t.count / maxCount) : 0;
+    var size = Math.round(MIN_SIZE + (MAX_SIZE - MIN_SIZE) * ratio);
     return {
       text: t.name,
       count: t.count,
       size: size,
-      weight: size > 34 ? '600' : (size > 20 ? '500' : '400')
+      ink: ratio,
+      weight: size > 22 ? '500' : '400'
     };
   });
   var fontFamily = (getComputedStyle(document.documentElement).getPropertyValue('--font-ui') || 'sans-serif').trim();
@@ -71,6 +72,13 @@ function __hyloRenderTagCloud() {
       .fontSize(function (d) { return d.size; })
       .on('end', function (placed) {
         if (gen !== __hyloTagCloudGen) return; // a newer resize already re-ran this
+        // Crop the box to what was placed: the spiral leaves empty bands above and below.
+        var top = Infinity, bottom = -Infinity;
+        placed.forEach(function (d) {
+          top = Math.min(top, d.y + d.y0);
+          bottom = Math.max(bottom, d.y + d.y1);
+        });
+        if (placed.length) el.style.height = Math.ceil(bottom - top) + 'px';
         placed.forEach(function (d) {
           var btn = document.createElement('button');
           btn.type = 'button';
@@ -79,8 +87,9 @@ function __hyloRenderTagCloud() {
           btn.title = d.text + ' · ' + d.count;
           btn.style.fontSize = d.size + 'px';
           btn.style.fontWeight = d.weight;
+          btn.style.setProperty('--ink', d.ink);
           btn.style.left = (width / 2 + d.x) + 'px';
-          btn.style.top = (height / 2 + d.y) + 'px';
+          btn.style.top = (d.y - top) + 'px';
           btn.addEventListener('click', function () {
             if (window._homeData) window._homeData.selectTag(d.text);
           });
@@ -97,7 +106,7 @@ function __hyloRenderTagCloud() {
   // instant. The real DOM text swaps to Inter once it lands, wider or
   // narrower than the fallback, and the collision boxes computed earlier no
   // longer match — small words showing that mismatch first since a couple
-  // px of error is proportionally much bigger at 14px than at 56px.
+  // px of error is proportionally much bigger at 13px than at 32px.
   // document.fonts.ready resolves once every requested font has settled, so
   // waiting on it here keeps what's measured and what's rendered in sync.
   function watch() {

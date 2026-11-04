@@ -197,7 +197,7 @@
     var stopBtn = rootEl.querySelector('#chat-stop');
     var newBtn = rootEl.querySelector('#chat-new-btn');
     var jumpBtn = rootEl.querySelector('#chat-jump');
-    var descEl = rootEl.querySelector('#chat-bot-desc');
+    var nameEl = rootEl.querySelector('#chat-bot-name');
     var triggersBtn = rootEl.querySelector('#chat-triggers-btn');
     var spacer = el('div', 'chat-scroll-spacer');
     spacer.id = 'chat-scroll-spacer';
@@ -588,10 +588,9 @@
       var mate = snap.mate;
       var busy = !!snap.busy;
       var live = snap.phase === 'streaming' || snap.phase === 'stopping';
-      if (descEl) {
-        var desc = mate && mate.description ? mate.description : '';
-        descEl.textContent = desc;
-        show(descEl, !!desc);
+      if (nameEl) {
+        nameEl.textContent = mate ? mate.name : '';
+        show(nameEl, !!mate);
       }
       if (newBtn) newBtn.disabled = busy || !snap.mateId || snap.messages.length === 0;
       show(triggersBtn, !!snap.mateId);

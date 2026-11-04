@@ -24,8 +24,9 @@ const appTokensShared = `
       --control-active-bg:var(--surface-2); --control-active-fg:var(--fg);
       /* Modal scrim — shared by dialogs/settings/search/content pane. Lightbox has its own. */
       --overlay-bg:rgba(0,0,0,0.25);
-      --card-hov:rgba(var(--accent-rgb),0.10);
-      --icon-hov:rgba(var(--accent-rgb),0.10);
+      /* Hover is an ink wash like nav rows and buttons; an accent tint turns grey surfaces lavender. */
+      --card-hov:rgba(var(--ink-rgb),0.05);
+      --icon-hov:rgba(var(--ink-rgb),0.08);
       --tint-soft:rgba(var(--accent-rgb),0.06);
       --tint-md:rgba(var(--accent-rgb),0.10);
       --tint-strong:rgba(var(--accent-rgb),0.14);
@@ -83,17 +84,21 @@ const appTokensShared = `
       --ease-spring:cubic-bezier(.34,1.56,.64,1);
       --bd-w:1px; /* whole px — fractional breaks AA at radius arcs */
       --glass-scrim-filter:blur(3px);
+      /* Glass for what floats over moving content (menus, toasts, panels): a tint plus a blur that keeps colour. */
+      --glass-filter:blur(20px) saturate(1.6);
 
       /* ═══ Layer 4: component-scoped ═══ */
       --srch-ic:var(--muted); --srch-ph:var(--muted-soft); --srch-av:var(--control-active-bg); --srch-backdrop:var(--overlay-bg);
       --sr-dir:var(--cover-dir); --sr-ic:var(--muted); --sr-em:var(--muted);
-      --srch-panel-bd:var(--line-edge); --srch-card-bg:var(--surface-soft);
+      /* The whole search panel is glass; the preview is an ink step on it, not a solid card. */
+      --srch-panel-bd:var(--line-edge); --srch-panel-bg:var(--glass-bg); --srch-card-bg:rgba(var(--ink-rgb),0.05);
 
       /* Lightbox/images — fixed veil over arbitrary photos. */
       --lightbox-overlay-bg:rgba(0,0,0,0.4); --lightbox-viewer-bg:#0c0c0c;
       --img-chip-bg:rgba(17,17,17,0.72);
       --img-select-border:rgba(255,255,255,0.72); --img-select-bg:rgba(0,0,0,0.28);
       --img-busy-bg:rgba(0,0,0,0.25); --img-control-bg:rgba(0,0,0,0.55); --img-control-fg:#fff;
+      --img-glass-bg:rgba(0,0,0,0.32);
 
       --font-ui:"Inter","PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans CJK SC",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
       --font-sans:"Inter","PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans CJK SC",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
@@ -114,21 +119,24 @@ const appTokensShared = `
 
 // Default palette (bare :root). Only tokens that differ from light.
 const appTokensDark = `
-      --ink-rgb:238,240,244;
-      --bg:#18191e; --fg:#eef0f4;
-      --muted:#8d92a0; --surface-soft:#212229; --surface-2:#292a33;
+      /* Every neutral sits on one hue (OKLCH h≈275) at low, even chroma; steps differ by lightness only. */
+      --ink-rgb:239,240,244;
+      --bg:#18191e; --fg:#eff0f4;
+      --muted:#91939d; --surface-soft:#212227; --surface-2:#292b2f;
       /* Extra lift when container already sits on --surface-soft. */
-      --control-active-bg-on-soft:#3d3e49;
+      --control-active-bg-on-soft:#3d3f44;
       --seg-thumb:var(--control-active-bg-on-soft);
-      /* macOS vibrancy wash — pull native material toward --surface-soft. */
-      --sidebar-glass-bg:rgba(33,34,41,0.6); --sidebar-glass-border:rgba(255,255,255,0.1);
-      --canvas:#ffffff; --muted-soft:#656a78; --body:#d0d6e0;
-      --srch-panel-bg:var(--bg);
+      /* macOS vibrancy wash: enough to hold a bright or saturated wallpaper on the neutral hue, thin enough to stay glass. */
+      --sidebar-glass-bg:rgba(33,34,39,0.45);
+      --glass-bg:rgba(33,34,39,0.72); --sidebar-glass-border:rgba(255,255,255,0.1);
+      --canvas:#ffffff; --muted-soft:#696b74;
+      /* Secondary content (excerpts, table heads) — between --fg and --muted, ~8:1. */
+      --fg-2:#b6b8c1;
             --accent-hov:#7b86e8;
       /* Accent as text on the canvas (links, active labels): lifted for dark; fills keep --accent. */
       --accent-text:#707ad7;
-      --cover-dir:#8d92a0;
-      --cnt-tx:#9a9fa8;
+      --cover-dir:var(--muted);
+      --cnt-tx:var(--muted);
       --s-ok:#34c481; --s-ok-bg:rgba(39,166,68,0.16); --s-ok-bd:rgba(39,166,68,0.4);
       --s-err:#f87171; --s-err-bg:rgba(248,113,113,0.14); --s-err-bd:rgba(248,113,113,0.35);
       --s-warn:#eeae3a; --s-warn-bg:rgba(251,191,36,0.14); --s-warn-bd:rgba(251,191,36,0.36);
@@ -138,22 +146,20 @@ const appTokensDark = `
 
 // Light adaptation — cool near-neutral grays.
 const appTokensLight = `
-      --ink-rgb:24,24,27;
-      --bg:#f9f9fb; --fg:#18181b;
-      --muted:#6d7080; --surface-soft:#f5f5f7; --surface-2:#e3e3e9;
+      --ink-rgb:23,24,27;
+      --bg:#fafafb; --fg:#17181b;
+      --muted:#696b75; --surface-soft:#f2f2f4; --surface-2:#e5e6ea;
       --control-active-bg-on-soft:var(--surface-2);
       --seg-thumb:var(--canvas);
       /* Brighter canvas needs a more visible thumb than the shared (dark-tuned) value. */
       --scrollbar-thumb:rgba(var(--ink-rgb),0.16); --scrollbar-thumb-hov:rgba(var(--ink-rgb),0.30);
-      /* Vibrancy reads dull alone — lean lighter while staying translucent. */
-      --sidebar-glass-bg:rgba(250,250,251,0.72); --sidebar-glass-border:rgba(0,0,0,0.08);
-      --canvas:#ffffff; --muted-soft:#9b9eac; --body:#3f4147;
-      /* bg and surface-soft nearly match in light; lift the panel so the preview card reads. */
-      --srch-panel-bg:var(--canvas);
+      --sidebar-glass-bg:rgba(250,250,251,0.5);
+      --glass-bg:rgba(252,252,253,0.72); --sidebar-glass-border:rgba(0,0,0,0.08);
+      --canvas:#ffffff; --muted-soft:#9c9ea7; --fg-2:#4d4f58;
             --accent-hov:#4c56c8;
       --accent-text:var(--accent);
-      --cover-dir:#6b7280;
-      --cnt-tx:#6b7280;
+      --cover-dir:var(--muted);
+      --cnt-tx:var(--muted);
       --s-ok:#059669; --s-ok-bg:rgba(16,185,129,0.08); --s-ok-bd:rgba(16,185,129,0.35);
       --s-err:#dc2626; --s-err-bg:rgba(239,68,68,0.06); --s-err-bd:rgba(239,68,68,0.25);
       --s-warn:#d97706; --s-warn-bg:rgba(217,119,6,0.07); --s-warn-bd:rgba(217,119,6,0.26);

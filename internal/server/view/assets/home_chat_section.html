@@ -2,7 +2,7 @@
   <template id="chat-setup-icon">{{sideIcon "bot"}}</template>
 
   <div class="home-list-head">
-    <span class="agent-bot-bar-desc" id="chat-bot-desc" style="display:none"></span>
+    <span class="chat-head-name" id="chat-bot-name" style="display:none"></span>
     <div class="home-list-head-spacer"></div>
     <button class="new-chat-btn" id="chat-triggers-btn" type="button" title="Triggers" aria-label="Triggers" style="display:none">
       {{icon "sliders"}}
@@ -21,13 +21,13 @@
   </button>
 
   <div class="chat-input-outer" id="chat-input-outer">
+    <div class="chat-ac-panel" id="chat-ac-panel" aria-expanded="false" hidden>
+      <ul class="chat-path-ac" id="chat-path-ac" role="listbox"></ul>
+      <div class="chat-path-ac-hint hairline" id="chat-path-ac-hint" hidden></div>
+    </div>
     <div class="chat-ac-wrap">
       <div class="chat-context" id="chat-context" hidden></div>
-      <div class="chat-ac-panel" id="chat-ac-panel" aria-expanded="false" hidden>
-        <ul class="chat-path-ac" id="chat-path-ac" role="listbox"></ul>
-        <div class="chat-path-ac-hint hairline" id="chat-path-ac-hint" hidden></div>
-      </div>
-      <div class="chat-input-card" id="chat-input-card">
+      <div class="chat-input-dock">
         <div class="chat-add-menu" id="chat-add-menu" role="menu" hidden>
           <button type="button" class="chat-add-item" id="chat-add-image" role="menuitem">
             <!-- lucide "image" -->
@@ -35,25 +35,27 @@
             <span>Image</span>
           </button>
         </div>
-        <div class="compose-thumbs chat-pending-images" id="chat-pending-images" hidden></div>
-        <div class="chat-input-row">
-          <button type="button" class="chat-add" id="chat-add" title="Add" aria-label="Add attachment" aria-haspopup="menu" aria-expanded="false" aria-controls="chat-add-menu" disabled>
-            <!-- lucide "plus" -->
-            {{icon "plus"}}
-          </button>
-          <div class="chat-input-hint" id="chat-input-hint" aria-hidden="true">
-            <span class="chat-hint-name" id="chat-hint-name"></span>
+        <div class="chat-input-card" id="chat-input-card">
+          <div class="compose-thumbs chat-pending-images" id="chat-pending-images" hidden></div>
+          <div class="chat-input-row">
+            <button type="button" class="chat-add" id="chat-add" title="Add" aria-label="Add attachment" aria-haspopup="menu" aria-expanded="false" aria-controls="chat-add-menu" disabled>
+              <!-- lucide "plus" -->
+              {{icon "plus"}}
+            </button>
+            <div class="chat-input-hint" id="chat-input-hint" aria-hidden="true">
+              <span class="chat-hint-name" id="chat-hint-name"></span>
+            </div>
+            <div class="chat-input-scroll">
+              <textarea class="chat-textarea" id="chat-textarea" rows="1" placeholder="" spellcheck="false" autocorrect="off" autocapitalize="off"></textarea>
+            </div>
+            <input type="file" id="chat-file-input" class="chat-file-input" accept="image/jpeg,image/png,image/gif,image/webp" multiple>
+            <button type="button" class="chat-send-circle" id="chat-send" disabled>
+              {{icon "arrow-up"}}
+            </button>
+            <button type="button" class="chat-stop-circle" id="chat-stop" style="display:none">
+              {{icon "stop" `fill="currentColor"`}}
+            </button>
           </div>
-          <div class="chat-input-scroll">
-            <textarea class="chat-textarea" id="chat-textarea" rows="1" placeholder="" spellcheck="false" autocorrect="off" autocapitalize="off"></textarea>
-          </div>
-          <input type="file" id="chat-file-input" class="chat-file-input" accept="image/jpeg,image/png,image/gif,image/webp" multiple>
-          <button type="button" class="chat-send-circle" id="chat-send" disabled>
-            {{icon "arrow-up"}}
-          </button>
-          <button type="button" class="chat-stop-circle" id="chat-stop" style="display:none">
-            {{icon "stop" `fill="currentColor"`}}
-          </button>
         </div>
       </div>
     </div>

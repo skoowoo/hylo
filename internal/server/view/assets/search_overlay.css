@@ -6,6 +6,7 @@
       border-radius: var(--r-lg);
       border: var(--bd-w) solid var(--srch-panel-bd);
       background: var(--srch-panel-bg);
+      -webkit-backdrop-filter: var(--glass-filter); backdrop-filter: var(--glass-filter);
       box-shadow: var(--shadow-lg) var(--shadow-color);
     }
     .srch-backdrop {

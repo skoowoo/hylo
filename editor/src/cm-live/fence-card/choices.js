@@ -4,29 +4,46 @@ import { lineIconNode } from '../../line-icons.js';
 
 const STYLE_ID = 'hy-choices-style';
 
+// One line of short chips when they fit; otherwise a reply-suggestion list in the
+// card family (surface-soft, 12px), set in body type so it never outweighs the answer.
 // No opacity transitions: the app's button:active dimming would animate, and WebKit
 // composites the animating button on whole pixels, shifting it and leaving a sliver.
 const CSS = `
 .hy-choices{display:flex;gap:var(--space-xs,8px);padding:2px 0}
 .hy-choices-row{align-items:center}
 .hy-choices.hy-choices-row>*{flex:none;white-space:nowrap}
-.hy-choices-col{flex-direction:column;align-items:flex-start}
 .hy-choices-measuring{visibility:hidden}
 .hy-choices-probe{position:absolute;top:0;left:0;right:0;visibility:hidden;pointer-events:none}
-.hy-choice{all:unset;box-sizing:border-box;display:inline-flex;align-items:center;gap:8px;max-width:100%;padding:7px 12px;border-radius:var(--r-md,8px);font:var(--fw-medium,500) var(--text-sm,.8125rem)/1.4 var(--font-ui,system-ui,sans-serif);color:var(--fg,#18181b);background:var(--btn-bg,rgba(24,24,27,.06));white-space:normal;overflow-wrap:anywhere;transition:background-color var(--motion-fast,100ms)}
+.hy-choice{all:unset;box-sizing:border-box;position:relative;display:inline-flex;align-items:center;gap:8px;max-width:100%;padding:6px 12px;border-radius:var(--r-md,8px);font:var(--fw-regular,400) var(--text-sm,.8125rem)/1.4 var(--font-ui,system-ui,sans-serif);color:var(--fg,#17181b);background:var(--btn-bg,rgba(23,24,27,.06));white-space:normal;overflow-wrap:anywhere;transition:background-color var(--motion-fast,100ms),color var(--motion-fast,100ms)}
 .hy-choices-active .hy-choice{cursor:pointer}
-.hy-choices-active .hy-choice:hover{background:var(--btn-bg-hov,rgba(24,24,27,.1))}
+.hy-choices-active .hy-choice:hover{background:var(--btn-bg-hov,rgba(23,24,27,.1))}
 .hy-choice:focus-visible{outline:2px solid rgba(var(--accent-rgb,94,106,210),.5);outline-offset:1px}
-.hy-choice-box{flex:none;display:flex;opacity:.55}
-.hy-choice-box .line-icon{width:16px;height:16px}
-.hy-choice-box .line-icon+.line-icon,.hy-choice-on .hy-choice-box .line-icon:first-child{display:none}
-.hy-choice-on .hy-choice-box .line-icon+.line-icon{display:block}
-.hy-choices .hy-choice-on{background:var(--btn-bg-on,rgba(24,24,27,.15))}
-.hy-choice-on .hy-choice-box{opacity:1}
-.hy-choices-answered .hy-choice:not(.hy-choice-on){opacity:.5}
-.hy-choices-send{all:unset;box-sizing:border-box;cursor:pointer;padding:7px 12px;border-radius:var(--r-md,8px);font:var(--fw-medium,500) var(--text-sm,.8125rem)/1.4 var(--font-ui,system-ui,sans-serif);color:var(--accent-fg,#fff);background:var(--accent,#5e6ad2)}
+.hy-choice-box,.hy-choice-mark{flex:none;display:flex;color:var(--muted,#696b75);transition:color var(--motion-fast,100ms)}
+.hy-choice-box .line-icon,.hy-choice-mark .line-icon{width:16px;height:16px}
+.hy-choice-box .line-icon+.line-icon,.hy-choice-on .hy-choice-box .line-icon:first-child,
+.hy-choice-mark .line-icon+.line-icon,.hy-choice-on .hy-choice-mark .line-icon:first-child{display:none}
+.hy-choice-on .hy-choice-box .line-icon+.line-icon,.hy-choice-on .hy-choice-mark .line-icon+.line-icon{display:block}
+.hy-choice-on .hy-choice-box,.hy-choice-on .hy-choice-mark{color:var(--accent-text,#5e6ad2)}
+.hy-choices-row .hy-choice-mark{display:none}
+.hy-choices-row .hy-choice-on{background:var(--btn-bg-on,rgba(23,24,27,.15))}
+.hy-choices-row.hy-choices-answered .hy-choice:not(.hy-choice-on){opacity:.5}
+.hy-choices-col{flex-direction:column;align-items:stretch;gap:0;padding:var(--space-xxs,4px);border-radius:var(--r-lg,12px);background:var(--surface-soft,#f2f2f4)}
+.hy-choices-col .hy-choice{display:flex;align-items:flex-start;gap:10px;padding:9px 12px;font-size:var(--text-base,.875rem);line-height:1.5;color:var(--prose-body,#3e3f46);background:transparent}
+.hy-choices-col .hy-choice-box,.hy-choices-col .hy-choice-mark{height:1.5em;align-items:center}
+.hy-choices-col .hy-choice+.hy-choice::before{content:"";position:absolute;top:0;left:38px;right:12px;height:1px;border-radius:0;background:var(--line-hair,rgba(23,24,27,.09))}
+.hy-choices-col.hy-choices-active .hy-choice:hover{background:var(--card-hov,rgba(23,24,27,.05));color:var(--fg,#17181b)}
+.hy-choices-col.hy-choices-active .hy-choice:hover .hy-choice-mark{color:var(--fg,#17181b)}
+.hy-choices-col .hy-choice-on{background:var(--btn-bg,rgba(23,24,27,.06));color:var(--fg,#17181b)}
+.hy-choices-col.hy-choices-active .hy-choice:hover::before,.hy-choices-col.hy-choices-active .hy-choice:hover+.hy-choice::before,
+.hy-choices-col .hy-choice+.hy-choice-on::before,.hy-choices-col .hy-choice-on+.hy-choice::before{background:transparent}
+.hy-choices-col.hy-choices-answered .hy-choice:not(.hy-choice-on),
+.hy-choices-col.hy-choices-answered .hy-choice:not(.hy-choice-on) .hy-choice-mark,
+.hy-choices-col.hy-choices-answered .hy-choice:not(.hy-choice-on) .hy-choice-box{color:var(--muted-soft,#9c9ea7)}
+.hy-choices-send{all:unset;box-sizing:border-box;cursor:pointer;padding:6px 12px;border-radius:var(--r-md,8px);font:var(--fw-medium,500) var(--text-sm,.8125rem)/1.4 var(--font-ui,system-ui,sans-serif);color:var(--accent-fg,#fff);background:var(--accent,#5e6ad2)}
+.hy-choices-col .hy-choices-send{align-self:flex-end;margin:var(--space-xxs,4px)}
 .hy-choices-send[disabled]{cursor:default;opacity:.4}
 .hy-choices-send:focus-visible{outline:2px solid rgba(var(--accent-rgb,94,106,210),.5);outline-offset:1px}
+.hy-proposal .hy-choices-col{background:transparent;padding:0;margin-inline:-12px}
 `;
 
 function ensureStyle() {
@@ -92,14 +109,17 @@ export function mount(el, source, ctx = {}) {
       const b = document.createElement(active ? 'button' : 'span');
       b.className = 'hy-choice';
       if (picked.has(text)) b.classList.add('hy-choice-on');
+      // Both glyphs share one frame, so toggling in place never shifts the label.
+      const box = document.createElement('span');
       if (parsed.multi) {
-        const box = document.createElement('span');
         box.className = 'hy-choice-box';
-        // Both glyphs share one frame, so toggling in place never shifts the label.
         box.append(lineIconNode('square'), lineIconNode('select'));
-        b.appendChild(box);
         if (active) b.setAttribute('aria-pressed', String(picked.has(text)));
+      } else {
+        box.className = 'hy-choice-mark';
+        box.append(lineIconNode('reply'), lineIconNode('check'));
       }
+      b.appendChild(box);
       b.appendChild(document.createTextNode(choiceLabel(text)));
       if (active) {
         b.type = 'button';

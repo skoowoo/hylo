@@ -16,7 +16,7 @@ export const livePreviewTheme = EditorView.theme({
   '.cm-content': {
     fontFamily: 'var(--font-sans, "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif)',
     fontSize: 'var(--text-body, 1rem)',
-    color: 'var(--prose-body, #374151)',
+    color: 'var(--prose-body, #3e3f46)',
     lineHeight: '1.75',
     // !important: content_pane.css `#content-pane-edit-area .cm-content { padding: 0 }` otherwise wins.
     // Top is 0, not 24px — .cm-scroller already adds 2.5rem (content_pane.css),
@@ -46,7 +46,7 @@ export const livePreviewTheme = EditorView.theme({
     fontSize: '1.3em',
     lineHeight: '1.3',
     letterSpacing: '-0.012em',
-    color: 'var(--h1, #111111)',
+    color: 'var(--h1, #17181b)',
     paddingTop: '1.5em !important',
     paddingBottom: '0.65em !important',
   },
@@ -54,7 +54,7 @@ export const livePreviewTheme = EditorView.theme({
     fontSize: '1.2em',
     lineHeight: '1.35',
     letterSpacing: '-0.01em',
-    color: 'var(--h2, #1f2937)',
+    color: 'var(--h2, #17181b)',
     paddingTop: '1.75em !important',
     paddingBottom: '0.65em !important',
   },
@@ -62,7 +62,7 @@ export const livePreviewTheme = EditorView.theme({
     fontSize: '1.1em',
     lineHeight: '1.4',
     letterSpacing: '-0.006em',
-    color: 'var(--h3, #374151)',
+    color: 'var(--h3, #17181b)',
     paddingTop: '1.5em !important',
     paddingBottom: '0.5em !important',
   },
@@ -70,7 +70,7 @@ export const livePreviewTheme = EditorView.theme({
     fontSize: '1.05em',
     lineHeight: '1.5',
     letterSpacing: '-0.003em',
-    color: 'var(--h4, #6b7280)',
+    color: 'var(--h4, #17181b)',
     paddingTop: '1.25em !important',
     paddingBottom: '0.5em !important',
   },
@@ -78,7 +78,7 @@ export const livePreviewTheme = EditorView.theme({
   '.cm-lp-h5': {
     fontSize: '1em',
     lineHeight: '1.6',
-    color: 'var(--h5, #6b7280)',
+    color: 'var(--h5, #3e3f46)',
     paddingTop: '1.25em !important',
     paddingBottom: '0.5em !important',
   },
@@ -87,23 +87,23 @@ export const livePreviewTheme = EditorView.theme({
     lineHeight: '1.8',
     textTransform: 'uppercase',
     letterSpacing: '0.04em',
-    color: 'var(--h6, #6b7280)',
+    color: 'var(--h6, #696b75)',
     paddingTop: '1.25em !important',
     paddingBottom: '0.5em !important',
   },
   // Revealed "#" marker (caret on the line) — muted regardless of heading
   // level so it reads as syntax, not part of the heading text.
-  '.cm-lp-heading-mark': { color: 'var(--muted-soft, rgba(60,60,67,0.35))', fontWeight: '400' },
+  '.cm-lp-heading-mark': { color: 'var(--muted-soft, rgba(23,24,27,0.35))', fontWeight: '400' },
   // Box for hangRange: right-aligned so the syntax ends where the text begins.
   '.cm-lp-hang-anchor': { position: 'relative' },
   '.cm-lp-hang-mark': { position: 'absolute', right: '0', whiteSpace: 'pre', fontStyle: 'normal' },
   '.cm-lp-hang': { display: 'inline-block', textAlign: 'right', whiteSpace: 'pre', fontStyle: 'normal' },
-  '.cm-lp-quote-mark': { color: 'var(--muted-soft, rgba(60,60,67,0.35))', paddingRight: '0.45rem', boxSizing: 'border-box' },
+  '.cm-lp-quote-mark': { color: 'var(--muted-soft, rgba(23,24,27,0.35))', paddingRight: '0.45rem', boxSizing: 'border-box' },
   // Setext underline once its text is hidden.
   '.cm-lp-hidden-line': { fontSize: '1px', lineHeight: '1px', padding: '0 !important' },
 
-  '.cm-lp-strong': { fontWeight: '600', color: 'var(--prose-strong, #111111)' },
-  '.cm-lp-em': { fontStyle: 'italic', color: 'var(--prose-em, #374151)' },
+  '.cm-lp-strong': { fontWeight: '600', color: 'var(--prose-strong, #17181b)' },
+  '.cm-lp-em': { fontStyle: 'italic', color: 'var(--prose-em, #3e3f46)' },
   // CJK has no italic face — the browser would shear the glyphs. Chinese
   // typography marks emphasis with dots under the characters instead.
   '.cm-lp-em-cjk': {
@@ -113,12 +113,12 @@ export const livePreviewTheme = EditorView.theme({
     textEmphasisPosition: 'under right',
     WebkitTextEmphasisPosition: 'under right',
   },
-  '.cm-lp-strike': { textDecoration: 'line-through', color: 'var(--muted, #6d7080)' },
+  '.cm-lp-strike': { textDecoration: 'line-through', color: 'var(--muted, #696b75)' },
   '.cm-lp-code': {
     fontFamily: 'var(--font-mono, "JetBrains Mono", ui-monospace, monospace)',
     fontSize: '0.85em',
-    color: 'var(--code-tx, #374151)',
-    background: 'var(--th-bg, rgba(24,24,27,0.04))',
+    color: 'var(--code-tx, #3e3f46)',
+    background: 'var(--th-bg, rgba(23,24,27,0.04))',
     borderRadius: 'var(--r-xs, 4px)',
     padding: '0.15em 0.42em',
   },
@@ -133,7 +133,7 @@ export const livePreviewTheme = EditorView.theme({
     paddingLeft: '1.5rem !important',
     fontSize: '1em',
     lineHeight: '1.75',
-    color: 'var(--bq-tx, rgba(55,65,81,0.88))',
+    color: 'var(--bq-tx, rgba(62,63,70,0.88))',
     position: 'relative',
     borderRadius: '0',
   },
@@ -163,7 +163,7 @@ export const livePreviewTheme = EditorView.theme({
   // Caret on the link: it's being edited, not followed.
   '.cm-lp-link-editing': { cursor: 'text' },
   '.cm-lp-link-url': { color: 'var(--accent-text, #5e6ad2)', opacity: '0.7' },
-  '.cm-lp-linkref': { color: 'var(--muted, #6d7080)' },
+  '.cm-lp-linkref': { color: 'var(--muted, #696b75)' },
   // Clicked like a link (link-click.js); the '#' stays, as in Obsidian.
   '.cm-lp-tag': {
     color: 'var(--accent-text, #5e6ad2)',
@@ -179,13 +179,13 @@ export const livePreviewTheme = EditorView.theme({
   '.cm-lp-html': {
     fontFamily: 'var(--font-mono, "JetBrains Mono", ui-monospace, monospace)',
     fontSize: '0.85em',
-    color: 'var(--muted, #6d7080)',
+    color: 'var(--muted, #696b75)',
   },
-  '.cm-lp-html-comment': { color: 'var(--muted-soft, rgba(60,60,67,0.45))' },
+  '.cm-lp-html-comment': { color: 'var(--muted-soft, rgba(23,24,27,0.45))' },
   '.cm-lp-htmlblock': {
     fontFamily: 'var(--font-mono, "JetBrains Mono", ui-monospace, monospace)',
     fontSize: 'var(--text-base, 0.875rem)',
-    color: 'var(--muted, #6d7080)',
+    color: 'var(--muted, #696b75)',
   },
   '.cm-lp-codeblock-indented.cm-lp-codeblock-first': { paddingTop: '0.6rem !important' },
   '.cm-lp-codeblock-indented.cm-lp-codeblock-last': { paddingBottom: '0.6rem !important' },
@@ -210,9 +210,9 @@ export const livePreviewTheme = EditorView.theme({
   // paragraph's own text), not an accent/call-to-action.
   // Fixed-width column the line's negative text-indent hangs the marker in.
   '.cm-lp-list-marker': { display: 'inline-block', textIndent: '0', whiteSpace: 'nowrap', verticalAlign: 'baseline' },
-  '.cm-lp-list-mark-ol': { color: 'var(--prose-body, #374151)', fontVariantNumeric: 'tabular-nums' },
-  '.cm-lp-bullet': { color: 'var(--prose-body, #374151)' },
-  '.cm-lp-list-mark-raw': { color: 'var(--muted-soft, rgba(60,60,67,0.35))' },
+  '.cm-lp-list-mark-ol': { color: 'var(--prose-body, #3e3f46)', fontVariantNumeric: 'tabular-nums' },
+  '.cm-lp-bullet': { color: 'var(--prose-body, #3e3f46)' },
+  '.cm-lp-list-mark-raw': { color: 'var(--muted-soft, rgba(23,24,27,0.35))' },
 
   // ── Task checkboxes — real <input>, same look as old ::before SVG.
   '.cm-lp-task-checkbox': {
@@ -223,7 +223,7 @@ export const livePreviewTheme = EditorView.theme({
     height: '14px',
     verticalAlign: 'middle',
     margin: '-0.15em 0 0 0',
-    border: '1.5px solid var(--prose-body, #374151)',
+    border: '1.5px solid var(--prose-body, #3e3f46)',
     borderRadius: 'var(--r-xs, 4px)',
     background: 'transparent',
     cursor: 'pointer',
@@ -236,8 +236,8 @@ export const livePreviewTheme = EditorView.theme({
   // page background color, guaranteed to contrast against the fill
   // (main-text vs background is the one pair every theme keeps opposite).
   '.cm-lp-task-checkbox:checked': {
-    background: 'var(--prose-body, #374151)',
-    borderColor: 'var(--prose-body, #374151)',
+    background: 'var(--prose-body, #3e3f46)',
+    borderColor: 'var(--prose-body, #3e3f46)',
   },
   '.cm-lp-task-checkbox:checked::after': {
     content: '""',
@@ -253,13 +253,13 @@ export const livePreviewTheme = EditorView.theme({
   },
 
   // ── HR — the rule's line and its "---" source share one height.
-  '.cm-lp-hr': { fontSize: '0.75rem', lineHeight: '1.25rem', color: 'var(--muted-soft, rgba(60,60,67,0.45))' },
+  '.cm-lp-hr': { fontSize: '0.75rem', lineHeight: '1.25rem', color: 'var(--muted-soft, rgba(23,24,27,0.45))' },
   '.cm-lp-hr-rule': {
     display: 'inline-block',
     width: '100%',
     height: '1px',
     verticalAlign: 'middle',
-    background: 'var(--line-edge, rgba(24,24,27,0.16))',
+    background: 'var(--line-edge, rgba(23,24,27,0.16))',
     borderRadius: '0',
   },
 
@@ -269,8 +269,8 @@ export const livePreviewTheme = EditorView.theme({
     fontFamily: 'var(--font-mono, "JetBrains Mono", ui-monospace, monospace)',
     fontSize: 'var(--text-base, 0.875rem)',
     lineHeight: '1.65',
-    color: 'var(--pre-tx, #111111)',
-    background: 'var(--th-bg, rgba(24,24,27,0.04))',
+    color: 'var(--pre-tx, #17181b)',
+    background: 'var(--th-bg, rgba(23,24,27,0.04))',
     borderRadius: '0',
     paddingLeft: '1.5rem !important',
     paddingRight: '1.5rem !important',
@@ -286,7 +286,7 @@ export const livePreviewTheme = EditorView.theme({
   },
   // Fence lines are the block's top/bottom padding. Same height raw or
   // rendered (only the font is small), so revealing ``` never shifts text.
-  '.cm-lp-codeblock-fence': { fontSize: '0.75rem', color: 'var(--muted, #6d7080)' },
+  '.cm-lp-codeblock-fence': { fontSize: '0.75rem', color: 'var(--muted, #696b75)' },
   '.cm-lp-codeblock-first.cm-lp-codeblock-fence': { lineHeight: '2rem' },
   '.cm-lp-codeblock-last.cm-lp-codeblock-fence': { lineHeight: '1.25rem' },
   '.cm-lp-code-lang-edit': { color: 'var(--syn-keyword, #5a4a78)' },
@@ -303,7 +303,7 @@ export const livePreviewTheme = EditorView.theme({
     gap: '0.4rem',
   },
   '.cm-lp-code-lang': {
-    color: 'var(--muted, #6d7080)',
+    color: 'var(--muted, #696b75)',
     fontSize: 'var(--text-xs, 0.75rem)',
     lineHeight: '1',
   },
@@ -317,12 +317,12 @@ export const livePreviewTheme = EditorView.theme({
     border: 'none',
     background: 'transparent',
     // Dimmed by colour: an opacity fade redraws it a pixel off on a fractional line.
-    color: 'color-mix(in srgb, var(--muted, #6d7080) 55%, transparent)',
+    color: 'color-mix(in srgb, var(--muted, #696b75) 55%, transparent)',
     borderRadius: 'var(--r-sm, 6px)',
     cursor: 'pointer',
     transition: 'color 0.15s ease, background-color 0.15s ease',
   },
-  '.cm-lp-code-copy:hover': { background: 'var(--icon-hov, rgba(0,0,0,0.06))', color: 'var(--fg, #1a1a1a)' },
+  '.cm-lp-code-copy:hover': { background: 'var(--icon-hov, rgba(0,0,0,0.06))', color: 'var(--fg, #17181b)' },
   '.cm-lp-code-copy.is-done': { color: 'var(--accent-text, #5e6ad2)' },
   '.cm-lp-code-copy .line-icon': { width: '13px', height: '13px', display: 'block' },
 
@@ -343,7 +343,7 @@ export const livePreviewTheme = EditorView.theme({
     marginRight: '0.2em',
     verticalAlign: 'middle',
     marginTop: '-0.1em',
-    backgroundColor: 'var(--muted, #6d7080)',
+    backgroundColor: 'var(--muted, #696b75)',
     WebkitMaskImage: FILE_MASK,
     maskImage: FILE_MASK,
     WebkitMaskSize: '100% 100%',
@@ -362,14 +362,14 @@ export const livePreviewTheme = EditorView.theme({
   // (mirrors .wikilink-broken in note_shared_prose.css for the read view).
   '.cm-lp-wikilink-broken': {
     textDecoration: 'line-through',
-    textDecorationColor: 'var(--muted, #6d7080)',
-    color: 'var(--muted, #6d7080)',
+    textDecorationColor: 'var(--muted, #696b75)',
+    color: 'var(--muted, #696b75)',
     opacity: '0.55',
     cursor: 'text',
     userSelect: 'none',
   },
-  '.cm-lp-wikilink-broken::before': { backgroundColor: 'var(--muted, #6d7080)' },
-  '.cm-lp-wikilink-broken:hover': { background: 'transparent', color: 'var(--muted, #6d7080)' },
+  '.cm-lp-wikilink-broken::before': { backgroundColor: 'var(--muted, #696b75)' },
+  '.cm-lp-wikilink-broken:hover': { background: 'transparent', color: 'var(--muted, #696b75)' },
 
   // ── Images ──────────────────────────────────────────────────────────────
   // Bottom-aligned, the line is exactly the picture's height: what imageBox() estimates.
@@ -409,9 +409,9 @@ export const livePreviewTheme = EditorView.theme({
     alignItems: 'center',
     gap: '0.4em',
     padding: '0.35em 0.7em',
-    border: '1px dashed var(--tbl-bd, rgba(24,24,27,0.2))',
+    border: '1px dashed var(--tbl-bd, rgba(23,24,27,0.2))',
     borderRadius: 'var(--r-sm, 6px)',
-    color: 'var(--muted, #6d7080)',
+    color: 'var(--muted, #696b75)',
     fontSize: 'var(--text-sm, 0.8125rem)',
     lineHeight: '1.5',
   },
@@ -421,7 +421,7 @@ export const livePreviewTheme = EditorView.theme({
     display: 'block',
     maxWidth: '100%',
     maxHeight: '360px',
-    outline: '1px solid var(--tbl-bd, rgba(24,24,27,0.12))',
+    outline: '1px solid var(--tbl-bd, rgba(23,24,27,0.12))',
     outlineOffset: '-1px',
     borderRadius: 'var(--r-sm, 6px)',
   },
@@ -448,10 +448,10 @@ export const livePreviewTheme = EditorView.theme({
     userSelect: 'none',
     fontSize: 'var(--text-xs, 0.75rem)',
     fontWeight: 'var(--fw-semibold, 600)',
-    color: 'var(--muted-soft, #9b9eac)',
+    color: 'var(--muted-soft, #9c9ea7)',
     transition: 'color var(--motion-fast, 100ms)',
   },
-  '.cm-fm-head:hover': { color: 'var(--fg, #18181b)' },
+  '.cm-fm-head:hover': { color: 'var(--fg, #17181b)' },
   '.cm-fm-chevron': { display: 'inline-flex', transition: 'transform var(--motion-fast, 100ms)' },
   '.cm-fm-chevron .line-icon': { width: '11px', height: '11px' },
   '.cm-fm-card-collapsed .cm-fm-chevron': { transform: 'rotate(-90deg)' },
@@ -468,13 +468,13 @@ export const livePreviewTheme = EditorView.theme({
     display: 'flex',
     alignItems: 'flex-start',
     gap: '0.5em',
-    color: 'var(--muted, #6d7080)',
+    color: 'var(--muted, #696b75)',
   },
   '.cm-fm-name': { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
-  '.cm-fm-icon': { display: 'inline-flex', alignItems: 'center', height: '1.5em', flexShrink: '0', color: 'var(--muted-soft, #9b9eac)' },
+  '.cm-fm-icon': { display: 'inline-flex', alignItems: 'center', height: '1.5em', flexShrink: '0', color: 'var(--muted-soft, #9c9ea7)' },
   '.cm-fm-icon .line-icon': { width: '13px', height: '13px', display: 'block' },
-  '.cm-fm-val': { color: 'var(--prose-body, #27272a)', overflowWrap: 'anywhere' },
-  '.cm-fm-val-empty': { color: 'var(--muted-soft, #9b9eac)' },
+  '.cm-fm-val': { color: 'var(--prose-body, #3e3f46)', overflowWrap: 'anywhere' },
+  '.cm-fm-val-empty': { color: 'var(--muted-soft, #9c9ea7)' },
   '.cm-fm-val-pre': { whiteSpace: 'pre-line' },
   '.cm-fm-val-num': { fontVariantNumeric: 'tabular-nums' },
   '.cm-fm-val-list': { display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '4px' },
@@ -484,8 +484,8 @@ export const livePreviewTheme = EditorView.theme({
     maxWidth: '100%',
     padding: '0 8px',
     borderRadius: 'var(--r-full, 999px)',
-    background: 'var(--code-bg, rgba(24,24,27,0.055))',
-    color: 'var(--muted, #6d7080)',
+    background: 'var(--code-bg, rgba(23,24,27,0.055))',
+    color: 'var(--muted, #696b75)',
     fontSize: 'var(--text-xs, 0.75rem)',
     lineHeight: '1.6',
   },
@@ -497,8 +497,8 @@ export const livePreviewTheme = EditorView.theme({
     fontVariantNumeric: 'tabular-nums',
     transition: 'color var(--motion-fast, 100ms)',
   },
-  '.cm-fm-more:hover': { color: 'var(--fg, #18181b)' },
-  '.cm-fm-sub-key': { color: 'var(--muted, #6d7080)', marginRight: '0.5em' },
+  '.cm-fm-more:hover': { color: 'var(--fg, #17181b)' },
+  '.cm-fm-sub-key': { color: 'var(--muted, #696b75)', marginRight: '0.5em' },
   '.cm-fm-link': {
     color: 'var(--link, #2563eb)',
     textDecoration: 'underline',
@@ -507,8 +507,8 @@ export const livePreviewTheme = EditorView.theme({
     textUnderlineOffset: '2px',
   },
   '.cm-fm-link:hover': { textDecorationColor: 'var(--link-ul-hov, #4c56c8)' },
-  '.cm-fm-bool': { color: 'var(--muted, #6d7080)' },
-  '.cm-fm-bool-on': { color: 'var(--fg, #18181b)' },
+  '.cm-fm-bool': { color: 'var(--muted, #696b75)' },
+  '.cm-fm-bool-on': { color: 'var(--fg, #17181b)' },
 
   // ── Tables — a row is one source line drawn as a flex row of cell marks
   // (tables-decorate.js): stretch gives a wrapped cell's siblings its height,
@@ -516,19 +516,19 @@ export const livePreviewTheme = EditorView.theme({
   '.cm-lp-table-row': { display: 'flex', alignItems: 'stretch' },
   '.cm-lp-table-cell': {
     boxSizing: 'border-box',
-    color: 'var(--td-tx, #374151)',
+    color: 'var(--td-tx, #3e3f46)',
     fontSize: 'var(--text-base, 0.875rem)',
     padding: '0.45rem 0.75rem',
-    borderBottom: '1px solid var(--tbl-bd, rgba(24,24,27,0.12))',
-    borderRight: '1px solid var(--tbl-bd, rgba(24,24,27,0.12))',
+    borderBottom: '1px solid var(--tbl-bd, rgba(23,24,27,0.12))',
+    borderRight: '1px solid var(--tbl-bd, rgba(23,24,27,0.12))',
     borderRadius: '0',
   },
-  '.cm-lp-table-cell-first': { borderLeft: '1px solid var(--tbl-bd, rgba(24,24,27,0.12))' },
+  '.cm-lp-table-cell-first': { borderLeft: '1px solid var(--tbl-bd, rgba(23,24,27,0.12))' },
   '.cm-lp-table-row-header .cm-lp-table-cell': {
-    background: 'var(--th-bg, rgba(24,24,27,0.04))',
-    color: 'var(--th-tx, #9ca3af)',
+    background: 'var(--th-bg, rgba(23,24,27,0.04))',
+    color: 'var(--th-tx, #4d4f58)',
     fontWeight: '500',
-    borderTop: '1px solid var(--tbl-bd, rgba(24,24,27,0.12))',
+    borderTop: '1px solid var(--tbl-bd, rgba(23,24,27,0.12))',
   },
   '.cm-lp-table-row-header .cm-lp-table-cell-first': { borderTopLeftRadius: 'var(--r-sm, 6px)' },
   '.cm-lp-table-row-header .cm-lp-table-cell-last': { borderTopRightRadius: 'var(--r-sm, 6px)' },
@@ -538,9 +538,9 @@ export const livePreviewTheme = EditorView.theme({
   // A delimiter row typed into shows raw inside the table's frame.
   '.cm-lp-table-delim-raw': {
     fontSize: 'var(--text-base, 0.875rem)',
-    color: 'var(--muted-soft, rgba(60,60,67,0.35))',
+    color: 'var(--muted-soft, rgba(23,24,27,0.35))',
     padding: '0.45rem 0.75rem !important',
-    border: '1px solid var(--tbl-bd, rgba(24,24,27,0.12))',
+    border: '1px solid var(--tbl-bd, rgba(23,24,27,0.12))',
     borderTop: 'none',
     borderRadius: '0',
   },

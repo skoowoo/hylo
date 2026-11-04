@@ -143,7 +143,7 @@
     .home-side-bottom-btn svg { width: 16px; height: 16px; }
     .home-side-nav {
       flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none;
-      display: flex; flex-direction: column; gap: 3px;
+      display: flex; flex-direction: column; gap: 2px;
       padding: 14px;
       /* Each edge fades by how much content is hidden past it (capped at 24px). */
       -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 var(--fade-top, 0px), #000 calc(100% - var(--fade-bottom, 0px)), transparent 100%);
@@ -158,7 +158,7 @@
       flex-shrink: 0; padding: 14px 10px 4px;
       /* A whole-pixel line keeps every row below it on whole pixels. */
       font-size: var(--text-2xs); font-weight: var(--fw-medium); line-height: round(var(--text-2xs) * var(--lh-normal), 1px);
-      color: color-mix(in srgb, var(--muted-soft) 80%, transparent);
+      color: var(--muted);
       cursor: default; user-select: none;
     }
     .home-side-heading:first-child { padding-top: 0; }
@@ -197,21 +197,21 @@
     }
     .home-side-children-inner {
       min-height: 0; overflow: hidden;
-      display: flex; flex-direction: column; gap: 1px;
+      display: flex; flex-direction: column; gap: 2px;
       padding-left: 12px;
       opacity: 0; transition: opacity var(--motion-base) var(--ease-standard);
       border-radius: 0; /* clips its rows; the global radius would cut their corners */
     }
     /* Vertical breathing room as clipped content, not padding: a 0fr row can't
        shrink padding, so a collapsed group would keep it. 2px above, 4px below. */
-    .home-side-children-inner::before { content: ""; flex: none; height: 1px; }
-    .home-side-children-inner::after { content: ""; flex: none; height: 3px; }
+    .home-side-children-inner::before { content: ""; flex: none; height: 0; }
+    .home-side-children-inner::after { content: ""; flex: none; height: 2px; }
     .home-side-children.is-open > .home-side-children-inner { opacity: 1; }
     /* Rows that render after first paint (open tabs from localStorage, bots
-       before Alpine) hold their final height until they arrive. 31px is a
-       30px row plus the 1px gap; 6px is the ::before/::after spacing. */
+       before Alpine) hold their final height until they arrive. 34px is a
+       32px row plus the 2px gap; 4px is the ::before/::after spacing. */
     .home-side-children[data-reserve] > .home-side-children-inner {
-      min-height: calc(var(--reserve-rows) * 31px - 1px + 6px);
+      min-height: calc(var(--reserve-rows) * 34px + 4px);
     }
     /* One leading column for every child row (tab status, avatar, icon), so all titles line up. */
     .home-side-child-lead {
@@ -225,18 +225,18 @@
     .home-side-child-name {
       flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
-    .home-side-child .home-side-count { background: transparent; padding: 0; color: var(--muted-soft); }
+    .home-side-child .home-side-count { background: transparent; padding: 0; color: var(--muted); }
     .home-side-child.is-active .home-side-count { color: inherit; }
-    .home-side-count--plain { background: transparent; padding: 0; color: var(--muted-soft); font-weight: var(--fw-medium); }
+    .home-side-count--plain { background: transparent; padding: 0; color: var(--muted); font-weight: var(--fw-medium); }
     /* What a bot sent on its own and the user hasn't read keeps the accent pill. */
     .home-side-child .home-side-count--unread { background: var(--tint-strong); padding: 0 5px; color: var(--accent-text); }
 
     /* ── Open tabs ───────────────────────────────────────────── */
     /* Holds the first tab's slot, text on the child-title column (padding + lead + gap); a label, not a control. */
     .home-side-open-none {
-      color: var(--muted-soft); cursor: default; padding-left: 39px;
+      color: var(--muted); cursor: default; padding-left: 39px;
     }
-    .home-side-open-none:hover { background: transparent; color: var(--muted-soft); }
+    .home-side-open-none:hover { background: transparent; color: var(--muted); }
     .home-side-open-none[hidden] { display: none; }
     /* Every slot is always laid out — hover and activation only change
        colour and opacity — so a title never re-truncates under the pointer. */
@@ -303,7 +303,7 @@
        Knowledge, Images, Agents, Shorts) — same height/padding/no-border
        everywhere instead of each inventing its own toolbar. It carries no
        title (the sidebar selection already says where you are): only a
-       low-key count pill where a section has a number worth showing, plus
+       quiet count ("133 notes") where a section has a number worth showing, plus
        the section's own controls right-aligned via .home-list-head-spacer.
        Knowledge's graph view sits below this row too (its seg control lives
        here), so the graph is just the section's .sec-body below it.
@@ -329,12 +329,10 @@
     html.macos .home-list-head { -webkit-app-region: drag; cursor: default; }
     html.macos .home-list-head button,
     html.macos .home-list-head a { -webkit-app-region: no-drag; }
-    /* Same pill recipe as the graph index counts (--cnt-bg/--cnt-tx). */
     .home-list-count {
-      flex-shrink: 0; display: inline-flex; align-items: center;
-      height: 20px; padding: 0 8px; border-radius: var(--r-full);
-      font-size: var(--text-xs); font-weight: var(--fw-medium); line-height: 1;
-      color: var(--cnt-tx); background: var(--cnt-bg);
+      flex-shrink: 0;
+      font-size: var(--text-xs); line-height: 1;
+      color: var(--muted);
       font-variant-numeric: tabular-nums;
     }
     /* A filtered list's filter, beside its count; clicking clears it. */
@@ -386,6 +384,8 @@
       font-size: var(--text-2xs); line-height: 1; color: var(--muted);
       white-space: nowrap; border-radius: 0;
     }
+    /* The newest columns hang their label leftwards so the grid's clip can't cut it. */
+    .act-week:nth-child(-n+2) .act-month { left: auto; right: 0; }
     .act-cell {
       display: block; flex-shrink: 0; width: var(--act-cell); height: var(--act-cell);
       padding: 0; border: none; border-radius: 2px;
@@ -487,7 +487,7 @@
     .note-card-head { display: flex; align-items: center; gap: 0.35rem; min-width: 0; }
     .note-card-title {
       flex: 0 1 auto; min-width: 0; /* hugs the text, so the todo ring sits right after it */
-      font-size: var(--text-base); font-weight: var(--fw-semibold); color: var(--fg);
+      font-size: var(--text-base); font-weight: var(--fw-medium); color: var(--fg);
       line-height: var(--lh-normal);
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-radius: 0;
     }
@@ -496,9 +496,12 @@
     .note-card-end .card-more { margin-block: -0.25rem; margin-right: -0.35rem; }
     .note-card-preview,
     .note-card-dir {
-      min-width: 0; margin: 0; font-size: var(--text-sm); color: var(--muted);
+      min-width: 0; margin: 0; font-size: var(--text-sm);
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-radius: 0;
     }
+    /* The excerpt is the user's own writing, not meta. */
+    .note-card-preview { color: var(--fg-2); }
+    .note-card-dir { color: var(--muted); }
     .note-card-meta { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; min-width: 0; }
     .note-card-dir { flex: 1; }
     .note-card-time { flex-shrink: 0; font-size: var(--text-sm); color: var(--muted); font-variant-numeric: tabular-nums; }
@@ -516,6 +519,7 @@
     .note-badge svg { width: 10px; height: 10px; }
     .note-badge--done { background: var(--fg); color: var(--bg); }
     .note-badge--pin svg { width: 14px; height: 14px; }
+    [data-hide-pin] .note-badge--pin { display: none; }
     /* Checklist progress in the accent next to the title; a finished list
        becomes the same solid check a compiled note shows. */
     .note-badge--todo svg { width: 100%; height: 100%; }
@@ -684,23 +688,24 @@
        word cloud needs a fixed box to lay out into) and fills it with
        absolutely-positioned .tag-cloud-word buttons at the x/y d3-cloud
        computed — position:relative is all this container itself needs. */
-    .tag-cloud { position: relative; width: 100%; }
+    .tag-cloud { position: relative; width: 100%; flex-shrink: 0; margin-block: auto; }
+    /* Centers a short cloud; auto margins drop to 0 once it overflows, so nothing is cut. */
+    .home-list-body:has(> .tag-cloud) { display: flex; flex-direction: column; }
     /* Plain sized text, not a pill — d3-cloud's tight interlocking packing
        is computed from each word's own glyph shape (rendered to a hidden
        canvas to measure it); wrapping that in a padded/bordered box would
        make the measured shape wrong and reopen gaps the layout just closed.
-       Font-size is the only weight signal (no color scale — same "size
-       only" rule as everywhere else tag weight shows up in this app).
+       Use shows twice: size, and ink from --muted up to --fg (--ink 0–1).
        transform: translate(-50%,-50%) because d3-cloud's x/y are each
        word's center, not its top-left corner. */
     .tag-cloud-word {
       position: absolute; transform: translate(-50%, -50%);
       border: none; background: none; padding: 0; margin: 0;
-      color: var(--fg); cursor: pointer;
+      color: color-mix(in srgb, var(--fg) calc(var(--ink, 1) * 100%), var(--muted)); cursor: pointer;
       font-family: inherit; line-height: 1; white-space: nowrap;
       transition: color var(--motion-fast) ease;
     }
-    .tag-cloud-word:hover { color: var(--accent); }
+    .tag-cloud-word:hover { color: var(--accent-text); }
     .tag-cloud-word:focus-visible { outline: 2px solid var(--accent-focus); outline-offset: 2px; }
 
     /* Filtered-state head: current tag + count on the left, the picker

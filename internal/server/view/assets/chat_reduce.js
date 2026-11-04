@@ -356,17 +356,28 @@
   }
 
   function formatClock(d) {
-    var h = d.getHours(), m = d.getMinutes();
-    var ap = h >= 12 ? 'PM' : 'AM';
-    h = h % 12;
-    if (h === 0) h = 12;
-    return h + ':' + String(m).padStart(2, '0') + ' ' + ap;
+    return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
   }
 
   function sameCalendarDay(a, b) {
     return a.getFullYear() === b.getFullYear() &&
       a.getMonth() === b.getMonth() &&
       a.getDate() === b.getDate();
+  }
+
+  var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+  function monthDay(d, today) {
+    var s = MONTHS[d.getMonth()] + ' ' + d.getDate();
+    return d.getFullYear() !== today.getFullYear() ? s + ', ' + d.getFullYear() : s;
+  }
+
+  // The list timestamp, as formatRelativeTime (search.go) writes it: a note's time, not a message's.
+  function formatDate(ts, now) {
+    if (!ts) return '';
+    var d = new Date(ts);
+    var today = new Date(now == null ? Date.now() : now);
+    return sameCalendarDay(d, today) ? formatClock(d) : monthDay(d, today);
   }
 
   function formatTime(ts, now) {
@@ -387,10 +398,7 @@
     var yesterday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);
     if (sameCalendarDay(d, yesterday)) return 'Yesterday, ' + clock;
 
-    var months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    var datePart = months[d.getMonth()] + ' ' + d.getDate();
-    if (d.getFullYear() !== today.getFullYear()) datePart += ', ' + d.getFullYear();
-    return datePart + ', ' + clock;
+    return monthDay(d, today) + ', ' + clock;
   }
 
   function msgAt(msg) {
@@ -409,6 +417,8 @@
     reconcileStored: reconcileStored,
     replaceTextFromDB: replaceTextFromDB,
     feedSSE: feedSSE,
+    formatClock: formatClock,
+    formatDate: formatDate,
     formatTime: formatTime,
     msgAt: msgAt,
   };

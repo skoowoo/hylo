@@ -170,6 +170,14 @@ test('new segments do not carry view flags', function () {
   assert.equal(stored[0].stopping, undefined);
 });
 
+test('formatDate matches the list timestamp', function () {
+  var now = Date.parse('2026-09-29T15:00:00');
+  assert.equal(R.formatDate(0, now), '');
+  assert.equal(R.formatDate(Date.parse('2026-09-29T09:05:00'), now), '09:05');
+  assert.equal(R.formatDate(Date.parse('2026-09-28T23:00:00'), now), 'Sep 28');
+  assert.equal(R.formatDate(Date.parse('2025-10-11T08:00:00'), now), 'Oct 11, 2025');
+});
+
 test('formatTime buckets', function () {
   var now = Date.parse('2026-09-29T15:00:00');
   assert.equal(R.formatTime(0, now), '');

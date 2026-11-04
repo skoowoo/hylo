@@ -181,15 +181,23 @@
       </nav>
 
       <div class="home-side-bottom">
-        <div class="cselect cselect--inline server-switcher" x-data="{open:false}" x-show="$store.servers.available" x-cloak
-             x-init="$store.servers.load()" @click.outside="open=false" @keydown.escape="open=false">
-          <button type="button" class="cselect-btn cselect-btn--ghost" :class="{open:open}" aria-label="Switch server"
+        <div class="cselect cselect--inline server-switcher" x-data="{open:false,
+             place() {
+               var menu = this.$refs.menu, btn = this.$refs.btn;
+               if (!menu || !btn) return;
+               var r = btn.getBoundingClientRect();
+               menu.style.left = Math.round(r.left) + 'px';
+               menu.style.bottom = Math.round(window.innerHeight - r.top + 3) + 'px';
+             }}" x-show="$store.servers.available" x-cloak
+             x-init="$store.servers.load()" x-effect="$refs.menu && (open ? ($refs.menu.showPopover(), $nextTick(() => place())) : ($refs.menu.matches(':popover-open') && $refs.menu.hidePopover()))"
+             @click.outside="open=false" @keydown.escape="open=false" @resize.window="open && place()">
+          <button type="button" class="cselect-btn cselect-btn--ghost" x-ref="btn" :class="{open:open}" aria-label="Switch server"
                   @click="open = !open; if (open) $store.servers.refresh()">
             <span class="srv-dot" :class="'is-' + $store.servers.state($store.servers.activeId)"></span>
             <span class="cselect-btn-text" x-text="$store.servers.active() ? $store.servers.active().name : 'Server'"></span>
             {{icon "chevron-down"}}
           </button>
-          <div class="cselect-dropdown" x-show="open" x-cloak>
+          <div class="cselect-dropdown" popover="manual" x-ref="menu">
             <template x-for="s in $store.servers.items" :key="s.id">
               <button type="button" class="cselect-option" :class="{sel: s.active}"
                       @click="open = false; window.dispatchEvent(new CustomEvent('hylo:switch-server', {detail: {id: s.id}}))">

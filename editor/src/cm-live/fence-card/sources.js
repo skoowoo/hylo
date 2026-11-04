@@ -4,14 +4,14 @@ import { parseFields, injectStyle, noteName, noteLink } from './fields.js';
 import { lineIconNode } from '../../line-icons.js';
 
 const CSS = `
-.hy-sources{display:flex;flex-wrap:wrap;align-items:center;gap:2px var(--space-xs,8px);font:var(--text-xs,.75rem)/1.6 var(--font-ui,system-ui,sans-serif);color:var(--muted,#6d7080)}
+.hy-sources{display:flex;flex-wrap:wrap;align-items:center;gap:2px var(--space-xs,8px);font:var(--text-xs,.75rem)/1.6 var(--font-ui,system-ui,sans-serif);color:var(--muted,#696b75)}
 .hy-sources-group{display:inline-flex;flex-wrap:wrap;align-items:center;gap:0 6px}
 .hy-sources .line-icon{width:12px;height:12px;flex:none}
 .hy-sources a{color:inherit;text-decoration:none}
-.hy-sources a:hover{color:var(--fg,#18181b);text-decoration:underline}
+.hy-sources a:hover{color:var(--fg,#17181b);text-decoration:underline}
 .hy-sources-sep{opacity:.6}
 .hy-sources-skill{all:unset;cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px}
-.hy-sources-skill:hover{color:var(--fg,#18181b)}
+.hy-sources-skill:hover{color:var(--fg,#17181b)}
 .hy-sources-skill:focus-visible{outline:2px solid rgba(var(--accent-rgb,94,106,210),.5);outline-offset:1px;border-radius:var(--r-xs,4px)}
 `;
 

@@ -76,8 +76,10 @@ function tagSource(search) {
 const completionTheme = EditorView.theme({
   '.cm-tooltip.cm-tooltip-autocomplete': {
     padding: '0.25rem',
-    background: 'var(--surface-soft, #ffffff)',
-    border: 'var(--bd-w, 1px) solid var(--line-edge, rgba(24,24,27,0.16))',
+    background: 'var(--glass-bg, #ffffff)',
+    WebkitBackdropFilter: 'var(--glass-filter, none)',
+    backdropFilter: 'var(--glass-filter, none)',
+    border: 'var(--bd-w, 1px) solid var(--line-edge, rgba(23,24,27,0.16))',
     borderRadius: 'var(--r-lg, 12px)',
     boxShadow: 'var(--shadow-sm, 0 4px 16px) var(--shadow-color, rgba(0,0,0,0.16))',
     fontFamily: 'var(--font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif)',
@@ -86,7 +88,7 @@ const completionTheme = EditorView.theme({
   '.cm-tooltip.cm-tooltip-autocomplete > ul > li': {
     padding: '0.35rem 0.55rem',
     borderRadius: 'var(--r-sm, 6px)',
-    color: 'var(--fg, #1a1a1a)',
+    color: 'var(--fg, #17181b)',
     fontSize: 'var(--text-sm, 0.8125rem)',
     lineHeight: '1.4',
   },
@@ -94,7 +96,7 @@ const completionTheme = EditorView.theme({
     background: 'var(--tint-soft, rgba(94,106,210,0.1))',
     color: 'var(--accent-text, #5e6ad2)',
   },
-  '.cm-completionDetail': { marginLeft: '0.75em', fontStyle: 'normal', color: 'var(--muted, #6d7080)' },
+  '.cm-completionDetail': { marginLeft: '0.75em', fontStyle: 'normal', color: 'var(--muted, #696b75)' },
 });
 
 /**

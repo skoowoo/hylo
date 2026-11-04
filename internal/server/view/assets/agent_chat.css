@@ -64,11 +64,10 @@
       display: none;
     }
 
-    .agent-bot-bar-desc {
-      flex-shrink: 0;
-      max-width: 200px;
-      font-size: var(--text-xs);
-      color: var(--muted-soft);
+    .chat-head-name {
+      min-width: 0;
+      font-size: var(--text-sm);
+      color: var(--muted);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -210,22 +209,18 @@
       justify-content: center;
       border: none;
       border-radius: var(--r-full);
-      /* --card-hov/--btn-bg* are all low-alpha rgba tints (6–15%) — meant to
-         read as a tonal fill against a surface the button already sits on
-         top of (a toolbar, a list row). This button floats directly over
-         arbitrary chat content with nothing opaque behind it, so ANY
-         translucent fill shows through to whatever's underneath and reads
-         as "goes transparent" — the fix isn't picking a different
-         translucent token, it's using solid, fully opaque surface colors. */
-      background: var(--surface-soft);
+      /* Floats over scrolling chat: glass, so text under it blurs instead of showing through. */
+      background: var(--glass-bg);
+      -webkit-backdrop-filter: var(--glass-filter); backdrop-filter: var(--glass-filter);
       color: var(--fg);
       box-shadow: var(--shadow-sm) var(--shadow-color);
       cursor: pointer;
       z-index: 150;
       transition: background var(--motion-fast) ease, transform var(--motion-fast) ease;
     }
-    .chat-scroll-bottom-btn:hover { background: var(--surface-2); }
-    .chat-scroll-bottom-btn:active { background: var(--surface-2); transform: scale(0.9); }
+    .chat-scroll-bottom-btn:hover,
+    .chat-scroll-bottom-btn:active { background: linear-gradient(var(--icon-hov), var(--icon-hov)), var(--glass-bg); }
+    .chat-scroll-bottom-btn:active { transform: scale(0.9); }
     .chat-scroll-bottom-btn svg { width: 15px; height: 15px; flex-shrink: 0; }
 
     /* Grows with its rows (never squeezed to the viewport) so a ResizeObserver
@@ -882,16 +877,11 @@
       z-index: 2;
       border-radius: var(--r-full);
       box-shadow: var(--shadow-sm) var(--shadow-color);
-      /* .icon-btn's own background (--btn-bg/-hov/-on) is a 6–15%-alpha
-         tint meant for a button already sitting on an opaque surface —
-         floating directly over scrolling card content instead, any of that
-         translucency shows the cards through it and reads as "goes
-         transparent". Same fix as .chat-scroll-bottom-btn: solid opaque
-         surface colors instead of a differently-translucent token. */
-      background: var(--surface-soft);
+      background: var(--glass-bg);
+      -webkit-backdrop-filter: var(--glass-filter); backdrop-filter: var(--glass-filter);
     }
-    .seg-note-access-arrow:hover { background: var(--surface-2); }
-    .seg-note-access-arrow:active { background: var(--surface-2); }
+    .seg-note-access-arrow:hover,
+    .seg-note-access-arrow:active { background: linear-gradient(var(--icon-hov), var(--icon-hov)), var(--glass-bg); }
     .seg-note-access-arrow--prev { left: 0.4rem; }
     .seg-note-access-arrow--next { right: 0.4rem; }
     .seg-note-access-arrow--prev svg { transform: rotate(180deg); }
@@ -1073,20 +1063,16 @@
 
     /* ── Input area ──────────────────────────────────────────────── */
     /* Floats over .chat-scroll's bottom edge (position: absolute) instead of
-       sharing flex space with it, so scrolled messages pass behind the panel
-       and fade out rather than stopping dead at a hard line. --composer-fade-h
-       does double duty: it's the gap between the panel's top edge and the
-       composer card, AND the gradient's fade distance, so a message is fully
-       hidden by the time it reaches the card's top edge. .chat-scroll-spacer
-       (this panel's measured height) is what lets a message scroll up far
-       enough to clear it. */
+       sharing flex space with it, with no backing of its own: messages scroll
+       on under the glass composer and blur there. --composer-gap is the
+       clearance above the card a resting last message keeps;
+       .chat-scroll-spacer (this panel's measured height) is what lets a
+       message scroll up far enough to clear it. */
     .chat-input-outer {
-      --composer-fade-h: 1.5rem;
+      --composer-gap: 1.5rem;
       position: absolute;
-      /* Composites as one layer when it overlaps the thread's scroll layer. Left
-         open, WebKit lifts the masked .chat-input-scroll into a layer of its own,
-         and the textarea's caret stops painting there. */
-      isolation: isolate;
+      /* Stacking context so the completion list's z-index stays in this layer and its blur still reaches the thread. */
+      z-index: 0;
       left: 0;
       /* Stops short of the true right edge by .chat-scroll's real
          scrollbar-gutter width, measured in JS with a few px of safety
@@ -1103,11 +1089,8 @@
          in the same spot either way. */
       right: var(--chat-scrollbar-w, 10px);
       bottom: 0;
-      padding: var(--composer-fade-h) 1.5rem 1.25rem 1.5rem;
-      display: flex;
-      justify-content: center;
-      background: linear-gradient(to bottom, transparent, var(--bg) var(--composer-fade-h));
-      /* The panel's own box (fade zone, opaque padding, side gutters beyond
+      padding: var(--composer-gap) 1.5rem 1.25rem 1.5rem;
+      /* The panel's own box (top clearance, padding, side gutters beyond
          .chat-ac-wrap's max-width) must not swallow clicks/wheel-scroll meant
          for the messages underneath — only the actual composer should. */
       pointer-events: none;
@@ -1117,32 +1100,24 @@
       position: relative;
       width: 100%;
       max-width: 48rem; /* matches .chat-scroll-inner so composer lines up with the messages above it */
+      margin-inline: auto;
       pointer-events: auto;
     }
 
-    /* Same background as the composer it hangs off of (.chat-input-card),
-       so the two read as one connected surface, plus enough radius + shadow
-       to read as genuinely floating above the messages behind it. --btn-bg
-       is a translucent ink wash by design — fine on .chat-input-card, which
-       sits on the composer panel's own opaque backdrop, but this panel
-       floats directly over scrolled message text, so used raw it let that
-       text show through. background-color + a flattened background-image
-       pre-composites the same tint onto an opaque base, so it reads
-       identically to .chat-input-card while staying fully opaque regardless
-       of what's scrolled underneath. overflow: hidden still clips the
-       scrollable list to the curve for the edge case of a very short panel;
-       normally .chat-path-ac's own side/end padding already keeps rows
-       clear of the corners. */
     .chat-ac-panel {
       display: none;
       position: absolute;
-      bottom: calc(100% + 4px);
-      left: 0;
-      right: 0;
+      left: 1.5rem;
+      right: 1.5rem;
+      bottom: calc(100% - var(--composer-gap) + 4px);
+      max-width: 48rem;
+      margin-inline: auto;
       max-height: min(280px, 45vh);
       flex-direction: column;
-      background-color: var(--bg);
-      background-image: linear-gradient(var(--btn-bg), var(--btn-bg));
+      pointer-events: auto;
+      background: var(--glass-bg);
+      -webkit-backdrop-filter: var(--glass-filter);
+      backdrop-filter: var(--glass-filter);
       border: var(--bd-w) solid var(--line-edge);
       border-radius: var(--r-xl);
       box-shadow: var(--shadow-sm) var(--shadow-color);
@@ -1219,14 +1194,15 @@
       padding: 3px 10px;
       border: var(--bd-w) solid var(--line-edge);
       border-radius: var(--r-full);
-      background: var(--bg);
+      background: var(--glass-bg);
+      -webkit-backdrop-filter: var(--glass-filter); backdrop-filter: var(--glass-filter);
       font-size: var(--text-xs);
       line-height: 1.4;
       color: var(--muted);
       cursor: pointer;
       transition: color var(--motion-fast), background-color var(--motion-fast);
     }
-    .chat-context-chip:hover { color: var(--fg); background: var(--btn-bg-hov); }
+    .chat-context-chip:hover { color: var(--fg); background: linear-gradient(var(--icon-hov), var(--icon-hov)), var(--glass-bg); }
     .chat-context-chip:focus-visible { outline: 2px solid rgba(var(--accent-rgb), .5); outline-offset: 1px; }
     .chat-context-plus { flex: none; font-weight: var(--fw-medium); }
     .chat-context-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1237,10 +1213,16 @@
        height: a text line is exactly --btn-h tall, buttons sit on the bottom
        edge at the same inset, and the radius is concentric with the buttons
        instead of flipping from pill to card.
-       Same tinted wash as .field-input (base.css), but borderless even on
-       focus; the transparent border keeps the box model stable. */
-    .chat-input-card {
+       Glass like every floating layer, since messages scroll under it. Its
+       backdrop-filter also makes it the group the masked textarea paints in,
+       which keeps WebKit drawing the caret over the composited thread. */
+    /* Holds the card and its attachment menu side by side: inside the card the
+       menu's glass could only blur the card itself. */
+    .chat-input-dock {
       --composer-pad: 5px; /* whole px: at a fraction the send button's press scale ends in a jump */
+      position: relative;
+    }
+    .chat-input-card {
       /* Room for the caret at a line's ends: it straddles the text edge, and
          both the textarea and its scroller clip there. */
       --caret-room: 3px;
@@ -1249,12 +1231,12 @@
       display: flex;
       flex-direction: column;
       align-items: stretch;
-      background: var(--btn-bg);
-      border: var(--bd-w) solid transparent;
+      background: var(--glass-bg);
+      -webkit-backdrop-filter: var(--glass-filter); backdrop-filter: var(--glass-filter);
+      border: var(--bd-w) solid var(--line-edge);
       border-radius: calc(var(--btn-h) / 2 + var(--composer-pad) + var(--bd-w));
       padding: var(--composer-pad);
-      /* The attachment menu opens above the card. */
-      overflow: visible;
+      box-shadow: var(--shadow-sm) var(--shadow-color);
     }
 
     .chat-input-row {
@@ -1309,7 +1291,7 @@
       z-index: 30;
       min-width: 9.5rem;
       padding: 0.25rem;
-      background: var(--surface-soft);
+      background: var(--glass-bg); -webkit-backdrop-filter: var(--glass-filter); backdrop-filter: var(--glass-filter);
       border: var(--bd-w) solid var(--line-edge);
       border-radius: var(--r-lg);
       box-shadow: var(--shadow-sm) var(--shadow-color);
@@ -1620,16 +1602,19 @@
       font-size: var(--text-sm);
       font-weight: 500;
       border-radius: var(--r-md);
+      /* The status tint sits on glass, so text it floats over blurs instead of showing through. */
+      background: linear-gradient(var(--toast-tint), var(--toast-tint)), var(--glass-bg);
+      -webkit-backdrop-filter: var(--glass-filter); backdrop-filter: var(--glass-filter);
     }
 
     .run-toast-ok {
-      background: var(--s-ok-bg);
+      --toast-tint: var(--s-ok-bg);
       border: var(--bd-w) solid var(--s-ok-bd);
       color: var(--s-ok);
     }
 
     .run-toast-err {
-      background: var(--s-err-bg);
+      --toast-tint: var(--s-err-bg);
       border: var(--bd-w) solid var(--s-err-bd);
       color: var(--s-err);
     }

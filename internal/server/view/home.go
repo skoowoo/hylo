@@ -76,6 +76,8 @@ type homeSectionData struct {
 	// Activity only: the activity map above the list, and the day it is narrowed to.
 	Activity *activityMap
 	Filter   *activityFilter
+	// Pinned only: every row is pinned, so the pin badge says nothing there.
+	HidePin bool
 }
 
 // emptyState is what a section shows when it has nothing yet.
@@ -237,6 +239,7 @@ func (vh *ViewHandler) homeSectionData(r *http.Request, itemsOnly bool) (homeSec
 		}
 		data.Items = vh.noteItemsFromNotes(pinned)
 		data.Title = "Pinned"
+		data.HidePin = true
 		data.Empty = emptyState{Icon: "pinned", Title: "No pinned notes", Desc: "Pin the notes you come back to often to keep them here."}
 		data.Count = len(data.Items)
 	}
@@ -318,12 +321,12 @@ func (vh *ViewHandler) renderHomeShortsSection(r *http.Request) (template.HTML, 
 	now := time.Now()
 	before := now.Add(time.Second)
 	activeYM := now.Format("2006-01")
-	activeMonthLabel := strings.ToUpper(now.Format("Jan 2006"))
+	activeMonthLabel := now.Format("Jan 2006")
 	if from := r.URL.Query().Get("from"); from != "" {
 		if t, err := time.ParseInLocation("2006-01", from, time.Local); err == nil {
 			before = t.AddDate(0, 1, 0) // first moment of next month = end of selected month
 			activeYM = from
-			activeMonthLabel = strings.ToUpper(t.Format("Jan 2006"))
+			activeMonthLabel = t.Format("Jan 2006")
 		}
 	}
 

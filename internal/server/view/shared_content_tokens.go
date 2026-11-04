@@ -16,23 +16,22 @@ const contentTokensShared = `
       --bq-bd:rgba(var(--accent-rgb),0.55);
       --ul-mk:var(--prose-body); --ol-mk:var(--prose-body);
       --code-bg:rgba(var(--ink-rgb),0.055);
-      --th-bg:rgba(var(--ink-rgb),0.04); --tbl-bd:rgba(var(--ink-rgb),0.12);`
+      --th-bg:rgba(var(--ink-rgb),0.04); --tbl-bd:rgba(var(--ink-rgb),0.12);
+      --th-tx:var(--fg-2);`
 
 // Default palette (bare :root). Only tokens that differ from light.
 const contentTokensDark = `
-      --link:#eef0f4;
+      --link:#eff0f4;
       --link-ul:var(--accent); --link-ul-hov:var(--accent-hov);
-      --h1:#eef0f4; --h2:#d0d6e0; --h3:#adb2bc; --h4:#8d92a0; --h5:#8d92a0;
-      /* h5/h6 share h4's ink: anything lighter drops below AA on body-size
-         text. They step down by size and (h6) case instead. */
-      --h6:#8d92a0;
-      --prose-body:#ccd1db;
-      --prose-strong:#eef0f4; --prose-em:#ccd1db;
-      --pre-tx:#e9ebf0;
-      --code-tx:#ccd1db;
-      --bq-tx:rgba(208,214,224,0.85);
-      --th-tx:#9a9fa8; --td-tx:#ccd1db; --tbl-bd:rgba(var(--ink-rgb),0.12);
-      --cm-md-muted:#8d92a0;
+      /* Headings step down by size, never below the body's ink; only the tiny h6 goes muted. */
+      --h1:#eff0f4; --h2:#eff0f4; --h3:#eff0f4; --h4:#eff0f4; --h5:var(--prose-body); --h6:#91939d;
+      --prose-body:#d0d2d9;
+      --prose-strong:#eff0f4; --prose-em:#d0d2d9;
+      --pre-tx:#e8e9ee;
+      --code-tx:#d0d2d9;
+      --bq-tx:rgba(208,210,217,0.85);
+      --td-tx:#d0d2d9;
+      --cm-md-muted:#91939d;
       /* Code-fence syntax highlighting — Tokyo Night. */
       --syn-keyword:#bb9af7; --syn-const:#ff9e64; --syn-string:#9ece6a;
       --syn-escape:#b4f9f8; --syn-def:#7aa2f7; --syn-param:#e0af68;
@@ -41,16 +40,16 @@ const contentTokensDark = `
 
 // Light adaptation — cool near-neutral grays.
 const contentTokensLight = `
-      --link:#111111;
+      --link:#17181b;
       --link-ul:var(--accent); --link-ul-hov:var(--accent-hov);
-      --h1:#111111; --h2:#1f2937; --h3:#374151; --h4:#6b7280; --h5:#6b7280; --h6:#6b7280;
-      --prose-body:#374151;
-      --prose-strong:#111111; --prose-em:#374151;
-      --pre-tx:#111111;
-      --code-tx:#374151;
-      --bq-tx:rgba(55,65,81,0.88);
-      --th-tx:#9ca3af; --td-tx:#374151; --tbl-bd:rgba(var(--ink-rgb),0.12);
-      --cm-md-muted:#9ca3af;
+      --h1:#17181b; --h2:#17181b; --h3:#17181b; --h4:#17181b; --h5:var(--prose-body); --h6:#696b75;
+      --prose-body:#3e3f46;
+      --prose-strong:#17181b; --prose-em:#3e3f46;
+      --pre-tx:#17181b;
+      --code-tx:#3e3f46;
+      --bq-tx:rgba(62,63,70,0.88);
+      --td-tx:#3e3f46;
+      --cm-md-muted:#9c9ea7;
       /* Code-fence syntax highlighting — Tokyo Night Light. */
       --syn-keyword:#5a4a78; --syn-const:#965027; --syn-string:#385f0d;
       --syn-escape:#0f4b6e; --syn-def:#34548a; --syn-param:#8f5e15;

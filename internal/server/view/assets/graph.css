@@ -64,7 +64,8 @@
     /* ── Node tooltip ────────────────────────────────────────── */
     .graph-tooltip {
       position: fixed; z-index: 100; pointer-events: none;
-      background: var(--surface-soft); border: var(--bd-w) solid var(--line-edge);
+      background: var(--glass-bg); -webkit-backdrop-filter: var(--glass-filter); backdrop-filter: var(--glass-filter);
+      border: var(--bd-w) solid var(--line-edge);
       box-shadow: var(--shadow-sm) var(--shadow-color);
       border-radius: var(--r-xs);
       padding: 0.4rem 0.65rem;
@@ -81,7 +82,7 @@
       top: 12px; right: 12px;
       z-index: 20;
       width: 220px;
-      background: var(--surface-soft);
+      background: var(--glass-bg); -webkit-backdrop-filter: var(--glass-filter); backdrop-filter: var(--glass-filter);
       border: var(--bd-w) solid var(--line-edge);
       box-shadow: var(--shadow-sm) var(--shadow-color);
       border-radius: var(--r-md);

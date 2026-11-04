@@ -334,7 +334,7 @@
        elsewhere in home.css (icon opacity, count color, etc). ── */
     .side-nav-item {
       display: flex; align-items: center; gap: 9px; flex-shrink: 0;
-      width: 100%; height: 30px; padding: 0 10px;
+      width: 100%; height: 32px; padding: 0 10px;
       border: var(--bd-w) solid transparent; background: transparent; border-radius: var(--r-md);
       color: var(--nav-fg); cursor: pointer; text-align: left; text-decoration: none;
       font-family: inherit; font-size: var(--text-sm); font-weight: var(--fw-regular);
@@ -516,6 +516,10 @@
       backdrop-filter: var(--glass-scrim-filter);
       -webkit-backdrop-filter: var(--glass-scrim-filter);
       border-radius: 0; /* full-viewport scrim — never rounds */
+    }
+    /* Without a backdrop blur, glass would show sharp text through it: fall back to solid. */
+    @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+      :root { --glass-bg: var(--surface-soft); }
     }
     /* Trapped overlays hide with [hidden], not x-show: x-show reveals a frame
        later, and x-trap, activating on a timer, can find nothing to focus yet. */

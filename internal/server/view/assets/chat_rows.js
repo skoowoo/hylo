@@ -592,7 +592,7 @@
       hydrated = true;
       if (info.title) titleEl.textContent = info.title.replace(/\.md$/i, '');
       previewEl.textContent = info.preview || '';
-      timeEl.textContent = info.updatedAt ? R.formatTime(info.updatedAt) : '';
+      timeEl.textContent = R.formatDate(info.updatedAt);
       if (info.cover) {
         coverImg.src = info.cover;
         show(cover, true);

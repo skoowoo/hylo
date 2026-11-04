@@ -9,8 +9,9 @@
       --control-active-bg:var(--surface-2); --control-active-fg:var(--fg);
       /* Modal scrim — shared by dialogs/settings/search/content pane. Lightbox has its own. */
       --overlay-bg:rgba(0,0,0,0.25);
-      --card-hov:rgba(var(--accent-rgb),0.10);
-      --icon-hov:rgba(var(--accent-rgb),0.10);
+      /* Hover is an ink wash like nav rows and buttons; an accent tint turns grey surfaces lavender. */
+      --card-hov:rgba(var(--ink-rgb),0.05);
+      --icon-hov:rgba(var(--ink-rgb),0.08);
       --tint-soft:rgba(var(--accent-rgb),0.06);
       --tint-md:rgba(var(--accent-rgb),0.10);
       --tint-strong:rgba(var(--accent-rgb),0.14);
@@ -68,17 +69,21 @@
       --ease-spring:cubic-bezier(.34,1.56,.64,1);
       --bd-w:1px; /* whole px — fractional breaks AA at radius arcs */
       --glass-scrim-filter:blur(3px);
+      /* Glass for what floats over moving content (menus, toasts, panels): a tint plus a blur that keeps colour. */
+      --glass-filter:blur(20px) saturate(1.6);
 
       /* ═══ Layer 4: component-scoped ═══ */
       --srch-ic:var(--muted); --srch-ph:var(--muted-soft); --srch-av:var(--control-active-bg); --srch-backdrop:var(--overlay-bg);
       --sr-dir:var(--cover-dir); --sr-ic:var(--muted); --sr-em:var(--muted);
-      --srch-panel-bd:var(--line-edge); --srch-card-bg:var(--surface-soft);
+      /* The whole search panel is glass; the preview is an ink step on it, not a solid card. */
+      --srch-panel-bd:var(--line-edge); --srch-panel-bg:var(--glass-bg); --srch-card-bg:rgba(var(--ink-rgb),0.05);
 
       /* Lightbox/images — fixed veil over arbitrary photos. */
       --lightbox-overlay-bg:rgba(0,0,0,0.4); --lightbox-viewer-bg:#0c0c0c;
       --img-chip-bg:rgba(17,17,17,0.72);
       --img-select-border:rgba(255,255,255,0.72); --img-select-bg:rgba(0,0,0,0.28);
       --img-busy-bg:rgba(0,0,0,0.25); --img-control-bg:rgba(0,0,0,0.55); --img-control-fg:#fff;
+      --img-glass-bg:rgba(0,0,0,0.32);
 
       --font-ui:"Inter","PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans CJK SC",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
       --font-sans:"Inter","PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans CJK SC",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
@@ -96,21 +101,24 @@
       /* --btn-h primary; --btn-h-xs compact secondary; --btn-h-sm chrome-bar. */
       --btn-h:32px; --btn-h-sm:36px; --btn-h-xs:28px;
       --card-note-h:96px; --card-note-w-max:210px;
-      --ink-rgb:238,240,244;
-      --bg:#18191e; --fg:#eef0f4;
-      --muted:#8d92a0; --surface-soft:#212229; --surface-2:#292a33;
+      /* Every neutral sits on one hue (OKLCH h≈275) at low, even chroma; steps differ by lightness only. */
+      --ink-rgb:239,240,244;
+      --bg:#18191e; --fg:#eff0f4;
+      --muted:#91939d; --surface-soft:#212227; --surface-2:#292b2f;
       /* Extra lift when container already sits on --surface-soft. */
-      --control-active-bg-on-soft:#3d3e49;
+      --control-active-bg-on-soft:#3d3f44;
       --seg-thumb:var(--control-active-bg-on-soft);
-      /* macOS vibrancy wash — pull native material toward --surface-soft. */
-      --sidebar-glass-bg:rgba(33,34,41,0.6); --sidebar-glass-border:rgba(255,255,255,0.1);
-      --canvas:#ffffff; --muted-soft:#656a78; --body:#d0d6e0;
-      --srch-panel-bg:var(--bg);
+      /* macOS vibrancy wash: enough to hold a bright or saturated wallpaper on the neutral hue, thin enough to stay glass. */
+      --sidebar-glass-bg:rgba(33,34,39,0.45);
+      --glass-bg:rgba(33,34,39,0.72); --sidebar-glass-border:rgba(255,255,255,0.1);
+      --canvas:#ffffff; --muted-soft:#696b74;
+      /* Secondary content (excerpts, table heads) — between --fg and --muted, ~8:1. */
+      --fg-2:#b6b8c1;
             --accent-hov:#7b86e8;
       /* Accent as text on the canvas (links, active labels): lifted for dark; fills keep --accent. */
       --accent-text:#707ad7;
-      --cover-dir:#8d92a0;
-      --cnt-tx:#9a9fa8;
+      --cover-dir:var(--muted);
+      --cnt-tx:var(--muted);
       --s-ok:#34c481; --s-ok-bg:rgba(39,166,68,0.16); --s-ok-bd:rgba(39,166,68,0.4);
       --s-err:#f87171; --s-err-bg:rgba(248,113,113,0.14); --s-err-bd:rgba(248,113,113,0.35);
       --s-warn:#eeae3a; --s-warn-bg:rgba(251,191,36,0.14); --s-warn-bd:rgba(251,191,36,0.36);
@@ -121,19 +129,18 @@
       --ul-mk:var(--prose-body); --ol-mk:var(--prose-body);
       --code-bg:rgba(var(--ink-rgb),0.055);
       --th-bg:rgba(var(--ink-rgb),0.04); --tbl-bd:rgba(var(--ink-rgb),0.12);
-      --link:#eef0f4;
+      --th-tx:var(--fg-2);
+      --link:#eff0f4;
       --link-ul:var(--accent); --link-ul-hov:var(--accent-hov);
-      --h1:#eef0f4; --h2:#d0d6e0; --h3:#adb2bc; --h4:#8d92a0; --h5:#8d92a0;
-      /* h5/h6 share h4's ink: anything lighter drops below AA on body-size
-         text. They step down by size and (h6) case instead. */
-      --h6:#8d92a0;
-      --prose-body:#ccd1db;
-      --prose-strong:#eef0f4; --prose-em:#ccd1db;
-      --pre-tx:#e9ebf0;
-      --code-tx:#ccd1db;
-      --bq-tx:rgba(208,214,224,0.85);
-      --th-tx:#9a9fa8; --td-tx:#ccd1db; --tbl-bd:rgba(var(--ink-rgb),0.12);
-      --cm-md-muted:#8d92a0;
+      /* Headings step down by size, never below the body's ink; only the tiny h6 goes muted. */
+      --h1:#eff0f4; --h2:#eff0f4; --h3:#eff0f4; --h4:#eff0f4; --h5:var(--prose-body); --h6:#91939d;
+      --prose-body:#d0d2d9;
+      --prose-strong:#eff0f4; --prose-em:#d0d2d9;
+      --pre-tx:#e8e9ee;
+      --code-tx:#d0d2d9;
+      --bq-tx:rgba(208,210,217,0.85);
+      --td-tx:#d0d2d9;
+      --cm-md-muted:#91939d;
       /* Code-fence syntax highlighting — Tokyo Night. */
       --syn-keyword:#bb9af7; --syn-const:#ff9e64; --syn-string:#9ece6a;
       --syn-escape:#b4f9f8; --syn-def:#7aa2f7; --syn-param:#e0af68;
@@ -141,37 +148,35 @@
       --syn-property:#73daca; --syn-comment:#565f89; --syn-invalid:#db4b4b;
     }
     :root[data-theme="light"] {
-      --ink-rgb:24,24,27;
-      --bg:#f9f9fb; --fg:#18181b;
-      --muted:#6d7080; --surface-soft:#f5f5f7; --surface-2:#e3e3e9;
+      --ink-rgb:23,24,27;
+      --bg:#fafafb; --fg:#17181b;
+      --muted:#696b75; --surface-soft:#f2f2f4; --surface-2:#e5e6ea;
       --control-active-bg-on-soft:var(--surface-2);
       --seg-thumb:var(--canvas);
       /* Brighter canvas needs a more visible thumb than the shared (dark-tuned) value. */
       --scrollbar-thumb:rgba(var(--ink-rgb),0.16); --scrollbar-thumb-hov:rgba(var(--ink-rgb),0.30);
-      /* Vibrancy reads dull alone — lean lighter while staying translucent. */
-      --sidebar-glass-bg:rgba(250,250,251,0.72); --sidebar-glass-border:rgba(0,0,0,0.08);
-      --canvas:#ffffff; --muted-soft:#9b9eac; --body:#3f4147;
-      /* bg and surface-soft nearly match in light; lift the panel so the preview card reads. */
-      --srch-panel-bg:var(--canvas);
+      --sidebar-glass-bg:rgba(250,250,251,0.5);
+      --glass-bg:rgba(252,252,253,0.72); --sidebar-glass-border:rgba(0,0,0,0.08);
+      --canvas:#ffffff; --muted-soft:#9c9ea7; --fg-2:#4d4f58;
             --accent-hov:#4c56c8;
       --accent-text:var(--accent);
-      --cover-dir:#6b7280;
-      --cnt-tx:#6b7280;
+      --cover-dir:var(--muted);
+      --cnt-tx:var(--muted);
       --s-ok:#059669; --s-ok-bg:rgba(16,185,129,0.08); --s-ok-bd:rgba(16,185,129,0.35);
       --s-err:#dc2626; --s-err-bg:rgba(239,68,68,0.06); --s-err-bd:rgba(239,68,68,0.25);
       --s-warn:#d97706; --s-warn-bg:rgba(217,119,6,0.07); --s-warn-bd:rgba(217,119,6,0.26);
       --s-ok-fg:var(--canvas); --s-err-fg:var(--canvas); --s-warn-fg:var(--canvas);
       --shadow-color:rgba(15,15,25,0.10);
-      --link:#111111;
+      --link:#17181b;
       --link-ul:var(--accent); --link-ul-hov:var(--accent-hov);
-      --h1:#111111; --h2:#1f2937; --h3:#374151; --h4:#6b7280; --h5:#6b7280; --h6:#6b7280;
-      --prose-body:#374151;
-      --prose-strong:#111111; --prose-em:#374151;
-      --pre-tx:#111111;
-      --code-tx:#374151;
-      --bq-tx:rgba(55,65,81,0.88);
-      --th-tx:#9ca3af; --td-tx:#374151; --tbl-bd:rgba(var(--ink-rgb),0.12);
-      --cm-md-muted:#9ca3af;
+      --h1:#17181b; --h2:#17181b; --h3:#17181b; --h4:#17181b; --h5:var(--prose-body); --h6:#696b75;
+      --prose-body:#3e3f46;
+      --prose-strong:#17181b; --prose-em:#3e3f46;
+      --pre-tx:#17181b;
+      --code-tx:#3e3f46;
+      --bq-tx:rgba(62,63,70,0.88);
+      --td-tx:#3e3f46;
+      --cm-md-muted:#9c9ea7;
       /* Code-fence syntax highlighting — Tokyo Night Light. */
       --syn-keyword:#5a4a78; --syn-const:#965027; --syn-string:#385f0d;
       --syn-escape:#0f4b6e; --syn-def:#34548a; --syn-param:#8f5e15;
@@ -180,37 +185,35 @@
     }
     @media (prefers-color-scheme: light) {
       :root:not([data-theme="dark"]) {
-      --ink-rgb:24,24,27;
-      --bg:#f9f9fb; --fg:#18181b;
-      --muted:#6d7080; --surface-soft:#f5f5f7; --surface-2:#e3e3e9;
+      --ink-rgb:23,24,27;
+      --bg:#fafafb; --fg:#17181b;
+      --muted:#696b75; --surface-soft:#f2f2f4; --surface-2:#e5e6ea;
       --control-active-bg-on-soft:var(--surface-2);
       --seg-thumb:var(--canvas);
       /* Brighter canvas needs a more visible thumb than the shared (dark-tuned) value. */
       --scrollbar-thumb:rgba(var(--ink-rgb),0.16); --scrollbar-thumb-hov:rgba(var(--ink-rgb),0.30);
-      /* Vibrancy reads dull alone — lean lighter while staying translucent. */
-      --sidebar-glass-bg:rgba(250,250,251,0.72); --sidebar-glass-border:rgba(0,0,0,0.08);
-      --canvas:#ffffff; --muted-soft:#9b9eac; --body:#3f4147;
-      /* bg and surface-soft nearly match in light; lift the panel so the preview card reads. */
-      --srch-panel-bg:var(--canvas);
+      --sidebar-glass-bg:rgba(250,250,251,0.5);
+      --glass-bg:rgba(252,252,253,0.72); --sidebar-glass-border:rgba(0,0,0,0.08);
+      --canvas:#ffffff; --muted-soft:#9c9ea7; --fg-2:#4d4f58;
             --accent-hov:#4c56c8;
       --accent-text:var(--accent);
-      --cover-dir:#6b7280;
-      --cnt-tx:#6b7280;
+      --cover-dir:var(--muted);
+      --cnt-tx:var(--muted);
       --s-ok:#059669; --s-ok-bg:rgba(16,185,129,0.08); --s-ok-bd:rgba(16,185,129,0.35);
       --s-err:#dc2626; --s-err-bg:rgba(239,68,68,0.06); --s-err-bd:rgba(239,68,68,0.25);
       --s-warn:#d97706; --s-warn-bg:rgba(217,119,6,0.07); --s-warn-bd:rgba(217,119,6,0.26);
       --s-ok-fg:var(--canvas); --s-err-fg:var(--canvas); --s-warn-fg:var(--canvas);
       --shadow-color:rgba(15,15,25,0.10);
-      --link:#111111;
+      --link:#17181b;
       --link-ul:var(--accent); --link-ul-hov:var(--accent-hov);
-      --h1:#111111; --h2:#1f2937; --h3:#374151; --h4:#6b7280; --h5:#6b7280; --h6:#6b7280;
-      --prose-body:#374151;
-      --prose-strong:#111111; --prose-em:#374151;
-      --pre-tx:#111111;
-      --code-tx:#374151;
-      --bq-tx:rgba(55,65,81,0.88);
-      --th-tx:#9ca3af; --td-tx:#374151; --tbl-bd:rgba(var(--ink-rgb),0.12);
-      --cm-md-muted:#9ca3af;
+      --h1:#17181b; --h2:#17181b; --h3:#17181b; --h4:#17181b; --h5:var(--prose-body); --h6:#696b75;
+      --prose-body:#3e3f46;
+      --prose-strong:#17181b; --prose-em:#3e3f46;
+      --pre-tx:#17181b;
+      --code-tx:#3e3f46;
+      --bq-tx:rgba(62,63,70,0.88);
+      --td-tx:#3e3f46;
+      --cm-md-muted:#9c9ea7;
       /* Code-fence syntax highlighting — Tokyo Night Light. */
       --syn-keyword:#5a4a78; --syn-const:#965027; --syn-string:#385f0d;
       --syn-escape:#0f4b6e; --syn-def:#34548a; --syn-param:#8f5e15;

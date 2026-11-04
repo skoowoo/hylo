@@ -71,6 +71,7 @@ var viewFuncs = template.FuncMap{
 		return `style="display:none"`
 	},
 	"encdir":   url.QueryEscape,
+	"plural":   plural,
 	"sideIcon": sideIcon,
 	"icon":     icon,
 	"coverURL": func(name string) string {

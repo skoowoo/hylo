@@ -43,8 +43,10 @@ function ensureStyles() {
   min-width: 190px;
   max-width: min(320px, 90vw);
   padding: 0.25rem;
-  background: var(--surface-soft, #ffffff);
-  border: var(--bd-w, 1px) solid var(--line-edge, rgba(24,24,27,0.16));
+  background: var(--glass-bg, #ffffff);
+  -webkit-backdrop-filter: var(--glass-filter, none);
+  backdrop-filter: var(--glass-filter, none);
+  border: var(--bd-w, 1px) solid var(--line-edge, rgba(23,24,27,0.16));
   border-radius: var(--r-lg, 12px);
   box-shadow: var(--shadow-sm, 0 4px 16px) var(--shadow-color, rgba(0,0,0,0.16));
   font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);
@@ -54,15 +56,15 @@ function ensureStyles() {
   width: 100%; padding: 0.4rem 0.55rem; margin: 0;
   border: none; background: transparent; text-align: left;
   border-radius: var(--r-sm, 6px);
-  color: var(--muted, #6d7080);
+  color: var(--muted, #696b75);
   font: inherit;
   font-size: var(--text-sm, 0.8125rem);
   white-space: nowrap;
   cursor: pointer;
 }
 .cm-format-menu-row svg { width: 13px; height: 13px; flex-shrink: 0; }
-.cm-format-menu-kbd { margin-left: auto; padding-left: 1.5rem; color: var(--muted-soft, #9b9eac); font-size: var(--text-xs, 0.75rem); }
-.cm-format-menu-row:hover:not(:disabled) { color: var(--fg, #1a1a1a); background: var(--icon-hov, rgba(0,0,0,0.06)); }
+.cm-format-menu-kbd { margin-left: auto; padding-left: 1.5rem; color: var(--muted-soft, #9c9ea7); font-size: var(--text-xs, 0.75rem); }
+.cm-format-menu-row:hover:not(:disabled) { color: var(--fg, #17181b); background: var(--icon-hov, rgba(0,0,0,0.06)); }
 .cm-format-menu-row:disabled { opacity: 0.4; cursor: default; }
 .cm-format-menu-row.is-active,
 .cm-format-menu-row.is-active:hover { color: var(--accent-text, #5e6ad2); background: var(--tint-soft, rgba(94,106,210,0.1)); }
@@ -72,7 +74,7 @@ function ensureStyles() {
    .content-pane-more-divider (that div sits inside a panel that already has
    its own border, so even --line-edge is too much weight here; same logic
    applies to this popup). */
-.cm-format-menu-sep { margin: 0.25rem 0.55rem; border-top: var(--bd-w, 1px) solid var(--line-hair, rgba(24,24,27,0.09)); }
+.cm-format-menu-sep { margin: 0.25rem 0.55rem; border-top: var(--bd-w, 1px) solid var(--line-hair, rgba(23,24,27,0.09)); }
 `;
   document.head.appendChild(style);
 }

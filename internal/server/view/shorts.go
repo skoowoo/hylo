@@ -29,7 +29,7 @@ type shortsStreamGroup struct {
 }
 
 type shortsMonthItem struct {
-	Abbr      string // "JUN"
+	Abbr      string // "Jun"
 	Year      string // "2026"
 	YM        string // "2026-06"
 	IsCurrent bool
@@ -42,7 +42,7 @@ type shortsStreamPageData struct {
 	Tag              string   // the #tag the feed is filtered to, "" for all
 	Tags             []string // the shorts' most used tags, plus Tag when it isn't among them
 	Months           []shortsMonthItem
-	ActiveMonthLabel string // "SEP 2026" — the month-picker trigger's own label
+	ActiveMonthLabel string // "Sep 2026" — the month-picker trigger's own label
 }
 
 type shortRenderedEntry struct {
@@ -161,9 +161,9 @@ func (vh *ViewHandler) shortGroups(entries []storage.ShortEntry) []shortsStreamG
 		date := e.CreatedAt.Format("2006-01-02")
 		idx, ok := groupIdx[date]
 		if !ok {
-			dateLabel := e.CreatedAt.Format("Monday, January 2")
+			dateLabel := e.CreatedAt.Format("Mon, Jan 2")
 			if e.CreatedAt.Year() != currentYear {
-				dateLabel = e.CreatedAt.Format("Monday, January 2, 2006")
+				dateLabel = e.CreatedAt.Format("Mon, Jan 2, 2006")
 			}
 			idx = len(groups)
 			groupIdx[date] = idx
@@ -225,7 +225,7 @@ func (vh *ViewHandler) loadMonthsWithEntries(activeYM string) []shortsMonthItem 
 			continue
 		}
 		items = append(items, shortsMonthItem{
-			Abbr:      strings.ToUpper(t.Format("Jan")),
+			Abbr:      t.Format("Jan"),
 			Year:      t.Format("2006"),
 			YM:        ym,
 			IsCurrent: ym == activeYM,

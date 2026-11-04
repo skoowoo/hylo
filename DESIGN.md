@@ -1,7 +1,7 @@
 ---
 version: 1.0
 name: Hylo-design-system
-description: "Hylo's own dark-first UI system: a near-black canvas (#08080b), soft-white ink, and a single lavender-blue accent (#5e6ad2) used scarcely — primary actions, focus rings, selected-state text, link emphasis. Depth comes from a surface ladder (bg → surface-soft → surface-2) and hairline borders, not shadows, except for a small set of floating layers (dialogs, popovers, the search overlay) that opt into a restrained lift-off shadow. Inter carries every weight of text, chrome-density type scale, tuned for a dense notes/agent app rather than a marketing page. A theme-invariant four-color identity palette marks people/entities; three semantic colors (ok/err/warn) mark status."
+description: "Hylo's own dark-first UI system: a deep graphite canvas (#18191e), soft-white ink, every neutral on one hue at low chroma, and a single lavender-blue accent (#5e6ad2) used scarcely — primary actions, focus rings, selected-state text, link emphasis. Depth comes from a surface ladder (bg → surface-soft → surface-2) and hairline borders, not shadows, except for a small set of floating layers (dialogs, popovers, the search overlay) that opt into a restrained lift-off shadow. Inter carries every weight of text, chrome-density type scale, tuned for a dense notes/agent app rather than a marketing page. A theme-invariant four-color identity palette marks people/entities; three semantic colors (ok/err/warn) mark status."
 
 colors:
   accent: "#5e6ad2"
@@ -9,27 +9,25 @@ colors:
   accent-hov-dark: "#7b86e8"
   accent-hov-light: "#4c56c8"
   accent-focus: "#5e6ad2"
-  bg-dark: "#08080b"
-  bg-light: "#fcfcfc"
-  fg-dark: "#eef0f4"
-  fg-light: "#18181b"
-  muted-dark: "#8d92a0"
-  muted-light: "#6d7080"
-  muted-soft-dark: "#656a78"
-  muted-soft-light: "#9b9eac"
-  surface-soft-dark: "#15161a"
-  surface-soft-light: "#f6f6f7"
-  surface-2-dark: "#1b1c21"
-  surface-2-light: "#ececf0"
-  border-dark: "#262730"
-  border-light: "#e7e7ea"
-  border-strong-dark: "#363742"
-  border-strong-light: "#d4d4d8"
+  bg-dark: "#18191e"
+  bg-light: "#fafafb"
+  fg-dark: "#eff0f4"
+  fg-light: "#17181b"
+  muted-dark: "#91939d"
+  muted-light: "#696b75"
+  muted-soft-dark: "#696b74"
+  muted-soft-light: "#9c9ea7"
+  surface-soft-dark: "#212227"
+  surface-soft-light: "#f2f2f4"
+  surface-2-dark: "#292b2f"
+  surface-2-light: "#e5e6ea"
+  border: "rgba(ink, 0.09)"
+  border-strong: "rgba(ink, 0.16)"
   canvas: "#ffffff"
   inverse-canvas: "#ffffff"
   inverse-ink: "#000000"
-  body-text-dark: "#d0d6e0"
-  body-text-light: "#3f4147"
+  fg-2-dark: "#b6b8c1"
+  fg-2-light: "#4d4f58"
   identity-cyan: "#22d3ee"
   identity-pink: "#f472b6"
   identity-violet: "#a78bfa"
@@ -53,6 +51,12 @@ typography:
     fontSize: 16px
     fontWeight: 600
     lineHeight: 1.4
+    letterSpacing: 0
+  title-list:
+    fontFamily: Inter
+    fontSize: 14px
+    fontWeight: 500
+    lineHeight: 1.5
     letterSpacing: 0
   body:
     fontFamily: Inter
@@ -168,7 +172,7 @@ components:
     rounded: none
     width: 80vw (expandable to 100vw)
   search-panel:
-    backgroundColor: "{colors.bg-dark}"
+    backgroundColor: "glass (--glass-bg + --glass-filter)"
     border: 1px solid border-strong
     rounded: "{rounded.xl}"
     shadow: md
@@ -181,9 +185,10 @@ components:
     backgroundColor: "{colors.surface-soft-dark}"
     hoverBackgroundColor: "{colors.card-hov}"
     rounded: "{rounded.lg}"
+    typography: "{typography.title-list}"
   note-badge:
     backgroundColor: transparent
-    activeBackgroundColor: "{colors.accent}"
+    activeBackgroundColor: "{colors.fg-dark}"
     rounded: "{rounded.sm}"
   status-pill-ok:
     backgroundColor: "rgba(success, 0.16)"
@@ -212,7 +217,7 @@ components:
 
 ## Overview
 
-Hylo's UI runs on a near-black canvas (`{colors.bg-dark}` #08080b — lifted just off true black to avoid a flat, harsh void) with soft-white ink (`{colors.fg-dark}` #eef0f4) and a single chromatic accent, lavender-blue (`{colors.accent}` #5e6ad2). The accent is scarce by design: primary actions, focus rings, list/tab selected-state text, and link emphasis — never a section background or card fill.
+Hylo's UI runs on a deep graphite canvas (`{colors.bg-dark}` #18191e) with soft-white ink (`{colors.fg-dark}` #eff0f4) and a single chromatic accent, lavender-blue (`{colors.accent}` #5e6ad2). The accent is scarce by design: primary actions, focus rings, list/tab selected-state text, and link emphasis — never a section background or card fill.
 
 Depth is carried almost entirely by a **surface ladder** (`--bg` → `--surface-soft` → `--surface-2`) plus 1px hairline borders, not box-shadow. The one deliberate exception is a small set of floating layers — confirm/info dialogs, the settings modal, the search overlay, drawer popovers — which opt into a restrained lift-off shadow (`--shadow-{xs,sm,md,lg}` paired with `--shadow-color`) so a card reads as "off the surface" rather than a flat bordered rectangle. Everything else stays flat.
 
@@ -221,7 +226,8 @@ Inter carries every weight of text, from modal titles down to 10px meta labels �
 Dark is the shipped default (bare `:root`). Light is Hylo's own from-scratch adaptation of the same hue/radius/spacing system — cool near-neutral grays, not a warm cream/pure-black pairing — kept alive because a notes app (unlike a marketing page) needs a comfortable reading surface in bright rooms. The theme toggle (light/dark/auto) lives in Settings → Editor and is applied via `data-theme` on `<html>`, with an `auto` mode that follows the OS `prefers-color-scheme` live.
 
 **Key Characteristics:**
-- **Dark-first, near-black canvas** (`{colors.bg-dark}` #08080b) with a from-scratch light counterpart, not an afterthought palette swap.
+- **Dark-first graphite canvas** (`{colors.bg-dark}` #18191e) with a from-scratch light counterpart, not an afterthought palette swap.
+- **One neutral hue.** Every grey — surfaces, text, borders, in both themes — sits on OKLCH h≈275 at low, even chroma (surfaces ≈0.009, text ≤0.016), so steps differ by lightness only. Mixing grey families (slate text on zinc chrome, pure #111 headings) or letting chroma climb with lightness is what makes greys look dirty.
 - **One chromatic accent** (`{colors.accent}` #5e6ad2) — used scarcely: primary CTA, focus ring, selected-state text, link emphasis.
 - Three-step surface ladder (bg → surface-soft → surface-2) carries hierarchy without shadow; shadow is reserved for floating layers only.
 - One continuous type family (Inter) across every size; no display/body split.
@@ -248,10 +254,11 @@ Dark is the shipped default (bare `:root`). Light is Hylo's own from-scratch ada
 - **Canvas** (`{colors.canvas}` #ffffff, fixed in both themes): A theme-invariant white used only where an element must stay white regardless of mode (e.g. the drawer's expand-button icon against a filled accent-adjacent chrome bar).
 
 ### Text
+Three roles, split by what the text *is*, not how important it feels: the user's own writing never drops to meta grey.
 - **Fg**: Primary text and headings.
-- **Muted**: Secondary text — icon-button resting color, nav item labels (dimmed further via `--nav-fg` at 82% opacity), timestamps.
-- **Muted Soft**: Tertiary text — placeholders, deselected/disabled labels.
-- **Body**: A distinct reading tone (#d0d6e0 dark / #3f4147 light) used for meta/lead text that needs to sit between `--fg` and `--muted`.
+- **Fg-2** (`{colors.fg-2-dark}` / `{colors.fg-2-light}`, ~8:1): Secondary *content* — note-card excerpts, table heads, lightbox note previews.
+- **Muted** (~5:1): Meta — timestamps, counts, folders, sidebar section headings, icon-button resting color. Nav item labels use `--nav-fg` (ink at 82%) instead.
+- **Muted Soft** (~3:1): Placeholders and disabled labels only — never text someone has to read.
 - **Cover Dir**: The directory-label tone used on note cover previews and search result directory breadcrumbs.
 
 ### Semantic
@@ -270,7 +277,8 @@ Dark is the shipped default (bare `:root`). Light is Hylo's own from-scratch ada
 | Token                     | Size | Weight | Line Height | Use                                                                                           |
 | ------------------------- | ---- | ------ | ----------- | --------------------------------------------------------------------------------------------- |
 | `{typography.title-lg}`   | 22px | 600    | 1.3         | Search overlay title, modal titles                                                            |
-| `{typography.title-sm}`   | 16px | 600    | 1.4         | List item titles, card titles                                                                 |
+| `{typography.title-sm}`   | 16px | 600    | 1.4         | Sub-headings                                                                                  |
+| `{typography.title-list}` | 14px | 500    | 1.5         | Note card and list row titles — a screen holds a dozen, so they stay at 500                   |
 | `{typography.body}`       | 14px | 400    | 1.5         | Default UI text, buttons at 600                                                               |
 | `{typography.small}`      | 13px | 400    | 1.5         | Secondary UI text, dialog messages                                                            |
 | `{typography.caption}`    | 12px | 400    | 1.4         | Captions, badge labels, section labels — practical minimum for most UI                        |
@@ -284,7 +292,9 @@ Dark is the shipped default (bare `:root`). Light is Hylo's own from-scratch ada
 - **One family, every weight.** Inter at 400/500/600 covers the whole app; there's no separate display cut.
 - **Chrome type stays tight** (line-height 1.0–1.5); **prose opens up** (1.75) — the editor and reading surfaces are the one place optimized for sustained reading rather than scanning.
 - **No caps labels in chrome.** Section headers, menu headers and meta labels are sentence case at 0 letter-spacing; weight and color carry the hierarchy, in the same soft voice as the rounded line icons. Prose H6 keeps its uppercase as content typography.
+- **Prose headings step by size, not ink.** h1–h4 carry `--fg`, h5 the body ink, and only the tiny h6 goes `--muted`; a heading is never dimmer than the paragraph under it.
 - **Mono only in code contexts** — code fences, inline code spans, and note-editor code blocks.
+- **One timestamp format.** Lists show `14:32` today, `Oct 31` this year, `Oct 11, 2025` before that (`formatRelativeTime`, search.go); chat messages add the clock (`Oct 31, 16:57`) and keep `5m ago` / `19h ago` inside their last day; a note card inside chat is a note, so it keeps the list format (`formatDate`, chat_reduce.js). Always 24-hour, always `tabular-nums`. Month labels are sentence case (`Nov 2026`), never caps.
 
 ## Layout
 
@@ -294,8 +304,9 @@ Dark is the shipped default (bare `:root`). Light is Hylo's own from-scratch ada
 - Dialog interior padding: 24px top/sides, 20px bottom (`.confirm-card`, `.info-card`).
 - Standard button height: 32px (`--btn-h`); compact/icon-only actions: 28px (`--btn-h-xs` / `--action-btn-sz`); chrome-bar height: 36px (`--btn-h-sm`).
 - Topbar height: 40px (`--topbar-h`).
-- List pane header (`.home-list-head`): the same 52px `--toolbar-h`, so its controls line up with the editor tool bar across the pane divider. No title, no bottom divider and no scroll fade (the list just scrolls to a plain edge); a section that has a number to show gets a low-key count pill (`--cnt-bg` / `--cnt-tx`, the same recipe as the graph index counts) at the left, with the tooltip naming what it counts.
-- Editor tool bar: 52px (`--toolbar-h`), fixed — it no longer tracks the list pane's header. It has no bottom divider; instead the editor's top 32px eases into `--bg` (a smoothstep ramp, so neither end reads as a gradient edge) and text scrolling under the bar dissolves rather than being cut off.
+- Sidebar nav rows (`.side-nav-item`, top level and children alike): 32px tall, 2px apart — one 34px pitch down the whole sidebar.
+- List pane header (`.home-list-head`): the same 52px `--toolbar-h`, so its controls line up with the editor tool bar across the pane divider. No title, no bottom divider and no glass: it stays solid page, and the section body starts below it; a section that has a number to show shows its count at the left as quiet `--muted` text with its noun ("133 notes"), not a pill.
+- Editor tool bar: 52px (`--toolbar-h`), fixed and solid `--bg` — it no longer tracks the list pane's header. It has no bottom divider; instead the editor's top 20px eases into `--bg` (a smoothstep ramp, so neither end reads as a gradient edge) and text scrolling under the bar dissolves rather than being cut off.
 
 ### Grid & Container
 - The app is chrome-first, not a marketing grid: a persistent list/sidebar column plus a main content pane (notes list + reading pane, drawer over content, graph canvas with an index column).
@@ -320,6 +331,8 @@ Everything that doesn't explicitly opt into level 5 stays flat, matching the sur
 
 ### Decorative Depth
 - No atmospheric gradients, no spotlight cards, no product-screenshot hero treatment — this is an app UI, not a marketing canvas.
+- **Glass** marks what floats over moving content, nothing else: menus, dropdowns, completion lists, tooltips, the find panel and the whole search panel with its input (`--glass-bg`; the search preview is an ink step on it, not a solid card), the run toast (status tint over `--glass-bg`), the chat composer (the input card and its context chips; it has no backing band, so messages scroll on under it) with its jump-to-latest button and card-strip arrows (hover is an `--icon-hov` step over the glass), the graph's node panel, and the lightbox counter and steps (`--img-glass-bg`). All share `--glass-filter` (`blur(20px) saturate(1.6)`); without backdrop-filter support they fall back to solid. Chrome bars stay solid: the list head and the editor tool bar are `--bg`. Static surfaces (cards, list rows, chat bubbles, dialogs, settings, the fence-card PiP window and card buttons over a still diagram) never get glass.
+- The macOS desktop sidebar is real glass: the window's native `Sidebar` vibrancy shows through a `--sidebar-glass-bg` wash (45% dark, 50% light). The wash is what keeps a bright or saturated wallpaper from tinting the sidebar off the neutral hue; under ~30% it leaks colour, past ~65% the glass turns into a flat grey panel.
 - Modal/dialog/search-overlay scrims apply a faint backdrop blur (`--glass-scrim-filter`, 3px) — just enough to soften the background, well short of a frosted-glass look.
 - Image lightbox and grid chrome (selection borders, chip backgrounds) use fixed black/white overlays independent of theme, since they draw on top of arbitrary photo content rather than app surfaces.
 
@@ -356,7 +369,7 @@ Full-viewport or edge-docked chrome (drawer panel and its tab bar, scrims, `<htm
 **`button-danger`** — Reserved for destructive confirmations (delete).
 - Background `--s-err`, text `--s-err-fg` (inverse ink for contrast against the bright error tone).
 
-**`icon-btn-ghost`** — Icon-only action with no fill at rest, 28px square (24px `--sm` modifier for tighter contexts). Fills with `--icon-hov` (an accent tint) on hover. Used for dismiss/close actions and any icon action that should sit quietly on its surface.
+**`icon-btn-ghost`** — Icon-only action with no fill at rest, 28px square (24px `--sm` modifier for tighter contexts). Fills with `--icon-hov` (ink at 8%) on hover. Used for dismiss/close actions and any icon action that should sit quietly on its surface.
 
 **`icon-btn`** — Tonal icon-only action (`--btn-bg`, `{rounded.sm}`) with an `.active` toggle state (`--btn-bg-on` + `--control-active-fg`) for controls that need to show "this is currently on" (pin, compile, source toggle), not just hover feedback. `.icon-btn--lg` (32px) uses `{rounded.md}` to sit flush with inputs.
 
@@ -373,21 +386,27 @@ Full-viewport or edge-docked chrome (drawer panel and its tab bar, scrims, `<htm
 - Background `--bg`, left border only, no radius (flush to 3 viewport edges), 80vw wide (100vw when expanded). Slides in via transform + opacity, not a fade alone, so it reads as spatial motion.
 
 **`search-panel`** — The command/search overlay.
-- Background `--bg`, 1px `--border-strong`, rounded `{rounded.xl}`, `--shadow-md` lift, backdrop blur scrim. Row dividers use `--border`; keyboard-hint chips use `{rounded.xs}` with a hairline border.
+- Glass: `--glass-bg` with `--glass-filter`, input row included; the preview is a `--srch-card-bg` ink step on it. 1px `--border-strong`, rounded `{rounded.xl}`, `--shadow-md` lift, backdrop blur scrim. Row dividers use `--border`; keyboard-hint chips use `{rounded.xs}` with a hairline border.
 
 **`settings-modal`** — Same floating-card family as dialogs: `--bg`, `--border-strong`, rounded `{rounded.xl}`, `--shadow-lg`.
 
 ### Sections
 
-**`sec`** — Every view in the home list pane (note lists, Tags, Images, Shorts, Graph, Chat) is one `.sec`: a `.home-list-head` (`--toolbar-h`, count pill + right-aligned controls), one `.sec-body` that scrolls (`20px 24px 40px` padding; `.sec-body--flush` for the graph canvas), an optional floating footer (the chat composer), and its `.empty-state--page` as a direct child. A section overrides only what is truly its own: Images' tighter padding, Shorts' centered 600px column, Chat's reading column. Section DOM caching saves and restores scroll on `.sec-body` (except Chat, which sticks to the newest message), so a new section gets it for free.
+**`sec`** — Every view in the home list pane (note lists, Tags, Images, Shorts, Graph, Chat) is one `.sec`: a `.home-list-head` (`--toolbar-h`, count + right-aligned controls), one `.sec-body` that scrolls (`20px 24px 40px` padding; `.sec-body--flush` for the graph canvas), an optional floating footer (the chat composer), and its `.empty-state--page` as a direct child. A section overrides only what is truly its own: Images' tighter padding, Shorts' centered 600px column (its composer sits on `--surface-soft` like the entries below it, with a hairline only while focused), Chat's reading column (its head shows the bot's name where other sections show their count). Section DOM caching saves and restores scroll on `.sec-body` (except Chat, which sticks to the newest message), so a new section gets it for free.
 
 **`empty-state`** — A section with nothing yet: a neutral `--surface-soft` tile (hairline border, `--muted` sidebar icon), a `--fg` title, at most one `--muted` sentence, and at most one action, which alone carries the accent. No rings, glow or entry animation. On a page (`.empty-state--page`) the tile always sits at 40% of the window height, whatever head, composer or button surrounds it. Server-rendered sections use the `empty-state` template (home_section_rows.html).
 
 ### Lists & Cards
 
-**`list-card`** — Notes list rows. Note rows (Pinned, Folders, and the other lists that share that card) sit on `--surface-soft` with no outline.
+**`list-card`** — Notes list rows. Note rows (Pinned, Folders, and the other lists that share that card) sit on `--surface-soft` with no outline. Title in `{typography.title-list}`, excerpt and time in `--muted` at `{typography.small}`.
 
-**`note-badge`** — Small status marker on a note card. The pin variant is a plain accent-colored glyph with no fill; the "done" variant is a solid accent fill with `--accent-fg` text.
+**`note-badge`** — Small status marker on a note card. The pin variant is a plain `--fg` glyph with no fill, hidden in Pinned (every row there is pinned, so it says nothing); the "done" variant is a solid `--fg` disc with a `--bg` check. Checklist progress is an accent ring after the title.
+
+**`tag-cloud`** — The Tags wall: plain words packed by d3-cloud, no pills. Use shows twice — size (13–32px, 400 below 23px, 500 above) and ink (`--muted` up to `--fg`); hover turns a word `--accent-text`. The box is cropped to the placed words and centered in the section, scrolling once it outgrows it.
+
+**Fence cards** (`editor/src/cm-live/fence-card/`) — receipt, proposal, embed and mindmap share one shape: `--surface-soft`, `{rounded.lg}`, title at 600. The mindmap root node sits on `--surface-2` with `--fg` ink; nothing in a card is a solid `--fg` block.
+
+**`choices`** — Reply suggestions in chat. Short options that fit one line stay `--btn-bg` chips (13px, 400). Anything longer becomes a list card: `--surface-soft`, 4px inset, full-width rows in body type (14px, 400, `--prose-body`) split by hairlines, each led by a muted `reply` arrow (a box for multi-select). Hover is the ink wash; once answered, the pick keeps a `--btn-bg` row and an accent check while the rest drop to `--muted-soft`. Never heavier than the answer above it, and never shaped like the user's own bubble.
 
 **`status-pill`** — ok/err/warn tinted pill: low-opacity tinted background + matching-opacity border + bright text, `{rounded.xs}`, `{typography.caption}`.
 
@@ -403,6 +422,7 @@ Full-viewport or edge-docked chrome (drawer panel and its tab bar, scrims, `<htm
 
 ### Do
 - Reserve `{colors.accent}` for primary actions, focus rings, selected-state text, and link emphasis only.
+- Make every neutral hover an ink wash (`--card-hov` 5%, `--icon-hov` 8%, `--nav-hov`, `--btn-bg-hov`); an accent tint on a grey surface reads as lavender (or orange, under another accent preset).
 - Use the three-step surface ladder (bg → surface-soft → surface-2) for hierarchy; don't skip a level.
 - Let full-viewport/edge-docked chrome reset to 0 radius; let everything else default to `{rounded.md}` unless a card/panel calls for `{rounded.lg}`/`{rounded.xl}`.
 - Keep the identity palette (cyan/pink/violet/green) theme-invariant — it marks "who/what", not "which mode".

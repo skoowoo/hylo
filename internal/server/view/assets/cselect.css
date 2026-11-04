@@ -25,7 +25,8 @@
 .cselect-btn.open svg { transform: rotate(180deg); }
 .cselect-dropdown {
   position: absolute; top: calc(100% + 3px); left: 0; right: 0; z-index: 120;
-  background: var(--surface-soft); border: var(--bd-w) solid var(--line-edge);
+  background: var(--glass-bg); -webkit-backdrop-filter: var(--glass-filter); backdrop-filter: var(--glass-filter);
+  border: var(--bd-w) solid var(--line-edge);
   border-radius: var(--r-lg);
   box-shadow: var(--shadow-sm) var(--shadow-color);
   overflow: hidden;

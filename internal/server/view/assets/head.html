@@ -27,7 +27,7 @@ other same-origin views (desktop shell) in step.
       else if(pref==='dark'){document.documentElement.setAttribute('data-theme','dark');}
       else{document.documentElement.removeAttribute('data-theme');}
       if(window.hyloDesktop&&window.hyloDesktop.setViewBgColor){
-        window.hyloDesktop.setViewBgColor(effectiveLight?'#f9f9fb':'#18191e',pref==='light'?'light':(pref==='dark'?'dark':''));
+        window.hyloDesktop.setViewBgColor(effectiveLight?'#fafafb':'#18191e',pref==='light'?'light':(pref==='dark'?'dark':''));
       }
       if(window.__hyloApplyAccent)window.__hyloApplyAccent();
     }catch(_){}

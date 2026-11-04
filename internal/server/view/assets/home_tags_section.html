@@ -1,7 +1,7 @@
 {{define "tags"}}<div class="sec">
 {{if .Selected}}<div class="home-list-head">
   <span class="tag-current"><span class="tag-current-name">{{.Selected}}</span></span>
-  <span class="home-list-count" id="home-list-count" title="Notes">{{.Count}}</span>
+  <span class="home-list-count" id="home-list-count">{{plural .Count "note"}}</span>
   <div class="home-list-head-spacer"></div>
   <div class="cselect cselect--inline tag-picker" x-data="{tpOpen:false,tpQuery:''}" @click.outside="tpOpen=false">
     <button type="button" class="cselect-btn cselect-btn--ghost" :class="{open:tpOpen}"
@@ -49,7 +49,7 @@
 <div class="sec-body home-list-body" id="home-list-body" :class="{'is-grid': currentListView() === 'grid'}">{{template "rows" .}}</div>
 {{if and (not .Items) .Empty.Title}}{{template "empty-state" .Empty}}{{end}}
 {{else}}<div class="home-list-head">
-  <span class="home-list-count" id="home-list-count" title="Tags">{{len .Tags}}</span>
+  <span class="home-list-count" id="home-list-count">{{plural (len .Tags) "tag"}}</span>
 </div>
 <div class="sec-body home-list-body" id="home-list-body">{{if .Tags}}
   <div class="tag-cloud" id="tag-cloud" data-tags="{{tagsJSON .Tags}}"></div>

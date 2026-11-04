@@ -2,7 +2,6 @@ package view
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/url"
 	"sort"
@@ -144,18 +143,17 @@ func firstDirSegment(dir string) string {
 	return dir
 }
 
+// formatRelativeTime is the one list timestamp: the time today, the date
+// otherwise, the year only when it isn't this one (chat_reduce.js formatDate matches).
 func formatRelativeTime(t time.Time) string {
-	d := time.Since(t)
+	now := time.Now()
+	t = t.In(now.Location())
 	switch {
-	case d < time.Minute:
-		return "just now"
-	case d < time.Hour:
-		return fmt.Sprintf("%dm ago", int(d.Minutes()))
-	case d < 24*time.Hour:
-		return fmt.Sprintf("%dh ago", int(d.Hours()))
-	case d < 7*24*time.Hour:
-		return fmt.Sprintf("%dd ago", int(d.Hours()/24))
+	case t.YearDay() == now.YearDay() && t.Year() == now.Year():
+		return t.Format("15:04")
+	case t.Year() == now.Year():
+		return t.Format("Jan 2")
 	default:
-		return t.Format("2006-01-02")
+		return t.Format("Jan 2, 2006")
 	}
 }

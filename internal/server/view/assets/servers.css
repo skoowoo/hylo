@@ -9,10 +9,11 @@
 
 .server-switcher { min-width: 0; }
 .server-switcher .cselect-btn--ghost { max-width: 170px; gap: 6px; }
-/* Opens upward: the trigger sits at the bottom edge of the sidebar. */
+/* Top layer, placed from the trigger: the sidebar clips, and the nav's mask
+   would keep this menu's glass from blurring the rows it covers. */
 .server-switcher .cselect-dropdown {
-  top: auto; bottom: calc(100% + 3px); left: 0; right: auto;
-  width: 216px; max-height: 280px;
+  position: fixed; inset: auto; right: auto; margin: 0;
+  width: 216px; min-width: 0; max-height: 280px;
 }
 .srv-option-main { display: flex; flex-direction: column; min-width: 0; text-align: left; }
 .srv-option-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -30,7 +31,7 @@
 .srv-notice {
   display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
   margin-bottom: var(--space-md); padding: 8px 12px; border-radius: var(--r-md);
-  background: var(--btn-bg); color: var(--body); font-size: var(--text-xs);
+  background: var(--btn-bg); color: var(--fg-2); font-size: var(--text-xs);
 }
 .srv-notice-actions { display: flex; gap: 6px; }
 .srv-process {
