@@ -437,7 +437,7 @@ export const editorScroll = owned
       '.cm-scrollbar': {
         position: 'absolute',
         right: '0',
-        width: '11px',
+        width: '10px',
         zIndex: '2',
         opacity: '0',
         transition: 'opacity 0.3s',
@@ -448,7 +448,7 @@ export const editorScroll = owned
         position: 'absolute',
         top: '0',
         right: '2px',
-        width: '7px',
+        width: '6px',
         borderRadius: 'var(--r-full, 999px)',
         background: 'var(--scrollbar-thumb, rgba(0, 0, 0, 0.3))',
       },

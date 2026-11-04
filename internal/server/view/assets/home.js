@@ -428,21 +428,6 @@ function homeCtrl() {
       return window.agentBotColor(name, this.agentBots);
     },
 
-    // Editor toolbar's "send to agent bot" — unlike selectChatAgentBot
-    // (resumes that bot's most recent conversation), this always lands on a
-    // fresh one: handing a note to a bot from outside the chat panel reads
-    // as starting something new, not continuing whatever that bot's chat
-    // was last doing.
-    async sendNoteToAgentBot(e) {
-      if (!this._chat) return;
-      var mateId = (e && e.detail && e.detail.mateId) || '';
-      var stem = (e && e.detail && e.detail.stem) || '';
-      if (!mateId) return;
-      await this._chat.openFreshChat(mateId);
-      this._showChat();
-      this._chat.insertWikilink(stem);
-    },
-
     // Any caller (e.g. the drag-to-move flow) can use the .run-toast element, not just agent runs.
     showToast(text, kind, action) {
       this.toastText = text;

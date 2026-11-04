@@ -2,7 +2,6 @@ package notes
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/hardhacker/hylo/internal/client"
 )
@@ -12,8 +11,10 @@ type ShortQuery struct {
 	Time  TimeFilter
 }
 
-func ShortCreate(c *client.Client, content string) (client.ShortEntry, error) {
-	if strings.TrimSpace(content) == "" {
+// ShortCreate saves a short; images, already stored, go below the text.
+func ShortCreate(c *client.Client, content string, images []client.UploadedImage) (client.ShortEntry, error) {
+	content = WithImages(content, images)
+	if content == "" {
 		return client.ShortEntry{}, fmt.Errorf("content must not be empty")
 	}
 	return c.CreateShort(content)
@@ -32,8 +33,11 @@ func ShortList(c *client.Client, q ShortQuery) ([]client.ShortEntry, error) {
 	return entries, err
 }
 
-func ShortUpdate(c *client.Client, id, hash, content string) (client.ShortEntry, error) {
-	if strings.TrimSpace(content) == "" {
+// ShortUpdate replaces a short's content and adds images below it. Images it
+// already has are ![[name]] lines in its content; keep them there to keep them.
+func ShortUpdate(c *client.Client, id, hash, content string, images []client.UploadedImage) (client.ShortEntry, error) {
+	content = WithImages(content, images)
+	if content == "" {
 		return client.ShortEntry{}, fmt.Errorf("content must not be empty; delete the short note instead")
 	}
 	return c.UpdateShort(id, hash, content)

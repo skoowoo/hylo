@@ -16,8 +16,10 @@ type tagReq struct {
 	Tag string `json:"tag" jsonschema:"tag name"`
 }
 
+// Images are chat attachments only: the tools run in the server, which reads no other files.
 type shortCreateReq struct {
-	Content string `json:"content" jsonschema:"short note text"`
+	Content string   `json:"content,omitempty" jsonschema:"short note text; may be empty when images are given"`
+	Images  []string `json:"images,omitempty" jsonschema:"images the user attached in this chat, as the file paths you were given; they are saved to the vault and embedded below the text. For other image files run hylo short create --images"`
 }
 
 type shortIDReq struct {
@@ -25,9 +27,10 @@ type shortIDReq struct {
 }
 
 type shortUpdateReq struct {
-	ID      string `json:"id" jsonschema:"short note id from short_list"`
-	Content string `json:"content" jsonschema:"new text, replacing the whole entry"`
-	Hash    string `json:"hash,omitempty" jsonschema:"hash from short_list/short_get; when set, fails instead of overwriting a newer edit"`
+	ID      string   `json:"id" jsonschema:"short note id from short_list"`
+	Content string   `json:"content" jsonschema:"new text, replacing the whole entry; keep its ![[name]] lines to keep its images"`
+	Hash    string   `json:"hash,omitempty" jsonschema:"hash from short_list/short_get; when set, fails instead of overwriting a newer edit"`
+	Images  []string `json:"images,omitempty" jsonschema:"images to add: images the user attached in this chat, as the file paths you were given; they are saved to the vault and embedded below the text. For other image files run hylo short update --images"`
 }
 
 type shortDeleteReq struct {
@@ -65,9 +68,13 @@ func registerTagTools(s *sdk.Server, c *client.Client) {
 }
 
 func registerShortTools(s *sdk.Server, c *client.Client) {
-	addTool(s, "short_create", "Save a short note into today's shorts file.", additive,
+	addTool(s, "short_create", "Save a short note into today's shorts file, with text, images, or both. Pass images in `images`; never copy files into the vault yourself.", additive,
 		func(_ context.Context, in shortCreateReq) (client.ShortEntry, error) {
-			return notes.ShortCreate(c, in.Content)
+			imgs, err := notes.UploadChatImages(c, in.Images)
+			if err != nil {
+				return client.ShortEntry{}, err
+			}
+			return notes.ShortCreate(c, in.Content, imgs)
 		})
 
 	addTool(s, "short_list", "List individual short note entries, newest first.", readOnly,
@@ -86,7 +93,11 @@ func registerShortTools(s *sdk.Server, c *client.Client) {
 
 	addTool(s, "short_update", "Replace a short note entry's text, keeping its time and place in the daily file.", destructiveIdempotent,
 		func(_ context.Context, in shortUpdateReq) (client.ShortEntry, error) {
-			return notes.ShortUpdate(c, in.ID, in.Hash, in.Content)
+			imgs, err := notes.UploadChatImages(c, in.Images)
+			if err != nil {
+				return client.ShortEntry{}, err
+			}
+			return notes.ShortUpdate(c, in.ID, in.Hash, in.Content, imgs)
 		})
 
 	addTool(s, "short_delete", "Permanently delete one short note entry; there is no undo.", destructiveIdempotent,

@@ -47,7 +47,7 @@ var noteTools = map[string]noteTool{
 
 	"capabilities": {}, "status": {}, "list": {}, "search": {}, "resolve": {}, "compile": {}, "rename_status": {},
 	"knowledge_list": {}, "knowledge_search": {}, "knowledge_list_indexes": {},
-	"tag_list": {}, "tag_count": {}, "short_list": {},
+	"tag_list": {}, "tag_count": {}, "short_list": {}, "image_upload": {},
 	"bot_list": {}, "bot_get": {}, "bot_create": {}, "bot_update": {}, "bot_delete": {},
 	"trigger_add": {}, "trigger_update": {}, "trigger_delete": {}, "trigger_run": {},
 	"skills_list": {}, "skills_catalog": {}, "skills_add": {}, "skills_enable": {}, "skills_disable": {}, "skills_remove": {},
@@ -127,7 +127,7 @@ var commandValueFlags = map[string]bool{
 	"--head": true, "--tail": true, "--start": true, "--end": true, "--latest": true, "-l": true, "--limit": true,
 	"-k": true, "--kind": true, "--name": true, "--description": true, "--system-prompt": true,
 	"--prompt": true, "--schedule": true, "--events": true, "--path-prefixes": true,
-	"--category": true, "--skill": true, "--bot-id": true, "--pid-file": true,
+	"--category": true, "--skill": true, "--bot-id": true, "--pid-file": true, "--images": true,
 }
 
 // CommandValueFlags reports whether flag (e.g. "-c", "--content") takes a value.

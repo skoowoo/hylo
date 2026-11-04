@@ -156,7 +156,7 @@
        message column and the composer line up. */
     .chat-scroll {
       overflow-x: hidden;
-      /* Reserve the scrollbar's 5px gutter unconditionally (not just once
+      /* Reserve the scrollbar's gutter unconditionally (not just once
          content overflows), so the column doesn't shift sideways the moment
          a streaming reply grows tall enough to start scrolling. */
       scrollbar-gutter: stable;
@@ -1176,7 +1176,7 @@
       border-top: var(--bd-w) solid var(--line-hair);
     }
 
-    /* One-click context above the composer: the open note, or its selection. */
+    /* One-click context above the composer: the selection in the open note. */
     .chat-context {
       display: flex;
       flex-wrap: wrap;

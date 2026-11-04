@@ -18,6 +18,8 @@ type searchResultItem struct {
 	DirLabel    string `json:"dirLabel"` // first path segment of the dir ("/" for vault root)
 	URL         string `json:"url"`
 	Path        string `json:"path"`
+	Kind        string `json:"kind"`    // "raw", "knowledge", "index" or "short"
+	Updated     string `json:"updated"` // list timestamp (formatRelativeTime)
 	IsKnowledge bool   `json:"isKnowledge"`
 	IsIndex     bool   `json:"isIndex"`
 	CanCompile  bool   `json:"canCompile"`
@@ -107,6 +109,8 @@ func (vh *ViewHandler) SearchResults(w http.ResponseWriter, r *http.Request) {
 			DirLabel:    firstDirSegment(res.Dir),
 			URL:         "/notes?" + q.Encode(),
 			Path:        notePath,
+			Kind:        res.Kind,
+			Updated:     formatRelativeTimeOrEmpty(res.UpdatedAt),
 			IsKnowledge: isKnowledge,
 			IsIndex:     isIndex,
 			CanCompile:  canCompile,
@@ -141,6 +145,13 @@ func firstDirSegment(dir string) string {
 		return dir[:i]
 	}
 	return dir
+}
+
+func formatRelativeTimeOrEmpty(t time.Time) string {
+	if t.IsZero() {
+		return ""
+	}
+	return formatRelativeTime(t)
 }
 
 // formatRelativeTime is the one list timestamp: the time today, the date

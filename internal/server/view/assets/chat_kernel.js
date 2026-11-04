@@ -651,21 +651,6 @@
       return true;
     }
 
-    // Same mate switch as tryOpen, but lands on a brand-new conversation
-    // instead of resuming the mate's most recent one — used when a note is
-    // handed to a bot from outside the chat panel (editor toolbar), where a
-    // fresh conversation reads as "here's a new thing to look at" rather
-    // than continuing whatever that bot was last doing. Awaits refresh()
-    // (unlike tryOpen's fire-and-forget) so newChat()'s `messages.length ===
-    // 0` guard sees the switched-to mate's real history before deciding
-    // whether there's anything to replace.
-    async function openFreshChat(id) {
-      if (!switchMate(id)) return false;
-      await refresh();
-      await newChat();
-      return true;
-    }
-
     // Parks the open conversation and brings back the one last seen for this mate.
     function openConversation(id) {
       cancelRunPoller();
@@ -880,17 +865,6 @@
       } catch (e) { notify("Couldn't stop the run"); }
     }
 
-    // Wraps a note's filename stem in `[[ ]]` — the wikilink syntax
-    // mdhtml.go's wikilinkRe resolves by stem, not a full path — matching
-    // chat's "@" mention (path_ac.js).
-    function insertWikilink(stem) {
-      if (!stem) return;
-      if (view && view.insertWikilink) { view.insertWikilink(stem); return; }
-      var cur = draft || '';
-      var leadSp = cur.length > 0 && cur[cur.length - 1] !== ' ' ? ' ' : '';
-      draft = cur + leadSp + '[[' + stem + ']] ';
-    }
-
     // Onboarding lands with ?intro=1: the new bot's first turn is asked for
     // the user, once, and it answers by writing them a guide in the editor.
     var INTRO_PAUSE_MS = 1000;
@@ -962,10 +936,8 @@
         await reloadMates();
         await refresh(true);
       },
-      openFreshChat: openFreshChat,
       busy: busy,
       mateId: function () { return mateId; },
-      insertWikilink: insertWikilink,
     };
   };
 })(typeof window !== 'undefined' ? window : global);

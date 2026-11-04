@@ -537,6 +537,7 @@ func (g *Vault) saveImage(data []byte, stem, ext string) (Image, error) {
 	if !CheckImageMagic(data, ext) {
 		return Image{}, fmt.Errorf("%w: file bytes do not match declared image type", ErrInvalidImageRef)
 	}
+	data, ext = compressImage(data, ext)
 
 	month := time.Now().UTC().Format("200601")
 	if stem == "" {

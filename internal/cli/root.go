@@ -51,6 +51,7 @@ func init() {
 	rootCmd.AddCommand(newExtractCmd())
 	rootCmd.AddCommand(newTagCmd())
 	rootCmd.AddCommand(newShortCmd())
+	rootCmd.AddCommand(newImageCmd())
 	rootCmd.AddCommand(newSkillsCmd())
 	rootCmd.AddCommand(newBotCmd())
 	rootCmd.AddCommand(newCapabilitiesCmd())

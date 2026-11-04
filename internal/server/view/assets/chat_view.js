@@ -599,13 +599,13 @@
         hintName.textContent = mate ? ('Ask ' + mate.name + '…') : 'Select a bot from the sidebar';
       }
       if (ta) {
-        // Renders run per streamed token; the chips only depend on these two.
+        // Renders run per streamed token; the selection chip only cares
+        // whether the composer is enabled.
         var ctxStale = ctxKey === null || ta.disabled !== !snap.mateId;
         ta.disabled = !snap.mateId;
         if (document.activeElement !== ta && ta.value !== snap.draft) {
           ta.value = snap.draft;
           root.__hyloAutoResize(ta);
-          ctxStale = true;
         }
         show(hint, !ta.value);
         if (ctxStale) refreshContext();
@@ -931,25 +931,21 @@
       api.setDraft(before + insert + after);
       refreshContext();
     }
-    function insertWikilink(stem) {
-      if (stem) insertAtCaret('[[' + stem + ']]', true);
-    }
-
-    // Offers the note open in the pane, or the text selected in it, as one click
-    // instead of an @ search. Read on demand: nothing here watches the editor.
+    // Offers the text selected in the open note as one click. Read on demand:
+    // nothing here watches the editor.
     var usedSelection = '';
     function paneContext() {
       var pane = root.__hyloContentPane;
       var tab = pane && pane.contentPaneOpen && pane.tabs ? pane.tabs[pane.activeTab] : null;
       if (!tab || !tab.path) return null;
-      var stem = noteStem(tab.path);
       var ed = root.__hyloEditor;
       var text = '';
       if (ed && ed.view && ed.currentPath === tab.path) {
         var sel = ed.view.state.selection.main;
         text = ed.view.state.sliceDoc(sel.from, sel.to).trim();
       }
-      return { stem: stem, title: tab.title || stem, selection: text };
+      if (!text) return null;
+      return { stem: noteStem(tab.path), selection: text };
     }
     function contextChip(label, onClick) {
       var b = el('button', 'chat-context-chip');
@@ -963,9 +959,8 @@
     function refreshContext() {
       if (!ctxRow || !ta) return;
       var c = ta.disabled ? null : paneContext();
-      var draft = ta.value;
       var chips = [];
-      if (c && c.selection && c.selection !== usedSelection) {
+      if (c && c.selection !== usedSelection) {
         var lines = c.selection.split('\n').filter(function (l) { return l.trim(); }).length;
         chips.push({ key: 's:' + c.selection, label: 'Selection · ' + lines + (lines === 1 ? ' line' : ' lines'), run: function () {
           usedSelection = c.selection;
@@ -973,8 +968,6 @@
           var lead = ta.value.slice(0, ta.selectionStart);
           insertAtCaret((lead && !/\n$/.test(lead) ? '\n' : '') + '[[' + c.stem + ']]\n' + quote + '\n\n');
         } });
-      } else if (c && draft.indexOf('[[' + c.stem + ']]') === -1) {
-        chips.push({ key: 'n:' + c.stem, label: c.title, run: function () { insertWikilink(c.stem); } });
       }
       var key = chips.map(function (x) { return x.key; }).join('|');
       if (key === ctxKey) return;
@@ -1094,7 +1087,6 @@
         show(hint, true);
       },
       focusComposer: focusComposer,
-      insertWikilink: insertWikilink,
       destroy: function () {
         detaching = true;
         splitSettled();

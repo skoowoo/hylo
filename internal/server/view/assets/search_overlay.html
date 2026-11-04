@@ -5,30 +5,23 @@
        @open-search.window="openWithMode($event.detail)"
        class="fixed inset-0 z-[10000] pointer-events-none outline-none">
 
-    <!-- Overlay panel -->
-    <div x-show="show"
-         x-cloak
-         x-transition:enter="transition ease-out duration-200"
-         x-transition:enter-start="opacity-0 -translate-y-2 scale-[0.97]"
-         x-transition:enter-end="opacity-100 translate-y-0 scale-100"
-         x-transition:leave="transition ease-in duration-120"
-         x-transition:leave-start="opacity-100 translate-y-0 scale-100"
-         x-transition:leave-end="opacity-0 -translate-y-1 scale-[0.98]"
-         class="srch-wrap pointer-events-auto">
+    <!-- One fixed window: input, a 400px list area and a footer. States swap
+         inside it, so the frame never moves. The fade runs on the glass panel
+         itself: on an ancestor, its opacity would cut off what it blurs. -->
+    <div class="srch-wrap pointer-events-auto">
 
-      <div class="srch-panel">
+      <div x-show="show"
+           x-cloak
+           x-transition:enter="transition-opacity ease-out duration-[80ms]"
+           x-transition:enter-start="opacity-0"
+           x-transition:enter-end="opacity-100"
+           x-transition:leave="transition-opacity ease-in duration-[80ms]"
+           x-transition:leave-start="opacity-100"
+           x-transition:leave-end="opacity-0"
+           class="srch-panel">
 
-        <!-- Input row -->
-        <div class="srch-row flex items-center gap-2.5 px-4">
-          <button @click.prevent="openModeMenu()"
-                  tabindex="-1"
-                  :class="{'has-mode': mode.field || mode.kind}"
-                  class="srch-icon-area shrink-0 flex items-center gap-1.5 justify-center">
-            {{icon "search" "srch-icon w-4 h-4 shrink-0"}}
-            <span x-show="mode.field || mode.kind"
-                  class="srch-mode-chip"
-                  x-text="mode.label"></span>
-          </button>
+        <div class="srch-row hairline">
+          {{icon "search" `class="srch-icon" width="18" height="18"`}}
           <input type="text"
                  x-ref="input"
                  :placeholder="mode.placeholder"
@@ -39,88 +32,99 @@
                  autocorrect="off"
                  autocapitalize="off"
                  spellcheck="false"
-                 class="srch-input flex-1 min-w-0 bg-transparent outline-none">
-          <!-- One hint set per state; the footers they replace each cost a line. -->
-          <span class="srch-hint flex items-center gap-1.5 shrink-0">
-            <template x-if="showModes">
-              <span class="flex items-center gap-1.5"><kbd class="kbd">↑↓</kbd> navigate <kbd class="kbd srch-hint-gap">↵</kbd> select</span>
-            </template>
-            <template x-if="!showModes && hasQuery">
-              <span class="flex items-center gap-1.5"><kbd class="kbd">↵</kbd> open <kbd class="kbd srch-hint-gap">tab</kbd> <span x-text="showPreview ? 'hide preview' : 'preview'"></span></span>
-            </template>
-            <template x-if="!showModes && !hasQuery && !mode.field && !mode.kind">
-              <span class="flex items-center gap-1.5"><kbd class="kbd">/</kbd> mode</span>
-            </template>
-          </span>
+                 class="srch-input">
+          <button type="button" tabindex="-1" title="Filter (/)"
+                  @click.prevent="toggleModeMenu()"
+                  :class="{'is-open': showModes, 'has-mode': mode.field || mode.kind}"
+                  class="srch-filter">
+            {{icon "sliders" `width="13" height="13"`}}
+            <span x-text="mode.label"></span>
+            {{icon "chevron-down" `width="12" height="12"`}}
+          </button>
         </div>
 
-        <!-- Mode selector -->
-        <div x-show="showModes"
-             x-transition:enter="transition ease-out duration-100"
-             x-transition:enter-start="opacity-0"
-             x-transition:enter-end="opacity-100"
-             x-transition:leave="transition ease-in duration-100"
-             x-transition:leave-start="opacity-100"
-             x-transition:leave-end="opacity-0"
-             class="srch-mode-menu">
-          <div class="flex flex-col gap-0.5" @mousemove="onModeHover($event)">
+        <div class="srch-body" :class="{'has-preview': showPreview && results.length > 0}">
+          <div x-ref="list" @mousemove="onResultHover($event)" class="srch-results-pane">
+            <template x-for="(r, i) in results" :key="r.path">
+              <div class="sr-item">
+                <div class="srch-sec" x-show="sectionLabel(i)" x-text="sectionLabel(i)"></div>
+                <a :href="r.url || '#'" :data-i="i" @click.prevent="choose(i)"
+                   :class="{'is-active': i === active}"
+                   class="sr-row">
+                  <template x-if="r.type === 'bot'">
+                    <span class="sr-tile sr-tile--avatar avatar" x-html="botAvatar(r)"></span>
+                  </template>
+                  <template x-if="r.type !== 'bot'">
+                    <span class="sr-tile">
+                      <template x-if="r.kind === 'knowledge'">{{icon "knowledge" `width="15" height="15"`}}</template>
+                      <template x-if="r.kind === 'index'">{{icon "index" `width="15" height="15"`}}</template>
+                      <template x-if="r.kind === 'short'">{{icon "shorts" `width="15" height="15"`}}</template>
+                      <template x-if="r.kind !== 'knowledge' && r.kind !== 'index' && r.kind !== 'short'">{{icon "note" `width="15" height="15"`}}</template>
+                    </span>
+                  </template>
+                  <span class="sr-name" x-text="r.name"></span>
+                  <span class="sr-dir" x-text="r.type === 'bot' ? r.desc : r.dirLabel"></span>
+                  <span class="sr-acc" :class="{'is-unread': r.type === 'bot' && r.unread > 0}" x-text="accessory(r)"></span>
+                </a>
+              </div>
+            </template>
+            <div class="sr-empty" :hidden="results.length > 0 || !listing">
+              {{icon "search" `width="24" height="24"`}}
+              <span class="sr-empty-title" x-text="emptyTitle"></span>
+              <span class="sr-empty-hint" x-text="emptyHint"></span>
+            </div>
+          </div>
+
+          <template x-if="showPreview && results.length > 0">
+            <div x-ref="preview" class="srch-preview">
+              <template x-if="activeBot">
+                <div class="srch-bot-card">
+                  <span class="avatar avatar--lg" x-html="botAvatar(activeBot)"></span>
+                  <span class="srch-bot-name" x-text="activeBot.name"></span>
+                  <span class="srch-bot-desc" :hidden="!activeBot.desc" x-text="activeBot.desc"></span>
+                </div>
+              </template>
+              <div class="srch-preview-pane" :hidden="activeBot || !previewHtml" x-html="previewHtml"></div>
+            </div>
+          </template>
+
+          <!-- Floats over the list instead of replacing it. -->
+          <div class="srch-mode-menu" :hidden="!showModes" @mousemove="onModeHover($event)"
+               @click.outside="if (showModes && !$event.target.closest('.srch-filter')) closeModeMenu()">
             <template x-for="(m, i) in modes" :key="m.key">
-              <button @click="selectMode(m)"
+              <button type="button" tabindex="-1" @click="selectMode(m)" :data-i="i"
                       :class="{'is-active': i === modeIdx}"
-                      class="srch-mode-item flex items-center gap-3 px-2.5 rounded-md w-full text-left">
+                      class="srch-mode-item">
                 <span class="srch-mode-name" x-text="m.label"></span>
-                <span class="srch-mode-desc flex-1" x-text="m.desc"></span>
-                <span x-show="m.key === mode.key" class="srch-mode-check ml-auto shrink-0">✓</span>
+                <span class="srch-mode-desc" x-text="m.desc"></span>
+                <span class="srch-mode-check" :hidden="m.key !== mode.key">{{icon "check" `width="14" height="14"`}}</span>
               </button>
             </template>
           </div>
         </div>
 
-        <!-- Body: full-width results; tab adds the preview card on the right.
-             Opens on the first response and replaces the mode menu. -->
-        <div class="srch-body flex"
-             x-show="hasQuery && ready && !showModes"
-             x-transition:enter="transition ease-out duration-150"
-             x-transition:enter-start="opacity-0"
-             x-transition:enter-end="opacity-100">
-
-          <div x-ref="list" @mousemove="onResultHover($event)"
-               :class="{'has-preview': showPreview && results.length > 0}"
-               class="srch-results-pane flex flex-col overflow-y-auto [scrollbar-width:none]">
-            <template x-for="(r, i) in results" :key="r.path">
-              <a :href="r.url" :data-i="i" @click.prevent="choose(i)"
-                 :class="{'is-active': i === active}"
-                 class="sr-row flex shrink-0 items-center gap-2 cursor-pointer">
-                <template x-if="r.isKnowledge">{{icon "sparkle" `class="sr-icon shrink-0" width="14" height="14"`}}</template>
-                <template x-if="r.isIndex">{{icon "index" `class="sr-icon shrink-0" width="14" height="14"`}}</template>
-                <template x-if="!r.isKnowledge && !r.isIndex">{{icon "note" `class="sr-icon shrink-0" width="14" height="14"`}}</template>
-                <span class="sr-name flex-1 truncate" x-text="r.name"></span>
-                <span :hidden="!r.dirLabel" class="sr-dir truncate" x-text="r.dirLabel"></span>
-              </a>
-            </template>
-            <div :hidden="results.length > 0" class="sr-empty px-4 py-8 text-center">No results found</div>
-          </div>
-
-          <template x-if="showPreview && results.length > 0">
-            <div x-ref="preview"
-                 class="srch-preview flex-1 min-w-0 overflow-y-auto
-                        [scrollbar-width:thin] [scrollbar-color:var(--line-edge)_transparent]">
-              <div class="srch-preview-pane" :hidden="!previewHtml" x-html="previewHtml"></div>
-            </div>
+        <div class="srch-foot hairline">
+          <span class="srch-foot-ctx" x-text="scopeLabel"></span>
+          <template x-if="showModes">
+            <span class="srch-foot-acts">
+              <span class="srch-foot-act">Move <kbd class="kbd">↑↓</kbd></span>
+              <span class="srch-foot-div"></span>
+              <span class="srch-foot-act is-primary">Select <kbd class="kbd">↵</kbd></span>
+            </span>
+          </template>
+          <template x-if="!showModes">
+            <span class="srch-foot-acts" :class="{'is-off': !results.length}">
+              <span class="srch-foot-act is-primary"><span x-text="activeBot ? 'Open chat' : 'Open'"></span> <kbd class="kbd">↵</kbd></span>
+              <span class="srch-foot-div"></span>
+              <span class="srch-foot-act"><span x-text="showPreview ? 'Hide preview' : 'Preview'"></span> <kbd class="kbd">tab</kbd></span>
+            </span>
           </template>
         </div>
       </div>
     </div>
 
-    <!-- Backdrop -->
+    <!-- Click-away catcher only: the app stays visible, undimmed. -->
     <div x-show="show" x-cloak @click="close()"
-         x-transition:enter="transition-opacity ease-out duration-200"
-         x-transition:enter-start="opacity-0"
-         x-transition:enter-end="opacity-100"
-         x-transition:leave="transition-opacity ease-in duration-150"
-         x-transition:leave-start="opacity-100"
-         x-transition:leave-end="opacity-0"
-         :class="show ? 'pointer-events-auto' : 'pointer-events-none'"
-         class="srch-backdrop fixed inset-0 -z-10"></div>
+         class="pointer-events-auto fixed inset-0 -z-10"></div>
 
   </div>

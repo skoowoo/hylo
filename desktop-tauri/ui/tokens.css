@@ -31,7 +31,7 @@
       --nav-hov:rgba(var(--ink-rgb),0.03);
       --cm-active-line:rgba(var(--ink-rgb),0.04);
       --cnt-bg:rgba(var(--ink-rgb),0.07);
-      --scrollbar-thumb:rgba(var(--ink-rgb),0.12); --scrollbar-thumb-hov:rgba(var(--ink-rgb),0.26);
+      --scrollbar-thumb:rgba(var(--ink-rgb),0.10); --scrollbar-thumb-hov:rgba(var(--ink-rgb),0.20);
       --nav-act:rgba(var(--ink-rgb),0.06);
       /* Content-identity chips — theme-invariant. */
       --p0:#22d3ee; --p1:#f472b6; --p2:#a78bfa; --p3:#34d399;
@@ -73,7 +73,7 @@
       --glass-filter:blur(20px) saturate(1.6);
 
       /* ═══ Layer 4: component-scoped ═══ */
-      --srch-ic:var(--muted); --srch-ph:var(--muted-soft); --srch-av:var(--control-active-bg); --srch-backdrop:var(--overlay-bg);
+      --srch-ic:var(--muted); --srch-ph:var(--muted-soft); --srch-av:rgba(var(--ink-rgb),0.08);
       --sr-dir:var(--cover-dir); --sr-ic:var(--muted); --sr-em:var(--muted);
       /* The whole search panel is glass; the preview is an ink step on it, not a solid card. */
       --srch-panel-bd:var(--line-edge); --srch-panel-bg:var(--glass-bg); --srch-card-bg:rgba(var(--ink-rgb),0.05);
@@ -88,7 +88,7 @@
       --font-ui:"Inter","PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans CJK SC",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
       --font-sans:"Inter","PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans CJK SC",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
       --font-mono:"JetBrains Mono",ui-monospace,monospace;
-      --text-xs:0.75rem; --text-sm:0.8125rem; --text-base:0.875rem; --text-md:0.9375rem; --text-body:1rem;
+      --text-xs:0.75rem; --text-sm:0.8125rem; --text-base:0.875rem; --text-md:0.9375rem; --text-body:1rem; --text-lg:1.125rem;
       --text-title-sm:1rem; --text-title-lg:1.375rem;
       --text-2xs:0.6875rem; --text-3xs:0.625rem;
       --fw-regular:400; --fw-medium:500; --fw-semibold:600;
@@ -154,7 +154,7 @@
       --control-active-bg-on-soft:var(--surface-2);
       --seg-thumb:var(--canvas);
       /* Brighter canvas needs a more visible thumb than the shared (dark-tuned) value. */
-      --scrollbar-thumb:rgba(var(--ink-rgb),0.16); --scrollbar-thumb-hov:rgba(var(--ink-rgb),0.30);
+      --scrollbar-thumb:rgba(var(--ink-rgb),0.12); --scrollbar-thumb-hov:rgba(var(--ink-rgb),0.24);
       --sidebar-glass-bg:rgba(250,250,251,0.5);
       --glass-bg:rgba(252,252,253,0.72); --sidebar-glass-border:rgba(0,0,0,0.08);
       --canvas:#ffffff; --muted-soft:#9c9ea7; --fg-2:#4d4f58;
@@ -191,7 +191,7 @@
       --control-active-bg-on-soft:var(--surface-2);
       --seg-thumb:var(--canvas);
       /* Brighter canvas needs a more visible thumb than the shared (dark-tuned) value. */
-      --scrollbar-thumb:rgba(var(--ink-rgb),0.16); --scrollbar-thumb-hov:rgba(var(--ink-rgb),0.30);
+      --scrollbar-thumb:rgba(var(--ink-rgb),0.12); --scrollbar-thumb-hov:rgba(var(--ink-rgb),0.24);
       --sidebar-glass-bg:rgba(250,250,251,0.5);
       --glass-bg:rgba(252,252,253,0.72); --sidebar-glass-border:rgba(0,0,0,0.08);
       --canvas:#ffffff; --muted-soft:#9c9ea7; --fg-2:#4d4f58;

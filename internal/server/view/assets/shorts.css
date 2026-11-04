@@ -10,14 +10,15 @@
       padding-inline: 40px;
       padding-bottom: 80px;
       flex-direction: row; justify-content: center;
-      scrollbar-width: none;
     }
-    .shorts-stream-wrap::-webkit-scrollbar { display: none; }
     /* In a short window 40% would land on the composer. */
     .shorts-empty { top: max(calc(40vh - 24px), 16rem); }
 
     .shorts-stream-inner { width: 100%; max-width: 600px; }
-    .shorts-stream-inner.is-grid { max-width: 1240px; }
+    /* Grid fills the pane on the same edges and column width as every note
+       card grid (.home-list-body.is-grid); only the composer stays a column. */
+    .shorts-stream-wrap:has(> .is-grid) { padding-inline: 24px; }
+    .shorts-stream-inner.is-grid { max-width: none; }
     .shorts-stream-inner.is-grid .shorts-compose-card { max-width: 600px; margin-inline: auto; }
 
     /* ── Composer: two lines of text over the image / Save row; the text grows
@@ -230,7 +231,7 @@
        grid whose rows top-align. DOM stays newest-first for reading order. */
     .is-grid .shorts-stream-groups {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
       align-items: start;
       gap: var(--space-md);
     }

@@ -145,7 +145,7 @@ func TestPathValidation(t *testing.T) {
 	wantErr(t, func() error { _, _, err := Rename(c, "/a.md", "x/y.md"); return err }(), "filename only")
 	wantErr(t, Delete(c, "a.md"), "must be absolute")
 	wantErr(t, DeleteKnowledge(c, "a.md"), "must be absolute")
-	_, err := ShortCreate(c, "")
+	_, err := ShortCreate(c, "", nil)
 	wantErr(t, err, "must not be empty")
 }
 
@@ -311,5 +311,19 @@ func TestSearchKnowledgeFilterAndLimit(t *testing.T) {
 	res, _ := Search(client.NewInProcess(empty.handler()), SearchQuery{Query: "q"})
 	if res.Results == nil {
 		t.Error("results must be an empty slice, not nil, so JSON stays []")
+	}
+}
+
+// Same layout as the Shorts composer: text, a blank line, one embed per line.
+func TestWithImages(t *testing.T) {
+	imgs := []client.UploadedImage{{Name: "a.png"}, {Name: "b.jpg"}}
+	if got := WithImages("  Whiteboard \n", imgs); got != "Whiteboard\n\n![[a.png]]\n![[b.jpg]]" {
+		t.Errorf("text + images: %q", got)
+	}
+	if got := WithImages("", imgs[:1]); got != "![[a.png]]" {
+		t.Errorf("images only: %q", got)
+	}
+	if got := WithImages("Just text", nil); got != "Just text" {
+		t.Errorf("text only: %q", got)
 	}
 }

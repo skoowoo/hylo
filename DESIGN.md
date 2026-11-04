@@ -174,8 +174,9 @@ components:
   search-panel:
     backgroundColor: "glass (--glass-bg + --glass-filter)"
     border: 1px solid border-strong
-    rounded: "{rounded.xl}"
-    shadow: md
+    rounded: "{rounded.lg}"
+    shadow: lg
+    size: 720px wide, fixed 56px input + 400px list + 40px footer
   settings-modal:
     backgroundColor: "{colors.bg-dark}"
     border: 1px solid border-strong
@@ -325,7 +326,7 @@ The dark canvas IS the whitespace — sections separate by lifting onto `--surfa
 | 2 (surface-2 lift)       | `--surface-2` background                                   | Selected tabs/rows, active states                                                                       |
 | 3 (hairline)             | 1px `--border` / `--border-strong`                         | Card outlines, dividers, input outlines                                                                 |
 | 4 (focus ring)           | 2px `--accent-focus` outline at 50% opacity, 1px offset    | Focused input, focused button — the only glow-like effect in the system                                 |
-| 5 (float shadow, opt-in) | `box-shadow: var(--shadow-{sm,md,lg}) var(--shadow-color)` | Confirm/info dialogs (`lg`), settings modal (`lg`), search overlay panel (`md`), drawer popovers (`sm`) |
+| 5 (float shadow, opt-in) | `box-shadow: var(--shadow-{sm,md,lg}) var(--shadow-color)` | Confirm/info dialogs (`lg`), settings modal (`lg`), search overlay panel (`lg`), drawer popovers (`sm`) |
 
 Everything that doesn't explicitly opt into level 5 stays flat, matching the surface-ladder-only depth model. `--shadow-color` is the one actual shadow color per theme (`rgba(0,0,0,0.55)` dark, `rgba(15,15,25,0.10)` light); `--shadow-xs/sm/md/lg` only ever supply offset/blur shape.
 
@@ -333,7 +334,8 @@ Everything that doesn't explicitly opt into level 5 stays flat, matching the sur
 - No atmospheric gradients, no spotlight cards, no product-screenshot hero treatment — this is an app UI, not a marketing canvas.
 - **Glass** marks what floats over moving content, nothing else: menus, dropdowns, completion lists, tooltips, the find panel and the whole search panel with its input (`--glass-bg`; the search preview is an ink step on it, not a solid card), the run toast (status tint over `--glass-bg`), the chat composer (the input card and its context chips; it has no backing band, so messages scroll on under it) with its jump-to-latest button and card-strip arrows (hover is an `--icon-hov` step over the glass), the graph's node panel, and the lightbox counter and steps (`--img-glass-bg`). All share `--glass-filter` (`blur(20px) saturate(1.6)`); without backdrop-filter support they fall back to solid. Chrome bars stay solid: the list head and the editor tool bar are `--bg`. Static surfaces (cards, list rows, chat bubbles, dialogs, settings, the fence-card PiP window and card buttons over a still diagram) never get glass.
 - The macOS desktop sidebar is real glass: the window's native `Sidebar` vibrancy shows through a `--sidebar-glass-bg` wash (45% dark, 50% light). The wash is what keeps a bright or saturated wallpaper from tinting the sidebar off the neutral hue; under ~30% it leaks colour, past ~65% the glass turns into a flat grey panel.
-- Modal/dialog/search-overlay scrims apply a faint backdrop blur (`--glass-scrim-filter`, 3px) — just enough to soften the background, well short of a frosted-glass look.
+- Modal/dialog scrims apply a faint backdrop blur (`--glass-scrim-filter`, 3px) — just enough to soften the background, well short of a frosted-glass look.
+- Scrollbars are one shape everywhere a pane shows one (note lists, Shorts, chat, images, the search preview and the editor): a 10px track with a 6px pill 2px off the edge, `--scrollbar-thumb` (10% ink dark, 12% light) and `--scrollbar-thumb-hov` on hover, transparent track. Every other scroller hides its bar. Only the editor's bar fades out at rest, since it is drawn by the editor itself; WebKit doesn't repaint a native bar when its style changes, so native bars stay visible.
 - Image lightbox and grid chrome (selection borders, chip backgrounds) use fixed black/white overlays independent of theme, since they draw on top of arbitrary photo content rather than app surfaces.
 
 ## Shapes
@@ -345,8 +347,8 @@ Everything that doesn't explicitly opt into level 5 stays flat, matching the sur
 | `{rounded.xs}`   | 4px   | Chips, status badges, small icon buttons                                                    |
 | `{rounded.sm}`   | 6px   | Inline tags, inline code, prose images                                                      |
 | `{rounded.md}`   | 8px   | Default for buttons and form inputs — and the baseline every element gets unless overridden |
-| `{rounded.lg}`   | 12px  | List cards, image grid tiles, dropdown menus                                                |
-| `{rounded.xl}`   | 16px  | Dialogs, modals, the search overlay panel, image lightbox tiles                             |
+| `{rounded.lg}`   | 12px  | List cards, image grid tiles, dropdown menus, the search panel                              |
+| `{rounded.xl}`   | 16px  | Dialogs, modals, image lightbox tiles                                                        |
 | `{rounded.full}` | 999px | Pills, avatars, unread dots, agent-bot-color swatches                                       |
 
 A surface that holds rounded rows close to its edge takes the row radius plus the gap between them: a menu with `{rounded.sm}` rows, 4px padding and a 1px border is `{rounded.lg}`, so the inner and outer corners run parallel.
@@ -386,13 +388,17 @@ Full-viewport or edge-docked chrome (drawer panel and its tab bar, scrims, `<htm
 - Background `--bg`, left border only, no radius (flush to 3 viewport edges), 80vw wide (100vw when expanded). Slides in via transform + opacity, not a fade alone, so it reads as spatial motion.
 
 **`search-panel`** — The command/search overlay.
-- Glass: `--glass-bg` with `--glass-filter`, input row included; the preview is a `--srch-card-bg` ink step on it. 1px `--border-strong`, rounded `{rounded.xl}`, `--shadow-md` lift, backdrop blur scrim. Row dividers use `--border`; keyboard-hint chips use `{rounded.xs}` with a hairline border.
+- A launcher window of one fixed size: a 56px input row (`--text-lg`), a 400px list area, a 40px footer, hairlines between them. Empty, no-result and preview states swap inside the list area; the frame never resizes.
+- Glass: `--glass-bg` with `--glass-filter`, 1px `--border-strong`, rounded `{rounded.lg}`, `--shadow-lg`. No scrim: the app stays visible and undimmed; a click outside closes. Opens and closes with an 80ms opacity fade only, on the panel itself.
+- Rows are 40px: a 24px icon tile (`--btn-bg`, `--bg` when active), the name, the folder in `--sr-dir`, and on the right the type and list timestamp in `--muted`. The active row is an `--srch-av` ink wash. A small label heads each source: an empty query lists `Open tabs` then `Bots`; a query lists up to three name-matched `Bots` above `Notes · N`. Bot rows carry the sidebar avatar in the tile, the description, and unread count in `--accent-text`; ↵ opens that bot's chat, and the preview is its card. Bots appear only in the All scope. Beside the preview, rows show the name only.
+- The scope is a filter button at the input's right (accent tint when narrowed); its menu floats over the list rather than replacing it, and `/` opens it. The footer names the scope on the left and what ↵ and tab do on the right.
+- Search runs on every keystroke with no debounce; each request aborts the last.
 
 **`settings-modal`** — Same floating-card family as dialogs: `--bg`, `--border-strong`, rounded `{rounded.xl}`, `--shadow-lg`.
 
 ### Sections
 
-**`sec`** — Every view in the home list pane (note lists, Tags, Images, Shorts, Graph, Chat) is one `.sec`: a `.home-list-head` (`--toolbar-h`, count + right-aligned controls), one `.sec-body` that scrolls (`20px 24px 40px` padding; `.sec-body--flush` for the graph canvas), an optional floating footer (the chat composer), and its `.empty-state--page` as a direct child. A section overrides only what is truly its own: Images' tighter padding, Shorts' centered 600px column (its composer sits on `--surface-soft` like the entries below it, with a hairline only while focused), Chat's reading column (its head shows the bot's name where other sections show their count). Section DOM caching saves and restores scroll on `.sec-body` (except Chat, which sticks to the newest message), so a new section gets it for free.
+**`sec`** — Every view in the home list pane (note lists, Tags, Images, Shorts, Graph, Chat) is one `.sec`: a `.home-list-head` (`--toolbar-h`, count + right-aligned controls), one `.sec-body` that scrolls (`20px 24px 40px` padding; `.sec-body--flush` for the graph canvas), an optional floating footer (the chat composer), and its `.empty-state--page` as a direct child. A section overrides only what is truly its own: Images' tighter padding, Shorts' centered 600px column in list view (its composer sits on `--surface-soft` like the entries below it, with a hairline only while focused); in grid view Shorts fills the pane like every note card grid, the same 24px edges and 240px minimum column, with only the composer kept to 600px, Chat's reading column (its head shows the bot's name where other sections show their count). Section DOM caching saves and restores scroll on `.sec-body` (except Chat, which sticks to the newest message), so a new section gets it for free.
 
 **`empty-state`** — A section with nothing yet: a neutral `--surface-soft` tile (hairline border, `--muted` sidebar icon), a `--fg` title, at most one `--muted` sentence, and at most one action, which alone carries the accent. No rings, glow or entry animation. On a page (`.empty-state--page`) the tile always sits at 40% of the window height, whatever head, composer or button surrounds it. Server-rendered sections use the `empty-state` template (home_section_rows.html).
 

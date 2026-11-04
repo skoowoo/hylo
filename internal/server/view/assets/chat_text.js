@@ -54,8 +54,14 @@
       .catch(function () { shown(true); });
   };
 
+  // Mirrors expandWikiImages/expandWikilinks (util/mdhtml.go): embeds first, so
+  // "![[x.jpg]]" becomes an image and not an image of a note link.
   function preprocess(text) {
-    var processed = text.replace(/\[\[([^\]\[|]+?)(?:\|([^\]\[]+?))?\]\]/g, function (_, target, display) {
+    var processed = text.replace(/!\[\[([^\]\[]+?)\]\]/g, function (_, name) {
+      name = name.trim();
+      return '![' + name + '](/api/images/serve?name=' + encodeURIComponent(name) + ')';
+    });
+    processed = processed.replace(/\[\[([^\]\[|]+?)(?:\|([^\]\[]+?))?\]\]/g, function (_, target, display) {
       target = target.trim();
       display = (display || target).trim();
       var name = target.endsWith('.md') ? target : target + '.md';

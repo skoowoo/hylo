@@ -78,16 +78,6 @@
     return slash > 0 ? p.slice(0, slash) : '';
   }
 
-  // Vault-relative path -> filename stem (no directory, no extension) — the
-  // wikilink target format (internal/util/mdhtml.go's wikilinkRe resolves by
-  // stem, not full path), so this can't just reuse tab.title: a knowledge
-  // note's title may come from frontmatter and differ from its filename.
-  function __hyloNoteStem(path) {
-    var p = String(path || '');
-    var slash = p.lastIndexOf('/');
-    return __hyloStripMdExt(slash === -1 ? p : p.slice(slash + 1));
-  }
-
   // ── Content-pane controller factory ────────────────────────────────────────────────
   function contentPaneCtrl() {
     return {
@@ -250,18 +240,12 @@
 
         var self = this;
         // Esc still closes whatever's layered on top of the editor (the
-        // more/bot dropdowns, CodeMirror's search panel) — it just no
+        // more menu, CodeMirror's search panel) — it just no
         // longer closes the editor itself once those are all closed.
         var _paneEscClose = function() {
           var moreMenu = document.querySelector('.content-pane-more-menu');
           if (moreMenu && moreMenu.style.display !== 'none') {
             document.dispatchEvent(new CustomEvent('content-pane:close-more'));
-            __hyloBlurActive();
-            return;
-          }
-          var botMenu = document.querySelector('.content-pane-bot-menu');
-          if (botMenu && botMenu.style.display !== 'none') {
-            document.dispatchEvent(new CustomEvent('content-pane:close-bot'));
             __hyloBlurActive();
             return;
           }
@@ -586,20 +570,6 @@
             void this._openUntitledTab(t, savedState);
           }
         }
-      },
-
-      // Opens the given mate's chat panel with a brand-new conversation
-      // (not its most recent one — this is a one-shot "hand this note to a
-      // bot", distinct from the sidebar's tryOpen which deliberately resumes
-      // where that bot's chat left off) and drops a `[[stem]]` wikilink for
-      // the active note into its composer. home.js is what actually owns
-      // the chat panel/agentBots list, so this only dispatches an event
-      // rather than reaching into window._homeData's chat internals directly.
-      sendActiveNoteToAgentBot(mateId) {
-        var tab = this.tabs[this.activeTab];
-        if (!tab || !tab.path) return;
-        var stem = __hyloNoteStem(tab.path);
-        window.dispatchEvent(new CustomEvent('hylo:send-note-to-agent', { detail: { mateId: mateId, stem: stem } }));
       },
 
       async togglePinActiveNote() {
@@ -1069,54 +1039,6 @@
     if (!_fContentPane || !_fContentPane.contentPaneOpen || _fContentPane.agentWriting) return false;
     if (!__hyloCM || !__hyloEditor.view) return false;
     __hyloEditorOpenFind();
-  });
-
-  function __hyloOpenTabRows() {
-    return Array.prototype.slice.call(document.querySelectorAll('#home-side-open .home-side-tab'));
-  }
-
-  // Mod-T moves focus to the sidebar's open tabs (and back to the editor).
-  window.__hyloHotkeys.registerRaw('open-tabs-focus', function(e, mod) {
-    if (!mod || e.shiftKey || e.altKey || e.key.toLowerCase() !== 't') return;
-    var _pane = window.__hyloContentPane;
-    if (!_pane || !_pane.tabs.length || _pane.agentWriting) return;
-    e.preventDefault();
-    var rows = __hyloOpenTabRows();
-    if (rows.indexOf(document.activeElement) >= 0) {
-      if (_pane.contentPaneOpen) __hyloFocusEditor(); else __hyloBlurActive();
-      return true;
-    }
-    var focusRow = function() {
-      var row = __hyloOpenTabRows()[Math.max(_pane.activeTab, 0)];
-      if (row) row.focus();
-    };
-    // A collapsed group is visibility:hidden, so open it and focus once it has rendered.
-    if (window._homeData && !window._homeData.openTabsOpen) {
-      window._homeData.openTabsOpen = true;
-      window.Alpine.nextTick(focusRow);
-    } else {
-      focusRow();
-    }
-    return true;
-  });
-
-  // While a row has focus: ↑/↓ move, Enter opens it, Esc returns to the editor.
-  // Raw, so the editor's own arrow scrolling and the Esc stack don't see it.
-  window.__hyloHotkeys.registerRaw('open-tabs-nav', function(e, mod) {
-    if (mod || e.shiftKey || e.altKey) return;
-    if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown' && e.key !== 'Enter' && e.key !== 'Escape') return;
-    var rows = __hyloOpenTabRows();
-    var at = rows.indexOf(document.activeElement);
-    var _pane = window.__hyloContentPane;
-    if (at < 0 || !_pane) return;
-    e.preventDefault();
-    e.stopImmediatePropagation();
-    var n = rows.length;
-    if (e.key === 'ArrowDown') rows[(at + 1) % n].focus();
-    else if (e.key === 'ArrowUp') rows[(at - 1 + n) % n].focus();
-    else if (e.key === 'Escape') { if (_pane.contentPaneOpen) __hyloFocusEditor(); else __hyloBlurActive(); }
-    else Promise.resolve(_pane.selectTab(at)).then(function() { __hyloFocusEditor(); });
-    return true;
   });
 
   // Intercept mouse back/forward buttons (button 3/4) to switch pane tabs.

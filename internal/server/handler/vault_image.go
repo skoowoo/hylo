@@ -24,7 +24,10 @@ func writeImageHeaders(w http.ResponseWriter, ext, cacheControl string) {
 }
 
 // UploadImage handles POST /api/vault/upload-image.
-// Accepts multipart/form-data with a "file" field containing an image.
+// Accepts multipart/form-data with either a "file" field containing an image,
+// or a "chat_upload" field naming an image the user attached in chat; that one
+// is copied from the vault's upload folder by name, so a tool can keep what the
+// user sent without reading anything else on the server.
 // Saves to {vault_root}/_assets/YYYYMM/{unixms}-{rand8}.{ext}.
 // Returns {"src": "/_assets/YYYYMM/filename.ext", "name": "filename.ext"}.
 func (gh *VaultHandler) UploadImage(w http.ResponseWriter, r *http.Request) {
@@ -33,23 +36,44 @@ func (gh *VaultHandler) UploadImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	file, hdr, err := r.FormFile("file")
-	if err != nil {
-		http.Error(w, `missing "file" field: `+err.Error(), http.StatusBadRequest)
-		return
-	}
-	defer file.Close()
-
-	data, err := io.ReadAll(io.LimitReader(file, storage.MaxImageBytes+1))
-	if err != nil {
-		http.Error(w, "read error: "+err.Error(), http.StatusInternalServerError)
-		return
+	var data []byte
+	var mime, filename string
+	if name := r.FormValue("chat_upload"); name != "" {
+		if !chatUploadName.MatchString(name) {
+			http.Error(w, "chat_upload must be the file name of an image attached in chat", http.StatusBadRequest)
+			return
+		}
+		f, err := os.Open(filepath.Join(gh.vault.Root(), storage.UploadDir, name))
+		if err != nil {
+			http.Error(w, "no chat attachment named "+name, http.StatusNotFound)
+			return
+		}
+		defer f.Close()
+		data, err = io.ReadAll(io.LimitReader(f, storage.MaxImageBytes+1))
+		if err != nil {
+			http.Error(w, "read error: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		filename = name
+	} else {
+		file, hdr, err := r.FormFile("file")
+		if err != nil {
+			http.Error(w, `missing "file" or "chat_upload" field: `+err.Error(), http.StatusBadRequest)
+			return
+		}
+		defer file.Close()
+		data, err = io.ReadAll(io.LimitReader(file, storage.MaxImageBytes+1))
+		if err != nil {
+			http.Error(w, "read error: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		mime, filename = hdr.Header.Get("Content-Type"), hdr.Filename
 	}
 	if len(data) > storage.MaxImageBytes {
 		http.Error(w, "image too large", http.StatusRequestEntityTooLarge)
 		return
 	}
-	ext := storage.DetectImageExt(data, hdr.Header.Get("Content-Type"), hdr.Filename)
+	ext := storage.DetectImageExt(data, mime, filename)
 	if ext == "" {
 		http.Error(w, "unsupported image type", http.StatusBadRequest)
 		return

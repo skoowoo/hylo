@@ -109,41 +109,6 @@
     @keyframes ssi-fadein { from { opacity: 0; transform: scale(0.7); } to { opacity: 1; transform: scale(1); } }
     .content-pane-reading-btn.active { color: var(--accent-text); background: var(--tint-md); }
 
-    /* ── Send-to-bot menu ───────────────────────────────────────── */
-    /* Same shape/positioning family as the more menu next to it — a short
-       list of rows, no keyboard nav. */
-    .content-pane-bot-wrap { position: relative; flex-shrink: 0; }
-    .content-pane-bot-btn.active { color: var(--accent-text); background: var(--tint-md); }
-    .content-pane-bot-menu {
-      position: absolute; top: calc(100% + var(--float-panel-gap)); right: 0; z-index: 50;
-      transform-origin: top;
-      min-width: 200px; max-width: min(320px, 90vw);
-      display: flex; flex-direction: column;
-      padding: 0.25rem;
-      background: var(--glass-bg); -webkit-backdrop-filter: var(--glass-filter); backdrop-filter: var(--glass-filter);
-      border: var(--bd-w) solid var(--line-edge);
-      border-radius: var(--r-lg);
-      box-shadow: var(--shadow-sm) var(--shadow-color);
-    }
-    .content-pane-bot-menu-header { padding: 0.2rem 0.55rem 0.35rem; }
-    .content-pane-bot-menu-header-label {
-      font-size: var(--text-xs); font-weight: var(--fw-medium);
-      color: var(--muted);
-    }
-    .content-pane-bot-menu-list { max-height: calc(10 * var(--btn-h-xs) + 0.5rem); overflow-y: auto; }
-    .content-pane-bot-menu-row {
-      display: flex; align-items: center; gap: 0.5rem;
-      width: 100%; height: var(--btn-h-xs);
-      padding: 0 0.55rem;
-      border: none; background: transparent;
-      border-radius: var(--r-sm);
-      color: var(--muted); font-size: var(--text-sm); font-family: inherit;
-      cursor: pointer; text-align: left;
-    }
-    .content-pane-bot-menu-row:hover { color: var(--fg); background: var(--icon-hov); }
-    .content-pane-bot-menu-name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .content-pane-bot-menu-empty { padding: 0.5rem 0.55rem; font-size: var(--text-sm); color: var(--muted-soft); }
-
     /* ── More menu ──────────────────────────────────────────────── */
     .content-pane-more-wrap { position: relative; flex-shrink: 0; }
     .content-pane-more-menu {
@@ -269,7 +234,7 @@
        just under it rather than being cut off. Eased (smoothstep) stops keep
        both ends of the ramp soft, so no edge reads as a gradient boundary;
        it's 20px tall, which the scroller's top padding (and reading mode's,
-       below) fully clears at rest. right: 14px clears the editor's 11px
+       below) fully clears at rest. right: 14px clears the editor's 10px
        scrollbar (cm-live/scroll.js); text never reaches there, its
        horizontal padding is at least 20px. */
     #content-pane-edit-area::before {
@@ -409,7 +374,6 @@
     html.macos .content-pane.open .content-pane-tool-bar button,
     html.macos .content-pane.open .content-pane-tool-bar input,
     html.macos .content-pane.open .content-pane-title-name,
-    html.macos .content-pane.open .content-pane-bot-menu,
     html.macos .content-pane.open .content-pane-more-menu { -webkit-app-region: no-drag; }
     /* The drag mask is built from where the bar was, so it lags a moving bar. */
     html.macos .home-shell.is-pane-moving .content-pane-tool-bar { -webkit-app-region: no-drag; }

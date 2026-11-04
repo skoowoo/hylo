@@ -24,8 +24,19 @@ Each entry has an id like 2026-10-29-153012 (its day and time), shown by
 	return cmd
 }
 
+// shortText is the text a short command saves. With images the text comes from
+// --content alone: a short may be images only, and an agent's shell often holds
+// stdin open without ever writing to it.
+func shortText(content string, images []string) ([]byte, error) {
+	if len(images) > 0 {
+		return []byte(content), nil
+	}
+	return resolveAppendContent(content)
+}
+
 func newShortCreateCmd() *cobra.Command {
 	var content string
+	var images []string
 
 	cmd := &cobra.Command{
 		Use:   "create",
@@ -34,13 +45,18 @@ func newShortCreateCmd() *cobra.Command {
 
 Content sources (in priority order):
   1. --content <text>   inline text
-  2. stdin              pipe or interactive input`,
+  2. stdin              pipe or interactive input
+
+--images adds local image files (repeatable or comma-separated). They are saved
+to the vault and shown below the text; a short may be images only. With
+--images, text comes from --content only, never stdin.`,
 		Example: `  hylo short create --content "Quick thought"
-  echo "Buy groceries" | hylo short create`,
+  echo "Buy groceries" | hylo short create
+  hylo short create --content "Whiteboard" --images board.jpg --images notes.png`,
 		Args:         cobra.NoArgs,
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			data, err := resolveAppendContent(content)
+			data, err := shortText(content, images)
 			if err != nil {
 				return err
 			}
@@ -48,7 +64,11 @@ Content sources (in priority order):
 			if err != nil {
 				return err
 			}
-			e, err := notes.ShortCreate(c, string(data))
+			imgs, err := notes.UploadImages(c, images)
+			if err != nil {
+				return err
+			}
+			e, err := notes.ShortCreate(c, string(data), imgs)
 			if err != nil {
 				return err
 			}
@@ -58,6 +78,7 @@ Content sources (in priority order):
 	}
 
 	cmd.Flags().StringVarP(&content, "content", "c", "", "inline content for the short note")
+	cmd.Flags().StringSliceVar(&images, "images", nil, "image files to attach")
 
 	return cmd
 }
@@ -141,6 +162,7 @@ func newShortGetCmd() *cobra.Command {
 
 func newShortUpdateCmd() *cobra.Command {
 	var content, hash string
+	var images []string
 
 	cmd := &cobra.Command{
 		Use:   "update <id>",
@@ -151,6 +173,9 @@ the daily file.
 Content sources (in priority order):
   1. --content <text>   inline text
   2. stdin              pipe or interactive input
+
+The entry's images are ![[name]] lines in its content: keep them in the new
+content to keep them. --images adds local image files below the text.
 
 Pass --hash (from "short get") to fail instead of overwriting a newer edit.`,
 		Example: `  hylo short update 2026-10-29-153012 --content "Fixed thought"
@@ -166,7 +191,11 @@ Pass --hash (from "short get") to fail instead of overwriting a newer edit.`,
 			if err != nil {
 				return err
 			}
-			e, err := notes.ShortUpdate(c, args[0], hash, string(data))
+			imgs, err := notes.UploadImages(c, images)
+			if err != nil {
+				return err
+			}
+			e, err := notes.ShortUpdate(c, args[0], hash, string(data), imgs)
 			if err != nil {
 				return err
 			}
@@ -177,6 +206,7 @@ Pass --hash (from "short get") to fail instead of overwriting a newer edit.`,
 
 	cmd.Flags().StringVarP(&content, "content", "c", "", "new content for the short note")
 	cmd.Flags().StringVar(&hash, "hash", "", "only edit if the entry still has this hash")
+	cmd.Flags().StringSliceVar(&images, "images", nil, "image files to add below the text")
 
 	return cmd
 }
