@@ -30,7 +30,7 @@ var __hyloCardMenu = (function () {
     list.forEach(function (it) {
       if (it === 'divider') {
         var hr = document.createElement('div');
-        hr.className = 'cselect-divider hairline';
+        hr.className = 'cselect-divider';
         menu.appendChild(hr);
         return;
       }

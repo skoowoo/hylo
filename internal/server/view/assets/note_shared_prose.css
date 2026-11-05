@@ -102,7 +102,7 @@
       font-family: var(--font-mono);
       color: var(--pre-tx); background: transparent !important;
       border: none !important; padding: 0 !important;
-      font-size: var(--text-base); font-weight: 400; border-radius: 0;
+      font-size: var(--text-base); font-weight: 400;
     }
     .prose :not(pre) > code {
       font-family: var(--font-mono);
@@ -129,25 +129,15 @@
       font-size: var(--text-base);
       text-align: left; padding: 0.5rem 0.75rem;
       border-bottom: 1px solid var(--tbl-bd); border-right: 1px solid var(--tbl-bd);
-      /* Override the global *{border-radius} reset (base.css) — only the
-         table's own 4 outer corners should round; individual cells must
-         stay square or every cell reads as its own separate rounded box. */
-      border-radius: 0;
     }
     .prose th:last-child { border-right: none; }
     .prose td {
       color: var(--td-tx); font-size: var(--text-base); padding: 0.45rem 0.75rem;
       border-bottom: 1px solid var(--tbl-bd); border-right: 1px solid var(--tbl-bd);
-      border-radius: 0;
     }
     .prose td:last-child { border-right: none; }
     .prose tr:last-child td { border-bottom: none; }
-    /* border-radius: 0 — same override as .prose th/td above: without it,
-       the global *{border-radius} reset (base.css) rounds this border-top's
-       own two corners, so every markdown "---" rule reads as a tiny rounded
-       pill instead of a flat line. Goldmark emits a bare <hr>, so there's no
-       class to hang the shared .hairline utility off of here. */
-    .prose hr { border: none; border-top: 1px solid var(--line-hair); border-radius: 0; margin: 2em 0; }
+    .prose hr { border: none; border-top: 1px solid var(--line-hair); margin: 2em 0; }
     .prose img { border: 1px solid var(--tbl-bd); border-radius: var(--r-sm); max-width: 100%; height: auto; }
 
     /* ── Task list (GFM - [ ] / - [x]) ──────────────────────────── */
@@ -170,7 +160,7 @@
       background: var(--muted-soft); border-color: var(--muted-soft);
     }
     .prose li > input[type="checkbox"]:checked::after {
-      content: ''; position: absolute; inset: 0; border-radius: 0;
+      content: ''; position: absolute; inset: 0;
       background-color: var(--bg);
       /* The check line icon, drawn heavier (--icon-tick, assets.go). */
       -webkit-mask-image: var(--icon-tick); mask-image: var(--icon-tick);
@@ -193,7 +183,6 @@
     .prose .wikilink-broken::before {
       content: ''; display: inline-block; width: 11px; height: 13px;
       margin-right: 0.2em; vertical-align: middle; margin-top: -0.1em;
-      border-radius: 0; /* CSS-mask icon glyph, not a shape — never clip it */
       background-color: var(--muted);
       /* The "file" line icon as a mask (--icon-file, icons_line.go), so it takes var(--muted). */
       -webkit-mask-image: var(--icon-file);

@@ -24,7 +24,7 @@
           <span class="content-pane-title-name" x-show="!renaming"
                 @dblclick="tabs[activeTab] && tabs[activeTab].path && renameActiveNote()"
                 x-text="tabs[activeTab] ? tabs[activeTab].title : ''"></span>
-          <input type="text" id="content-pane-rename-input" class="content-pane-rename-input hairline"
+          <input type="text" id="content-pane-rename-input" class="content-pane-rename-input"
                  x-show="renaming" x-cloak
                  @input="checkRenameNameAvailable()"
                  @keydown.enter="submitRenameActiveNote()"
@@ -131,7 +131,7 @@
                 {{icon "info"}}
                 <span>Info</span>
               </button>
-              <div class="content-pane-more-divider hairline" role="separator"></div>
+              <div class="content-pane-more-divider" role="separator"></div>
               <!-- Not a feature — mousedown-outside/Esc/picking any row above
                    already dismisses the menu; this just gives mouse-only
                    users the same escape hatch, so it's set apart by the
@@ -149,7 +149,7 @@
                   {{icon "chevron-left"}}
                   <span>Info</span>
                 </button>
-                <div class="content-pane-more-divider hairline" role="separator"></div>
+                <div class="content-pane-more-divider" role="separator"></div>
                 <div class="content-pane-info-body" x-show="info">
                   <div class="content-pane-info-row">
                     <span class="content-pane-info-label">Folder</span>
@@ -174,7 +174,7 @@
                     <span class="content-pane-info-value" x-text="info && info.modified"></span>
                   </div>
                   <div x-show="info && info.linksLabel">
-                    <div class="content-pane-more-divider hairline" role="separator"></div>
+                    <div class="content-pane-more-divider" role="separator"></div>
                     <div class="content-pane-info-row">
                       <span class="content-pane-info-label" x-text="info && info.linksLabel"></span>
                       <span class="content-pane-info-value" x-show="info && info.linkCount" x-text="info && info.linkCount"></span>

@@ -14,12 +14,12 @@
       <div class="tag-picker-search">
         <input x-ref="tpInput" type="text" x-model="tpQuery" placeholder="Filter tags…" @keydown.escape="tpOpen=false">
       </div>
-      <div class="cselect-divider hairline"></div>
+      <div class="cselect-divider"></div>
       <button type="button" class="cselect-option tag-picker-alltags" @click="go('/home/section?type=tags'); tpOpen=false">
         {{icon "grid"}}
         <span>All tags</span>
       </button>
-      <div class="cselect-divider hairline"></div>
+      <div class="cselect-divider"></div>
       <div class="tag-picker-options">
         {{$sel := .Selected}}
         {{range .Tags}}

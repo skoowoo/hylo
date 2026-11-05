@@ -20,7 +20,7 @@
            x-transition:leave-end="srch-leave-end"
            class="srch-panel">
 
-        <div class="srch-row hairline">
+        <div class="srch-row">
           {{icon "search" `class="srch-icon" width="18" height="18"`}}
           <input type="text"
                  x-ref="input"
@@ -103,7 +103,7 @@
           </div>
         </div>
 
-        <div class="srch-foot hairline">
+        <div class="srch-foot">
           <span class="srch-foot-ctx" x-text="scopeLabel"></span>
           <template x-if="showModes">
             <span class="srch-foot-acts">

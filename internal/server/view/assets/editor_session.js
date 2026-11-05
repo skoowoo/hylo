@@ -410,9 +410,8 @@
       var cmTheme = cm.EditorView.theme({
         '&': {height:'100%',color:'var(--prose-body)',background:'transparent'},
         '&.cm-focused': {outline:'none'},
-        // borderRadius:0 — the global 8px reset would round the caret and each selection band.
-        '.cm-cursor,.cm-dropCursor': {borderLeftColor:'var(--fg)',borderLeftWidth:'2px',borderRadius:'0'},
-        '.cm-selectionBackground': {background:'var(--selection-bg) !important',borderRadius:'0'},
+        '.cm-cursor,.cm-dropCursor': {borderLeftColor:'var(--fg)',borderLeftWidth:'2px'},
+        '.cm-selectionBackground': {background:'var(--selection-bg) !important'},
         '&.cm-focused .cm-selectionBackground': {background:'var(--selection-bg)'},
         '.cm-activeLine': {background:'var(--cm-active-line)'},
         '.cm-gutters': {display:'none'},

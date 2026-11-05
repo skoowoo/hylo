@@ -26,7 +26,7 @@
         <span class="icon-btn-ghost">{{icon "reading-pane"}}</span>
       </div>
       {{range $gi, $g := .Nav}}
-      {{if $gi}}<div class="spec-side-sep hairline"></div>{{end}}
+      {{if $gi}}<div class="spec-side-sep"></div>{{end}}
       {{range $g}}
       <div class="side-nav-item{{if eq .Icon "bot"}} is-active{{end}}">{{sideIcon .Icon}}<span>{{.Label}}</span></div>
       {{if eq .Icon "open-tabs"}}

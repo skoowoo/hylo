@@ -13,12 +13,8 @@
 ## Changing UI
 
 - Start from the whole surface, not the named point. Removing or changing one element reshapes its surroundings (hierarchy, spacing, where its information goes), so redesign the affected area in one pass instead of patching it step by step.
-- Reuse shared components, classes and tokens (e.g. `.hairline`, `.avatar--*`, `--space-*`) rather than hand-rolling equivalents.
-- `base.css` gives every element an 8px radius (`*, *::before, *::after { border-radius: var(--r-md) }`). For each new element, check that the default fits. Anything that clips or scrolls, has no visible shape, or draws a line needs `border-radius: 0` (or `.hairline`) so it doesn't cut what's inside:
-  - borderless inputs and textareas: the caret at the edge
-  - scroll and clip boxes
-  - ellipsized text
-  - dividers
+- Reuse shared components, classes and tokens (e.g. `.avatar--*`, `--space-*`, `--r-*`) rather than hand-rolling equivalents.
+- Corners are opt-in: only buttons and `.seg` get a default radius (`base.css`). A new visible shape (card, panel, chip, field) states its own `border-radius` from the `--r-*` scale; anything else stays square, so never write `border-radius: 0` except to flatten a radius another rule gave.
 - Remove what the old design leaves behind: dead CSS, stale comments.
 - Describe the resulting layout in the reply, not just the diff.
 

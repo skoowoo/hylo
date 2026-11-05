@@ -467,7 +467,6 @@ export const editorScroll = owned
         zIndex: '2',
         opacity: '0',
         transition: 'opacity 0.3s',
-        borderRadius: '0',
       },
       '.cm-scrollbar:hover, .cm-scrollbar-shown, .cm-scrollbar-dragging': { opacity: '1', transition: 'none' },
       '.cm-scrollbar-thumb': {

@@ -16,10 +16,9 @@
       border-bottom: var(--bd-w) solid var(--line-hair);
     }
     .srch-icon { flex: none; color: var(--srch-ic); }
-    /* A bare field: the global 8px radius would clip the caret at its edge. */
     .srch-input {
       flex: 1; min-width: 0;
-      border-radius: 0; background: transparent; outline: none;
+      background: transparent; outline: none;
       color: var(--fg);
       caret-color: var(--accent);
       font-size: var(--text-lg);
@@ -44,13 +43,12 @@
     .srch-filter.has-mode svg { color: var(--accent-text); }
 
     /* ── List + preview ────────────────────────────────── */
-    .srch-body { position: relative; display: flex; height: 400px; border-radius: 0; }
+    .srch-body { position: relative; display: flex; height: 400px; }
     .srch-results-pane {
       flex: 1; min-width: 0;
       display: flex; flex-direction: column;
       padding: 0 var(--space-xs) var(--space-xs);
       overflow-y: auto;
-      border-radius: 0;
     }
     .srch-body.has-preview .srch-results-pane { flex: none; width: 300px; border-right: var(--bd-w) solid var(--line-hair); }
     .srch-sec {
@@ -78,12 +76,12 @@
     .sr-name {
       flex: 0 1 auto; min-width: 0;
       color: var(--fg); font-size: var(--text-base); letter-spacing: -0.006em;
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-radius: 0;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
     .sr-dir {
       flex: 1; min-width: 0;
       color: var(--sr-dir); font-size: var(--text-xs);
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-radius: 0;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
     .sr-acc {
       flex: none; color: var(--muted); font-size: var(--text-xs);
@@ -157,7 +155,7 @@
     }
     .srch-mode-item.is-active { background: var(--srch-av); }
     .srch-mode-name  { font-size: var(--text-sm); min-width: 4.5rem; }
-    .srch-mode-desc  { flex: 1; min-width: 0; font-size: var(--text-xs); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-radius: 0; }
+    .srch-mode-desc  { flex: 1; min-width: 0; font-size: var(--text-xs); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .srch-mode-check { flex: none; display: flex; color: var(--accent-text); }
 
     /* ── Footer: where you are, and what ↵ and tab do ──── */
@@ -167,13 +165,13 @@
       border-top: var(--bd-w) solid var(--line-hair);
       font-size: var(--text-xs); color: var(--muted); font-family: var(--font-ui);
     }
-    .srch-foot-ctx { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-radius: 0; }
+    .srch-foot-ctx { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .srch-foot-acts { display: flex; align-items: center; gap: 10px; }
     .srch-foot-act { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
     .srch-foot-act.is-primary { color: var(--fg); }
     /* Nothing to open: the actions stay put, just quiet. */
     .srch-foot-acts.is-off, .srch-foot-acts.is-off .srch-foot-act { color: var(--muted-soft); }
-    .srch-foot-div { width: 1px; height: 14px; background: var(--line-hair); border-radius: 0; }
+    .srch-foot-div { width: 1px; height: 14px; background: var(--line-hair); }
 
     /* Placed on whole pixels: at a half pixel its open fade ends with a
        one-pixel jump. Top centres the whole fixed window. */
@@ -190,5 +188,5 @@
     .srch-enter-start, .srch-leave-end { opacity: 0; }
     .srch-enter-end, .srch-leave-start { opacity: 1; }
     /* Lets clicks through to the app except on the window and its catcher. */
-    .srch-root { position: fixed; inset: 0; z-index: 10000; pointer-events: none; outline: none; border-radius: 0; }
-    .srch-catcher { position: fixed; inset: 0; z-index: -10; pointer-events: auto; border-radius: 0; }
+    .srch-root { position: fixed; inset: 0; z-index: 10000; pointer-events: none; outline: none; }
+    .srch-catcher { position: fixed; inset: 0; z-index: -10; pointer-events: auto; }

@@ -11,27 +11,10 @@
 
     [x-cloak] { display: none !important; }
 
-    /* Baseline corner radius — DESIGN.md's rounded.md (8px) default for
-       buttons/inputs. Not !important: components below override with
-       their own value; anything else lands on this instead of a hard
-       90° corner. */
-    *, *::before, *::after {
-      border-radius: var(--r-md);
-    }
-
-    /* Opt-out utility for anything whose whole job is to render as a flat
-       line/seam (a divider, a hairline border on one side, a thin
-       background bar) rather than a "shaped" surface — the 8px default
-       above rounds these the same as a button or card, which turns a
-       single-side border into a little rounded pill at both ends, or a
-       background rule into a rounded-cap bar. Add this class instead of
-       re-deriving `border-radius: 0` ad hoc at each new divider. Always a
-       real element, never a ::before/::after — a class can't target a
-       pseudo-element, and every divider in the app already draws itself
-       this way, so there's never a second case for this rule to cover. */
-    .hairline {
-      border-radius: 0;
-    }
+    /* Corners are opt-in: only a shape rounds, so nothing that clips, scrolls
+       or draws a line can cut its content. Buttons default to rounded.md;
+       every other shape states its own radius. */
+    :where(button, .seg) { border-radius: var(--r-md); }
 
     /* Native selection in brand tint instead of the system blue. The editor
        draws its own (drawSelection) with the same --selection-bg. */
@@ -40,19 +23,6 @@
        must reach the spans inside its lines. */
     html {
       caret-color: var(--fg);
-    }
-    /* html/body are page canvas, never a "shape" — every page sets
-       overflow:hidden on body, so the 8px default would clip chrome flush
-       to the viewport edge into an unwanted rounded notch. */
-    html, body {
-      border-radius: 0;
-    }
-    /* SVG icons default to overflow:hidden in the UA stylesheet, so the 8px
-       default was clipping icon corners; replaced elements (img/canvas/
-       video/iframe, e.g. the graph's cytoscape canvas) clip to
-       border-radius too — same fix for both. */
-    svg, svg *, img, canvas, video, iframe {
-      border-radius: 0;
     }
 
     /* Inter as the global UI font (token defined in shared_tokens.go) */
@@ -457,6 +427,7 @@
        into (quiet wash, no line) or is (line appears), one signal, not
        two competing for the same moment. ── */
     .field-input {
+      border-radius: var(--r-md);
       width: 100%;
       background: var(--btn-bg); border: var(--bd-w) solid transparent;
       font-size: var(--text-sm); color: var(--fg);
@@ -512,7 +483,7 @@
     .scrollbar {
       position: absolute; width: 10px; z-index: 3;
       opacity: 0; transition: opacity 0.3s;
-      pointer-events: none; border-radius: 0;
+      pointer-events: none;
     }
     .scrollbar.is-hot, .scrollbar.is-dragging { pointer-events: auto; }
     .scrollbar.is-hot, .scrollbar.is-shown, .scrollbar.is-dragging { opacity: 1; transition: none; }
@@ -533,7 +504,6 @@
       background: var(--overlay-bg);
       backdrop-filter: var(--glass-scrim-filter);
       -webkit-backdrop-filter: var(--glass-scrim-filter);
-      border-radius: 0; /* full-viewport scrim — never rounds */
     }
     /* Without a backdrop blur, glass would show sharp text through it: fall back to solid. */
     @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {

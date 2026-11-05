@@ -317,7 +317,7 @@
     },
 
     thinking: function (msg, key) {
-      var wrap = el('div', 'seg-thinking hairline');
+      var wrap = el('div', 'seg-thinking');
       var btn = el('button', 'seg-thinking-toggle');
       btn.type = 'button';
       btn.appendChild(svg(CHEVRON));

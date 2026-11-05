@@ -49,7 +49,6 @@
       display: block;
       resize: none;
       border: none;
-      border-radius: 0;
       outline: none;
       background: transparent;
       color: var(--fg);
@@ -105,7 +104,6 @@
       --tag-h: 1.375rem;
       display: flex; flex-wrap: wrap; column-gap: var(--space-xs);
       height: var(--tag-h); overflow: hidden;
-      border-radius: 0; /* a clip box: base.css's radius would cut the end tags */
       margin-bottom: var(--space-lg);
     }
     .shorts-tag {
@@ -202,19 +200,18 @@
       background: var(--surface-soft);
       cursor: pointer;
     }
-    .shorts-img-cell img { width: 100%; height: 100%; object-fit: cover; display: block; border-radius: 0; }
+    .shorts-img-cell img { width: 100%; height: 100%; object-fit: cover; display: block; }
     .shorts-img-cell::after {
       content: '';
       position: absolute;
       inset: 0;
-      border-radius: 0;
       background: transparent;
       pointer-events: none;
       transition: background-color var(--motion-fast);
     }
     .shorts-img-cell:hover::after { background: rgba(0, 0, 0, 0.08); }
 
-    .shorts-img-grid--one { display: block; border-radius: 0; }
+    .shorts-img-grid--one { display: block; }
     .shorts-img-grid--one .shorts-img-cell {
       aspect-ratio: auto;
       width: fit-content;
@@ -261,7 +258,6 @@
       -webkit-box-orient: vertical;
       -webkit-line-clamp: 12;
       overflow: hidden;
-      border-radius: 0;
     }
     .is-grid .shorts-entry--media .shorts-entry-prose { -webkit-line-clamp: 3; }
 
@@ -289,7 +285,6 @@
     .is-grid .shorts-img-grid .shorts-img-cell {
       width: auto;
       aspect-ratio: 3 / var(--thumbs, 1);
-      border-radius: 0;
     }
     .is-grid .shorts-img-grid .shorts-img-cell:first-of-type {
       grid-column: 1 / -1;
@@ -312,7 +307,6 @@
       color: #fff;
       font-size: var(--text-md);
       font-weight: var(--fw-medium);
-      border-radius: 0;
       pointer-events: none;
     }
 

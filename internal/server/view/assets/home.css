@@ -22,7 +22,6 @@
       flex-direction: column;
       min-height: 0;
       overflow: hidden;
-      border-radius: 0;
     }
 
     /* Every native bar is hidden; .overlay-scroll panes draw their own (scrollbar.js). */
@@ -39,7 +38,6 @@
       display: flex;
       min-height: 0;
       overflow: hidden;
-      border-radius: 0;
       --split-ratio: 0.5;
       --split-ratio-inv: 0.5;
       /* One clock for every split change: open, close, maximize, restore.
@@ -60,7 +58,6 @@
       display: flex;
       min-width: 0; min-height: 0;
       overflow: hidden;
-      border-radius: 0;
       background: var(--bg);
       container-type: inline-size;
     }
@@ -115,12 +112,10 @@
       flex-shrink: 0; height: var(--topbar-h);
       display: flex; align-items: center; justify-content: flex-end; gap: 4px;
       padding: 0 14px;
-      border-radius: 0;
     }
     .home-side-bottom {
       flex-shrink: 0; display: flex; align-items: center;
       height: var(--topbar-h); padding: 0 14px;
-      border-radius: 0;
     }
     /* Pinned right, so the server switcher appearing after load can't move it. */
     .home-side-bottom > .home-side-bottom-btn { margin-left: auto; }
@@ -143,8 +138,6 @@
       /* Each edge fades by how much content is hidden past it (capped at 24px). */
       -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 var(--fade-top, 0px), #000 calc(100% - var(--fade-bottom, 0px)), transparent 100%);
       mask-image: linear-gradient(to bottom, transparent 0, #000 var(--fade-top, 0px), #000 calc(100% - var(--fade-bottom, 0px)), transparent 100%);
-      border-radius: 0; /* scrolling chrome strip — never rounds (the global
-        reset was clipping its own content into rounded corners) */
     }
     /* flex-shrink:0 on every direct child of .home-side-nav: its overflow
        resets their min size to 0, so an overflowing list would crush rows
@@ -195,7 +188,6 @@
       display: flex; flex-direction: column; gap: 2px;
       padding-left: 12px;
       opacity: 0; transition: opacity var(--motion-base) var(--ease-standard);
-      border-radius: 0; /* clips its rows; the global radius would cut their corners */
     }
     /* Vertical breathing room as clipped content, not padding: a 0fr row can't
        shrink padding, so a collapsed group would keep it. 2px above, 4px below. */
@@ -291,7 +283,6 @@
       flex: 1 1 0; min-width: 0;
       display: flex; flex-direction: column;
       min-height: 0; overflow: hidden;
-      border-radius: 0;
       /* Reflows every frame of a split change; keep that pass local. */
       contain: layout paint style;
       /* No own background — .home-main is the opaque backstop for this
@@ -317,7 +308,6 @@
       flex-shrink: 0; display: flex; align-items: center; gap: 8px;
       min-height: var(--toolbar-h);
       padding: 8px 24px;
-      border-radius: 0; /* flush chrome strip — never rounds */
     }
     /* macOS: this row sits at the true window top now (no more full-width
        .lib-topbar drag strip), so its own blank space (.home-list-head-spacer
@@ -355,7 +345,7 @@
       grid-column: 1 / -1; /* spans the grid view's columns */
       flex-shrink: 0;
       margin-bottom: var(--space-lg); padding-bottom: var(--space-md);
-      border-bottom: 1px solid var(--line-hair); border-radius: 0;
+      border-bottom: 1px solid var(--line-hair);
     }
     .act-row { display: flex; gap: var(--space-xxl); }
     .act-body {
@@ -369,7 +359,7 @@
       display: flex; flex-direction: row-reverse; flex-wrap: wrap;
       justify-content: flex-end; align-content: flex-start; gap: var(--act-ring) var(--act-gap);
       height: calc(var(--space-md) + 7 * var(--act-cell) + 6 * var(--act-gap) + 2 * var(--act-ring));
-      overflow: hidden; border-radius: 0;
+      overflow: hidden;
       margin: calc(-1 * var(--act-ring)); padding: var(--act-ring);
     }
     .act-week {
@@ -380,7 +370,7 @@
     .act-month {
       position: absolute; top: 0; left: 0;
       font-size: var(--text-2xs); line-height: 1; color: var(--muted);
-      white-space: nowrap; border-radius: 0;
+      white-space: nowrap;
     }
     /* The newest columns hang their label leftwards so the grid's clip can't cut it. */
     .act-week:nth-child(-n+2) .act-month { left: auto; right: 0; }
@@ -401,7 +391,7 @@
     .act-summary {
       display: none; flex: 1; min-width: 0;
       font-size: var(--text-xs); color: var(--muted);
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-radius: 0;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
     .act-map[data-actor="all"] .act-summary[data-for="all"],
     .act-map[data-actor="user"] .act-summary[data-for="user"],
@@ -418,7 +408,7 @@
     .act-side-head {
       height: var(--space-md); margin: 0;
       font-size: var(--text-2xs); font-weight: var(--fw-regular); line-height: 1; color: var(--muted);
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-radius: 0;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
     .act-side-head span::before { content: " · "; }
     .act-share { list-style: none; margin: 0; padding: 0; }
@@ -431,7 +421,7 @@
     .act-share-row[data-kind="user"] { --share-c: var(--accent); }
     .act-map[data-actor="user"] .act-share-row:not([data-kind="user"]),
     .act-map[data-actor="bots"] .act-share-row[data-kind="user"] { --share-a: 30%; color: var(--muted); }
-    .act-share-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-radius: 0; }
+    .act-share-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .act-share-bar {
       height: 6px; border-radius: var(--r-full);
       background: linear-gradient(color-mix(in srgb, var(--share-c) var(--share-a), var(--act-empty)) 0 0) no-repeat left / var(--pct) 100%,
@@ -475,7 +465,7 @@
       display: block; position: absolute; z-index: -1;
       border-radius: inherit; overflow: hidden; pointer-events: none;
     }
-    .note-card-cover img { display: block; width: 100%; height: 100%; object-fit: cover; border-radius: 0; }
+    .note-card-cover img { display: block; width: 100%; height: 100%; object-fit: cover; }
     .note-card-cover::after {
       content: ""; position: absolute; inset: 0;
       transition: background-color var(--motion-base);
@@ -487,7 +477,7 @@
       flex: 0 1 auto; min-width: 0; /* hugs the text, so the todo ring sits right after it */
       font-size: var(--text-base); font-weight: var(--fw-medium); color: var(--fg);
       line-height: var(--lh-normal);
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-radius: 0;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
     .note-card-end { margin-left: auto; flex-shrink: 0; display: flex; align-items: center; gap: 0.3rem; }
     /* Kept inside the title's line box, so revealing it never changes the card's height. */
@@ -495,7 +485,7 @@
     .note-card-preview,
     .note-card-dir {
       min-width: 0; margin: 0; font-size: var(--text-sm);
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-radius: 0;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
     /* The excerpt is the user's own writing, not meta. */
     .note-card-preview { color: var(--fg-2); }

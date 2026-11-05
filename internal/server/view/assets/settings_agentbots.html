@@ -175,7 +175,7 @@
                     <div class="agent-bot-trigger-list">
                       <template x-for="(t, ti) in agentBotTriggers" :key="ti">
                         <div class="agent-bot-trigger-card" :class="{'is-open': t._open, 'is-off': !t.enabled}">
-                          <div class="agent-bot-trigger-hdr hairline" @click="t._open = !t._open">
+                          <div class="agent-bot-trigger-hdr" @click="t._open = !t._open">
                             <div class="agent-bot-trigger-hdr-main">
                               <span class="agent-bot-trigger-chev" :class="{open: t._open}">
                                 {{icon "chevron-right" `aria-hidden="true"`}}
@@ -296,7 +296,7 @@
                   <section class="settings-form" role="tabpanel" x-show="botFormTab === 'channels'">
                     <p class="settings-intro">Connect an app to this bot. Messages there continue its current chat, the same conversation as on the desktop; send /new in the app to start a new one. One contact belongs to one bot. Connecting or disconnecting applies right away, without Save.</p>
 
-                    <div class="bot-channel hairline">
+                    <div class="bot-channel">
                       <div class="bot-channel-head">
                         <span class="bot-channel-title">WeChat</span>
                         <span class="badge" :class="{ 'badge--ok': botChannels.wechat }" x-text="botChannels.wechat ? 'Connected' : 'Not connected'"></span>
@@ -323,7 +323,7 @@
                       </template>
                     </div>
 
-                    <div class="bot-channel hairline">
+                    <div class="bot-channel">
                       <div class="bot-channel-head">
                         <span class="bot-channel-title">Discord</span>
                         <span class="badge" :class="{ 'badge--ok': botChannels.discord }" x-text="botChannels.discord ? 'Connected' : 'Not connected'"></span>
@@ -348,7 +348,7 @@
                       </template>
                     </div>
 
-                    <div class="bot-channel hairline">
+                    <div class="bot-channel">
                       <div class="bot-channel-head">
                         <span class="bot-channel-title">Telegram</span>
                         <span class="badge" :class="{ 'badge--ok': botChannels.telegram }" x-text="botChannels.telegram ? 'Connected' : 'Not connected'"></span>

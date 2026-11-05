@@ -7,7 +7,6 @@
       position: relative;
       flex: none; width: 0; min-width: 0;
       overflow: clip;
-      border-radius: 0;
       transition: width var(--pane-motion);
       contain: layout paint style;
     }
@@ -19,7 +18,6 @@
       position: absolute; top: 0; bottom: 0; left: 0;
       width: round(down, 100cqw * var(--split-ratio-inv), 1px);
       border-left: var(--bd-w) solid var(--line-hair);
-      border-radius: 0;
       display: flex; flex-direction: column; overflow: hidden;
       /* Shared by every floating popover in here — more menu, bot menu,
          the find/replace card — so they all sit the same distance off
@@ -51,14 +49,12 @@
       flex-shrink: 0; display: flex; align-items: center; gap: 0.5rem;
       padding: 0 0.625rem 0 0.75rem;
       background: var(--bg);
-      border-radius: 0; /* flush chrome strip */
       height: var(--toolbar-h);
     }
     /* Dimmed by a veil, not opacity: a fading group redraws its icons a pixel off. */
     .content-pane-tool-bar::after {
       content: ""; position: absolute; inset: 0; pointer-events: none;
       background: transparent; transition: background-color var(--motion-fast);
-      border-radius: 0;
     }
     .content-pane-tool-bar[inert]::after { background: color-mix(in srgb, var(--bg) 60%, transparent); }
     /* dir / name ✓ — the folder gives way first when space runs out. */
@@ -355,6 +351,7 @@
     }
     /* Match highlights */
     #content-pane-edit-area .cm-searchMatch {
+      border-radius: var(--r-md);
       background: color-mix(in srgb, var(--accent) 22%, transparent);
       outline: none;
     }

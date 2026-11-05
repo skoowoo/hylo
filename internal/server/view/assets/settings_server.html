@@ -56,7 +56,7 @@
                   <p class="settings-intro" x-show="sectionIntro(openSection)" x-text="sectionIntro(openSection)"></p>
                   <div class="settings-list">
                     <template x-for="field in fieldsForSection(openSection)" :key="field.key">
-                      <div class="settings-row hairline"
+                      <div class="settings-row"
                            :class="{'is-dirty': isDirty(field.key), 'settings-row--block': field.type === 'string_list' || field.multiline, 'settings-row--input': field.type !== 'bool' && field.type !== 'string_list' && !field.multiline}">
                         <div>
                           <span class="settings-label cfg-label"><span x-text="field.label"></span><span class="badge badge--sm" x-show="field.vault" :title="vaultConfigPath ? 'Saved in ' + vaultConfigPath : ''">This vault</span></span>

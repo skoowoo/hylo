@@ -5,7 +5,7 @@
               <template x-if="isDesktop">
                 <div class="settings-list">
 {{template "notify-toggle-row" (dict "Field" `textEnabled` "Label" `Text notifications` "Desc" `Show a system notification when a bot reaches out on its own.`)}}{{template "notify-toggle-row" (dict "Field" `soundEnabled` "Label" `Sound` "Desc" `Play a sound when a bot reaches out on its own.`)}}
-                  <div class="settings-row hairline" x-show="notifySettings.soundEnabled">
+                  <div class="settings-row" x-show="notifySettings.soundEnabled">
                     <div>
                       <span class="settings-label">Notification sound</span>
                       <span class="settings-desc">Played when a bot reaches out on its own.</span>
@@ -26,7 +26,7 @@
             </div>
           </div>
 
-{{define "notify-toggle-row"}}                  <div class="settings-row hairline">
+{{define "notify-toggle-row"}}                  <div class="settings-row">
                     <div>
                       <span class="settings-label">{{.Label}}</span>
                       <span class="settings-desc">{{.Desc}}</span>

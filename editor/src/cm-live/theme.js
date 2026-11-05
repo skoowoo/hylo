@@ -125,7 +125,6 @@ export const livePreviewTheme = EditorView.theme({
 
   // ── Blockquote ──────────────────────────────────────────────────────────
   // !important: content_pane.css zeros .cm-line padding.
-  // borderRadius:0 — global reset would round the inset bar into brackets.
   // Not italic: most quotes here are CJK, which has no italic face.
   '.cm-lp-quote': {
     paddingTop: '0.35rem !important',
@@ -135,7 +134,6 @@ export const livePreviewTheme = EditorView.theme({
     lineHeight: '1.75',
     color: 'var(--bq-tx, rgba(62,63,70,0.88))',
     position: 'relative',
-    borderRadius: '0',
   },
   // One 2px bar per nesting level, 1.5rem apart. Gradients, not inset
   // box-shadows: an offset inset shadow fills everything up to the offset.
@@ -158,7 +156,6 @@ export const livePreviewTheme = EditorView.theme({
   '.cm-lp-link:not(.cm-lp-link-editing):hover': {
     background: 'var(--tint-soft, rgba(94,106,210,0.06))',
     color: 'var(--accent-hov, #4c56c8)',
-    borderRadius: '0', // defeat global 8px reset
   },
   // Caret on the link: it's being edited, not followed.
   '.cm-lp-link-editing': { cursor: 'text' },
@@ -257,18 +254,15 @@ export const livePreviewTheme = EditorView.theme({
     height: '1px',
     verticalAlign: 'middle',
     background: 'var(--line-edge, rgba(23,24,27,0.16))',
-    borderRadius: '0',
   },
 
-  // ── Fenced code — per-line chrome; borderRadius:0 so middle lines don't
-  // pick up global 8px (would scallop the box edge).
+  // ── Fenced code — per-line chrome.
   '.cm-lp-codeblock': {
     fontFamily: 'var(--font-mono, "JetBrains Mono", ui-monospace, monospace)',
     fontSize: 'var(--text-base, 0.875rem)',
     lineHeight: '1.65',
     color: 'var(--pre-tx, #17181b)',
     background: 'var(--th-bg, rgba(23,24,27,0.04))',
-    borderRadius: '0',
     paddingLeft: '1.5rem !important',
     paddingRight: '1.5rem !important',
   },
@@ -347,12 +341,10 @@ export const livePreviewTheme = EditorView.theme({
     maskSize: '100% 100%',
     WebkitMaskRepeat: 'no-repeat',
     maskRepeat: 'no-repeat',
-    borderRadius: '0',
   },
   '.cm-lp-wikilink:hover': {
     background: 'var(--tint-soft, rgba(94,106,210,0.06))',
     color: 'var(--accent-hov, #4c56c8)',
-    borderRadius: '0',
   },
   '.cm-lp-wikilink-raw': { color: 'var(--accent-text, #5e6ad2)' },
   // Target note no longer exists — struck through, muted, not interactive
@@ -518,7 +510,6 @@ export const livePreviewTheme = EditorView.theme({
     padding: '0.45rem 0.75rem',
     borderBottom: '1px solid var(--tbl-bd, rgba(23,24,27,0.12))',
     borderRight: '1px solid var(--tbl-bd, rgba(23,24,27,0.12))',
-    borderRadius: '0',
   },
   '.cm-lp-table-cell-first': { borderLeft: '1px solid var(--tbl-bd, rgba(23,24,27,0.12))' },
   '.cm-lp-table-row-header .cm-lp-table-cell': {
@@ -539,7 +530,6 @@ export const livePreviewTheme = EditorView.theme({
     padding: '0.45rem 0.75rem !important',
     border: '1px solid var(--tbl-bd, rgba(23,24,27,0.12))',
     borderTop: 'none',
-    borderRadius: '0',
   },
   // Hairline: shrink line font + inline-block widget (not block — splits buffers).
   '.cm-lp-table-delim': { fontSize: '1px', lineHeight: '1px' },

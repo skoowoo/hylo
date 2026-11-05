@@ -4,7 +4,6 @@
       background: var(--overlay-bg);
       backdrop-filter: var(--glass-scrim-filter);
       -webkit-backdrop-filter: var(--glass-scrim-filter);
-      border-radius: 0; /* full-viewport scrim — never rounds */
     }
     /* Centred on whole pixels: at a half pixel (odd window size) WebKit draws a
        row's icon a pixel off while its hover/active background transitions. */
@@ -37,7 +36,6 @@
     html.macos .settings-modal-close { -webkit-app-region: no-drag; }
     .settings-modal-inner {
       flex: 1; min-width: 0; display: flex; overflow: hidden;
-      border-radius: 0;
     }
 
     /* ── Sidebar ──────────────────────────────────────────────── */
@@ -61,7 +59,7 @@
       --settings-col: 720px;
       --settings-gutter: var(--space-lg);
       --settings-inline: var(--settings-gutter) max(var(--settings-gutter), 100% - var(--settings-col) - var(--settings-gutter));
-      flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden; border-radius: 0;
+      flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden;
     }
     /* .home-list-head (home.css) supplies the row; only the title is ours. */
     .settings-content-title {
@@ -77,7 +75,6 @@
     .settings-body {
       flex: 1; min-height: 0; overflow-y: auto;
       padding: var(--space-xs) 0 var(--space-xxl); padding-inline: var(--settings-inline);
-      border-radius: 0;
     }
     .settings-foot {
       flex-shrink: 0; display: flex; align-items: center; gap: var(--space-xs);
@@ -102,7 +99,7 @@
     .settings-form > .settings-intro { margin: 0; }
     /* A button that reads as an inline link. */
     .settings-link {
-      border: none; background: none; padding: 0; border-radius: 0;
+      border: none; background: none; padding: 0;
       font: inherit; color: var(--accent-text); cursor: pointer;
     }
     .settings-link:hover { text-decoration: underline; }

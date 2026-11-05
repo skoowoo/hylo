@@ -234,7 +234,7 @@ Dark is the shipped default (bare `:root`). Light is Hylo's own from-scratch ada
 - One continuous type family (Inter) across every size; no display/body split.
 - A theme-invariant four-color identity palette (`{colors.identity-cyan}`, `{colors.identity-pink}`, `{colors.identity-violet}`, `{colors.identity-green}`) marks "which person/entity", independent of "which mode".
 - Three semantic colors (success/error/warning) — tuned bright for legibility as running text on dark, paired with `--{ok,err,warn}-fg` (inverse ink) when used as a solid fill instead.
-- Corner radius scales from `{rounded.xs}` (4px, chips/badges) to `{rounded.xl}` (16px, modal/panel surfaces) — never a hard 0° corner by default (base.css rounds every element to `{rounded.md}` unless overridden), except edge-docked, full-viewport chrome (drawer panel, scrims, topbars) which explicitly opts back to 0.
+- Corner radius scales from `{rounded.xs}` (4px, chips/badges) to `{rounded.xl}` (16px, modal/panel surfaces) — corners are opt-in: every visible shape (card, panel, chip, field) declares its radius from this scale, buttons default to `{rounded.md}`, and anything without a shape of its own (clip and scroll boxes, dividers, edge-docked chrome, text) stays square.
 
 ## Colors
 
@@ -346,14 +346,14 @@ Everything that doesn't explicitly opt into level 5 stays flat, matching the sur
 | ---------------- | ----- | ------------------------------------------------------------------------------------------- |
 | `{rounded.xs}`   | 4px   | Chips, status badges, small icon buttons                                                    |
 | `{rounded.sm}`   | 6px   | Inline tags, inline code, prose images                                                      |
-| `{rounded.md}`   | 8px   | Default for buttons and form inputs — and the baseline every element gets unless overridden |
+| `{rounded.md}`   | 8px   | Default for buttons (the only element that gets a radius without asking) and form inputs     |
 | `{rounded.lg}`   | 12px  | List cards, image grid tiles, dropdown menus, the search panel                              |
 | `{rounded.xl}`   | 16px  | Dialogs, modals, image lightbox tiles                                                        |
 | `{rounded.full}` | 999px | Pills, avatars, unread dots, agent-bot-color swatches                                       |
 
 A surface that holds rounded rows close to its edge takes the row radius plus the gap between them: a menu with `{rounded.sm}` rows, 4px padding and a 1px border is `{rounded.lg}`, so the inner and outer corners run parallel.
 
-Full-viewport or edge-docked chrome (drawer panel and its tab bar, scrims, `<html>`/`<body>`, SVG icons, and replaced elements like the graph's canvas) explicitly resets to 0 — these are structural surfaces flush to real viewport edges, never a "card" shape.
+Nothing else is rounded by default: a box that only clips or scrolls, a divider, ellipsized text and edge-docked chrome stay square, so none of them can cut the corners of what they hold.
 
 ## Components
 
@@ -432,7 +432,7 @@ Full-viewport or edge-docked chrome (drawer panel and its tab bar, scrims, `<htm
 - Reserve `{colors.accent}` for primary actions, focus rings, selected-state text, and link emphasis only.
 - Make every neutral hover an ink wash (`--card-hov` 5%, `--icon-hov` 8%, `--nav-hov`, `--btn-bg-hov`); an accent tint on a grey surface reads as lavender (or orange, under another accent preset).
 - Use the three-step surface ladder (bg → surface-soft → surface-2) for hierarchy; don't skip a level.
-- Let full-viewport/edge-docked chrome reset to 0 radius; let everything else default to `{rounded.md}` unless a card/panel calls for `{rounded.lg}`/`{rounded.xl}`.
+- Give every new shape its radius from the scale (`{rounded.md}` for controls, `{rounded.lg}`/`{rounded.xl}` for cards and panels); leave everything else square rather than writing `border-radius: 0`.
 - Keep the identity palette (cyan/pink/violet/green) theme-invariant — it marks "who/what", not "which mode".
 - Pair a semantic color's bright running-text tone with its own `-fg` token when using it as a solid fill, never with plain white/black.
 - Apply the shared `.icon-btn`/`.icon-btn-ghost`/`.seg`/`.seg-btn` components instead of a new per-page near-copy.

@@ -3,7 +3,7 @@
   <div class="home-shell"
        :class="{'content-pane-open': layoutOpen, 'is-resizing': isPaneResizing, 'is-editor-maximized': layoutRatio <= 0.02}"
        :style="'--split-ratio:' + layoutRatio + ';--split-ratio-inv:' + (1 - layoutRatio)">
-    <aside class="home-side hairline" id="home-side">
+    <aside class="home-side" id="home-side">
       <div class="home-side-top">
         <button type="button" class="icon-btn-ghost"
                 :title="/Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent) ? 'Search (⌘K)' : 'Search (Ctrl+K)'"
@@ -208,7 +208,7 @@
                 </span>
               </button>
             </template>
-            <div class="cselect-divider hairline"></div>
+            <div class="cselect-divider"></div>
             <button type="button" class="cselect-option" @click="open = false; $store.servers.openManager()">
               <span>Manage servers…</span>
             </button>

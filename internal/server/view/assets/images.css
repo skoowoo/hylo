@@ -26,7 +26,6 @@
     .img-thumb-wrap {
       position: relative;
       width: 100%; aspect-ratio: 16 / 9; overflow: hidden; background: var(--surface-soft);
-      border-radius: 0;
       display: flex; align-items: center; justify-content: center;
     }
     .img-thumb { width: 100%; height: 100%; object-fit: cover; }
@@ -55,7 +54,6 @@
       line-height: 1.4;
       display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
       overflow: hidden; word-break: break-word;
-      border-radius: 0;
       margin-bottom: 0.2rem;
     }
     .img-time { font-size: var(--text-xs); color: var(--muted); margin-top: 0.1rem; font-variant-numeric: tabular-nums; }
@@ -64,6 +62,7 @@
     .img-sentinel { height: 1px; grid-column: 1 / -1; }
     /* ── Selection mode ─────────────────────────────────────────── */
     .img-select-check {
+      border-radius: var(--r-md);
       position: absolute; top: 6px; left: 6px;
       width: 18px; height: 18px;
       border: 1.5px solid var(--img-select-border);
@@ -93,7 +92,6 @@
       background: var(--lightbox-overlay-bg);
       backdrop-filter: var(--glass-scrim-filter);
       -webkit-backdrop-filter: var(--glass-scrim-filter);
-      border-radius: 0; /* full-viewport scrim — never rounds */
     }
     /* Alpine named-class transitions — overlay fade + panel scale together.
        Leave is deliberately quicker than enter (base vs slow tier) — a
@@ -135,12 +133,10 @@
       flex: 1; min-width: 0;
       display: flex; flex-direction: column;
       background: var(--lightbox-viewer-bg); overflow: hidden;
-      border-radius: 0;
     }
     .lb-stage {
       position: relative; flex: 1; min-height: 0;
       display: flex; align-items: center; justify-content: center;
-      border-radius: 0;
     }
     .lb-viewer-img {
       max-width: 100%; max-height: 100%;
@@ -177,7 +173,6 @@
       display: flex; justify-content: safe center; gap: 6px;
       padding: var(--space-xs) var(--space-sm) var(--space-sm);
       overflow-x: auto;
-      border-radius: 0;
     }
     .lb-strip-thumb {
       position: relative; flex: none;
@@ -185,7 +180,7 @@
       border: none; border-radius: var(--r-sm); overflow: hidden;
       background: transparent;
     }
-    .lb-strip-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; border-radius: 0; }
+    .lb-strip-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
     .lb-strip-thumb::after {
       content: ''; position: absolute; inset: 0;
       border: 2px solid transparent; border-radius: inherit;
@@ -212,7 +207,6 @@
       flex: 1; min-width: 0;
       font-size: var(--text-base); font-weight: 600; color: var(--fg);
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-      border-radius: 0;
     }
     .lb-delete-btn {
       flex-shrink: 0;
@@ -307,7 +301,6 @@
     .lb-note-card-name {
       font-size: var(--text-sm); font-weight: 600; color: var(--fg);
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-      border-radius: 0;
     }
     /* The excerpt is the point — what this note actually says about the
        image — so it reads as regular body text under the (now secondary)

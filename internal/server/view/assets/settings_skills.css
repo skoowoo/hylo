@@ -7,7 +7,7 @@
     }
     .skills-builtin { margin-bottom: var(--space-xs); }
     .skills-builtin:has(.skills-builtin-row[aria-expanded="true"]) {
-      margin-bottom: 1.25rem; padding-bottom: 1.25rem; border-bottom: 1px solid var(--line-hair); border-radius: 0;
+      margin-bottom: 1.25rem; padding-bottom: 1.25rem; border-bottom: 1px solid var(--line-hair);
     }
     .skills-builtin-row {
       display: flex; align-items: center; gap: 0.6rem; width: 100%;
@@ -74,7 +74,7 @@
     .skill-source {
       min-width: 0; font-family: var(--font-mono); font-size: var(--text-2xs); color: var(--muted);
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-      text-decoration: none; color: color-mix(in srgb, var(--muted) 70%, transparent); border-radius: 0;
+      text-decoration: none; color: color-mix(in srgb, var(--muted) 70%, transparent);
       transition: color var(--motion-fast);
     }
     a.skill-source:hover { color: var(--accent-text); }

@@ -4,7 +4,7 @@
 html, body { height: 100%; margin: 0; }
 body { background: var(--bg); color: var(--fg); overflow: hidden; }
 .spec {
-  height: 100%; overflow-y: auto; box-sizing: border-box; border-radius: 0;
+  height: 100%; overflow-y: auto; box-sizing: border-box;
   padding: var(--space-xl) var(--space-lg) var(--space-xxl);
   display: flex; flex-direction: column; gap: var(--space-xl);
 }
@@ -30,11 +30,11 @@ body { background: var(--bg); color: var(--fg); overflow: hidden; }
 .spec-side-children { display: flex; flex-direction: column; gap: 1px; padding: 2px 0 4px 12px; }
 .spec-child-icon { flex-shrink: 0; width: 13px; height: 13px; opacity: 0.6; }
 
-.spec-table-wrap { overflow-x: auto; border-radius: 0; }
+.spec-table-wrap { overflow-x: auto; }
 .spec-table { border-collapse: collapse; font-size: var(--text-sm); }
 .spec-table th, .spec-table td {
   padding: 8px 14px; text-align: left; vertical-align: middle; white-space: nowrap;
-  border-bottom: var(--bd-w) solid var(--line-hair); border-radius: 0;
+  border-bottom: var(--bd-w) solid var(--line-hair);
 }
 .spec-table thead th { font-size: var(--text-xs); font-weight: 500; color: var(--muted); }
 .spec-name { font-weight: 500; }
@@ -46,10 +46,10 @@ body { background: var(--bg); color: var(--fg); overflow: hidden; }
   background:
     linear-gradient(to right, var(--line-hair) 1px, transparent 1px) 0 0 / 3px 3px,
     linear-gradient(to bottom, var(--line-hair) 1px, transparent 1px) 0 0 / 3px 3px;
-  outline: var(--bd-w) solid var(--line-edge); border-radius: 0;
+  outline: var(--bd-w) solid var(--line-edge);
 }
 .spec-grid::after {
-  content: ""; position: absolute; inset: 3px; border: 1px dashed var(--accent); opacity: 0.45; border-radius: 0;
+  content: ""; position: absolute; inset: 3px; border: 1px dashed var(--accent); opacity: 0.45;
 }
 .spec-grid svg { width: 72px; height: 72px; display: block; position: relative; }
 .spec-num { font-family: var(--font-mono); font-size: var(--text-xs); font-variant-numeric: tabular-nums; }

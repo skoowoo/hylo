@@ -37,10 +37,10 @@
           </div>
         </template>
       </div>
-      <aside class="lb-sidebar hairline">
+      <aside class="lb-sidebar">
         <template x-if="lbData && lbData.short">
           <div class="lb-sidebar-inner">
-            <div class="lb-sidebar-head hairline">
+            <div class="lb-sidebar-head">
               <button type="button" class="lb-short-date" title="Show in daily note"
                       @click="lbOpenShortDay()" x-text="lbData.short.date"></button>
               <span class="lb-short-time" x-text="lbData.short.time"></span>
@@ -59,7 +59,7 @@
         </template>
         <template x-if="lbData && !lbData.short">
         <div class="lb-sidebar-inner">
-        <div class="lb-sidebar-head hairline">
+        <div class="lb-sidebar-head">
           <span class="lb-sidebar-title" x-text="lbData ? lbData.name : ''"></span>
           <button type="button" class="lb-delete-btn" title="Delete image"
                   x-show="lbData && lbData.dir != null"
@@ -91,7 +91,7 @@
           <template x-if="!lbData || !lbData.notes || lbData.notes.length === 0">
             <div class="lb-no-notes">No linked notes</div>
           </template>
-          <div class="lb-divider hairline"></div>
+          <div class="lb-divider"></div>
           </div>
           </template>
           <div class="lb-section-label">Info</div>

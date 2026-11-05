@@ -20,7 +20,7 @@
 }
 .cselect-btn:focus { outline: none; border-color: var(--accent); }
 .cselect-btn.open { border-color: var(--accent); }
-.cselect-btn-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border-radius: 0; }
+.cselect-btn-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cselect-btn svg { width: 11px; height: 11px; flex-shrink: 0; color: var(--muted); }
 .cselect-btn.open svg { transform: rotate(180deg); }
 .cselect-dropdown {

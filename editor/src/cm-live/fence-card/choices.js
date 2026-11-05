@@ -30,7 +30,7 @@ const CSS = `
 .hy-choices-col{flex-direction:column;align-items:stretch;gap:0;padding:var(--space-xxs,4px);border-radius:var(--r-lg,12px);background:var(--surface-soft,#f2f2f4)}
 .hy-choices-col .hy-choice{display:flex;align-items:flex-start;gap:10px;padding:9px 12px;font-size:var(--text-base,.875rem);line-height:1.5;color:var(--prose-body,#3e3f46);background:transparent}
 .hy-choices-col .hy-choice-box,.hy-choices-col .hy-choice-mark{height:1.5em;align-items:center}
-.hy-choices-col .hy-choice+.hy-choice::before{content:"";position:absolute;top:0;left:38px;right:12px;height:1px;border-radius:0;background:var(--line-hair,rgba(23,24,27,.09))}
+.hy-choices-col .hy-choice+.hy-choice::before{content:"";position:absolute;top:0;left:38px;right:12px;height:1px;background:var(--line-hair,rgba(23,24,27,.09))}
 .hy-choices-col.hy-choices-active .hy-choice:hover{background:var(--card-hov,rgba(23,24,27,.05));color:var(--fg,#17181b)}
 .hy-choices-col.hy-choices-active .hy-choice:hover .hy-choice-mark{color:var(--fg,#17181b)}
 .hy-choices-col .hy-choice-on{background:var(--btn-bg,rgba(23,24,27,.06));color:var(--fg,#17181b)}
