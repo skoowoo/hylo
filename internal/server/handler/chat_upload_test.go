@@ -171,7 +171,7 @@ func TestRetryWithMissingImageKeepsTheFailedTurn(t *testing.T) {
 	t.Cleanup(func() { _ = store.Close() })
 	a.store = store
 	a.hub = agent.NewHub()
-	conv, err := store.CreateConversation("bot", "Test")
+	conv, err := store.CreateConversation("bot")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -193,5 +193,47 @@ func TestRetryWithMissingImageKeepsTheFailedTurn(t *testing.T) {
 	}
 	if len(msgs) != 2 {
 		t.Fatalf("retry with a missing image dropped the turn: %+v", msgs)
+	}
+}
+
+func TestNewChatStartsWithItsTurn(t *testing.T) {
+	a := testAgentAPI(t)
+	store, err := mate.Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	a.store = store
+	a.hub = agent.NewHub()
+	m := &mate.Mate{Name: "Bot", AgentID: "claude", Enabled: true}
+	if err := store.CreateMate(m); err != nil {
+		t.Fatal(err)
+	}
+	// A missing image ends each turn once its chat is settled, before the agent runs.
+	gone := []mate.Attachment{{ID: "11111111-1111-1111-1111-111111111111.png", Name: "shot.png"}}
+	turn := func(convID string, newChat bool) {
+		run := a.hub.CreateRun(map[string]string{"conversationId": convID})
+		a.executeChat(context.Background(), run, chatBody{MateID: m.ID, ConversationID: convID, NewChat: newChat, Message: "hi", Attachments: gone})
+	}
+
+	turn("desk-1", true)
+	if cur, _ := store.ActiveConversationID(m.ID); cur != "desk-1" {
+		t.Fatalf("current %q, want the chat the turn started", cur)
+	}
+	// Sent again before the desktop saw it listed, it continues the same chat.
+	turn("desk-1", true)
+	if _, err := store.GetConversation("desk-1"); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := store.SetActiveConversation(m.ID, ""); err != nil {
+		t.Fatal(err)
+	}
+	turn("gone", false)
+	if _, err := store.GetConversation("gone"); err == nil {
+		t.Fatal("a turn in an unknown chat started it")
+	}
+	if cur, _ := store.ActiveConversationID(m.ID); cur != "" {
+		t.Fatalf("current %q after a turn in an unknown chat", cur)
 	}
 }

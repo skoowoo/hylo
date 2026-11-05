@@ -19,7 +19,8 @@ func NewConversationAPI(store *mate.Store) *ConversationAPI {
 	return &ConversationAPI{store: store}
 }
 
-// ConversationsGET handles GET /api/conversations?mateId=xxx: the mate's chats, most recent first.
+// ConversationsGET handles GET /api/conversations?mateId=xxx: the mate's chats,
+// most recently active first, and which one is current ("" for a new chat).
 func (c *ConversationAPI) ConversationsGET(w http.ResponseWriter, r *http.Request) {
 	mateID := strings.TrimSpace(r.URL.Query().Get("mateId"))
 	list, err := c.store.ListConversations(mateID)
@@ -27,29 +28,32 @@ func (c *ConversationAPI) ConversationsGET(w http.ResponseWriter, r *http.Reques
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	active, err := c.store.ActiveConversationID(mateID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 	if list == nil {
 		list = []mate.Conversation{}
 	}
-	respondJSON(w, http.StatusOK, map[string]any{"conversations": list})
+	respondJSON(w, http.StatusOK, map[string]any{"conversations": list, "activeId": active})
 }
 
-// ConversationsPOST handles POST /api/conversations.
-func (c *ConversationAPI) ConversationsPOST(w http.ResponseWriter, r *http.Request) {
+// ActivePUT handles PUT /api/mates/{id}/conversation: continues one of the
+// mate's chats, or with an empty conversationId opens a new one.
+func (c *ConversationAPI) ActivePUT(w http.ResponseWriter, r *http.Request) {
 	var body struct {
-		MateID string `json:"mateId"`
-		Title  string `json:"title"`
+		ConversationID string `json:"conversationId"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		http.Error(w, "invalid json", http.StatusBadRequest)
 		return
 	}
-	mateID := strings.TrimSpace(body.MateID)
-	conv, err := c.store.EnsureNewConv(mateID, strings.TrimSpace(body.Title), 10)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	if err := c.store.SetActiveConversation(r.PathValue("id"), body.ConversationID); err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
-	respondJSON(w, http.StatusCreated, map[string]any{"conversation": conv})
+	respondJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
 // ConversationGET handles GET /api/conversations/{id}.
@@ -101,27 +105,6 @@ func (c *ConversationAPI) ConversationDELETE(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	if err := c.store.DeleteConversation(id); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	respondJSON(w, http.StatusOK, map[string]any{"ok": true})
-}
-
-// ConversationTitlePATCH handles PATCH /api/conversations/{id}/title.
-func (c *ConversationAPI) ConversationTitlePATCH(w http.ResponseWriter, r *http.Request) {
-	id := r.PathValue("id")
-	if id == "" {
-		http.Error(w, "not found", http.StatusNotFound)
-		return
-	}
-	var body struct {
-		Title string `json:"title"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		http.Error(w, "invalid json", http.StatusBadRequest)
-		return
-	}
-	if err := c.store.UpdateConversationTitle(id, strings.TrimSpace(body.Title)); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

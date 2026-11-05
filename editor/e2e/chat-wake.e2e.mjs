@@ -53,7 +53,7 @@ function stub() {
       case '/api/mates': return json({ mates: [{ id: 'm1', name: 'Recall', enabled: true, agentId: 'claude' }] });
       case '/api/mate-events': return json({ events: [{ type: 'scheduled', label: 'Scheduled', vars: [] }] });
       case '/api/mates/m1/seen': return json({ ok: true });
-      case '/api/conversations': return json({ conversations: [{ id: 'c1' }] });
+      case '/api/conversations': return json({ conversations: [{ id: 'c1' }], activeId: 'c1' });
       case '/api/conversations/c1': {
         const since = +u.searchParams.get('since') || 0;
         return json({ messages: T.db.filter((m) => !since || new Date(m.updatedAt).getTime() > since), hasMore: false }, 20);

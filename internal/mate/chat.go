@@ -13,115 +13,155 @@ import (
 
 // ── Conversations ─────────────────────────────────────────────────────────────
 
-// CreateConversation creates a chat bound to a mate.
-func (s *Store) CreateConversation(mateID, title string) (Conversation, error) {
+// keepChats is how many of a bot's chats are kept; starting one past it drops the oldest.
+const keepChats = 10
+
+const convCols = `id, mate_id, type, agent_session_id, agent_session_agent_id, agent_session_cwd, created_at, updated_at`
+
+// CreateConversation adds a chat for a mate without making it the current one.
+func (s *Store) CreateConversation(mateID string) (Conversation, error) {
+	return s.createConversation(mateID, uuid.NewString())
+}
+
+func (s *Store) createConversation(mateID, id string) (Conversation, error) {
 	now := time.Now().UnixMilli()
-	id := uuid.NewString()
 	_, err := s.db.Exec(
-		`INSERT INTO conversations(id, mate_id, title, type, agent_session_id, agent_session_agent_id, agent_session_cwd, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?)`,
-		id, mateID, title, ConvTypeChat, "", "", "", now, now,
+		`INSERT INTO conversations(id, mate_id, type, agent_session_id, agent_session_agent_id, agent_session_cwd, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?)`,
+		id, mateID, ConvTypeChat, "", "", "", now, now,
 	)
 	if err != nil {
 		return Conversation{}, fmt.Errorf("mate: create conversation: %w", err)
 	}
-	s.chatChanged()
 	return Conversation{
 		ID:        id,
 		MateID:    mateID,
-		Title:     title,
 		Type:      ConvTypeChat,
 		CreatedAt: time.UnixMilli(now),
 		UpdatedAt: time.UnixMilli(now),
 	}, nil
 }
 
-func (s *Store) GetConversation(id string) (Conversation, error) {
-	var c Conversation
-	var createdMs, updatedMs int64
-	err := s.db.QueryRow(
-		`SELECT id, mate_id, title, type, agent_session_id, agent_session_agent_id, agent_session_cwd, created_at, updated_at FROM conversations WHERE id = ?`, id,
-	).Scan(&c.ID, &c.MateID, &c.Title, &c.Type, &c.AgentSessionID, &c.AgentSessionAgentID, &c.AgentSessionCwd, &createdMs, &updatedMs)
-	if errors.Is(err, sql.ErrNoRows) {
-		return Conversation{}, fmt.Errorf("mate: conversation not found: %s", id)
+// StartConversation makes a new chat the mate's current one, dropping the
+// oldest ones past keepChats along with any that never got a message. id is
+// the one the desktop allocated for it, or "" for a fresh one.
+func (s *Store) StartConversation(mateID, id string) (Conversation, error) {
+	if id == "" {
+		id = uuid.NewString()
 	}
+	conv, err := s.createConversation(mateID, id)
 	if err != nil {
-		return Conversation{}, fmt.Errorf("mate: get conversation: %w", err)
+		return Conversation{}, err
 	}
-	c.CreatedAt = time.UnixMilli(createdMs)
-	c.UpdatedAt = time.UnixMilli(updatedMs)
-	return c, nil
+	if _, err := s.db.Exec(`UPDATE mates SET active_conversation_id = ? WHERE id = ?`, conv.ID, mateID); err != nil {
+		return Conversation{}, fmt.Errorf("mate: start conversation: %w", err)
+	}
+	_, _ = s.db.Exec(
+		`DELETE FROM conversations WHERE mate_id = ?1 AND id != ?2 AND id NOT IN (
+		   SELECT id FROM conversations c WHERE mate_id = ?1
+		     AND EXISTS (SELECT 1 FROM chat_messages WHERE conversation_id = c.id)
+		   ORDER BY updated_at DESC LIMIT ?3)`,
+		mateID, conv.ID, keepChats-1,
+	)
+	s.chatChanged()
+	return conv, nil
 }
 
-// GetOrCreateActiveChatConvID returns the mate's current chat conversation (most recently
-// updated), creating one if the mate has no chat history yet.
-func (s *Store) GetOrCreateActiveChatConvID(mateID string) (string, error) {
-	convs, err := s.ListConversations(mateID)
+// ActiveConversationID returns the mate's current chat, or "" while a new one
+// waits for its first message.
+func (s *Store) ActiveConversationID(mateID string) (string, error) {
+	var id string
+	err := s.db.QueryRow(`SELECT active_conversation_id FROM mates WHERE id = ?`, mateID).Scan(&id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", nil
+	}
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("mate: active conversation: %w", err)
 	}
-	if len(convs) > 0 {
-		return convs[0].ID, nil
+	return id, nil
+}
+
+// SetActiveConversation makes one of the mate's chats the current one; "" opens a new chat.
+func (s *Store) SetActiveConversation(mateID, convID string) error {
+	if cur, err := s.ActiveConversationID(mateID); err == nil && cur == convID {
+		return nil
 	}
-	conv, err := s.CreateConversation(mateID, "")
+	res, err := s.db.Exec(
+		`UPDATE mates SET active_conversation_id = ?2 WHERE id = ?1
+		   AND (?2 = '' OR EXISTS (SELECT 1 FROM conversations WHERE id = ?2 AND mate_id = ?1))`,
+		mateID, convID,
+	)
+	if err != nil {
+		return fmt.Errorf("mate: set active conversation: %w", err)
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return fmt.Errorf("mate: conversation %q not found for %q", convID, mateID)
+	}
+	s.chatChanged()
+	return nil
+}
+
+// CurrentConversationID returns the mate's current chat, starting one when it has none.
+func (s *Store) CurrentConversationID(mateID string) (string, error) {
+	id, err := s.ActiveConversationID(mateID)
+	if err != nil || id != "" {
+		return id, err
+	}
+	conv, err := s.StartConversation(mateID, "")
 	if err != nil {
 		return "", err
 	}
 	return conv.ID, nil
 }
 
-// EnsureNewConv returns a fresh empty chat for the mate.
-// If its most recent chat is already empty (no messages), it is returned as-is.
-// Otherwise a new conversation is created with the given title.
-// When keep > 0, conversations older than the most recent keep are pruned before creation.
-func (s *Store) EnsureNewConv(mateID, title string, keep int) (Conversation, error) {
-	var latestID string
-	err := s.db.QueryRow(
-		`SELECT id FROM conversations WHERE mate_id=? ORDER BY created_at DESC LIMIT 1`, mateID,
-	).Scan(&latestID)
-	if err == nil {
-		var msgCount int
-		_ = s.db.QueryRow(`SELECT COUNT(*) FROM chat_messages WHERE conversation_id=?`, latestID).Scan(&msgCount)
-		if msgCount == 0 {
-			// Reused, it must also become the current chat (most recently updated).
-			_, _ = s.db.Exec(`UPDATE conversations SET updated_at = ? WHERE id = ?`, time.Now().UnixMilli(), latestID)
-			s.chatChanged()
-			return s.GetConversation(latestID)
-		}
+func (s *Store) GetConversation(id string) (Conversation, error) {
+	c, err := scanConversation(s.db.QueryRow(`SELECT `+convCols+` FROM conversations WHERE id = ?`, id))
+	if errors.Is(err, sql.ErrNoRows) {
+		return Conversation{}, fmt.Errorf("mate: conversation not found: %s", id)
 	}
-	if keep > 0 {
-		_, _ = s.db.Exec(
-			`DELETE FROM conversations
-			 WHERE mate_id=?
-			   AND id NOT IN (
-			     SELECT id FROM conversations
-			     WHERE mate_id=?
-			     ORDER BY created_at DESC LIMIT ?
-			   )`,
-			mateID, mateID, keep,
-		)
+	if err != nil {
+		return Conversation{}, fmt.Errorf("mate: get conversation: %w", err)
 	}
-	return s.CreateConversation(mateID, title)
+	return c, nil
 }
 
-// ListConversations returns a mate's chats, most recent first.
+// ListConversations returns a mate's chats that have messages, most recently
+// active first. A chat is titled by the user's first message; one the bot
+// started on its own, by the trigger that first woke it, else its first reply.
 func (s *Store) ListConversations(mateID string) ([]Conversation, error) {
 	rows, err := s.db.Query(
-		`SELECT id, mate_id, title, type, agent_session_id, agent_session_agent_id, agent_session_cwd, created_at, updated_at FROM conversations WHERE mate_id = ? ORDER BY updated_at DESC`,
+		`SELECT `+convCols+`,
+		   COALESCE(
+		     (SELECT NULLIF(substr(content, 1, 200), '') FROM chat_messages
+		       WHERE conversation_id = conversations.id AND role = 'user'
+		       ORDER BY created_at ASC, rowid ASC LIMIT 1),
+		     (SELECT NULLIF(t.name, '') FROM chat_messages m JOIN mate_triggers t ON t.id = m.trigger_id
+		       WHERE m.conversation_id = conversations.id AND m.trigger_id != ''
+		       ORDER BY m.created_at ASC, m.rowid ASC LIMIT 1),
+		     (SELECT NULLIF(substr(content, 1, 200), '') FROM chat_messages
+		       WHERE conversation_id = conversations.id AND role = 'assistant'
+		       ORDER BY created_at ASC, rowid ASC LIMIT 1),
+		     '')
+		 FROM conversations
+		 WHERE mate_id = ? AND EXISTS (SELECT 1 FROM chat_messages WHERE conversation_id = conversations.id)
+		 ORDER BY updated_at DESC`,
 		mateID,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("mate: list conversations: %w", err)
 	}
 	defer rows.Close()
-	return scanConversations(rows)
-}
-
-func (s *Store) UpdateConversationTitle(id, title string) error {
-	now := time.Now().UnixMilli()
-	_, err := s.db.Exec(
-		`UPDATE conversations SET title = ?, updated_at = ? WHERE id = ?`, title, now, id,
-	)
-	return err
+	var out []Conversation
+	for rows.Next() {
+		var c Conversation
+		var createdMs, updatedMs int64
+		if err := rows.Scan(&c.ID, &c.MateID, &c.Type, &c.AgentSessionID, &c.AgentSessionAgentID, &c.AgentSessionCwd, &createdMs, &updatedMs, &c.Title); err != nil {
+			return nil, err
+		}
+		c.CreatedAt = time.UnixMilli(createdMs)
+		c.UpdatedAt = time.UnixMilli(updatedMs)
+		out = append(out, c)
+	}
+	return out, rows.Err()
 }
 
 func (s *Store) touchConversation(id string) {
@@ -130,8 +170,18 @@ func (s *Store) touchConversation(id string) {
 }
 
 func (s *Store) DeleteConversation(id string) error {
-	_, err := s.db.Exec(`DELETE FROM conversations WHERE id = ?`, id)
+	tx, err := s.db.Begin()
 	if err != nil {
+		return err
+	}
+	defer tx.Rollback() //nolint:errcheck
+	if _, err := tx.Exec(`UPDATE mates SET active_conversation_id = '' WHERE active_conversation_id = ?`, id); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`DELETE FROM conversations WHERE id = ?`, id); err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
 		return err
 	}
 	s.chatChanged()
@@ -141,10 +191,9 @@ func (s *Store) DeleteConversation(id string) error {
 // SetConversationAgentSession stores the agent-native session id for multi-turn resume,
 // with the agent and cwd it lives under.
 func (s *Store) SetConversationAgentSession(conversationID, agentID, cwd, sessionID string) error {
-	now := time.Now().UnixMilli()
 	_, err := s.db.Exec(
-		`UPDATE conversations SET agent_session_id = ?, agent_session_agent_id = ?, agent_session_cwd = ?, updated_at = ? WHERE id = ?`,
-		sessionID, agentID, cwd, now, conversationID,
+		`UPDATE conversations SET agent_session_id = ?, agent_session_agent_id = ?, agent_session_cwd = ? WHERE id = ?`,
+		sessionID, agentID, cwd, conversationID,
 	)
 	if err != nil {
 		return fmt.Errorf("mate: set agent session: %w", err)
@@ -154,10 +203,9 @@ func (s *Store) SetConversationAgentSession(conversationID, agentID, cwd, sessio
 
 // ClearConversationAgentSession drops the stored agent session (e.g. agent or cwd switch).
 func (s *Store) ClearConversationAgentSession(conversationID string) error {
-	now := time.Now().UnixMilli()
 	_, err := s.db.Exec(
-		`UPDATE conversations SET agent_session_id = '', agent_session_agent_id = '', agent_session_cwd = '', updated_at = ? WHERE id = ?`,
-		now, conversationID,
+		`UPDATE conversations SET agent_session_id = '', agent_session_agent_id = '', agent_session_cwd = '' WHERE id = ?`,
+		conversationID,
 	)
 	if err != nil {
 		return fmt.Errorf("mate: clear agent session: %w", err)
@@ -530,19 +578,15 @@ func scanNoteAccess(rows *sql.Rows) ([]NoteAccessEntry, error) {
 
 // ── scan helpers ──────────────────────────────────────────────────────────────
 
-func scanConversations(rows *sql.Rows) ([]Conversation, error) {
-	var out []Conversation
-	for rows.Next() {
-		var c Conversation
-		var createdMs, updatedMs int64
-		if err := rows.Scan(&c.ID, &c.MateID, &c.Title, &c.Type, &c.AgentSessionID, &c.AgentSessionAgentID, &c.AgentSessionCwd, &createdMs, &updatedMs); err != nil {
-			return nil, err
-		}
-		c.CreatedAt = time.UnixMilli(createdMs)
-		c.UpdatedAt = time.UnixMilli(updatedMs)
-		out = append(out, c)
+func scanConversation(row *sql.Row) (Conversation, error) {
+	var c Conversation
+	var createdMs, updatedMs int64
+	if err := row.Scan(&c.ID, &c.MateID, &c.Type, &c.AgentSessionID, &c.AgentSessionAgentID, &c.AgentSessionCwd, &createdMs, &updatedMs); err != nil {
+		return Conversation{}, err
 	}
-	return out, rows.Err()
+	c.CreatedAt = time.UnixMilli(createdMs)
+	c.UpdatedAt = time.UnixMilli(updatedMs)
+	return c, nil
 }
 
 func encodeAttachments(atts []Attachment) string {

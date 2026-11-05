@@ -4,14 +4,32 @@
       background: var(--bg);
     }
 
-    .chat-head-name {
+    /* The header names the bot and the open chat, and opens the list of its chats.
+       Its text lines up with the row's padding; the hover wash reaches past it. */
+    .chat-switch {
+      display: flex;
+      align-items: center;
+      gap: 6px;
       min-width: 0;
+      max-width: min(32rem, 70%);
+      height: var(--btn-h-xs);
+      margin-left: calc(-1 * var(--space-xs));
+      padding: 0 var(--space-xs);
+      border: 0;
+      background: transparent;
       font-size: var(--text-sm);
-      color: var(--muted);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      color: var(--fg-2);
+      cursor: pointer;
     }
+    .chat-switch:hover:not(:disabled),
+    .chat-switch[aria-expanded="true"] { background: var(--icon-hov); color: var(--fg); }
+    .chat-switch:disabled { cursor: default; }
+    .chat-switch-bot { flex-shrink: 0; color: var(--muted); }
+    .chat-switch-sep { flex-shrink: 0; color: var(--muted-soft); }
+    .chat-switch-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .chat-switch svg { width: 11px; height: 11px; flex-shrink: 0; color: var(--muted); }
+
+    .cselect-dropdown.chat-switch-menu { width: 22rem; max-height: min(28rem, 70vh); overflow-y: auto; }
 
     /* ── Messages ───────────────────────────────────────────────── */
     /* .chat-scroll is the full-width scroll viewport (its overlay bar sits
@@ -121,15 +139,8 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 0.3rem;
+      gap: var(--space-sm);
       pointer-events: none;
-    }
-
-    .chat-empty-name {
-      font-size: var(--text-base);
-      font-weight: var(--fw-semibold);
-      color: var(--muted-soft);
-      letter-spacing: -0.01em;
     }
 
     .chat-empty-desc {
@@ -138,38 +149,17 @@
     }
 
     .chat-empty-hints {
-      display: grid;
-      grid-template-columns: auto auto;
-      column-gap: 0.6rem;
-      row-gap: 0.45rem;
-      margin-top: 1rem;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
       align-items: center;
-    }
-
-    .chat-empty-hint-key {
+      gap: var(--space-xxs);
       font-size: var(--text-xs);
       color: var(--muted-soft);
-      text-align: right;
-      white-space: nowrap;
     }
 
-    .chat-empty-hint-key::after {
-      content: ':';
-    }
-
-    .chat-empty-hint-val {
-      display: flex;
-      align-items: center;
-      gap: 0.25rem;
-      font-size: var(--text-xs);
-      color: var(--muted);
-      flex-wrap: wrap;
-    }
-
-    .chat-empty-hint-arrow {
-      color: var(--muted);
-      opacity: 0.5;
-      padding: 0 0.1rem;
+    .chat-empty-hint-dot {
+      padding: 0 var(--space-xxs);
     }
 
     /* ── Message rows ────────────────────────────────────────────── */

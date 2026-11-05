@@ -94,6 +94,8 @@
 .card-menu:focus { outline: none; }
 .card-menu .cselect-option:focus-visible { outline: none; background: var(--card-hov); }
 .card-menu .cselect-option svg { width: 14px; height: 14px; flex-shrink: 0; color: var(--muted); }
+.card-menu-label { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.card-menu-meta { flex-shrink: 0; margin-left: var(--space-sm); font-size: var(--text-xs); color: var(--muted-soft); }
 .card-menu .card-menu-danger:hover,
 .card-menu .card-menu-danger:focus-visible,
 .card-menu .card-menu-danger:hover svg,

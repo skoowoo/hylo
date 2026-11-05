@@ -29,6 +29,8 @@
     var PAGE = 50;
     var hasOlder = false;
     var loadingOlder = false;
+    // The bot's chats with messages, most recently active first: { id, title, at }.
+    var chats = [];
     var lastMsgMs = 0;
     var draft = '';
     // Images staged in the composer, kept like the draft across bot and chat switches. Each: {localId, id, mime, name, previewUrl, uploading, failed}.
@@ -161,6 +163,8 @@
         mates: mates,
         matesLoaded: matesLoaded,
         messages: shown(),
+        chats: chats,
+        conversationId: conversationId,
         loaded: loaded,
         catalogEpoch: catalogEpoch,
         draft: draft,
@@ -303,9 +307,8 @@
         if (gen !== transcriptGen || liveRun()) return;
         if (!data) { failed = true; reportPoll('sync', "Couldn't refresh the chat"); transcriptPending = true; return; }
         clearPoll('sync');
-        var convs = data.conversations || [];
-        var newest = convs.length ? convs[0].id : '';
-        if (newest !== convId) {
+        chats = listed(data.conversations);
+        if ((data.activeId || '') !== convId) {
           await refresh();
           return;
         }
@@ -411,6 +414,12 @@
       } catch (e) { notify("Couldn't load the conversation"); }
     }
 
+    function listed(convs) {
+      return (convs || []).map(function (c) {
+        return { id: c.id, title: c.title || '', at: c.updatedAt ? new Date(c.updatedAt).getTime() : 0 };
+      });
+    }
+
     // keepPlace: a manual refresh, which leaves the reader where they were.
     async function refresh(keepPlace) {
       if (busy() || !mateId) return;
@@ -419,16 +428,24 @@
         var resp = await fetch('/api/conversations?mateId=' + encodeURIComponent(mateId), { cache: 'no-store' });
         if (seq !== refreshSeq) return;
         if (!resp.ok) { notify("Couldn't load the conversation"); return; }
-        var convs = (await resp.json()).conversations || [];
+        var data = await resp.json();
         if (seq !== refreshSeq) return;
-        conversationId = convs.length > 0 ? convs[0].id : '';
+        chats = listed(data.conversations);
+        var active = data.activeId || '';
+        if (active !== conversationId) {
+          messages = [];
+          hasOlder = false;
+          lastMsgMs = 0;
+          loaded = false;
+        }
+        conversationId = active;
         if (conversationId) {
           await loadMessages(conversationId, seq, keepPlace);
         } else {
           messages = [];
           loaded = true;
           hasOlder = false;
-          requestRender();
+          requestRender(!keepPlace);
         }
       } catch (e) { notify("Couldn't load the conversation"); }
       finally {
@@ -531,6 +548,7 @@
             message: text,
             attachments: (extra && extra.attachments) || [],
             conversationId: conversationId,
+            newChat: !chats.some(function (c) { return c.id === conversationId; }),
             userMessageId: userMsgId,
             assistantMessageId: assistant.id,
             retryOf: (extra && extra.retryOf) || '',
@@ -585,7 +603,7 @@
       sendChoice: function (text) { return send(null, text); },
       cancel: function () { return cancel(); },
       retry: function (id) { return retry(id); },
-      newChat: function () { return newChat(); },
+      openChat: function (id) { return openChat(id); },
       loadOlder: function () { return loadOlder(); },
     };
 
@@ -658,52 +676,43 @@
       transcriptPending = false;
       transcriptFull = false;
       if (mateId && loaded) {
-        parked[mateId] = { conversationId: conversationId, messages: messages, hasOlder: hasOlder, lastMsgMs: lastMsgMs };
+        parked[mateId] = { conversationId: conversationId, messages: messages, hasOlder: hasOlder, lastMsgMs: lastMsgMs, chats: chats };
       }
       var back = parked[id];
       conversationId = back ? back.conversationId : '';
       messages = back ? back.messages : [];
       hasOlder = back ? back.hasOlder : false;
       lastMsgMs = back ? back.lastMsgMs : 0;
+      chats = back ? back.chats : [];
       loaded = !!back;
       stoppingMsgId = '';
       stick = true;
       refreshSeq++;
     }
 
-    async function newChat() {
-      if (busy() || !mateId || messages.length === 0) return;
+    // Opens one of the bot's chats, or with '' a new one that starts with its first message.
+    async function openChat(id) {
+      if (busy() || !mateId || id === conversationId) return;
       phase = 'sending';
       requestRender();
       cancelRunPoller();
-      var d = new Date();
-      var title = d.getFullYear() + '-' +
-        String(d.getMonth() + 1).padStart(2, '0') + '-' +
-        String(d.getDate()).padStart(2, '0') + ' ' +
-        String(d.getHours()).padStart(2, '0') + ':' +
-        String(d.getMinutes()).padStart(2, '0');
+      var ok = false;
       try {
-        var resp = await fetch('/api/conversations', {
-          method: 'POST',
+        var resp = await fetch('/api/mates/' + encodeURIComponent(mateId) + '/conversation', {
+          method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ mateId: mateId, title: title }),
+          body: JSON.stringify({ conversationId: id }),
         });
-        if (!resp.ok) { notify("Couldn't start a new chat"); }
-        else {
-          var data = await resp.json();
-          conversationId = data.conversation.id;
-          messages = [];
-          hasOlder = false;
-          stoppingMsgId = '';
-          lastMsgMs = 0;
-          requestRender();
-        }
-      } catch (e) { notify("Couldn't start a new chat"); }
-      finally {
-        if (phase === 'sending') phase = 'idle';
-        pumpTranscript();
-        requestRender();
+        ok = resp.ok;
+        if (!ok) notify(id ? "Couldn't continue that chat" : "Couldn't start a new chat");
+      } catch (e) { notify(id ? "Couldn't continue that chat" : "Couldn't start a new chat"); }
+      finally { if (phase === 'sending') phase = 'idle'; }
+      if (ok) {
+        stoppingMsgId = '';
+        await refresh();
       }
+      pumpTranscript();
+      requestRender();
     }
 
     function readyImages() {
@@ -781,19 +790,9 @@
       var sent = publicImages(pics);
       phase = 'sending';
       requestRender();
+      // A new chat is started by the server with its first turn, under this id.
+      if (!conversationId) conversationId = R.genId();
       try {
-        if (!conversationId) {
-          try {
-            var cresp = await fetch('/api/conversations', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ mateId: mate.id, title: '' }),
-            });
-            if (cresp.ok) conversationId = (await cresp.json()).conversation.id;
-            else notify("Couldn't start the chat");
-          } catch (e) { notify("Couldn't start the chat"); }
-          if (!conversationId) return;
-        }
         // The composer stays editable while sending, so only clear what was sent.
         if (choice == null && (draft || '').trim() === text) {
           draft = '';

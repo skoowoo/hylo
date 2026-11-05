@@ -71,7 +71,7 @@ func TestHandleJoinsTheCurrentChat(t *testing.T) {
 	if err := store.CreateMate(m); err != nil {
 		t.Fatal(err)
 	}
-	conv, err := store.CreateConversation(m.ID, "desk")
+	conv, err := store.StartConversation(m.ID, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -97,7 +97,7 @@ func TestHandleJoinsTheCurrentChat(t *testing.T) {
 	if len(out.sent) != 1 || strings.Contains(out.sent[0], "**") {
 		t.Fatalf("sent %#v", out.sent)
 	}
-	id, err := store.GetOrCreateActiveChatConvID(m.ID)
+	id, err := store.ActiveConversationID(m.ID)
 	if err != nil || id != conv.ID {
 		t.Fatalf("conversation %s, want %s (%v)", id, conv.ID, err)
 	}
@@ -106,9 +106,9 @@ func TestHandleJoinsTheCurrentChat(t *testing.T) {
 	if chat.calls != 1 {
 		t.Fatal("/new ran the agent")
 	}
-	id, err = store.GetOrCreateActiveChatConvID(m.ID)
-	if err != nil || id == conv.ID {
-		t.Fatalf("new conversation %s", id)
+	id, err = store.ActiveConversationID(m.ID)
+	if err != nil || id != "" {
+		t.Fatalf("current %q after /new", id)
 	}
 	if out.sent[len(out.sent)-1] != "新对话已开启" {
 		t.Fatalf("reset reply %#v", out.sent)

@@ -23,7 +23,7 @@ func TestStoreReportsChatChanges(t *testing.T) {
 	if n != 0 {
 		t.Fatal("a bot edit is not a chat change")
 	}
-	conv, err := store.EnsureNewConv(m.ID, "today", 10)
+	conv, err := store.StartConversation(m.ID, "")
 	if err != nil || n != 1 {
 		t.Fatalf("new chat: %v, %d changes", err, n)
 	}
@@ -37,8 +37,8 @@ func TestStoreReportsChatChanges(t *testing.T) {
 	if err := store.DeleteMessages(msg.ID); err != nil || n != 4 {
 		t.Fatalf("delete: %v, %d changes", err, n)
 	}
-	if _, err := store.EnsureNewConv(m.ID, "next", 10); err != nil || n != 5 {
-		t.Fatalf("reuse empty chat: %v, %d changes", err, n)
+	if err := store.SetActiveConversation(m.ID, ""); err != nil || n != 5 {
+		t.Fatalf("new chat: %v, %d changes", err, n)
 	}
 }
 

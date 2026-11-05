@@ -189,7 +189,7 @@ func (a *AgentAPI) SetupBotPOST(w http.ResponseWriter, r *http.Request) {
 	}
 	// The bot works without its greeting, so a failure here doesn't fail setup.
 	if g := strings.TrimSpace(body.Greeting); g != "" {
-		if conv, err := a.store.EnsureNewConv(m.ID, "", 10); err == nil {
+		if conv, err := a.store.StartConversation(m.ID, ""); err == nil {
 			msg := mate.Message{ConversationID: conv.ID, Role: "assistant", Content: g, MateID: m.ID, AgentID: m.AgentID, Status: "succeeded"}
 			if _, err := a.store.InsertMessage(msg); err != nil {
 				a.logger.Warn("setup: greeting", slog.String("err", err.Error()))

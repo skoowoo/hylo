@@ -113,13 +113,13 @@
     return n;
   }
 
-  function arrow() {
-    var n = el('span', 'chat-empty-hint-arrow');
-    n.textContent = '→';
+  function sep() {
+    var n = el('span', 'chat-empty-hint-dot');
+    n.textContent = '·';
     return n;
   }
 
-  function buildEmpty(snap, isMac) {
+  function buildEmpty(snap) {
     var box = el('div', 'chat-empty');
     if (!snap.mate && snap.matesLoaded && !snap.mates.length) {
       box.className = 'chat-empty empty-state empty-state--page';
@@ -151,34 +151,21 @@
       return box;
     }
     var card = el('div', 'chat-empty-card');
-    var name = el('div', 'chat-empty-name');
-    name.textContent = snap.mate.name || '';
-    card.appendChild(name);
+    var face = el('div', 'avatar avatar--lg');
+    if (root.agentBotAvatarSVG) face.innerHTML = root.agentBotAvatarSVG(snap.mate.name, snap.mates);
+    card.appendChild(face);
     var desc = el('div', 'chat-empty-desc');
-    desc.textContent = 'Ask anything or assign a task';
+    desc.textContent = 'Ask your notes, write with them, or look something up';
     card.appendChild(desc);
     var hints = el('div', 'chat-empty-hints');
-    function hint(key, nodes) {
-      var k = el('span', 'chat-empty-hint-key');
-      k.textContent = key;
-      hints.appendChild(k);
-      var v = el('div', 'chat-empty-hint-val');
-      for (var i = 0; i < nodes.length; i++) v.appendChild(nodes[i]);
-      hints.appendChild(v);
-    }
-    var mod = isMac ? '⌘' : 'Ctrl';
-    // Same shared label on both rows — global search and the inline "@"
-    // mention are two doors into the same action (reference a note as a
-    // [[stem]] wikilink), not two different features.
-    hint('Reference note', [kbd(mod), kbd('K'), textSpan('search'), arrow(), kbd(mod), kbd('↵'), textSpan('insert')]);
-    hint('Reference note', [kbd('@'), textSpan('search, or "/" to browse folders')]);
+    [kbd('@'), textSpan('attach a note'), sep(), kbd('@/'), textSpan('attach a folder')]
+      .forEach(function (n) { hints.appendChild(n); });
     card.appendChild(hints);
     box.appendChild(card);
     return box;
   }
 
   root.__hyloChatMount = function (rootEl, api) {
-    var isMac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
     var thread = rootEl.querySelector('#chat-thread');
     var scrollEl = rootEl.querySelector('#chat-scroll');
     var panel = rootEl.querySelector('#chat-input-outer');
@@ -195,9 +182,10 @@
     var pendingImages = rootEl.querySelector('#chat-pending-images');
     var imageSig = '';
     var stopBtn = rootEl.querySelector('#chat-stop');
-    var newBtn = rootEl.querySelector('#chat-new-btn');
     var jumpBtn = rootEl.querySelector('#chat-jump');
+    var switchBtn = rootEl.querySelector('#chat-switch');
     var nameEl = rootEl.querySelector('#chat-bot-name');
+    var titleEl = rootEl.querySelector('#chat-title');
     var triggersBtn = rootEl.querySelector('#chat-triggers-btn');
     var spacer = el('div', 'chat-scroll-spacer');
     spacer.id = 'chat-scroll-spacer';
@@ -586,11 +574,12 @@
       var mate = snap.mate;
       var busy = !!snap.busy;
       var live = snap.phase === 'streaming' || snap.phase === 'stopping';
-      if (nameEl) {
+      if (switchBtn) {
         nameEl.textContent = mate ? mate.name : '';
-        show(nameEl, !!mate);
+        titleEl.textContent = chatTitle(snap);
+        switchBtn.disabled = busy;
+        show(switchBtn, !!mate);
       }
-      if (newBtn) newBtn.disabled = busy || !snap.mateId || snap.messages.length === 0;
       show(triggersBtn, !!snap.mateId);
       show(panel, !(snap.matesLoaded && !snap.mates.length));
       if (hintName) {
@@ -622,6 +611,13 @@
         stopBtn.disabled = !snap.runId || snap.phase === 'stopping';
       }
       updateJump(snap);
+    }
+
+    function chatTitle(snap) {
+      if (!snap.conversationId) return 'New chat';
+      for (var i = 0; i < snap.chats.length; i++) if (snap.chats[i].id === snap.conversationId) return snap.chats[i].title || 'Untitled chat';
+      var first = snap.messages.filter(function (m) { return m.role === 'user'; })[0];
+      return (first && first.content) || 'New chat';
     }
 
     function retire(id) {
@@ -678,7 +674,7 @@
         var empty = rootEl.querySelector('.chat-empty');
         if (emptyKind !== kind) {
           if (empty) empty.remove();
-          empty = buildEmpty(snap, isMac);
+          empty = buildEmpty(snap);
           // The setup page is a section empty state, so it hangs off the .sec.
           if (kind === 'setup') rootEl.insertBefore(empty, scrollEl.nextSibling);
           else thread.insertBefore(empty, spacer);
@@ -1065,7 +1061,17 @@
       api.addImages(files);
     });
     on(stopBtn, 'click', function () { void api.cancel(); });
-    on(newBtn, 'click', function () { void api.newChat(); });
+    on(switchBtn, 'click', function (e) {
+      var snap = api.state();
+      var list = [{ icon: 'plus', label: 'New chat', sel: !snap.conversationId, run: function () { void api.openChat(''); } }];
+      if (snap.chats.length) list.push('divider');
+      var now = Date.now();
+      snap.chats.forEach(function (c) {
+        list.push({ label: c.title || 'Untitled chat', meta: R.formatTime(c.at, now), sel: c.id === snap.conversationId,
+          run: function () { void api.openChat(c.id); } });
+      });
+      __hyloCardMenu.toggle(switchBtn, list, e, { align: 'start', cls: 'chat-switch-menu' });
+    });
     on(triggersBtn, 'click', openTriggerSettings);
     on(jumpBtn, 'click', jumpToBottom);
 

@@ -2,13 +2,15 @@
   <template id="chat-setup-icon">{{sideIcon "bot"}}</template>
 
   <div class="home-list-head">
-    <span class="chat-head-name" id="chat-bot-name" style="display:none"></span>
+    <button class="chat-switch" id="chat-switch" type="button" title="Chats" aria-haspopup="menu" aria-expanded="false" style="display:none">
+      <span class="chat-switch-bot" id="chat-bot-name"></span>
+      <span class="chat-switch-sep" aria-hidden="true">/</span>
+      <span class="chat-switch-title" id="chat-title"></span>
+      {{icon "chevron-down"}}
+    </button>
     <div class="home-list-head-spacer"></div>
     <button class="icon-btn-ghost" id="chat-triggers-btn" type="button" title="Triggers" aria-label="Triggers" style="display:none">
       {{icon "sliders"}}
-    </button>
-    <button class="icon-btn-ghost" id="chat-new-btn" type="button" title="Clear chat" aria-label="Clear chat" disabled>
-      {{icon "broom"}}
     </button>
   </div>
 

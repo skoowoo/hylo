@@ -121,7 +121,7 @@ export function lineIconNode(name, attrs = '') {
   if (!document.getElementById('line-icon-style')) {
     const style = document.createElement('style');
     style.id = 'line-icon-style';
-    style.textContent = '.line-icon{display:inline-block;flex:none;width:1em;height:1em;border-radius:0;background-color:currentColor;-webkit-mask:var(--line-icon) center/100% 100% no-repeat;mask:var(--line-icon) center/100% 100% no-repeat}';
+    style.textContent = '.line-icon{display:inline-block;flex:none;width:1em;height:1em;background-color:currentColor;-webkit-mask:var(--line-icon) center/100% 100% no-repeat;mask:var(--line-icon) center/100% 100% no-repeat}';
     document.head.appendChild(style);
   }
   const el = document.createElement('span');

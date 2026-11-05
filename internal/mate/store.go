@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS mate_triggers (
 CREATE TABLE IF NOT EXISTS conversations (
     id                     TEXT    PRIMARY KEY,
     mate_id                TEXT    NOT NULL DEFAULT '',
+    -- Unused: chats are titled by their first message (ListConversations).
     title                  TEXT    NOT NULL DEFAULT '',
     type                   TEXT    NOT NULL DEFAULT 'chat',
     agent_session_id       TEXT    NOT NULL DEFAULT '',
@@ -222,7 +223,29 @@ func Open(vaultRoot string) (*Store, error) {
 			return nil, fmt.Errorf("mate: drop trigger runs: %w", err)
 		}
 	}
+	if err := activeConversations(db); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("mate: active conversations: %w", err)
+	}
 	return &Store{db: db}, nil
+}
+
+// activeConversations adds each bot's current-chat pointer. It used to be
+// whichever chat changed last, so that one becomes current, and the empty
+// chats a new chat used to leave behind go.
+func activeConversations(db *sql.DB) error {
+	if _, err := db.Exec(`ALTER TABLE mates ADD COLUMN active_conversation_id TEXT NOT NULL DEFAULT ''`); err != nil {
+		if strings.Contains(err.Error(), "duplicate column name") {
+			return nil
+		}
+		return err
+	}
+	_, err := db.Exec(`
+		DELETE FROM conversations WHERE NOT EXISTS (SELECT 1 FROM chat_messages WHERE conversation_id = conversations.id);
+		UPDATE mates SET active_conversation_id = COALESCE(
+			(SELECT id FROM conversations WHERE mate_id = mates.id ORDER BY updated_at DESC LIMIT 1), '');
+	`)
+	return err
 }
 
 // noteActivityPoints collapses the unreleased interval rows (started_at, ended_at)

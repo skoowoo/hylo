@@ -43,7 +43,7 @@ func TestActivityDayListsWhoTouchedEachNote(t *testing.T) {
 	if err := ms.CreateMate(bot); err != nil {
 		t.Fatal(err)
 	}
-	conv, _ := ms.CreateConversation(bot.ID, "")
+	conv, _ := ms.CreateConversation(bot.ID)
 	msg, err := ms.InsertMessage(mate.Message{ConversationID: conv.ID, Role: "assistant", MateID: bot.ID})
 	if err != nil {
 		t.Fatal(err)

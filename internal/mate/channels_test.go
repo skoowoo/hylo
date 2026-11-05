@@ -157,34 +157,3 @@ func TestLegacyProxyURLColumnIsDropped(t *testing.T) {
 		t.Fatalf("channel after drop: %+v %v", got, err)
 	}
 }
-
-func TestNewChatReusingAnEmptyOneMakesItCurrent(t *testing.T) {
-	store, err := Open(filepath.Join(t.TempDir(), "vault"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = store.Close() })
-	m := &Mate{Name: "A", AgentID: "pi", Enabled: true}
-	if err := store.CreateMate(m); err != nil {
-		t.Fatal(err)
-	}
-	old, _ := store.CreateConversation(m.ID, "old")
-	if _, err := store.InsertMessage(Message{ConversationID: old.ID, Role: "user", Content: "hi"}); err != nil {
-		t.Fatal(err)
-	}
-	empty, _ := store.CreateConversation(m.ID, "empty")
-	// The user went back to the old chat after opening the empty one.
-	if _, err := store.db.Exec(`UPDATE conversations SET created_at = created_at - 90000, updated_at = updated_at - 30000 WHERE id = ?`, old.ID); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := store.db.Exec(`UPDATE conversations SET updated_at = updated_at - 60000 WHERE id = ?`, empty.ID); err != nil {
-		t.Fatal(err)
-	}
-	conv, err := store.EnsureNewConv(m.ID, "", 10)
-	if err != nil || conv.ID != empty.ID {
-		t.Fatalf("new chat %s %v, want the empty one", conv.ID, err)
-	}
-	if cur, _ := store.GetOrCreateActiveChatConvID(m.ID); cur != empty.ID {
-		t.Fatalf("current chat %s, want %s", cur, empty.ID)
-	}
-}

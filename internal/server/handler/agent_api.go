@@ -111,7 +111,8 @@ type chatBody struct {
 	AgentCliEnv        map[string]string `json:"agentCliEnv"`
 	ProjectID          string            `json:"projectId"`
 	ConversationID     string            `json:"conversationId"`
-	UserMessageID      string            `json:"userMessageId"`      // pre-allocated by client (optional)
+	NewChat            bool              `json:"newChat"`            // the client allocated ConversationID; the turn starts that chat unless it exists
+	UserMessageID     string            `json:"userMessageId"`      // pre-allocated by client (optional)
 	AssistantMessageID string            `json:"assistantMessageId"` // pre-allocated by client (optional)
 	TriggerEvent       string            `json:"triggerEvent"`       // set on a wake: the event that woke the bot; the message is its task
 	TriggerID          string            `json:"triggerId"`          // set on a wake: the trigger that woke the bot
@@ -399,7 +400,7 @@ func (a *AgentAPI) inChat(ctx context.Context, run *agent.Run, body chatBody) ma
 		a.hub.Finish(run, "failed", map[string]any{})
 		return mate.RunResult{}
 	}
-	convID, err := a.store.GetOrCreateActiveChatConvID(body.MateID)
+	convID, err := a.store.CurrentConversationID(body.MateID)
 	if err != nil {
 		a.logger.Warn("chat: conversation", slog.String("err", err.Error()))
 		a.hub.Finish(run, "failed", map[string]any{})
@@ -438,6 +439,19 @@ func (a *AgentAPI) executeChat(ctx context.Context, run *agent.Run, body chatBod
 			return mate.RunResult{}
 		}
 		defer release()
+		// The chat a turn is sent in is the one the bot's apps and wakes continue.
+		// A new one starts here, while the bot is held, so no other start prunes it before its first message.
+		if body.ConversationID != "" && a.store != nil {
+			err := a.store.SetActiveConversation(body.MateID, body.ConversationID)
+			if err != nil && body.NewChat {
+				_, err = a.store.StartConversation(body.MateID, body.ConversationID)
+			}
+			if err != nil {
+				a.logger.Warn("chat: current chat", slog.String("err", err.Error()))
+				a.hub.Finish(run, "failed", map[string]any{})
+				return mate.RunResult{}
+			}
+		}
 	}
 	// When mateId is provided, mate config in DB is authoritative for agent/model/cwd.
 	// systemPrompt can still be overridden by the caller.

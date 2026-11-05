@@ -16,7 +16,7 @@ func TestConversationAgentSession(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = store.Close() })
 
-	conv, err := store.CreateConversation("mate-1", "Test")
+	conv, err := store.CreateConversation("mate-1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -47,37 +47,119 @@ func TestConversationAgentSession(t *testing.T) {
 	}
 }
 
-func TestGetOrCreateActiveChatConvID(t *testing.T) {
-	dir := t.TempDir()
-	store, err := Open(filepath.Join(dir, "vault"))
+func TestCurrentConversation(t *testing.T) {
+	store, err := Open(filepath.Join(t.TempDir(), "vault"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = store.Close() })
-
 	m := &Mate{Name: "Bot", AgentID: "claude", Enabled: true}
 	if err := store.CreateMate(m); err != nil {
 		t.Fatal(err)
 	}
 
-	id1, err := store.GetOrCreateActiveChatConvID(m.ID)
+	id1, err := store.CurrentConversationID(m.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	id2, err := store.GetOrCreateActiveChatConvID(m.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if id1 != id2 {
+	if id2, _ := store.CurrentConversationID(m.ID); id1 != id2 {
 		t.Fatalf("expected same conv, got %s vs %s", id1, id2)
 	}
+	if _, err := store.InsertMessage(Message{ConversationID: id1, Role: "user", Content: "first ask"}); err != nil {
+		t.Fatal(err)
+	}
 
-	conv, err := store.GetConversation(id1)
+	// A new chat waits for its first message; nothing is stored until then.
+	if err := store.SetActiveConversation(m.ID, ""); err != nil {
+		t.Fatal(err)
+	}
+	if cur, _ := store.ActiveConversationID(m.ID); cur != "" {
+		t.Fatalf("current %q after new chat", cur)
+	}
+	next, err := store.StartConversation(m.ID, "")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if conv.Type != "chat" || conv.MateID != m.ID {
-		t.Fatalf("got %+v", conv)
+	if _, err := store.InsertMessage(Message{ConversationID: next.ID, Role: "user", Content: "second ask"}); err != nil {
+		t.Fatal(err)
+	}
+
+	// Writing to the older chat moves it up the list but doesn't make it current.
+	if _, err := store.db.Exec(`UPDATE conversations SET updated_at = updated_at - 1000 WHERE id = ?`, next.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.SetConversationAgentSession(id1, "claude", "/", "s1"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.InsertMessage(Message{ConversationID: id1, Role: "assistant", Content: "late"}); err != nil {
+		t.Fatal(err)
+	}
+	if cur, _ := store.ActiveConversationID(m.ID); cur != next.ID {
+		t.Fatalf("current %s, want %s", cur, next.ID)
+	}
+	convs, _ := store.ListConversations(m.ID)
+	if len(convs) != 2 || convs[0].ID != id1 || convs[0].Title != "first ask" || convs[1].Title != "second ask" {
+		t.Fatalf("list %+v", convs)
+	}
+
+	if err := store.SetActiveConversation(m.ID, id1); err != nil {
+		t.Fatal(err)
+	}
+	if cur, _ := store.CurrentConversationID(m.ID); cur != id1 {
+		t.Fatalf("continued %s, want %s", cur, id1)
+	}
+	if err := store.SetActiveConversation("other", id1); err == nil {
+		t.Fatal("another bot's chat was made current")
+	}
+	if err := store.DeleteConversation(id1); err != nil {
+		t.Fatal(err)
+	}
+	if cur, _ := store.ActiveConversationID(m.ID); cur != "" {
+		t.Fatalf("current %q after deleting it", cur)
+	}
+}
+
+func TestStartConversationKeepsTheNewest(t *testing.T) {
+	store, err := Open(filepath.Join(t.TempDir(), "vault"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	m := &Mate{Name: "Bot", AgentID: "claude", Enabled: true}
+	if err := store.CreateMate(m); err != nil {
+		t.Fatal(err)
+	}
+	var first string
+	for i := 0; i < keepChats; i++ {
+		conv, err := store.StartConversation(m.ID, "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if i == 0 {
+			first = conv.ID
+		}
+		if _, err := store.db.Exec(`UPDATE conversations SET updated_at = ? WHERE id = ?`, i, conv.ID); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := store.InsertMessage(Message{ConversationID: conv.ID, Role: "user", Content: "hi"}); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := store.db.Exec(`UPDATE conversations SET updated_at = ? WHERE id = ?`, i, conv.ID); err != nil {
+			t.Fatal(err)
+		}
+	}
+	abandoned, _ := store.CreateConversation(m.ID)
+	if _, err := store.StartConversation(m.ID, ""); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.GetConversation(first); err == nil {
+		t.Fatal("the oldest chat was kept")
+	}
+	if _, err := store.GetConversation(abandoned.ID); err == nil {
+		t.Fatal("a chat without messages was kept")
+	}
+	if convs, _ := store.ListConversations(m.ID); len(convs) != keepChats-1 {
+		t.Fatalf("%d chats with messages, want %d", len(convs), keepChats-1)
 	}
 }
 
@@ -89,7 +171,7 @@ func TestInsertMessageTriggerEvent(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = store.Close() })
 
-	conv, err := store.CreateConversation("mate-1", "Test")
+	conv, err := store.CreateConversation("mate-1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -119,7 +201,7 @@ func TestMessageAttachmentsRoundTrip(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = store.Close() })
 
-	conv, err := store.CreateConversation("mate-1", "Test")
+	conv, err := store.CreateConversation("mate-1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -155,7 +237,7 @@ func TestListMessagesPage(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = store.Close() })
 
-	conv, err := store.CreateConversation("mate-1", "Test")
+	conv, err := store.CreateConversation("mate-1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -203,7 +285,7 @@ func TestMessageTriggerID(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = store.Close() })
 
-	conv, err := store.CreateConversation("mate-1", "Auto runs")
+	conv, err := store.CreateConversation("mate-1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -225,7 +307,7 @@ func TestDeleteRetried(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = store.Close() })
-	conv, err := store.CreateConversation("mate-1", "Chat")
+	conv, err := store.CreateConversation("mate-1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -263,7 +345,7 @@ func TestDeleteRetriedTakesTheWake(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = store.Close() })
-	conv, err := store.CreateConversation("mate-1", "Chat")
+	conv, err := store.CreateConversation("mate-1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -293,7 +375,7 @@ func TestUnreadCountsFinishedWakeReplies(t *testing.T) {
 	if err := store.CreateMate(m); err != nil {
 		t.Fatal(err)
 	}
-	conv, err := store.CreateConversation(m.ID, "")
+	conv, err := store.CreateConversation(m.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -340,7 +422,7 @@ func TestWakesCarryTheirTriggerName(t *testing.T) {
 		t.Fatal(err)
 	}
 	ts, _ := store.ListTriggers(m.ID)
-	conv, _ := store.CreateConversation(m.ID, "")
+	conv, _ := store.CreateConversation(m.ID)
 	for _, msg := range []Message{
 		{Role: "wake", Content: "p", TriggerEvent: "scheduled", TriggerID: ts[0].ID},
 		{Role: "assistant", Status: "succeeded", TriggerEvent: "scheduled", TriggerID: ts[0].ID},
@@ -414,7 +496,7 @@ func TestNoteAccessLogsActivityThatFollowsRenamesAndOutlivesChat(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = store.Close() })
 
-	conv, err := store.CreateConversation("mate-1", "")
+	conv, err := store.CreateConversation("mate-1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -481,7 +563,7 @@ func TestBotActivityKeepsOnlyReadsThatReadTheNote(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = store.Close() })
-	conv, err := store.CreateConversation("mate-1", "")
+	conv, err := store.CreateConversation("mate-1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -520,5 +602,90 @@ func TestBotActivityKeepsOnlyReadsThatReadTheNote(t *testing.T) {
 	// The run's card still lists every note it touched.
 	if access, _ := store.ListMessageNoteAccess(asked.ID); len(access) != 2 {
 		t.Fatalf("card = %+v", access)
+	}
+}
+
+func TestUpgradeMakesTheLatestChatCurrent(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "vault")
+	store, err := Open(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := &Mate{Name: "Bot", AgentID: "claude", Enabled: true}
+	if err := store.CreateMate(m); err != nil {
+		t.Fatal(err)
+	}
+	old, _ := store.CreateConversation(m.ID)
+	latest, _ := store.CreateConversation(m.ID)
+	empty, _ := store.CreateConversation(m.ID)
+	for _, c := range []Conversation{old, latest} {
+		if _, err := store.InsertMessage(Message{ConversationID: c.ID, Role: "user", Content: "hi"}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := store.db.Exec(`UPDATE conversations SET updated_at = 1 WHERE id = ?`, old.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.db.Exec(`ALTER TABLE mates DROP COLUMN active_conversation_id`); err != nil {
+		t.Fatal(err)
+	}
+	_ = store.Close()
+
+	store, err = Open(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	if cur, _ := store.ActiveConversationID(m.ID); cur != latest.ID {
+		t.Fatalf("current %s, want %s", cur, latest.ID)
+	}
+	if _, err := store.GetConversation(empty.ID); err == nil {
+		t.Fatal("an empty chat survived the upgrade")
+	}
+}
+
+func TestChatTitleFallsBackForChatsTheBotStarted(t *testing.T) {
+	store, err := Open(filepath.Join(t.TempDir(), "vault"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	m := &Mate{Name: "Bot", AgentID: "claude", Enabled: true}
+	if err := store.CreateMate(m); err != nil {
+		t.Fatal(err)
+	}
+	named := MateTrigger{Name: "Morning brief", EventTypes: []string{"scheduled"}, Schedule: "daily 09:00", Prompt: "brief", Enabled: true}
+	unnamed := MateTrigger{EventTypes: []string{"scheduled"}, Schedule: "daily 10:00", Prompt: "recall", Enabled: true}
+	triggers := []MateTrigger{named, unnamed}
+	if err := store.ReplaceTriggersForMate(m.ID, triggers); err != nil {
+		t.Fatal(err)
+	}
+	chat := func(msgs ...Message) string {
+		conv, _ := store.CreateConversation(m.ID)
+		for _, msg := range msgs {
+			msg.ConversationID = conv.ID
+			if _, err := store.InsertMessage(msg); err != nil {
+				t.Fatal(err)
+			}
+		}
+		return conv.ID
+	}
+	want := map[string]string{
+		chat(Message{Role: "wake", Content: "brief", TriggerID: triggers[0].ID}, Message{Role: "user", Content: "thanks"}):                                               "thanks",
+		chat(Message{Role: "wake", Content: "brief", TriggerID: triggers[0].ID}, Message{Role: "assistant", Content: "Today: …", TriggerID: triggers[0].ID}):             "Morning brief",
+		chat(Message{Role: "wake", Content: "recall", TriggerID: triggers[1].ID}, Message{Role: "assistant", Content: "Two notes disagree.", TriggerID: triggers[1].ID}): "Two notes disagree.",
+		chat(Message{Role: "assistant", Content: "Hi, I'm Bot."}):                                                                                                        "Hi, I'm Bot.",
+	}
+	convs, err := store.ListConversations(m.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range convs {
+		if c.Title != want[c.ID] {
+			t.Errorf("title %q, want %q", c.Title, want[c.ID])
+		}
+	}
+	if len(convs) != len(want) {
+		t.Fatalf("%d chats, want %d", len(convs), len(want))
 	}
 }

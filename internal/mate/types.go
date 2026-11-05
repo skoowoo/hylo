@@ -51,7 +51,7 @@ const ConvTypeChat = "chat"
 type Conversation struct {
 	ID                  string    `json:"id"`
 	MateID              string    `json:"mateId"`
-	Title               string    `json:"title"`
+	Title               string    `json:"title,omitempty"` // set by ListConversations
 	Type                string    `json:"type"`
 	AgentSessionID      string    `json:"agentSessionId,omitempty"`
 	AgentSessionAgentID string    `json:"agentSessionAgentId,omitempty"`

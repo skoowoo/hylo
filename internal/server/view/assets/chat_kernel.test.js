@@ -91,7 +91,7 @@ test('phase, cancel, and cursor finisher', async function () {
     }
     if (u === '/api/mate-events') return jsonResponse(200, { events: [] });
     if (u.indexOf('/api/conversations?') === 0) {
-      return jsonResponse(200, { conversations: [{ id: 'c1' }] });
+      return jsonResponse(200, { conversations: [{ id: 'c1' }], activeId: 'c1' });
     }
     if (u.split('?')[0] === '/api/conversations/c1' && (!opts || opts.method !== 'POST')) {
       convFetches++;
@@ -178,7 +178,7 @@ test('retry of a failed wake resends it as a wake, in the chat', async function 
     }
     if (u === '/api/mate-events') return jsonResponse(200, { events: [] });
     if (u.indexOf('/api/conversations?') === 0) {
-      return jsonResponse(200, { conversations: [{ id: 'c1' }] });
+      return jsonResponse(200, { conversations: [{ id: 'c1' }], activeId: 'c1' });
     }
     if (u.split('?')[0] === '/api/conversations/c1') {
       return jsonResponse(200, {
@@ -240,7 +240,7 @@ test('retry fetches the prompt when it sits on a page not loaded yet', async fun
     var u = String(url);
     if (u === '/api/mates') return jsonResponse(200, { mates: [{ id: 'm1', name: 'Ada', enabled: true, agentId: 'claude' }] });
     if (u === '/api/mate-events') return jsonResponse(200, { events: [] });
-    if (u.indexOf('/api/conversations?') === 0) return jsonResponse(200, { conversations: [{ id: 'c1' }] });
+    if (u.indexOf('/api/conversations?') === 0) return jsonResponse(200, { conversations: [{ id: 'c1' }], activeId: 'c1' });
     if (u.indexOf('/api/conversations/c1?limit=1&before=a1') === 0) {
       promptFetches.push(u);
       return jsonResponse(200, { messages: [{ id: 'u1', role: 'user', content: 'older prompt' }] });
@@ -357,7 +357,7 @@ test('a wake reply shows only once it is done, so a silent one never appears', a
     if (u === '/api/mates') return jsonResponse(200, { mates: [{ id: 'm1', name: 'Ada', enabled: true, agentId: 'pi', unread: unread }] });
     if (u === '/api/mate-events') return jsonResponse(200, { events: [] });
     if (u === '/api/mates/m1/seen') { seen.push(opts.method); unread = 0; return jsonResponse(200, { ok: true }); }
-    if (u.indexOf('/api/conversations?') === 0) return jsonResponse(200, { conversations: [{ id: 'c1' }] });
+    if (u.indexOf('/api/conversations?') === 0) return jsonResponse(200, { conversations: [{ id: 'c1' }], activeId: 'c1' });
     if (u.split('?')[0] === '/api/conversations/c1') {
       return jsonResponse(200, {
         messages: [
@@ -409,7 +409,7 @@ test('a chat change pulls the transcript, and a hidden tab waits to be shown', a
     var u = String(url);
     if (u === '/api/mates') return jsonResponse(200, { mates: [{ id: 'm1', name: 'Ada', enabled: true, agentId: 'pi' }] });
     if (u === '/api/mate-events') return jsonResponse(200, { events: [] });
-    if (u.indexOf('/api/conversations?') === 0) return jsonResponse(200, { conversations: [{ id: 'c1' }] });
+    if (u.indexOf('/api/conversations?') === 0) return jsonResponse(200, { conversations: [{ id: 'c1' }], activeId: 'c1' });
     if (u.indexOf('since=') >= 0) {
       since++;
       var msgs = [{ id: 'u1', role: 'user', content: 'from the phone', createdAt: 1, updatedAt: 1 }];
@@ -471,7 +471,7 @@ test('the changes from a turn this page streamed to its end pull nothing; a drop
     var u = String(url);
     if (u === '/api/mates') return jsonResponse(200, { mates: [{ id: 'm1', name: 'Ada', enabled: true, agentId: 'pi' }] });
     if (u === '/api/mate-events') return jsonResponse(200, { events: [] });
-    if (u.indexOf('/api/conversations?') === 0) return jsonResponse(200, { conversations: [{ id: 'c1' }] });
+    if (u.indexOf('/api/conversations?') === 0) return jsonResponse(200, { conversations: [{ id: 'c1' }], activeId: 'c1' });
     if (u.indexOf('since=') >= 0) { since++; return jsonResponse(200, { messages: [] }); }
     if (u.split('?')[0] === '/api/conversations/c1') return jsonResponse(200, { messages: [] });
     if (u === '/api/chat') {
@@ -511,6 +511,71 @@ test('the changes from a turn this page streamed to its end pull nothing; a drop
     assert.equal(since, 2, 'a reply without its end comes from the store');
   } finally {
     delete global.__hyloLive;
+    disarm();
+  }
+});
+
+test('a new chat waits for its first message, and any chat can be opened again', async function () {
+  global.__hyloLive = { on: function () {} };
+  var api;
+  global.__hyloChatMount = function (el, facade) {
+    api = facade;
+    return { render: function () {}, destroy: function () {}, draftValue: function () { return facade.draft(); }, clearComposer: function () {}, focusComposer: function () {} };
+  };
+  var active = 'c2';
+  var puts = [];
+  var pages = {
+    c1: [{ id: 'u1', role: 'user', content: 'older ask', createdAt: 1 }, { id: 'a1', role: 'assistant', status: 'succeeded', content: 'older reply', updatedAt: 2 }],
+    c2: [{ id: 'u2', role: 'user', content: 'latest ask', createdAt: 3 }, { id: 'a2', role: 'assistant', status: 'succeeded', content: 'latest reply', updatedAt: 4 }],
+  };
+  global.fetch = async function (url, opts) {
+    var u = String(url);
+    if (u === '/api/mates') return jsonResponse(200, { mates: [{ id: 'm1', name: 'Ada', enabled: true, agentId: 'pi' }] });
+    if (u === '/api/mate-events') return jsonResponse(200, { events: [] });
+    if (u === '/api/mates/m1/conversation') {
+      active = JSON.parse(opts.body).conversationId;
+      puts.push(active);
+      return jsonResponse(200, { ok: true });
+    }
+    if (u.indexOf('/api/conversations?') === 0) {
+      return jsonResponse(200, {
+        activeId: active,
+        conversations: [{ id: 'c2', title: 'latest ask', updatedAt: 40 }, { id: 'c1', title: 'older ask', updatedAt: 20 }],
+      });
+    }
+    var id = u.split('?')[0].replace('/api/conversations/', '');
+    if (pages[id]) return jsonResponse(200, { messages: pages[id], hasMore: false });
+    throw new Error('unmocked ' + u);
+  };
+  var chat = global.__hyloChatCreate({});
+  function ids(list) { return list.map(function (m) { return m.id; }); }
+  try {
+    chat.start();
+    await chat.bootstrap();
+    chat.attach({});
+    await tick();
+    var st = api.state();
+    assert.equal(st.conversationId, 'c2');
+    assert.deepEqual(ids(st.messages), ['u2', 'a2']);
+    assert.deepEqual(st.chats.map(function (c) { return [c.id, c.title]; }), [['c2', 'latest ask'], ['c1', 'older ask']]);
+
+    await api.openChat('');
+    st = api.state();
+    assert.deepEqual(puts, ['']);
+    assert.equal(st.conversationId, '');
+    assert.deepEqual(st.messages, []);
+
+    await api.openChat('c1');
+    st = api.state();
+    assert.deepEqual(puts, ['', 'c1']);
+    assert.equal(st.conversationId, 'c1');
+    assert.deepEqual(ids(st.messages), ['u1', 'a1']);
+
+    await api.openChat('c1');
+    assert.deepEqual(puts, ['', 'c1'], 'the open chat is not reopened');
+  } finally {
+    delete global.__hyloLive;
+    delete global.__hyloChatMount;
     disarm();
   }
 });

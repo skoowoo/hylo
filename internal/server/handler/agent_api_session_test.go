@@ -24,7 +24,7 @@ func TestAgentSessionIsBoundToCwd(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = store.Close() })
 	a := &AgentAPI{store: store, logger: slog.Default()}
-	conv, err := store.CreateConversation("m", "")
+	conv, err := store.CreateConversation("m")
 	if err != nil {
 		t.Fatal(err)
 	}

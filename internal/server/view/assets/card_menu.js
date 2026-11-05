@@ -1,9 +1,11 @@
-// One ⋯ menu for every card. It lives in the top layer (popover), so no card's
-// overflow, isolation or neighbours can clip or cover it; Esc closes it through
-// the page's Esc stack.
-//   __hyloCardMenu.toggle(trigger, items) — items: {icon, label, run, danger} or 'divider'
+// One menu for every card's ⋯ and the chat switcher. It lives in the top layer
+// (popover), so no card's overflow, isolation or neighbours can clip or cover
+// it; Esc closes it through the page's Esc stack.
+//   __hyloCardMenu.toggle(trigger, items, event, opts)
+//     items: {icon, label, meta, sel, run, danger} or 'divider'
+//     opts: {align: 'start'} hangs it from the trigger's left edge; {cls} styles it
 var __hyloCardMenu = (function () {
-  var menu = null, trigger = null, gone = null;
+  var menu = null, trigger = null, gone = null, align = 'end', cls = '';
 
   function build() {
     menu = document.createElement('div');
@@ -36,30 +38,39 @@ var __hyloCardMenu = (function () {
       }
       var b = document.createElement('button');
       b.type = 'button';
-      b.className = 'cselect-option' + (it.danger ? ' card-menu-danger' : '');
+      b.className = 'cselect-option' + (it.danger ? ' card-menu-danger' : '') + (it.sel ? ' sel' : '');
       b.setAttribute('role', 'menuitem');
-      b.innerHTML = hyloIcon(it.icon) + '<span></span>';
+      if (it.icon) b.innerHTML = hyloIcon(it.icon);
+      b.appendChild(document.createElement('span')).className = 'card-menu-label';
       b.lastChild.textContent = it.label;
+      if (it.meta) {
+        b.appendChild(document.createElement('span')).className = 'card-menu-meta';
+        b.lastChild.textContent = it.meta;
+      }
       b.addEventListener('click', function () { close(); it.run(); });
       menu.appendChild(b);
     });
   }
 
-  // Below the trigger, right edges aligned; above it when the window has no room.
+  // Below the trigger, edges aligned; above it when the window has no room.
   function place() {
     var r = trigger.getBoundingClientRect(), gap = 4, edge = 8;
     var w = menu.offsetWidth, h = menu.offsetHeight;
     var top = r.bottom + gap + h <= innerHeight - edge ? r.bottom + gap : r.top - gap - h;
-    var left = Math.min(Math.max(r.right - w, edge), innerWidth - edge - w);
+    var left = Math.min(Math.max(align === 'start' ? r.left : r.right - w, edge), innerWidth - edge - w);
     // Whole pixels: WebKit draws a box at a fractional offset a pixel off when it composites.
     menu.style.top = Math.round(Math.max(top, edge)) + 'px';
     menu.style.left = Math.round(left) + 'px';
   }
 
-  function open(t, list, byKey) {
+  function open(t, list, byKey, opts) {
     if (!menu) build();
     if (trigger) close();
     trigger = t;
+    align = (opts && opts.align) || 'end';
+    if (cls) menu.classList.remove(cls);
+    cls = (opts && opts.cls) || '';
+    if (cls) menu.classList.add(cls);
     items(list);
     menu.showPopover();
     place();
@@ -98,9 +109,9 @@ var __hyloCardMenu = (function () {
 
   return {
     // A keyboard press arrives as a click with detail 0; it focuses the first item.
-    toggle: function (t, list, e) {
+    toggle: function (t, list, e, opts) {
       if (trigger === t) { close(); return; }
-      open(t, list, !!(e && e.detail === 0));
+      open(t, list, !!(e && e.detail === 0), opts);
     },
   };
 })();

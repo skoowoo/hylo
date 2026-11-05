@@ -81,7 +81,7 @@ function stub({ reply, missing, steps = 0 }) {
       case '/api/mates': return json({ mates: [{ id: 'm1', name: 'Hylo', enabled: true, agentId: 'claude' }] });
       case '/api/mate-events': return json({ events: [] });
       case '/api/mates/m1': return json({ mate: { id: 'm1', triggers: [] } });
-      case '/api/conversations': return json({ conversations: [{ id: 'c1' }] });
+      case '/api/conversations': return json({ conversations: [{ id: 'c1' }], activeId: 'c1' });
       case '/api/conversations/c1': {
         const since = +u.searchParams.get('since') || 0;
         return json({ messages: T.db.filter((m) => !since || new Date(m.updatedAt).getTime() > since), hasMore: false }, 20);
