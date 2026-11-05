@@ -20,6 +20,8 @@
       box-shadow: var(--shadow-lg) var(--shadow-color);
       display: flex; overflow: hidden;
     }
+    /* x-trap's initial focus lands here, not on the first nav row, so opening shows no ring. */
+    .settings-modal-panel:focus { outline: none; }
 
     /* Floats over the panel's corner, inside the content header's row. */
     .settings-modal-close {

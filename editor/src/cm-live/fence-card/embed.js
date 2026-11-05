@@ -587,7 +587,8 @@ export function mount(el, source, opts = {}) {
     }
     el.replaceChildren(view);
     const fill = (i, embed) => {
-      if (my !== gen || !slots[i].isConnected) return;
+      // A parked card (chat shelf, editor card cache) is out of the page but alive: fill it anyway.
+      if (my !== gen) return;
       const retry = () => requestEmbed(urls[i], true).then((again) => fill(i, again));
       const built = paint(embed, retry);
       slots[i].replaceWith(built.node);

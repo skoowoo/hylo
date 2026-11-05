@@ -175,6 +175,42 @@ test('a streaming fence asks for nothing until it closes', async (t) => {
   }
 });
 
+test('a card parked while its answer arrives is filled when it comes back', async (t) => {
+  if (launchError) return t.skip('WebKit unavailable');
+  const page = await browser.newPage({ viewport: { width: 800, height: 700 } });
+  let answer;
+  const answered = new Promise((r) => { answer = r; });
+  await page.route('**/api/embeds', async (route) => {
+    await answered;
+    const { urls } = JSON.parse(route.request().postData());
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/x-ndjson',
+      body: urls.map((url) => JSON.stringify({ url, final_url: url, kind: 'page', status: 'ok', title: 'Parked' }) + '\n').join(''),
+    });
+  });
+  try {
+    await page.goto(server.url + '/?f=mixed.md');
+    await page.waitForFunction(() => window.ready);
+    await page.evaluate(async () => {
+      const m = await import('/bundle/fence-card.js');
+      const box = document.createElement('div');
+      box.id = 'shelf';
+      box.innerHTML = '<pre><code class="language-embed">https://parked.example.com/a</code></pre>';
+      document.body.prepend(box);
+      m.hydrateFenceCards(box);
+      box.remove();
+      window.shelf = box;
+    });
+    answer();
+    await page.waitForFunction(() => window.shelf.querySelector('.hy-embed-page'));
+    await page.evaluate(() => document.body.prepend(window.shelf));
+    assert.equal(await page.textContent('#shelf .hy-embed-title'), 'Parked');
+  } finally {
+    await page.close();
+  }
+});
+
 async function embedPage(width, onRequest) {
   const page = await browser.newPage({ viewport: { width, height: 700 } });
   await page.route('**/api/embeds', async (route) => {
