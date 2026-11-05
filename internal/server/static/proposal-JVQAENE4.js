@@ -1,4 +1,4 @@
-import{a as y,c as x,d as n}from"./chunk-JVA7RCZ3.js";import{d as h}from"./chunk-GSQK2KCC.js";import"./chunk-B2S6MO3C.js";var v=`
+import{d as h}from"./chunk-GSQK2KCC.js";import{a as y,c as x,d as n}from"./chunk-JVA7RCZ3.js";import"./chunk-B2S6MO3C.js";var v=`
 .hy-proposal{display:flex;flex-direction:column;gap:var(--space-xs,8px);padding:var(--space-sm,12px) 14px;border-radius:var(--r-lg,12px);background:var(--surface-soft,#f2f2f4);font:var(--text-sm,.8125rem)/1.5 var(--font-ui,system-ui,sans-serif);color:var(--fg,#17181b)}
 .hy-proposal-title{font-weight:var(--fw-semibold,600)}
 .hy-proposal-summary{color:var(--prose-body,#3e3f46)}

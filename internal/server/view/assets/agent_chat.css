@@ -1,67 +1,8 @@
-    [x-cloak] {
-      display: none !important;
-    }
-
-    *,
-    *::before,
-    *::after {
-      box-sizing: border-box;
-    }
-
-    button:focus,
-    a:focus {
-      outline: none;
-    }
-
-    html,
-    body {
-      height: 100%;
-      margin: 0;
-      overflow: hidden;
-    }
-
-    body {
-      display: flex;
-      flex-direction: column;
-      height: 100vh;
-      background: var(--bg);
-      color: var(--fg);
-      font-family: var(--font-ui);
-      -webkit-font-smoothing: antialiased;
-    }
-
-    .chat-body {
-      flex: 1;
-      display: flex;
-      min-height: 0;
-      overflow: hidden;
-      border-radius: 0;
-    }
-
     /* .sec (home.css) is also the positioning context for .chat-input-outer,
        which floats over the bottom of .chat-scroll — see .chat-input-outer. */
     .chat-main {
       background: var(--bg);
       border-radius: 0;
-    }
-
-    /* Agent bot bar now uses the shared .home-list-head (home.css) instead of
-       its own bordered strip — see homeChatSectionHTML. */
-
-    .agent-bot-chips-scroll {
-      flex: 1;
-      display: flex;
-      align-items: center;
-      gap: 0.55rem;
-      overflow-x: auto;
-      min-width: 0;
-      /* overflow-x:auto forces overflow-y:auto which clips the 3px pixel shadow.
-         padding: 4px gives the shadow room within the overflow clipping boundary. */
-      padding: 4px 4px 4px 0;
-    }
-
-    .agent-bot-chips-scroll::-webkit-scrollbar {
-      display: none;
     }
 
     .chat-head-name {
@@ -74,57 +15,14 @@
       border-radius: 0;
     }
 
-    .agent-bot-chip {
-      flex-shrink: 0;
-      padding: 0.2rem 0.85rem 0.2rem 0.3rem;
-      height: var(--btn-h);
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-      font-size: var(--text-sm);
-      font-weight: 500;
-      border: none;
-      border-radius: var(--r-full);
-      background: var(--btn-bg);
-      color: var(--muted);
-      cursor: pointer;
-      white-space: nowrap;
-      user-select: none;
-      transition: background-color var(--motion-fast), color var(--motion-fast);
-    }
-
-    .agent-bot-chip:hover {
-      background: var(--btn-bg-hov);
-      color: var(--fg);
-    }
-
-    .agent-bot-chip:active:not(.is-active) {
-      background: var(--btn-bg-on);
-    }
-
-    .agent-bot-chip.is-active {
-      background: var(--btn-bg-on);
-      color: var(--control-active-fg);
-    }
-
-    .agent-bots-empty-hint {
-      font-size: var(--text-sm);
-      color: var(--muted);
-      font-style: italic;
-    }
-
     /* ── Messages ───────────────────────────────────────────────── */
-    /* .chat-scroll is the full-width scroll viewport (scrollbar sits at the
-       pane's true edge); .chat-scroll-inner is the actual reading column,
+    /* .chat-scroll is the full-width scroll viewport (its overlay bar sits
+       at the pane's true edge); .chat-scroll-inner is the actual reading column,
        capped and centered so conversation + input don't stretch edge-to-edge
        on wide windows. Matches .chat-ac-wrap's max-width below so the
        message column and the composer line up. */
     .chat-scroll {
       overflow-x: hidden;
-      /* Reserve the scrollbar's gutter unconditionally (not just once
-         content overflows), so the column doesn't shift sideways the moment
-         a streaming reply grows tall enough to start scrolling. */
-      scrollbar-gutter: stable;
       /* No bottom padding: the spacer below is the one bottom clearance. A
          padding here stacked on it, so the last reply rested 72px above the
          composer card. */
@@ -816,11 +714,6 @@
       padding: 0;
       overflow-x: auto;
       overflow-y: visible;
-      scrollbar-width: none; /* Firefox */
-      -ms-overflow-style: none; /* legacy Edge */
-    }
-    .seg-note-access-row.home-list-body.is-grid::-webkit-scrollbar {
-      display: none; /* Chrome/Safari/newer Edge */
     }
     /* Fixed at the tallest a card gets (two-line title, three-line preview), so
        one filling in its title, preview or cover never moves the reply. */
@@ -1038,21 +931,9 @@
       position: absolute;
       /* Stacking context so the completion list's z-index stays in this layer and its blur still reaches the thread. */
       z-index: 0;
-      left: 0;
-      /* Stops short of the true right edge by .chat-scroll's real
-         scrollbar-gutter width, measured in JS with a few px of safety
-         margin added (__hyloSyncChatComposerHeight in home.js) rather
-         than guessed as a flat constant — the gutter scrollbar-gutter:
-         stable actually reserves doesn't line up with the "5px" base.css
-         declares for the custom ::-webkit-scrollbar skin, which left a
-         sliver of the real thumb still covered. That gutter is where
-         .chat-scroll's own scrollbar lives, and this panel would otherwise
-         sit on top of it, covering the thumb right where it's needed most
-         (scrolled to the bottom). The box being narrower here is also why
-         its own right padding doesn't need any extra fudge the way a
-         full-width box would — the centering math still lands .chat-ac-wrap
-         in the same spot either way. */
-      right: var(--chat-scrollbar-w, 10px);
+      /* Full width like .chat-scroll, so the composer centres on the thread's
+         column; the overlay bar (z-index 3) draws above it. */
+      left: 0; right: 0;
       bottom: 0;
       padding: var(--composer-gap) 1.5rem 1.25rem 1.5rem;
       /* The panel's own box (top clearance, padding, side gutters beyond
@@ -1148,7 +1029,6 @@
       gap: var(--space-xxs);
       margin: 0 0 var(--space-xs) 0.5rem;
     }
-    .chat-context[hidden] { display: none; }
     .chat-context-chip {
       all: unset;
       box-sizing: border-box;
@@ -1261,7 +1141,6 @@
       border-radius: var(--r-lg);
       box-shadow: var(--shadow-sm) var(--shadow-color);
     }
-    .chat-add-menu[hidden] { display: none; }
     .chat-add-item {
       display: flex;
       align-items: center;
@@ -1541,10 +1420,6 @@
       .chat-reveal, .chat-fold { transition: none; }
     }
 
-    ::-webkit-scrollbar {
-      display: none;
-    }
-
     html.macos .content-pane.open {
       -webkit-app-region: no-drag;
     }
@@ -1621,23 +1496,3 @@
       height: 9px;
     }
 
-    /* ── Conversation sidebar ──────────────────────────────────── */
-    .conv-sidebar {
-      transition: none;
-    }
-
-    .conv-item {
-      transition: none;
-    }
-
-    .conv-item.is-active {
-      background: var(--control-active-bg);
-    }
-
-    .conv-item-del {
-      transition: none;
-    }
-
-    .chat-toolbar .lib-action-btn svg {
-      transition: none !important;
-    }

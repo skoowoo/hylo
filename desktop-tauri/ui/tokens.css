@@ -58,10 +58,8 @@
       --motion-fast:100ms; --motion-base:160ms; --motion-slow:220ms; --motion-view:320ms;
       /* Named curves, paired with --motion-* above. --ease-standard just
          gives a name to the plain "ease" this app already defaults to
-         everywhere; --ease-out/--ease-in match the curves Tailwind's
-         ease-out/ease-in utility classes already use for the menu/dialog
-         x-transitions (content_pane.html), so a hand-rolled @keyframes/
-         transition and an Alpine x-transition read as the same motion.
+         everywhere; --ease-out/--ease-in are the enter/leave curves for
+         transitions and Alpine x-transition classes alike.
          --ease-spring is the one deliberate exception to that restrained
          default — an overshoot, reserved for a receipt/confirmation instant
          (e.g. a drop landing), never for ambient or enter/exit motion. */

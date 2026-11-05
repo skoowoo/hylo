@@ -12,7 +12,9 @@ vendored copy was taken from.
 | cytoscape.min.js | 3.30.4 | cytoscape |
 | marked.min.js | 15.0.12 | marked |
 | dompurify.min.js | 3.4.10 | dompurify |
-| cytoscape-fcose.min.js, cose-base.js, layout-base.js, d3-cloud.min.js, tailwind.js | not recorded in the file | — |
+| cytoscape-fcose.min.js, cose-base.js, layout-base.js, d3-cloud.min.js | not recorded in the file | — |
+
+Strip `//# sourceMappingURL` lines: the maps aren't vendored, so DevTools logs a 404.
 
 Load order matters: the Alpine plugin before Alpine core, the htmx extension
 after htmx. Extensions must also be listed in the htmx-config meta (view/assets/page_home.html).

@@ -1,15 +1,15 @@
     /* ── Cross-document view transitions (MPA navigation) ──────── */
-    /* Opts all pages into smooth cross-fade between full-page navigations.
-       Eliminates the white-flash that appears when location.href is used.
-       Ignored gracefully by browsers that don't support it (pre-Chrome 126). */
+    /* Cross-fades full-page navigations (login → home, location.href)
+       instead of flashing white. */
     @view-transition {
       navigation: auto;
     }
 
     /* ── Global structural rules ────────────────────────────────── */
-    /* Page-wide resets and shared components with no natural per-component
-       home — applied unconditionally across every page (embedded once via
-       baseCSS in home.go), rather than duplicated file by file. */
+    /* Shared by every page bundle (home, login, icons; see assets.go), so
+       page-wide rules live here once instead of per component. */
+
+    [x-cloak] { display: none !important; }
 
     /* Baseline corner radius — DESIGN.md's rounded.md (8px) default for
        buttons/inputs. Not !important: components below override with
@@ -66,7 +66,7 @@
     button:not(:disabled), [role="button"]:not([aria-disabled="true"]) {
       cursor: pointer;
     }
-    button:disabled, [role="button"][aria-disabled="true"] {
+    :is(button, input, select, textarea):disabled, [role="button"][aria-disabled="true"] {
       cursor: default;
     }
     /* Control labels aren't content; double-click/drag shouldn't select them. */
@@ -173,7 +173,9 @@
       color: var(--s-err); background: var(--s-err-bg);
     }
 
-    /* No border to signal focus, so keyboard focus gets the DESIGN.md ring. */
+    /* Controls are borderless, so keyboard focus gets the DESIGN.md ring;
+       :where keeps it overridable by a component's own focus style. */
+    :where(a[href], button, [role="button"], [role="tab"], summary):focus-visible,
     .btn-outline:focus-visible, .btn-solid:focus-visible,
     .icon-btn:focus-visible, .icon-btn-ghost:focus-visible, .seg-btn:focus-visible {
       outline: 2px solid rgba(var(--accent-rgb), 0.5); outline-offset: 1px;
@@ -185,7 +187,6 @@
 
     /* ── Composer image thumbnails (shorts, chat): uploading, failed, removable. ── */
     .compose-thumbs { display: flex; flex-wrap: wrap; gap: var(--space-xs); }
-    .compose-thumbs[hidden] { display: none; }
     .compose-thumb {
       position: relative; flex-shrink: 0;
       width: 56px; height: 56px;
@@ -274,8 +275,6 @@
     .list-card--clickable { cursor: pointer; }
     .list-card--clickable:hover { background: var(--card-hov); }
     .list-card--clickable:active { opacity: 0.85; }
-    /* Kept as a no-op alias: every card is soft by default now. */
-    .list-card--soft { border-color: transparent; background: var(--surface-soft); }
 
     /* ── Card controls (.card-reveal): shown while their card is hovered,
        holds focus or has its ⋯ menu (card_menu.js) open. Opacity flips
@@ -298,7 +297,6 @@
       display: flex; flex-direction: column; align-items: center; justify-content: center;
       gap: 0.4rem; text-align: center;
     }
-    .empty-state[hidden] { display: none; }
     /* Neutral on purpose: the accent stays with the one action below. */
     .empty-state-icon {
       width: 48px; height: 48px; margin-bottom: 0.75rem;
@@ -425,6 +423,16 @@
     @keyframes bot-chuckle { 0%, 100% { transform: translateY(0); } 15%, 45%, 75% { transform: translateY(-3.5px); } 30%, 60%, 90% { transform: translateY(0); } }
     @keyframes bot-wave { 0%, 100% { transform: rotate(0); } 20% { transform: rotate(-12deg); } 45% { transform: rotate(10deg); } 70% { transform: rotate(-6deg); } }
     @media (prefers-reduced-motion: reduce) { .bot-face :is(.face, .eye) { animation: none !important; } }
+    /* Fallback for motion without its own reduced-motion rule: near-zero,
+       not none, so transitionend/animationend still fire for the scripts
+       waiting on them. Loops play once and rest on their last frame. */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
 
     /* ── Shared form field control — text input / select / textarea. One
        recipe backs every field in the app (Settings' every config/Agent
@@ -495,23 +503,24 @@
     }
     .seg-btn.active .seg-count { color: inherit; opacity: 0.55; }
 
-    /* ── Shared visible scrollbar — most panes hide the bar via a blanket
-       `*::-webkit-scrollbar { display: none; }`, but a handful of primary
-       scrolling panes need one. One shape everywhere, the editor's own bar
-       (cm-live/scroll.js) included: a 10px track with a 6px pill 2px off the
-       edge, in --scrollbar-thumb/-hov. A class selector here outranks the
-       hide rule regardless of file order (0,0,1,1 vs 0,0,0,1). ── */
-    :is(.home-list-body, .chat-scroll, .img-scroll, .shorts-stream-wrap, .srch-preview) {
-      scrollbar-width: thin;
-      scrollbar-color: var(--scrollbar-thumb) transparent;
+    /* ── Overlay scrollbar (scrollbar.js) for .overlay-scroll panes — the
+       editor's bar (cm-live/scroll.js) in the same shape: a 10px strip with a
+       6px pill 2px off the edge. It shows while its pane scrolls or the
+       pointer is on it and fades at rest; a native bar can't, since WebKit
+       doesn't repaint one when its style changes. It takes the pointer only
+       while hot, so it never covers what floats over the pane. ── */
+    .scrollbar {
+      position: absolute; width: 10px; z-index: 3;
+      opacity: 0; transition: opacity 0.3s;
+      pointer-events: none; border-radius: 0;
     }
-    :is(.home-list-body, .chat-scroll, .img-scroll, .shorts-stream-wrap, .srch-preview)::-webkit-scrollbar { width: 10px; }
-    :is(.home-list-body, .chat-scroll, .img-scroll, .shorts-stream-wrap, .srch-preview)::-webkit-scrollbar-track { background: transparent; }
-    :is(.home-list-body, .chat-scroll, .img-scroll, .shorts-stream-wrap, .srch-preview)::-webkit-scrollbar-thumb {
-      background: var(--scrollbar-thumb) padding-box;
-      border: 2px solid transparent; border-radius: var(--r-full);
+    .scrollbar.is-hot, .scrollbar.is-dragging { pointer-events: auto; }
+    .scrollbar.is-hot, .scrollbar.is-shown, .scrollbar.is-dragging { opacity: 1; transition: none; }
+    .scrollbar-thumb {
+      position: absolute; top: 0; right: 2px; width: 6px;
+      border-radius: var(--r-full); background: var(--scrollbar-thumb);
     }
-    :is(.home-list-body, .chat-scroll, .img-scroll, .shorts-stream-wrap, .srch-preview)::-webkit-scrollbar-thumb:hover { background-color: var(--scrollbar-thumb-hov); }
+    .scrollbar.is-hot .scrollbar-thumb, .scrollbar.is-dragging .scrollbar-thumb { background: var(--scrollbar-thumb-hov); }
 
     /* ── Shared modal dialog chrome ───────────────────────────────
        Backs confirm_dialog.css and info_dialog.css (small, single-purpose
@@ -530,10 +539,6 @@
     @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
       :root { --glass-bg: var(--surface-soft); }
     }
-    /* Trapped overlays hide with [hidden], not x-show: x-show reveals a frame
-       later, and x-trap, activating on a timer, can find nothing to focus yet. */
-    .dialog-overlay[hidden],
-    .settings-modal-overlay[hidden] { display: none; }
     /* Placed by __hyloCenterWhole (keys.js). */
     .dialog-card {
       position: absolute;

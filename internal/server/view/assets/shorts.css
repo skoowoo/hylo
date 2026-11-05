@@ -101,7 +101,7 @@
     /* ── Tag row: the shorts' most used #tags (shared .badge), toggled to
        filter the feed below the composer. One line as wide as the cards:
        tags that would wrap are clipped, so the grid shows more. ── */
-    .shorts-tags:not([hidden]) {
+    .shorts-tags {
       --tag-h: 1.375rem;
       display: flex; flex-wrap: wrap; column-gap: var(--space-xs);
       height: var(--tag-h); overflow: hidden;
@@ -133,7 +133,6 @@
     .shorts-day + .shorts-day { margin-top: var(--space-lg); }
     .shorts-entry { position: relative; }
     .shorts-entry + .shorts-entry { margin-top: var(--space-sm); }
-    .shorts-stream-groups .shorts-entry[hidden] { display: none; } /* a delete waiting out its undo */
     .shorts-entry-actions {
       position: absolute;
       z-index: 1; /* above a grid card's positioned cover */

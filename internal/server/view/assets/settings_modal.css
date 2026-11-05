@@ -1,5 +1,4 @@
     /* ── Settings modal overlay ─────────────────────────────── */
-    [x-cloak] { display: none !important; }
     .settings-modal-overlay {
       position: fixed; inset: 0; z-index: 1000;
       background: var(--overlay-bg);
@@ -150,4 +149,3 @@
     .settings-msg { font-size: var(--text-xs); color: var(--muted); }
     .settings-msg--ok { color: var(--s-ok); font-weight: var(--fw-medium); }
     .settings-msg--err { color: var(--s-err); }
-    ::-webkit-scrollbar { display: none; }

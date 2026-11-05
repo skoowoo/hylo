@@ -4,11 +4,15 @@ package static
 
 import (
 	"bytes"
+	"compress/gzip"
 	"crypto/sha256"
 	"embed"
 	"encoding/hex"
 	"io/fs"
 	"net/http"
+	"path"
+	"strings"
+	"sync"
 	"time"
 )
 
@@ -18,7 +22,26 @@ var embedded embed.FS
 type file struct {
 	body []byte
 	hash string
+
+	gzOnce sync.Once
+	gz     []byte // nil when not worth compressing
 }
+
+// Compressed lazily on first request, so startup doesn't pay for files never served.
+func (f *file) gzipped() []byte {
+	f.gzOnce.Do(func() {
+		var b bytes.Buffer
+		w, _ := gzip.NewWriterLevel(&b, gzip.BestCompression)
+		w.Write(f.body)
+		w.Close()
+		if b.Len() < len(f.body)*9/10 {
+			f.gz = b.Bytes()
+		}
+	})
+	return f.gz
+}
+
+var compressible = map[string]bool{".js": true, ".css": true, ".svg": true, ".json": true, ".md": true}
 
 // files is written only during package init (here and by view's Bundle calls).
 var files = map[string]*file{}
@@ -74,12 +97,20 @@ func Handler() http.Handler {
 			return
 		}
 		h := w.Header()
-		h.Set("ETag", `"`+f.hash+`"`)
+		body, etag := f.body, f.hash
+		if compressible[path.Ext(r.URL.Path)] {
+			h.Add("Vary", "Accept-Encoding")
+			if gz := f.gzipped(); gz != nil && strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
+				body, etag = gz, f.hash+"-gz"
+				h.Set("Content-Encoding", "gzip")
+			}
+		}
+		h.Set("ETag", `"`+etag+`"`)
 		if r.URL.Query().Get("v") == f.hash {
 			h.Set("Cache-Control", "max-age=31536000, immutable")
 		} else {
 			h.Set("Cache-Control", "no-cache")
 		}
-		http.ServeContent(w, r, r.URL.Path, time.Time{}, bytes.NewReader(f.body))
+		http.ServeContent(w, r, r.URL.Path, time.Time{}, bytes.NewReader(body))
 	})
 }

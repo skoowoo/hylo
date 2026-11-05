@@ -28,7 +28,7 @@ export function wordRangeAt(state, pos) {
 }
 
 // Double-click on CJK text selects the segmented word. Drag-extending by
-// words after a double-click is CM's and stays categorizer-based.
+// words after a double-click is click-selection.js's and stays categorizer-based.
 export const cjkWordSelection = EditorView.domEventHandlers({
   mousedown(e, view) {
     if (e.detail !== 2 || e.button !== 0 || e.shiftKey || e.altKey || e.metaKey || e.ctrlKey) return false;

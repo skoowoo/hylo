@@ -1,7 +1,3 @@
-    [x-cloak] {
-      display: none !important;
-    }
-
     /* ── Confirmation dialog — layers .dialog-* shared chrome (base.css) ── */
     .confirm-card {
       max-width: 360px;

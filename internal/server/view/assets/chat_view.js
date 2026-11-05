@@ -541,8 +541,6 @@
 
     function syncComposerBox() {
       if (!panel || !scrollEl || panel.style.display === 'none') return;
-      var sbw = scrollEl.offsetWidth - scrollEl.clientWidth;
-      scrollEl.style.setProperty('--chat-scrollbar-w', (Math.ceil(sbw) + 4) + 'px');
       scrollEl.style.setProperty('--chat-composer-h', panel.offsetHeight + 'px');
       settle();
     }
@@ -793,9 +791,10 @@
       on(scrollEl, 'wheel', markIntent, { passive: true });
       on(scrollEl, 'touchstart', markIntent, { passive: true });
       on(scrollEl, 'touchmove', markIntent, { passive: true });
-      // A press on the scroller itself, not its content, is a scrollbar drag.
-      on(scrollEl, 'pointerdown', function (e) { if (e.target === scrollEl) dragging = true; });
-      on(window, 'pointerup', function () { if (dragging) { dragging = false; markIntent(); } });
+      on(scrollEl, 'hylo:scrollbar-drag', function (e) {
+        dragging = e.detail;
+        if (!dragging) markIntent();
+      });
       on(window, 'keydown', function (e) {
         var t = e.target;
         if (SCROLL_KEYS[e.key] && !(t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)))) markIntent();

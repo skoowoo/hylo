@@ -3,21 +3,21 @@
        tabindex="-1"
        @keydown.window="onKey($event)"
        @open-search.window="openWithMode($event.detail)"
-       class="fixed inset-0 z-[10000] pointer-events-none outline-none">
+       class="srch-root">
 
     <!-- One fixed window: input, a 400px list area and a footer. States swap
          inside it, so the frame never moves. The fade runs on the glass panel
          itself: on an ancestor, its opacity would cut off what it blurs. -->
-    <div class="srch-wrap pointer-events-auto">
+    <div class="srch-wrap">
 
       <div x-show="show"
            x-cloak
-           x-transition:enter="transition-opacity ease-out duration-[80ms]"
-           x-transition:enter-start="opacity-0"
-           x-transition:enter-end="opacity-100"
-           x-transition:leave="transition-opacity ease-in duration-[80ms]"
-           x-transition:leave-start="opacity-100"
-           x-transition:leave-end="opacity-0"
+           x-transition:enter="srch-enter"
+           x-transition:enter-start="srch-enter-start"
+           x-transition:enter-end="srch-enter-end"
+           x-transition:leave="srch-leave"
+           x-transition:leave-start="srch-leave-start"
+           x-transition:leave-end="srch-leave-end"
            class="srch-panel">
 
         <div class="srch-row hairline">
@@ -76,7 +76,7 @@
           </div>
 
           <template x-if="showPreview && results.length > 0">
-            <div x-ref="preview" class="srch-preview">
+            <div x-ref="preview" class="srch-preview overlay-scroll">
               <template x-if="activeBot">
                 <div class="srch-bot-card">
                   <span class="avatar avatar--lg" x-html="botAvatar(activeBot)"></span>
@@ -125,6 +125,6 @@
 
     <!-- Click-away catcher only: the app stays visible, undimmed. -->
     <div x-show="show" x-cloak @click="close()"
-         class="pointer-events-auto fixed inset-0 -z-10"></div>
+         class="srch-catcher"></div>
 
   </div>

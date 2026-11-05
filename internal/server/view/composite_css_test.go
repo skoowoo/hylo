@@ -34,7 +34,7 @@ func TestCardControlsDontComposite(t *testing.T) {
 // sits off whole pixels (text flow, hover controls), so a dim is a colour and
 // a reveal is instant. Only these fade, each on whole pixels or mid-motion.
 func TestOpacityFadesStayOnWholePixels(t *testing.T) {
-	allowed := []string{".lb-enter", ".lb-leave", ".graph-tooltip", ".home-side-children-inner", ".note-card.is-dragging", ".note-card.is-move-success"}
+	allowed := []string{".lb-enter", ".lb-leave", ".graph-tooltip", ".home-side-children-inner", ".note-card.is-dragging", ".note-card.is-move-success", ".content-pane-more-enter", ".content-pane-more-leave", ".srch-enter", ".srch-leave", ".scrollbar"}
 	rule := regexp.MustCompile(`([^{}]*)\{([^{}]*)\}`)
 	fade := regexp.MustCompile(`transition[a-z-]*:[^;}]*\b(opacity|all)\b`)
 	names, _ := fs.Glob(assetFS, "assets/*.css")

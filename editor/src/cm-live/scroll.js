@@ -26,6 +26,7 @@ const EDGE = 40; // px from an edge where a drag-and-drop over the note scrolls 
 const SLICE = 8; // ms of measuring per frame
 const BUSY = 200; // ms after a wheel, a drag or the view moving before measuring resumes
 const GLIDE = 60; // ms time constant of a glide: most of the way in three
+const FADE_TOP = 48; // px the editor's top fade reaches once scrolled: under two lines
 
 const owned = typeof matchMedia !== 'function' || !matchMedia('(any-pointer: coarse)').matches;
 
@@ -421,9 +422,34 @@ export function glideTo(view, top) {
   else view.scrollDOM.scrollTop = top;
 }
 
+export function scrollMeasureState(view) {
+  const owner = view.plugin(ownedScroll);
+  if (!owner) return null;
+  return { walking: owner.walking, pending: owner.walk >= 0 };
+}
+
+// --fade-top follows scrollTop up to FADE_TOP, so nothing fades at rest (content_pane.css).
+const fadeTop = ViewPlugin.fromClass(class {
+  constructor(view) {
+    this.sd = view.scrollDOM;
+    this.px = -1;
+    this.onScroll = () => {
+      const px = Math.min(Math.round(this.sd.scrollTop), FADE_TOP);
+      if (px === this.px) return;
+      this.px = px;
+      this.sd.style.setProperty('--fade-top', px + 'px');
+    };
+    this.sd.addEventListener('scroll', this.onScroll, { passive: true });
+  }
+  destroy() {
+    this.sd.removeEventListener('scroll', this.onScroll);
+  }
+});
+
 export const editorScroll = owned
   ? [
     readingKeys,
+    fadeTop,
     ownedScroll,
     EditorView.updateListener.of((update) => {
       const plugin = update.view.plugin(ownedScroll);
@@ -457,4 +483,4 @@ export const editorScroll = owned
       },
     }),
   ]
-  : [readingKeys];
+  : [readingKeys, fadeTop];

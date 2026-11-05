@@ -471,9 +471,13 @@
           // Outside the mode compartments, so it works in source mode too.
           cm.selectionFormatMenu(),
           cm.cjkWordSelection,
+          // A stationary press must not select the gap between two hit-tests.
+          cm.clickSelection(),
           // WebKit's native caret spans the line gap above on a paragraph's
           // wrapped lines and leaves stale paint; CM's is sized from the text.
           cm.drawnSelection(),
+          // One console line when a caret becomes a large selection.
+          cm.selectionWatch(),
           // In both modes: keeps CM's height estimates from shifting as it scrolls,
           // and owns the scroll so its corrections land in the frame they're made.
           cm.stableTextMetrics,

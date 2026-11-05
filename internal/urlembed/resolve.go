@@ -279,9 +279,43 @@ func (r *Resolver) fetch(canon string) Result {
 	// Only the headers or the <head> were needed. Cancel so Close drops the
 	// connection instead of draining the rest of the body.
 	cancel()
+	if row.ImageURL != "" && r.imageGone(row.ImageURL) {
+		row.ImageURL = ""
+	}
 	row.Kind = kind
 	row.ExpiresAt = r.now().Add(ttl(row)).UnixMilli()
 	return r.store(row)
+}
+
+// imageGone reports an og:image the site itself says is missing or not an
+// image, so the card never lays out a picture that can only fail. Anything
+// short of a definite answer keeps it.
+func (r *Resolver) imageGone(raw string) bool {
+	u, err := url.Parse(raw)
+	if err != nil || (!r.allowPrivate && validateURL(u) != nil) {
+		return false
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, raw, nil)
+	if err != nil {
+		return false
+	}
+	req.Header.Set("User-Agent", "Hylo/1.0")
+	req.Header.Set("Accept", "image/*")
+	resp, err := r.client.Do(req)
+	if err != nil {
+		return false
+	}
+	defer resp.Body.Close()
+	switch {
+	case resp.StatusCode == http.StatusNotFound || resp.StatusCode == http.StatusGone:
+		return true
+	case resp.StatusCode < 200 || resp.StatusCode >= 300:
+		return false
+	}
+	kind := kindFromType(mediaType(resp.Header.Get("Content-Type")))
+	return kind != "" && kind != kindImage
 }
 
 // SetPosition stores playback for an audio or video URL. Metadata refreshes keep it.

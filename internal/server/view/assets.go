@@ -29,6 +29,7 @@ func readAssets(names ...string) string {
 // Bundle order is cascade order for CSS; JS files only declare globals until Alpine starts.
 func init() {
 	static.Bundle("bundle/home.css", appTokensCSS+":root{"+lineIconVar("file", "file", "")+lineIconVar("tick", "check", tickStroke)+"}\n"+readAssets(
+		"reset.css",
 		"info_dialog.css", "base.css", "cselect.css", "home.css", "images.css", "graph.css", "agent_chat.css",
 		"content_pane.css", "note_shared_prose.css", "shorts.css", "search_overlay.css",
 		"confirm_dialog.css",
@@ -43,7 +44,7 @@ func init() {
 	static.Bundle("bundle/home.js", modules+readAssets(
 		"shared_icons_line.js", "home_init.js", "live.js", "note_changes.js", "keys.js", "card_menu.js", "path_ac.js",
 		"chat_reduce.js", "chat_text.js", "chat_kernel.js", "chat_rows.js", "chat_view.js",
-		"list_tighten.js", "graph_layout.js", "editor_session.js", "editor_agent.js", "content_pane.js", "note_activity.js",
+		"list_tighten.js", "scrollbar.js", "graph_layout.js", "editor_session.js", "editor_agent.js", "content_pane.js", "note_activity.js",
 		"search_overlay.js", "confirm_dialog.js", "info_dialog.js", "servers_store.js",
 		"settings_modal.js", "settings_appearance.js", "settings_server.js", "settings_agentcli.js",
 		"settings_notifications.js", "settings_shortcuts.js", "settings_agentbots.js", "settings_skills.js",

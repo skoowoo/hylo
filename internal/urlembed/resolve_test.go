@@ -94,6 +94,15 @@ func TestResolveClassifiesAndCaches(t *testing.T) {
 				<meta property="og:image" content="/og.jpg">
 				<title>ignored</title>
 			</head><body>x</body></html>`))
+		case "/og.jpg":
+			w.Header().Set("Content-Type", "image/jpeg")
+			w.WriteHeader(http.StatusOK)
+		case "/broken":
+			w.Header().Set("Content-Type", "text/html")
+			_, _ = w.Write([]byte(`<html><head><meta property="og:image" content="/missing.png"><title>Broken</title></head></html>`))
+		case "/soft":
+			w.Header().Set("Content-Type", "text/html")
+			_, _ = w.Write([]byte(`<html><head><meta property="og:image" content="/story"><title>Soft</title></head></html>`))
 		case "/go":
 			http.Redirect(w, r, "/story", http.StatusFound)
 		case "/ep.mp3":
@@ -137,12 +146,19 @@ func TestResolveClassifiesAndCaches(t *testing.T) {
 	if page.FinalURL != srv.URL+"/story" {
 		t.Fatalf("final = %q", page.FinalURL)
 	}
-	if hits.Load() != 2 {
-		t.Fatalf("redirect hits = %d, want 2", hits.Load())
+	if hits.Load() != 3 {
+		t.Fatalf("redirect + image probe hits = %d, want 3", hits.Load())
 	}
 	again := r.Resolve(ctx, srv.URL+"/go")
-	if again.Title != "A & B" || hits.Load() != 2 {
+	if again.Title != "A & B" || hits.Load() != 3 {
 		t.Fatalf("cache miss: hits %d title %q", hits.Load(), again.Title)
+	}
+
+	if got := r.Resolve(ctx, srv.URL+"/broken"); got.Title != "Broken" || got.ImageURL != "" {
+		t.Fatalf("missing og:image kept: %+v", got)
+	}
+	if got := r.Resolve(ctx, srv.URL+"/soft"); got.Title != "Soft" || got.ImageURL != "" {
+		t.Fatalf("non-image og:image kept: %+v", got)
 	}
 
 	if got := r.Resolve(ctx, srv.URL+"/ep.mp3"); got.Kind != kindAudio {

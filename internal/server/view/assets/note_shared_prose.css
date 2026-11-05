@@ -40,7 +40,7 @@
     .prose li  { color: var(--prose-body); margin-top: 0.3em; margin-bottom: 0.3em; line-height: 1.7; }
     .prose > p:first-of-type { font-size: 1em; line-height: 1.75; color: var(--prose-body); }
 
-    /* Explicit list-style-type counters Tailwind preflight's reset */
+    /* Explicit list-style-type counters reset.css */
     .prose ul  { padding-left: 1.4em; list-style-type: disc; }
     .prose ol  { padding-left: 1.6em; list-style-type: decimal; }
     .prose ul ul  { list-style-type: disc; }

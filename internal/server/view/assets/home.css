@@ -1,4 +1,3 @@
-    *, *::before, *::after { box-sizing: border-box; }
     html, body { height: 100%; margin: 0; overflow: hidden; }
     body {
       display: flex; flex-direction: column; height: 100vh; overflow: hidden;
@@ -26,6 +25,8 @@
       border-radius: 0;
     }
 
+    /* Every native bar is hidden; .overlay-scroll panes draw their own (scrollbar.js). */
+    * { scrollbar-width: none; }
     ::-webkit-scrollbar { display: none; }
 
     /* ── Sidebar + list shell ──────────────────────────────────── */
@@ -136,7 +137,7 @@
        afford a touch more presence than a dense toolbar's icons would. */
     .home-side-bottom-btn svg { width: 16px; height: 16px; }
     .home-side-nav {
-      flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none;
+      flex: 1; min-height: 0; overflow-y: auto;
       display: flex; flex-direction: column; gap: 2px;
       padding: 14px;
       /* Each edge fades by how much content is hidden past it (capped at 24px). */
@@ -231,7 +232,6 @@
       color: var(--muted); cursor: default; padding-left: 39px;
     }
     .home-side-open-none:hover { background: transparent; color: var(--muted); }
-    .home-side-open-none[hidden] { display: none; }
     /* Every slot is always laid out — hover and activation only change
        colour and opacity — so a title never re-truncates under the pointer. */
     .home-side-tab { transition: background var(--motion-fast) ease, color var(--motion-base) ease; }
@@ -669,12 +669,8 @@
       box-shadow: var(--shadow-sm) var(--shadow-color);
     }
 
-    /* ── Sentinel / empty ─────────────────────────────────────── */
+    /* ── Sentinel ─────────────────────────────────────── */
     .home-load-sentinel { height: 1px; }
-    .home-list-empty {
-      padding: 3rem 0.75rem; text-align: center;
-      font-size: var(--text-sm); color: var(--muted);
-    }
 
     /* ── Tags: word-cloud wall + tag picker (home.go's homeTagsSectionHTML) ──
        Two states of one section, not two pages: with no tag picked,

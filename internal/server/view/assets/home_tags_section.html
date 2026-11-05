@@ -46,12 +46,12 @@
   <button type="button" class="icon-btn-ghost" title="More" aria-label="Tag actions" aria-haspopup="menu" aria-expanded="false"
           data-tag="{{.Selected}}" @click="tagMenu($el, $el.dataset.tag, $event)">{{icon "more"}}</button>
 </div>
-<div class="sec-body home-list-body" id="home-list-body" :class="{'is-grid': currentListView() === 'grid'}">{{template "rows" .}}</div>
+<div class="sec-body overlay-scroll home-list-body" id="home-list-body" :class="{'is-grid': currentListView() === 'grid'}">{{template "rows" .}}</div>
 {{if and (not .Items) .Empty.Title}}{{template "empty-state" .Empty}}{{end}}
 {{else}}<div class="home-list-head">
   <span class="home-list-count" id="home-list-count">{{plural (len .Tags) "tag"}}</span>
 </div>
-<div class="sec-body home-list-body" id="home-list-body">{{if .Tags}}
+<div class="sec-body overlay-scroll home-list-body" id="home-list-body">{{if .Tags}}
   <div class="tag-cloud" id="tag-cloud" data-tags="{{tagsJSON .Tags}}"></div>
 {{end}}</div>
 {{if not .Tags}}{{template "empty-state" .WallEmpty}}{{end}}

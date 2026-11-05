@@ -1,22 +1,4 @@
     /* ── Graph page layout ───────────────────────────────────── */
-    .graph-body {
-      display: flex; height: calc(100vh - var(--topbar-h)); overflow: hidden;
-      border-radius: 0;
-      background: var(--bg);
-    }
-
-    /* Content area: everything to the right of the nav strip */
-    .graph-content {
-      flex: 1; display: flex; flex-direction: column; min-width: 0; overflow: hidden;
-      border-radius: 0;
-    }
-
-    /* Columns row: index sidebar + canvas, fills remaining height below toolbar */
-    .graph-columns {
-      flex: 1; display: flex; min-height: 0; overflow: hidden;
-      border-radius: 0;
-    }
-
     #graph-canvas {
       flex: 1; width: 100%; background: var(--bg);
     }
