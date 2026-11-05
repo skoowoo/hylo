@@ -41,6 +41,11 @@ const (
 
 	// MaxURLs is the most URLs one /api/embeds request may carry.
 	MaxURLs = 20
+
+	// Chrome's reduced desktop UA (major only, frozen platform token). A
+	// product name gets a block page or a document with the Open Graph stripped.
+	// Bump the major now and then; an old one gets flagged too.
+	browserUA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36"
 )
 
 // Result is one URL as the card asked for it. URL is the request string so
@@ -223,7 +228,7 @@ func (r *Resolver) fetch(canon string) Result {
 	if err != nil {
 		return r.store(errRow(canon, "invalid_url"))
 	}
-	req.Header.Set("User-Agent", "Hylo/1.0")
+	req.Header.Set("User-Agent", browserUA)
 	req.Header.Set("Accept", "text/html,application/xhtml+xml;q=0.9,*/*;q=0.8")
 	resp, err := r.client.Do(req)
 	if err != nil {
@@ -301,7 +306,7 @@ func (r *Resolver) imageGone(raw string) bool {
 	if err != nil {
 		return false
 	}
-	req.Header.Set("User-Agent", "Hylo/1.0")
+	req.Header.Set("User-Agent", browserUA)
 	req.Header.Set("Accept", "image/*")
 	resp, err := r.client.Do(req)
 	if err != nil {

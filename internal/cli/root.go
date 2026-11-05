@@ -39,6 +39,7 @@ func init() {
 	rootCmd.AddCommand(newAppendCmd())
 	rootCmd.AddCommand(newPrependCmd())
 	rootCmd.AddCommand(newListCmd())
+	rootCmd.AddCommand(newSampleCmd())
 	rootCmd.AddCommand(newCreateCmd())
 	rootCmd.AddCommand(newReadCmd())
 	rootCmd.AddCommand(newSearchCmd())

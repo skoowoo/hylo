@@ -7,7 +7,7 @@ Looks back. Two kinds:
 | **Periodic** | "weekly review", "回顾一下这周/这个月": everything from a past stretch | Periodic review |
 | **Random look back** | "随便翻翻", "random look back", "anything I've forgotten": history at random | Random look back |
 
-**Run all steps to completion without stopping. Only speak at the end.** Say it in the conversation; never write a file.
+**Run that kind's steps to completion without stopping. Only speak at the end.** Say it in the conversation; never write a file.
 
 ## Periodic review
 
@@ -53,28 +53,16 @@ A short letter, not a report: a `#` title naming the stretch's main thread, then
 
 ## Random look back
 
-Bring back something from their past that speaks to where they are now, the way a friend says "remember when you said…". Old alone isn't enough.
+A walk through the whole vault: any note, any knowledge domain, any short entry, from any part of their history. `sample` has already chosen. Don't search for a fit with this week, and don't drop a find because it doesn't.
 
-### Step 1 — Know where they are now
+### Step 1 — Draw
 
-Read the `## Active` parts of `/_memory/_state.md` and `_goals.md`, and their recent short notes (`short_list {"latest": 14}`).
-
-### Step 2 — Draw candidates
-
-About 20 notes and units not touched for 90 days or more, at random, from the vault root (`cd` there first when your working directory is a bot's folder):
-
-```bash
-find . -name '*.md' -not -path './.*' -not -path './_knowledge/_indexes/*' -not -path './_memory/*' -not -path './_bots/*' -not -path './_setup/*' -mtime +90 | sort -R | head -20
+```
+sample {}
 ```
 
-Without a shell: pick two random months from the past few years and `list {"start": "<YYYY-MM-01>", "end": "<next month>", "limit": 15}` for each; try another month when one comes back empty.
+That draws two of each kind, written at least 90 days ago when anything is that old, spread across the span and across domains. A knowledge unit's `created_at` is its earliest source note, not the day it was compiled. If `items` is empty, say there is nothing written yet and stop.
 
-Also `search` the main thing on their mind now (from Step 1) with no date filter, and add hits older than 90 days to the candidates.
+### Step 2 — Answer
 
-### Step 3 — Keep one or two
-
-Skim each candidate (`extract_segment` with `head: 20`, or the short note itself) and drop empty notes, logs and todo lists. Keep the one or two that say the most to them now: an earlier self that already answered today's question, a view they've since outgrown, a plan never followed up that fits what they're doing, a sharp idea they let go of. If nothing ties to now, keep the single sharpest one and say plainly it's just worth rereading.
-
-### Step 4 — Answer
-
-A `#` title, then a short paragraph per find: what they wrote and when, in their words where possible, with the `[[link]]`; then why it's worth seeing now, tied concretely to what's on their mind. If they've changed since, say how. One question at most, at the end.
+A `#` title, then a short paragraph per item, in the order `sample` returned: what it says and when, quoting `excerpt`, with the `[[link]]` (the filename stem); a short entry links its daily note. Whose words they are decides how you say it. A short entry is theirs. A knowledge unit goes by its `perspective` and names its `domain`. A note is theirs unless the excerpt reads as saved from elsewhere (an article, a transcript), which is "you saved…". Read a note or unit only when its excerpt is empty or a unit has no `perspective`. One question at most, at the end, and only when one of the finds actually raises it.

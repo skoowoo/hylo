@@ -81,7 +81,7 @@ func TestRecallBotStepQuotesTriggerPrompts(t *testing.T) {
 	}
 	// The step quotes them indented under a list item.
 	step := regexp.MustCompile(`(?m)^ +`).ReplaceAllString(string(b), "")
-	for _, p := range []string{prompt.TriggerRecallWeekly, prompt.TriggerRecallRandom, prompt.TriggerRecallShort} {
+	for _, p := range []string{prompt.TriggerRecallWeekly, prompt.TriggerRecallRandom} {
 		if !strings.Contains(step, p) {
 			t.Errorf("recall-bot step doesn't quote %q", p)
 		}

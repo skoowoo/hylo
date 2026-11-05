@@ -46,6 +46,8 @@ Best first. Being on the same topic isn't one of them.
 - **A voice against them**: something they read that disagrees with them and they haven't faced.
 - **A hidden thread**: the same idea turning up in two areas they keep apart.
 
+Random look back is the exception to picking one or two: `sample` has already chosen, so every item gets its paragraph and the insight goes inside each. Those patterns are how you talk about a find when one is really there, not a reason to drop it.
+
 ## Rules for every mode
 
 - Find things in the order your instructions give, and link every unit or note you lean on.

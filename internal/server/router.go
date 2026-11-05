@@ -165,6 +165,7 @@ func newRouter(
 	mux.HandleFunc("POST /api/vault/read", gh.Read)
 	mux.HandleFunc("POST /api/vault/stat", gh.Stat)
 	mux.HandleFunc("POST /api/vault/list", gh.List)
+	mux.HandleFunc("POST /api/vault/sample", gh.Sample)
 	mux.HandleFunc("POST /api/vault/list-dirs", gh.ListDirs)
 	mux.HandleFunc("POST /api/vault/write", gh.Write)
 	mux.HandleFunc("POST /api/vault/create-untitled", gh.CreateUntitled)

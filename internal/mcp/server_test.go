@@ -66,7 +66,7 @@ func TestToolsAlignWithCLI(t *testing.T) {
 		}
 	}
 	for _, name := range []string{
-		"status", "list", "read", "search", "create", "append", "prepend", "delete", "move",
+		"status", "list", "sample", "read", "search", "create", "append", "prepend", "delete", "move",
 		"rename", "rename_status", "resolve", "knowledge_list", "knowledge_read",
 		"knowledge_search", "knowledge_delete", "knowledge_list_indexes",
 		"extract_outline", "extract_section", "extract_code", "extract_link", "extract_list",

@@ -45,7 +45,7 @@ var noteTools = map[string]noteTool{
 	"move": {byMove, true}, "rename": {byRename, true},
 	"short_create": {byNewShort, true}, "short_update": {byShortID, true}, "short_delete": {byShortID, true},
 
-	"capabilities": {}, "status": {}, "list": {}, "search": {}, "resolve": {}, "compile": {}, "rename_status": {},
+	"capabilities": {}, "status": {}, "list": {}, "sample": {}, "search": {}, "resolve": {}, "compile": {}, "rename_status": {},
 	"knowledge_list": {}, "knowledge_search": {}, "knowledge_list_indexes": {},
 	"tag_list": {}, "tag_count": {}, "short_list": {}, "image_upload": {},
 	"bot_list": {}, "bot_get": {}, "bot_create": {}, "bot_update": {}, "bot_delete": {},
@@ -125,6 +125,7 @@ func NotesTouched(l notes.NoteLookup, tool string, input map[string]any) ([]Note
 var commandValueFlags = map[string]bool{
 	"-c": true, "--content": true, "-f": true, "--file": true, "--field": true, "--hash": true, "--indent": true,
 	"--head": true, "--tail": true, "--start": true, "--end": true, "--latest": true, "-l": true, "--limit": true,
+	"--each": true, "--older-than": true,
 	"-k": true, "--kind": true, "--name": true, "--description": true, "--system-prompt": true,
 	"--prompt": true, "--schedule": true, "--events": true, "--path-prefixes": true,
 	"--category": true, "--skill": true, "--bot-id": true, "--pid-file": true, "--images": true,

@@ -37,6 +37,7 @@ func NewHandler(c *client.Client, opts ...Option) http.Handler {
 	}, &sdk.ServerOptions{Instructions: instructions})
 
 	registerNoteTools(srv, c)
+	registerSampleTool(srv, c)
 	registerKnowledgeTools(srv, c)
 	registerExtractTools(srv, c)
 	registerTagTools(srv, c)

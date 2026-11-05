@@ -11,7 +11,7 @@ import (
 
 // VaultHandler serves REST operations on vault paths.
 // Routes are registered individually in router.go; per-verb logic lives in
-// vault_read.go, vault_list.go, vault_stat.go, vault_put.go, and vault_delete.go.
+// vault_read.go, vault_list.go, vault_sample.go, vault_stat.go, vault_put.go, and vault_delete.go.
 type VaultHandler struct {
 	vault *storage.Vault
 }

@@ -163,6 +163,33 @@ func (c *Client) listNotes(body map[string]any, label string, opts storage.ListO
 	return listing.Notes, nil
 }
 
+// Sample draws a random walk through the vault. each and olderThan use the
+// server defaults when left at 0.
+func (c *Client) Sample(each, olderThan int) ([]storage.SampleItem, error) {
+	resp, err := c.postJSON(c.baseURL+"/api/vault/sample", map[string]any{
+		"each":       each,
+		"older_than": olderThan,
+	})
+	if err != nil {
+		return nil, wrapConnErr(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		raw, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("sample: %s", statusMsg(resp.StatusCode, raw))
+	}
+	var out struct {
+		Items []storage.SampleItem `json:"items"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return nil, fmt.Errorf("sample: decode response: %w", err)
+	}
+	if out.Items == nil {
+		out.Items = []storage.SampleItem{}
+	}
+	return out.Items, nil
+}
+
 // StatNote returns DB-backed metadata for a note at relPath (vault-absolute).
 // Path normalization matches read: a filename without an extension defaults to ".md".
 func (c *Client) StatNote(relPath string) (storage.Note, error) {

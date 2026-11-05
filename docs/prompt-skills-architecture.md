@@ -120,13 +120,12 @@ flowchart TB
 | Compiler | `note_created`，限 `/Web Clips/` | 同上 | 同上 |
 | Memory | `scheduled`，daily 09:00 | `trigger_memory.md` | 不点名，靠 description 匹配到 hylo-memory |
 
-回顾不在主 bot 上：周回顾、速记比对是定时 / 事件型的消费，不是对话，交给独立的 Recall bot，由 hylo-setup 的 recall-bot 步骤创建（`/_bots/_recall`，启用内置 hylo-recall），三条 trigger 由用户多选。trigger prompt 就是 `trigger_recall_*.md`，步骤文件逐字引用，`TestRecallBotStepQuotesTriggerPrompts` 防止两边走样。
+回顾不在主 bot 上：周回顾和随机回顾是定时消费，不是对话，交给独立的 Recall bot，由 hylo-setup 的 recall-bot 步骤创建（`/_bots/_recall`，启用内置 hylo-recall），两条 trigger 由用户多选。trigger prompt 就是 `trigger_recall_weekly.md` 和 `trigger_recall_random.md`，步骤文件逐字引用，`TestRecallBotStepQuotesTriggerPrompts` 防止两边走样。创建短记不再自动回顾。
 
 | Trigger | 事件 | Prompt | 走哪个 skill |
 | --- | --- | --- | --- |
 | Weekly review | `scheduled`，weekly mon 09:05 | `trigger_recall_weekly.md` | 点名 hylo-recall（周回顾） |
 | Look back | `scheduled`，daily 15:00 | `trigger_recall_random.md` | 点名 hylo-recall（随机翻历史） |
-| Short notes | `short_note_created` | `trigger_recall_short.md` | 点名 hylo-recall（回应：放在过往笔记里看）；没结果时只回 `[silent]`，这一轮从聊天里删掉 |
 
 **Trigger prompt 的写法**（hylo-bots `references/triggers.md` + `references/skills.md`）：只写做什么、点名用哪个 skill、加上用户偏好（话题、数量、语言），不写方法。不写 curl、URL、API 参数，这些属于 skill。
 
