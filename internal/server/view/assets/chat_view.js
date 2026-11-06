@@ -5,42 +5,7 @@
   var R = root.__hyloChatReduce;
   var Rows = root.__hyloChatRows;
 
-  function normalizeVaultDir(raw) {
-    var s = (raw || '').replace(/\/+/g, '/');
-    if (!s.startsWith('/')) s = '/' + s;
-    if (s.length > 1 && s.endsWith('/')) s = s.slice(0, -1);
-    return s || '/';
-  }
-
-  function chatAcParseCtx(val, caret) {
-    val = typeof val === 'string' ? val : '';
-    if (caret == null || caret > val.length) caret = val.length;
-    var left = val.slice(0, caret);
-    var tokenStart = 0;
-    for (var i = left.length - 1; i >= 0; i--) {
-      if (/[\s]/.test(left[i])) { tokenStart = i + 1; break; }
-    }
-    var token = left.slice(tokenStart);
-    var atIdx = token.indexOf('@');
-    if (atIdx === -1) return null;
-    if (atIdx > 0 && token[atIdx - 1] !== '/') return null;
-    var atPos = tokenStart + atIdx;
-    var pathPrefix = token.slice(0, atIdx);
-    var body = token.slice(atIdx + 1);
-    if (body.indexOf(']') !== -1) return null;
-    var lastSlash = body.lastIndexOf('/');
-    if (lastSlash === -1) return { kind: 'mention', partial: body, replaceStart: atPos };
-    var partial = body.slice(lastSlash + 1);
-    if (partial.indexOf('.') !== -1) return null;
-    var dirSeg = body.slice(0, lastSlash);
-    var dirPath = normalizeVaultDir((pathPrefix || '') + '/' + dirSeg);
-    return {
-      kind: 'path', dirPath: dirPath, partial: partial,
-      tokenStart: tokenStart, atPos: atPos, replaceStart: tokenStart + atIdx + lastSlash + 2,
-    };
-  }
-
-  async function chatMentionSearch(query, signal) {
+  async function noteSearch(query, signal) {
     var resp = await fetch('/api/search', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ q: query, type: 'name', limit: 30 }), signal: signal,
@@ -50,14 +15,11 @@
     var results = Array.isArray(data.results) ? data.results : [];
     return results.map(function (r) {
       var stem = (typeof r.name === 'string' ? r.name : '').replace(/\.md$/i, '');
-      return { label: stem, value: stem };
+      return { label: stem, insert: '[[' + stem + ']]' };
     });
   }
 
-  // Vault-relative note path -> filename stem (no directory), for turning a
-  // tab's path into the same "[[stem]]" value chatMentionSearch produces.
-  // Folder info is left out of the list on purpose — with it, rows carried
-  // two lines each and the default/search list read as too sparse.
+  // Vault-relative note path -> filename stem, the "[[stem]]" a wikilink takes.
   function noteStem(path) {
     var p = String(path || '').replace(/^\/+/, '');
     var slash = p.lastIndexOf('/');
@@ -65,13 +27,9 @@
     return name.replace(/\.md$/i, '');
   }
 
-  // Default "@" list: every open editor tab, active one pinned first —
-  // referencing whatever note you're already looking at is the single most
-  // common case, so it lands on the row the picker pre-selects (item 0),
-  // no extra badge or color needed to make the point. Tabs without a
-  // materialized path (a brand-new, never-saved tab) can't become a
-  // "[[stem]]" wikilink, so they're skipped.
-  function chatMentionDefaultItems() {
+  // Notes with nothing typed: the open tabs, the active one first (the
+  // preselected row). Unsaved tabs have no path to link to.
+  function openTabNotes() {
     var pane = window.__hyloContentPane;
     var tabs = pane && Array.isArray(pane.tabs) ? pane.tabs : [];
     var activeIdx = pane ? pane.activeTab : -1;
@@ -80,8 +38,18 @@
     withPath.sort(function (a, b) { return (b.active ? 1 : 0) - (a.active ? 1 : 0); });
     return withPath.map(function (x) {
       var stem = noteStem(x.tab.path);
-      return { label: x.tab.title || stem, value: stem };
+      return { label: x.tab.title || stem, insert: '[[' + stem + ']]' };
     });
+  }
+
+  async function listDirs(dir, signal) {
+    var resp = await fetch('/api/vault/list-dirs', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path: dir }), signal: signal,
+    });
+    if (!resp.ok) return [];
+    var data = await resp.json();
+    return Array.isArray(data.dirs) ? data.dirs : [];
   }
 
   function el(tag, cls) {
@@ -158,7 +126,7 @@
     desc.textContent = 'Ask your notes, write with them, or look something up';
     card.appendChild(desc);
     var hints = el('div', 'chat-empty-hints');
-    [kbd('@'), textSpan('attach a note'), sep(), kbd('@/'), textSpan('attach a folder')]
+    [kbd('/'), textSpan('commands'), sep(), kbd('@'), textSpan('notes')]
       .forEach(function (n) { hints.appendChild(n); });
     card.appendChild(hints);
     box.appendChild(card);
@@ -176,8 +144,6 @@
     var ctxRow = rootEl.querySelector('#chat-context');
     var sendBtn = rootEl.querySelector('#chat-send');
     var attachBtn = rootEl.querySelector('#chat-add');
-    var attachMenu = rootEl.querySelector('#chat-add-menu');
-    var attachImage = rootEl.querySelector('#chat-add-image');
     var fileInput = rootEl.querySelector('#chat-file-input');
     var pendingImages = rootEl.querySelector('#chat-pending-images');
     var imageSig = '';
@@ -204,7 +170,7 @@
       var opts = extra ? Object.assign({ signal: listen.signal }, extra) : { signal: listen.signal };
       node.addEventListener(type, fn, opts);
     }
-    var ac = null;
+    var slash = null;
     var ro = null;
     var taRO = null;
     var contentRo = null;
@@ -599,7 +565,7 @@
       }
       if (attachBtn) {
         attachBtn.disabled = !snap.mateId;
-        if (attachBtn.disabled) setAttachOpen(false);
+        if (attachBtn.disabled && slash) slash.close();
       }
       paintImages(snap);
       if (sendBtn) {
@@ -827,37 +793,82 @@
       });
     }
 
-    if (ta && root.__hyloPathAcCreate) {
-      ac = root.__hyloPathAcCreate({
-        getInput: function () { return ta; },
-        getList: function () { return rootEl.querySelector('#chat-path-ac'); },
-        getPanel: function () { return rootEl.querySelector('#chat-ac-panel'); },
-        getHint: function () { return rootEl.querySelector('#chat-path-ac-hint'); },
-        parseCtx: chatAcParseCtx,
-        search: chatMentionSearch,
-        getDefaultItems: chatMentionDefaultItems,
-        onApply: function (input, newVal, caretPos) {
-          if (detaching) return;
-          var cur = input.value;
-          var p = 0;
-          while (p < cur.length && p < newVal.length && cur[p] === newVal[p]) p++;
-          var s = 0;
-          while (s < cur.length - p && s < newVal.length - p && cur[cur.length - 1 - s] === newVal[newVal.length - 1 - s]) s++;
-          root.__hyloTextareaInsert(input, p, cur.length - s, newVal.slice(p, newVal.length - s));
-          input.setSelectionRange(caretPos, caretPos);
-        },
-        escKey: 'chat-ac',
+    // This bot's skills: its own first, then the built-in ones.
+    async function botSkills() {
+      var mateId = api.state().mateId;
+      var resp = await fetch('/api/skills');
+      var data = resp.ok ? await resp.json() : {};
+      var enabled = (data.skills || []).filter(function (s) {
+        return (s.bots || []).some(function (b) { return b.id === mateId; });
       });
+      return enabled.filter(function (s) { return !s.default; })
+        .concat(enabled.filter(function (s) { return s.default; }))
+        .map(function (s) { return { label: s.name, icon: 'sparkles', sub: s.description, insert: s.name }; });
+    }
+
+    // Built per opening; groups fetch only once entered, and cache for the opening.
+    function slashCommands() {
+      var dirs = {};
+      var skills = null;
+      return [
+        { label: 'Image', icon: 'image', sub: 'Attach images from disk', aliases: ['img', 'photo', 'picture', '图片', '照片'],
+          run: function () { if (fileInput) fileInput.click(); } },
+        { label: 'Notes', icon: 'note', sub: 'Attach a note', aliases: ['@', 'mention', '笔记'], group: true, mention: true,
+          hint: '↑↓ select · Enter attach · ← back', debounce: 160,
+          load: async function (query, path, signal) {
+            var items = query ? await noteSearch(query, signal) : openTabNotes();
+            items.forEach(function (n) { n.icon = 'note'; });
+            return { items: items, note: query ? 'No matching notes' : 'Type to search notes' };
+          } },
+        { label: 'Folders', icon: 'folder', sub: 'Attach a folder', aliases: ['dir', 'directory', '文件夹', '目录'], group: true,
+          hint: '↑↓ select · Enter attach · → open · ← up',
+          load: async function (query, path, signal) {
+            var dir = '/' + path.map(function (p) { return p + '/'; }).join('');
+            var names = dirs[dir] || (dirs[dir] = await listDirs(dir, signal));
+            var q = query.toLowerCase();
+            var items = names.filter(function (n) { return n.toLowerCase().indexOf(q) !== -1; })
+              .map(function (n) { return { label: n, icon: 'folder', insert: dir + n + '/', open: n }; });
+            if (path.length && !q) items.unshift({ label: 'Attach ' + dir, icon: 'folder', insert: dir });
+            return { items: items, note: names.length ? 'No match' : 'No folders' };
+          } },
+        { label: 'Skills', icon: 'sparkles', sub: 'Insert a skill name', group: true,
+          load: async function (query) {
+            var all = await (skills || (skills = botSkills()));
+            return {
+              items: query ? root.__hyloSlashSearch(all, query) : all,
+              note: all.length ? 'No match' : 'No skills on for this bot. Turn them on in Settings → Skills.',
+            };
+          } },
+      ];
+    }
+
+    if (ta && root.__hyloSlashCreate) {
+      slash = root.__hyloSlashCreate({
+        input: ta,
+        panel: rootEl.querySelector('#chat-cmd-panel'),
+        head: rootEl.querySelector('#chat-cmd-head'),
+        list: rootEl.querySelector('#chat-cmd-list'),
+        hint: rootEl.querySelector('#chat-cmd-hint'),
+        commands: slashCommands,
+        onOpen: function (open) {
+          if (!attachBtn) return;
+          attachBtn.classList.toggle('is-open', open);
+          attachBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+        },
+        escKey: 'chat-slash',
+        signal: listen.signal,
+      });
+    }
+
+    if (ta) {
       on(ta, 'input', function (e) {
         if (detaching) return;
         api.setDraft(ta.value);
         root.__hyloAutoResize(ta, e);
-        ac.refresh();
         show(hint, !ta.value);
         refreshContext();
         if (sendBtn) sendBtn.disabled = !api.state().canSend;
       });
-      on(ta, 'click', function () { ac.refresh(); });
       var taScroll = ta.parentElement, snapTimer = 0;
       // Scroll origin is the bottom, so text above = range + scrollTop. Text
       // growing past the cap moves this without a scroll event, hence the observer.
@@ -880,18 +891,8 @@
           if (Math.abs(top - taScroll.scrollTop) > 0.5) taScroll.scrollTo({ top: top, behavior: 'smooth' });
         }, 150);
       }, { passive: true });
-      on(ta, 'keyup', function (ev) {
-        if (ev.key === 'ArrowLeft' || ev.key === 'ArrowRight' || ev.key === 'Home' || ev.key === 'End') ac.refresh();
-      });
-      on(ta, 'blur', function () {
-        setTimeout(function () {
-          if (!ac) return;
-          var list = rootEl.querySelector('#chat-path-ac');
-          if (list && !list.contains(document.activeElement)) ac.close();
-        }, 180);
-      });
       on(ta, 'keydown', function (e) {
-        if (ac && ac.handleKeydown(e)) return;
+        if (slash && slash.handleKeydown(e)) return;
         if (e.isComposing || e.keyCode === 229) return;
         var hk = window.__hyloHotkeys;
         if (!hk) return;
@@ -1029,26 +1030,10 @@
       if (focusIdle()) focusComposer();
     }
 
-    function setAttachOpen(open) {
-      if (!attachMenu || !attachBtn || open === !attachMenu.hidden) return;
-      attachMenu.hidden = !open;
-      attachBtn.classList.toggle('is-open', open);
-      attachBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
-      if (open) { if (root.__hyloEscPush) root.__hyloEscPush('chat-add-menu', function () { setAttachOpen(false); }); }
-      else if (root.__hyloEscPop) root.__hyloEscPop('chat-add-menu');
-    }
     on(sendBtn, 'click', function () { void api.send(); });
-    on(attachBtn, 'click', function () { setAttachOpen(attachMenu.hidden); });
-    on(attachImage, 'click', function () {
-      setAttachOpen(false);
-      if (fileInput) fileInput.click();
-    });
-    on(document, 'pointerdown', function (e) {
-      if (!attachMenu || attachMenu.hidden) return;
-      if (attachBtn && (attachBtn === e.target || attachBtn.contains(e.target))) return;
-      if (attachMenu.contains(e.target)) return;
-      setAttachOpen(false);
-    });
+    // Keeps the composer focused, so the palette opens on its caret.
+    on(attachBtn, 'mousedown', function (e) { e.preventDefault(); });
+    on(attachBtn, 'click', function () { if (slash) slash.toggle(); });
     on(fileInput, 'change', function () {
       var files = Array.prototype.slice.call(fileInput.files || []);
       fileInput.value = '';
@@ -1095,7 +1080,7 @@
       destroy: function () {
         detaching = true;
         splitSettled();
-        setAttachOpen(false);
+        if (slash) { slash.close(); slash = null; }
         endGlide();
         rows.forEach(function (row) { row.destroy(); });
         shelf.forEach(function (row) { row.destroy(); });
@@ -1108,10 +1093,6 @@
         if (ro) { ro.disconnect(); ro = null; }
         if (taRO) { taRO.disconnect(); taRO = null; }
         if (contentRo) { contentRo.disconnect(); contentRo = null; }
-        if (ac) {
-          try { ac.close(); } catch (e) { /* ignore */ }
-          ac = null;
-        }
         detaching = false;
       },
     };

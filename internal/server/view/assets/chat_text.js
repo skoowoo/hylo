@@ -176,7 +176,9 @@
     if (!el.disabled) {
       el.focus();
       el.setSelectionRange(start, end);
-      if (document.execCommand('insertText', false, text)) return;
+      if (!text && start === end) return;
+      // WebKit stops painting the caret when insertText('') empties the field.
+      if (document.execCommand(text ? 'insertText' : 'delete', false, text)) return;
     }
     el.setRangeText(text, start, end, 'end');
     el.dispatchEvent(new Event('input', { bubbles: true }));
