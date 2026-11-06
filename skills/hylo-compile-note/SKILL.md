@@ -23,7 +23,7 @@ Read it in full. Record:
 
 ## Step 2 — Load the relevant index
 
-`knowledge_list_indexes`, pick the 1–2 domains closest to the note, and read only those indexes for their unit tables. No indexes: `knowledge_list {"kind": "knowledge"}` and build a compact table yourself (title | entity_type | tags | first paragraph, ≤80 chars).
+`knowledge_list_indexes`, pick the 1–2 domains closest to the note, and read only those indexes for their unit tables. No indexes: `knowledge_list {"kind": "knowledge"}`.
 
 ## Step 3 — Pre-compile (internal, never shown)
 
@@ -31,7 +31,7 @@ List the units to create or update, without writing content yet.
 
 A unit is a wiki page for a **key entity** the note treats with substance: a person, company, book, concept, technique, place, event, product, method, anything. It qualifies only if all three hold; otherwise fold the content into another unit:
 
-1. **A stable name**: a recognized term or proper noun, not a sentence ("the argument that…").
+1. **A stable name**: a name the note itself uses, or an established term. Never a coined phrase, a claim ("X matters more than Y") or a topic; a claim goes into the unit of the entity it's about.
 2. **Depth to accumulate**: mechanisms, tensions, implications, not just a definition. One clear defining sentence, and more to say beyond it.
 3. **It will recur** across notes from different contexts and dates.
 
@@ -41,14 +41,18 @@ Calibrate:
 - **Too narrow**: a sub-point, data point, metric, dependent sub-argument or passing mention. Fold it in.
 - **Two units or one**: split when they have different cores that would grow independently; keep one as a sub-point when it's an example or implication of the other.
 
-Manifest (may be empty):
+Before marking a unit `create`, `knowledge_search` its name, aliases and other-language names: indexes miss units in other domains or not yet indexed. A hit is an `update`.
+
+Manifest:
 
 | unit name | entity_type | operation |
 | --- | --- | --- |
 | <unit title> | <freeform> | create |
 | <unit title> | <freeform> | update |
 
-`entity_type` is a short freeform label (`person`, `company`, `book`, `concept`, `event`, `technique`…), with no templates tied to it. Before Step 4, read the file of every `update` unit at `/_knowledge/<unit-name>.md`.
+`entity_type` is a short freeform label (`person`, `company`, `book`, `concept`, `event`, `technique`…). Before Step 4, read the file of every `update` unit at `/_knowledge/<unit-name>.md`.
+
+An empty manifest is a valid result: when the note adds nothing the units lack, or nothing qualifies, write nothing, say why in one line and stop. Never force a unit out of a thin note.
 
 ## Step 4 — Compile
 
@@ -56,7 +60,14 @@ Each unit follows *Unit format* below plus its operation's file: `references/cre
 
 ## Language
 
-Match the language of the existing units, or of the note when there are none; section names follow it (`## 来源`). Dates are `YYYY-MM-DD`.
+Match the language of the existing units, or of the note when there are none. The title uses that language alone, with no translation in parentheses; other names go in `aliases`, and wikilinks use the exact title. Required sections take exactly the names below, or `## 关联知识` / `## 来源` in Chinese. Dates are `YYYY-MM-DD`.
+
+## Fidelity
+
+A unit holds only what its source notes say. Add no background or facts from your own knowledge, even to round out an entity.
+
+- Locate every number, date and quote in the note before writing it, and keep its precision: "三千多" stays 三千多, never 3,600. Computed values show their inputs. Can't find it: leave it out.
+- In `external` notes, attribute opinions to whoever holds them.
 
 ## Time
 
@@ -64,7 +75,7 @@ Anchor time to the source's **original date**, not the compile date: write "as o
 
 ## Unit format
 
-**Content.** Choose and name sections freely; let the entity dictate the structure (a person, a book, a company and a technique each call for different organization). Ask what the author needs to know about it when they return later. A unit holds only what's most important: source notes are the permanent record, the unit is a living distillation.
+**Content.** Choose and name sections freely; let the entity dictate the structure. Ask what the author needs to know about it when they return later. A unit holds only what's most important: source notes are the permanent record, the unit is a living distillation.
 
 **Two required sections:**
 
@@ -77,6 +88,7 @@ Anchor time to the source's **original date**, not the compile date: write "as o
 ---
 kind: knowledge
 title: <Title>
+aliases: [other names, other-language names]   # omit when none
 entity_type: <freeform label>
 tags: [tag1, tag2]
 source_notes:
