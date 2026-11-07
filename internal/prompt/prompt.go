@@ -32,9 +32,6 @@ type Run struct {
 	// Agenda is set when the bot's own rounds are on, so a due agenda item wakes it.
 	Agenda bool
 	Intro  *Intro
-	// Overrides replaces a section's built-in text by section ID, e.g. the
-	// user's agent.system_prompt for Global. Blank values are ignored.
-	Overrides map[string]string
 }
 
 // Section is one layer of the system prompt.
@@ -59,10 +56,7 @@ func Parts(r Run) []Part {
 		if s.Applies != nil && !s.Applies(r) {
 			continue
 		}
-		t := strings.TrimSpace(r.Overrides[s.ID])
-		if t == "" {
-			t = strings.TrimSpace(s.Text(r))
-		}
+		t := strings.TrimSpace(s.Text(r))
 		if t != "" {
 			out = append(out, Part{s.ID, t})
 		}

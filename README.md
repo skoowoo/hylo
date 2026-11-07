@@ -337,27 +337,23 @@ For what each built-in skill does and example prompts, see the [Skills Guide](./
 
 ## Customizing AI Behavior
 
-Every layer of AI output in Hylo is customizable:
+The global system prompt is part of Hylo. What you can change:
 
-#### 1. Global Agent System Prompt
-
-**Settings → Server → Config → Agent** — set `agent.system_prompt` to replace the built-in default prompt that is prepended to every agent run. When left empty, Hylo uses its built-in default which teaches agents about vault structure, wiki-link syntax, and personal memory files.
-
-#### 2. Per-Agent-Bot System Prompt & Trigger Prompt
+#### 1. Per-bot system prompt and trigger prompt
 
 In **Settings → Bots**, each bot exposes two customization points:
 
 - **System Prompt** — agent-bot-specific instructions. Appended to the global system prompt (joined with `---`).
 - **Trigger Prompt template**: the user message sent to the agent when a trigger fires. Supports variables: `{Path}`, `{Name}`, `{Content}` for vault events; `{Now}`, `{Date}`, `{Time}` for scheduled triggers.
 
-#### 3. Rewrite the LLM-Wiki Compile Skill
+#### 2. Rewrite the LLM-Wiki Compile Skill
 
 The LLM wiki compilation behavior is defined in `~/.hylo/skills/hylo-compile-note/SKILL.md`. Edit this file to change how raw notes are compiled into structured knowledge and linked into the LLM wiki network. Note that Hylo overwrites it with the built-in version on every start, so keep your own copy of any changes.
 
-#### 4. Rewrite the Memory Extraction Skill
+#### 3. Rewrite the Memory Extraction Skill
 
 The personal memory extraction behavior is defined in `~/.hylo/skills/hylo-memory/SKILL.md`. Edit this file to change what gets extracted and how memory files are structured. Like the compile skill, it is overwritten with the built-in version on every start.
 
-#### 5. Install or Build Custom Skills
+#### 4. Install or Build Custom Skills
 
 Drop any skill directory into `~/.hylo/skills/`, then enable it in **Settings → Skills**. Skills are referenced by agents via their directory name.

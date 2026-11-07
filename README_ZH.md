@@ -337,27 +337,23 @@ hylo skills remove podwise
 
 ## 自定义 AI 行为
 
-Hylo 的每一层 AI 输出都可以自定义：
+全局 system prompt 是 Hylo 自带的。你可以改的是这些：
 
-#### 1. 全局 Agent System Prompt
-
-**设置 → Server → Config → Agent** — 填写 `agent.system_prompt` 替换内置的全局 system prompt，该 prompt 会拼接在每次 agent 运行的最前面。留空时 Hylo 使用内置默认值，该默认值会告知 agent vault 的目录结构、wiki-link 语法以及个人记忆文件的位置。
-
-#### 2. 每个 Bot 的 System Prompt 与 Trigger Prompt
+#### 1. 每个 Bot 的 System Prompt 与 Trigger Prompt
 
 在**设置 → Bots** 中，每个 Bot 有两个自定义点：
 
 - **System Prompt**：Bot 专属指令，附加在全局 system prompt 之后（用 `---` 分隔）。
 - **Trigger Prompt 模板**：Trigger 触发时发送给 agent 的用户消息，支持变量：vault 事件用 `{Path}`、`{Name}`、`{Content}`；定时触发用 `{Now}`、`{Date}`、`{Time}`。
 
-#### 3. 重写 LLM-Wiki 编译 Skill
+#### 2. 重写 LLM-Wiki 编译 Skill
 
 LLM Wiki 编译行为由 `~/.hylo/skills/hylo-compile-note/SKILL.md` 定义。编辑此文件即可改变原始笔记被编译成结构化知识、并链接进 LLM Wiki 网络的方式。注意：Hylo 每次启动都会用内置版本覆盖它，改动需要自己保存好。
 
-#### 4. 重写记忆抽取 Skill
+#### 3. 重写记忆抽取 Skill
 
 个人记忆抽取行为由 `~/.hylo/skills/hylo-memory/SKILL.md` 定义。编辑此文件即可改变抽取内容与记忆文件的组织结构。和编译 skill 一样，每次启动都会被内置版本覆盖。
 
-#### 5. 安装或编写自定义 Skill
+#### 4. 安装或编写自定义 Skill
 
 将任意 skill 目录放入 `~/.hylo/skills/`，然后在**设置 → Skills** 中启用即可。Agent 通过目录名来引用 skill。

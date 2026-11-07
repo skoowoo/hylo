@@ -31,20 +31,22 @@
                   </div>
                   <p class="settings-intro settings-msg--err" x-show="serverStopError" x-text="serverStopError"></p>
 
-                  <section class="settings-section" x-show="!cfgLoading && !cfgError">
-                    <h3 class="settings-section-title">Configuration <small x-text="heroName"></small></h3>
-                    <div class="cfg-section-grid">
-                      <template x-for="section in sectionTabs" :key="section">
-                        <button type="button" class="list-card list-card--clickable cfg-section-card" @click="openSectionDetail(section)">
-                          <span class="cfg-section-card-title">
-                            <span x-text="sectionLabel(section)"></span>
-                            <span class="dot dot--accent" x-show="sectionHasDirty(section)" title="Unsaved changes in this section"></span>
-                          </span>
-                          <span class="settings-desc" x-text="sectionIntro(section)"></span>
-                        </button>
-                      </template>
-                    </div>
-                  </section>
+                  <template x-for="group in sectionGroups" :key="group.id">
+                    <section class="settings-section cfg-group" x-show="!cfgLoading && !cfgError">
+                      <h3 class="settings-section-title" x-text="group.label"></h3>
+                      <div class="cfg-section-grid">
+                        <template x-for="section in group.sections" :key="section">
+                          <button type="button" class="list-card list-card--clickable cfg-section-card" @click="openSectionDetail(section)">
+                            <span class="cfg-section-card-title">
+                              <span x-text="sectionLabel(section)"></span>
+                              <span class="dot dot--accent" x-show="sectionHasDirty(section)" title="Unsaved changes in this section"></span>
+                            </span>
+                            <span class="settings-desc" x-text="sectionIntro(section)"></span>
+                          </button>
+                        </template>
+                      </div>
+                    </section>
+                  </template>
                 </div>
               </template>
 
@@ -59,7 +61,7 @@
                       <div class="settings-row"
                            :class="{'is-dirty': isDirty(field.key), 'settings-row--block': field.type === 'string_list' || field.multiline, 'settings-row--input': field.type !== 'bool' && field.type !== 'string_list' && !field.multiline}">
                         <div>
-                          <span class="settings-label cfg-label"><span x-text="field.label"></span><span class="badge badge--sm" x-show="field.vault" :title="vaultConfigPath ? 'Saved in ' + vaultConfigPath : ''">This vault</span></span>
+                          <span class="settings-label cfg-label" x-text="field.label"></span>
                           <span class="settings-desc" x-text="field.description"></span>
                           <code class="settings-key" x-text="field.key"></code>
                         </div>

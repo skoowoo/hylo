@@ -2,7 +2,6 @@ package handler
 
 import (
 	"github.com/hardhacker/hylo/internal/config"
-	"github.com/hardhacker/hylo/internal/prompt"
 )
 
 // SchemaField describes one editable configuration key for GET /api/config/schema.
@@ -59,10 +58,6 @@ func buildConfigSchema() []SchemaField {
 			Default:     "text",
 			Enum:        []string{"text", "json"}},
 
-		{Key: "agent.system_prompt", Type: "string", Section: "agent", Label: "Agent system prompt",
-			Description: "Global system prompt prepended to every agent run. Leave empty to always use the latest built-in default. Hylo's vault conventions (wiki links, knowledge base, memory) follow it either way, then the mate's own system prompt (if any), each after a markdown divider.",
-			Multiline:   true, Default: prompt.GlobalDefault},
-
 		{Key: "plugins.search.use_jieba", Type: "bool", Section: "plugins.search", Label: "Use jieba",
 			Description: "Enable Chinese tokenisation for search (~50 MB + ~1s startup).",
 			Default:     false},
@@ -70,7 +65,7 @@ func buildConfigSchema() []SchemaField {
 			Description: "Vault-absolute path prefixes skipped by the search index.", Default: []string{}},
 
 		{Key: "plugins.git_sync.enabled", Type: "bool", Section: "plugins.git_sync", Label: "Git sync enabled",
-			Description: "When true, this vault's changes commit and optionally push to remote.", Default: false},
+			Description: "When true, changes commit and optionally push to remote.", Default: false},
 		{Key: "plugins.git_sync.remote", Type: "string", Section: "plugins.git_sync", Label: "Remote URL",
 			Description: "HTTPS remote URL Hylo pushes to and pulls from, as its own remote; the repository's origin is left alone. Empty keeps commits local.", Default: ""},
 		{Key: "plugins.git_sync.branch", Type: "string", Section: "plugins.git_sync", Label: "Branch",

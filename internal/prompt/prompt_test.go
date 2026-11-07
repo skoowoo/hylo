@@ -33,13 +33,10 @@ func TestSectionsApplyByRun(t *testing.T) {
 	}
 }
 
-func TestOverrideReplacesGlobal(t *testing.T) {
-	got := System(Run{Bot: "bot", Overrides: map[string]string{SectionGlobal: " mine "}})
-	if got != "mine\n\n---\n\n"+vaultText+"\n\n---\n\nbot\n\n---\n\n"+strings.TrimSpace(choicesText)+"\n\n---\n\n"+strings.TrimSpace(embedText) {
+func TestGlobalPromptIsTheBuiltInText(t *testing.T) {
+	got := System(Run{Bot: "bot"})
+	if !strings.HasPrefix(got, GlobalDefault+"\n\n---\n\n"+vaultText+"\n\n---\n\nbot\n") {
 		t.Fatalf("%q", got)
-	}
-	if got := System(Run{Overrides: map[string]string{SectionGlobal: "  "}}); !strings.HasPrefix(got, GlobalDefault+"\n") {
-		t.Fatal("blank override must fall back to the default")
 	}
 }
 

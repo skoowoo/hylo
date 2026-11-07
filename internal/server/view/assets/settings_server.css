@@ -1,5 +1,6 @@
     /* ── Server config ────────────────────────────────────────── */
-    /* Every section is a card one click away; opening one swaps the grid for its fields. */
+    /* Global and vault each get a heading and a grid of cards. Opening one swaps the grids for its fields. */
+    .settings-section.cfg-group + .settings-section.cfg-group { margin-top: var(--space-xl); }
     .cfg-section-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-xs); }
     .cfg-section-card { display: flex; flex-direction: column; gap: 2px; text-align: left; font-family: inherit; }
     .cfg-section-card-title {

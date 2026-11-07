@@ -15,9 +15,8 @@ type Config struct {
 	Server    ServerConfig    `mapstructure:"server" json:"server" toml:"server"`
 	Log       LogConfig       `mapstructure:"log" json:"log" toml:"log"`
 	Vault     VaultConfig     `mapstructure:"vault" json:"vault" toml:"vault"`
-	Agent     AgentConfig     `mapstructure:"agent" json:"agent" toml:"agent"`
-	Plugins   PluginsConfig   `mapstructure:"plugins" json:"plugins" toml:"plugins"`
-	Proactive ProactiveConfig `mapstructure:"proactive" json:"proactive" toml:"-"` // vault keys only
+	Plugins   PluginsConfig   `mapstructure:"plugins" json:"plugins" toml:"-"`     // one vault's config
+	Proactive ProactiveConfig `mapstructure:"proactive" json:"proactive" toml:"-"` // one vault's config
 }
 
 // PluginsConfig groups all optional plugin configurations.
@@ -40,25 +39,23 @@ type SearchConfig struct {
 	// prefixes are silently skipped. Useful for auto-generated directories
 	// (e.g. "/_summaries") or archive folders you don't want in search results.
 	// Prefixes without a leading "/" are accepted and normalised automatically.
-	// An empty list (default) indexes everything.
+	// The built-in list skips the system directories; a vault's own list replaces it.
 	ExcludePrefixes []string `mapstructure:"exclude_prefixes" json:"exclude_prefixes" toml:"exclude_prefixes"`
 }
 
 // GitSyncConfig holds settings for the git-based vault sync plugin.
+// The whole section belongs to one vault, like every other plugin setting.
 type GitSyncConfig struct {
-	// Enabled, Remote and Branch name one vault's repository, so they live
-	// only in that vault's config (never inherited from the global file).
-
 	// Enabled must be true for the plugin to start (opt-in).
-	Enabled bool `mapstructure:"enabled" json:"enabled" toml:"-"`
+	Enabled bool `mapstructure:"enabled" json:"enabled" toml:"enabled"`
 
 	// Remote is the git remote URL (HTTPS or SSH). Leave empty for local-only
 	// commits without any remote sync.
-	Remote string `mapstructure:"remote" json:"remote" toml:"-"`
+	Remote string `mapstructure:"remote" json:"remote" toml:"remote"`
 
 	// Branch is the branch to commit to and push/pull from. Required when
 	// Enabled: commits never land on a branch the user did not name.
-	Branch string `mapstructure:"branch" json:"branch" toml:"-"`
+	Branch string `mapstructure:"branch" json:"branch" toml:"branch"`
 
 	// AuthToken is a personal access token used for HTTPS remotes
 	// (GitHub, GitLab, Gitea, etc.). Passed as the HTTP password with
@@ -124,13 +121,6 @@ type VaultConfig struct {
 	// Path is the root directory of the Vault.
 	// Supports ~ for the home directory.
 	Path string `mapstructure:"path" json:"path" toml:"path"`
-}
-
-// AgentConfig configures Open Design–compatible local agent CLI integration.
-type AgentConfig struct {
-	// SystemPrompt replaces the built-in global layer of the system prompt
-	// (prompt.GlobalDefault) when set; the vault conventions below it stay. See internal/prompt.
-	SystemPrompt string `mapstructure:"system_prompt" json:"system_prompt" toml:"system_prompt"`
 }
 
 // ProactiveConfig paces the main bot's own rounds (internal/pulse): it wakes
@@ -283,7 +273,9 @@ func MergedFromOptionalFile(absPath string) (*Config, error) {
 	if err := v.Unmarshal(cfg); err != nil {
 		return nil, fmt.Errorf("unmarshaling config: %w", err)
 	}
-	clearRepoKeys(cfg)
+	if err := resetVaultScoped(cfg); err != nil {
+		return nil, err
+	}
 	return cfg, nil
 }
 
@@ -327,8 +319,6 @@ func setDefaults(v *viper.Viper) {
 
 	v.SetDefault("vault.path", defaultVaultPath())
 
-	v.SetDefault("agent.system_prompt", "")
-
 	// git_sync plugin defaults (disabled by default; user must opt in)
 	v.SetDefault("plugins.git_sync.enabled", false)
 	v.SetDefault("plugins.git_sync.auto_commit", true)
@@ -339,7 +329,7 @@ func setDefaults(v *viper.Viper) {
 
 	// search plugin defaults (always active; configure behaviour here)
 	v.SetDefault("plugins.search.use_jieba", true)
-	v.SetDefault("plugins.search.exclude_prefixes", []string{storage.AssetsDir, storage.KnowledgeDir + "/_indexes"})
+	v.SetDefault("plugins.search.exclude_prefixes", []string{storage.AssetsDir, storage.BotsDir, storage.KnowledgeDir + "/_indexes"})
 
 	v.SetDefault("proactive.enabled", true)
 	v.SetDefault("proactive.wakes_per_day", 24)

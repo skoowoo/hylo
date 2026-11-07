@@ -509,11 +509,10 @@ func (a *AgentAPI) executeChat(ctx context.Context, run *agent.Run, body chatBod
 		}
 	}
 	pr := prompt.Run{
-		Bot:       body.SystemPrompt,
-		Main:      main,
-		MCP:       a.mcpURL(body.AgentID) != "",
-		Agenda:    a.rounds,
-		Overrides: map[string]string{prompt.SectionGlobal: a.cfg.Agent.SystemPrompt},
+		Bot:    body.SystemPrompt,
+		Main:   main,
+		MCP:    a.mcpURL(body.AgentID) != "",
+		Agenda: a.rounds,
 	}
 	if body.oneShot {
 		pr.Kind = prompt.OneShot

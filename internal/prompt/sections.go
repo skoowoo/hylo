@@ -2,7 +2,7 @@ package prompt
 
 import "strings"
 
-// Section IDs, also the keys of Run.Overrides.
+// Section IDs.
 const (
 	SectionGlobal       = "global"
 	SectionVault        = "vault"
@@ -15,8 +15,7 @@ const (
 	SectionAgenda       = "agenda"
 )
 
-// GlobalDefault is the built-in global prompt, used until the user sets
-// agent.system_prompt.
+// GlobalDefault is the global system prompt, from text/global.md.
 var GlobalDefault = load("global")
 
 var (
@@ -33,8 +32,7 @@ var (
 // situational one. A new layer is one entry here.
 var sections = []Section{
 	{ID: SectionGlobal, Applies: notOneShot, Text: func(Run) string { return GlobalDefault }},
-	// What skills and tools rely on (link syntax, where knowledge and memory live), so the
-	// user's global prompt doesn't replace it.
+	// Conventions skills and tools rely on: link syntax, where knowledge and memory live.
 	{ID: SectionVault, Applies: notOneShot, Text: func(Run) string { return vaultText }},
 	{ID: SectionBot, Text: func(r Run) string { return r.Bot }},
 	{ID: SectionMCP, Applies: func(r Run) bool { return r.MCP && r.Kind != OneShot }, Text: func(Run) string { return mcpText }},

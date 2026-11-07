@@ -11,7 +11,6 @@
       schema: [],
       values: {},
       secrets: {},
-      vaultConfigPath: '',
       cfgLoading: false,
       cfgError: '',
       cfgSaving: false,
@@ -23,22 +22,30 @@
       revealed: {},
       openSection: '',
 
-      get sectionTabs() {
+      get sectionGroups() {
         const excluded = new Set(['log', 'server']);
-        const seen = new Set(), tabs = [];
+        const order = [], seen = new Set();
         for (const f of this.schema) {
           if (!seen.has(f.section) && !excluded.has(f.section)) {
             seen.add(f.section);
-            tabs.push(f.section);
+            order.push(f.section);
           }
         }
-        return tabs;
+        const global = [], vault = [];
+        for (const s of order) {
+          const fields = this.fieldsForSection(s);
+          (fields.length && fields.every(f => f.vault) ? vault : global).push(s);
+        }
+        return [
+          { id: 'global', label: 'Global', sections: global },
+          { id: 'vault', label: 'Vault', sections: vault },
+        ].filter(g => g.sections.length);
       },
 
       sectionLabel(s) {
         const m = {
           'proxy': 'Proxy',
-          'vault': 'Vault', 'agent': 'Agent',
+          'vault': 'Vault',
           'plugins.search': 'Search', 'plugins.git_sync': 'Git Sync',
           'proactive': 'Proactive',
         };
@@ -49,10 +56,9 @@
         const m = {
           'proxy': 'One proxy for Discord, Telegram, link previews, remote images, WeChat, and git.',
           'vault': 'Paths, layout, and core vault behavior.',
-          'agent': 'Agent CLI integration and global prompt settings.',
           'plugins.search': 'Indexing and search quality.',
-          'plugins.git_sync': 'Automatic git push/pull. Whether it runs, and where it pushes, is set per vault.',
-          'proactive': 'The main bot\'s own rounds, set per vault.',
+          'plugins.git_sync': 'Commits and pushes.',
+          'proactive': 'The main bot\'s own rounds.',
         };
         return m[s] || '';
       },
@@ -193,7 +199,6 @@
           const vd = await vr.json();
           this.values = vd.values || {};
           this.secrets = vd.secrets || {};
-          this.vaultConfigPath = (vd.meta && vd.meta.vault_config_path) || '';
         } catch (e) { this.cfgError = e.message; }
         finally { this.cfgLoading = false; }
       },

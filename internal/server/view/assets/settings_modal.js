@@ -12,7 +12,8 @@
       // gets its back button; null on a tab's own list.
       detailView() {
         if (this.tab === 'server' && this.openSection) {
-          return { title: this.sectionLabel(this.openSection), parent: 'Configuration', back: () => { this.openSection = ''; } };
+          const group = this.sectionGroups.find(g => g.sections.includes(this.openSection));
+          return { title: this.sectionLabel(this.openSection), parent: group ? group.label : 'Configuration', back: () => { this.openSection = ''; } };
         }
         if (this.tab === 'agent-bots' && this.agentBotFormMode) {
           const name = this.agentBotDraft.name.trim();

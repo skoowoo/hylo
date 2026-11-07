@@ -120,11 +120,11 @@ func TestPatchWritesVaultKeysToTheOpenVault(t *testing.T) {
 		t.Fatalf("patch: %d %s", rec.Code, rec.Body.String())
 	}
 	global, _ := os.ReadFile(path)
-	if strings.Contains(string(global), "example.com") || !strings.Contains(string(global), "2m") {
+	if strings.Contains(string(global), "example.com") || strings.Contains(string(global), "2m") {
 		t.Fatalf("global file:\n%s", global)
 	}
 	local, err := os.ReadFile(config.VaultConfigPath(vault))
-	if err != nil || !strings.Contains(string(local), "example.com") || strings.Contains(string(local), "2m") {
+	if err != nil || !strings.Contains(string(local), "example.com") || !strings.Contains(string(local), "2m") {
 		t.Fatalf("vault file: %v\n%s", err, local)
 	}
 }

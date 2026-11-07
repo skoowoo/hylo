@@ -46,14 +46,30 @@ func commitFile(t *testing.T, repo *git.Repository, root, name string) {
 	}
 }
 
+func TestDefaultSearchExcludeSkipsBots(t *testing.T) {
+	cfg, err := defaultConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := strings.Join(cfg.Plugins.Search.ExcludePrefixes, ",")
+	for _, want := range []string{"/_assets", "/_bots", "/_knowledge/_indexes"} {
+		if !strings.Contains(","+got+",", ","+want+",") {
+			t.Fatalf("default exclude %q missing %s", got, want)
+		}
+	}
+}
+
 func TestVaultConfigOverridesGlobal(t *testing.T) {
 	vault := t.TempDir()
 	global := globalWithVault(t, vault, `
 [plugins.search]
 exclude_prefixes = ["/global"]
+use_jieba = false
 [plugins.git_sync]
 debounce = "1m"
 auth_token = "tok"
+[agent]
+system_prompt = "custom"
 `)
 	writeFile(t, VaultConfigPath(vault), `
 [vault]
@@ -79,8 +95,17 @@ debounce = "9h"
 	if !g.Enabled || g.Remote != "https://example.com/v.git" || g.Branch != "" {
 		t.Fatalf("git sync from vault: %+v", g)
 	}
-	if g.Debounce != "1m" || g.AuthToken != "tok" {
-		t.Fatalf("global git sync settings lost: %+v", g)
+	if g.Debounce != "9h" || g.AuthToken != "tok" {
+		t.Fatalf("vault debounce or migrated token: %+v", g)
+	}
+	if cfg.Plugins.Search.UseJieba {
+		t.Fatal("use_jieba stayed at the built-in default")
+	}
+	raw, _ := os.ReadFile(global)
+	for _, gone := range []string{"tok", "1m", "/global", "use_jieba", "custom"} {
+		if strings.Contains(string(raw), gone) {
+			t.Fatalf("global file still has %q:\n%s", gone, raw)
+		}
 	}
 }
 
@@ -96,15 +121,17 @@ auth_token = "tok"
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.Plugins.GitSync.Enabled || cfg.Plugins.GitSync.Remote != "" {
-		t.Fatalf("new vault inherited git sync: %+v", cfg.Plugins.GitSync)
+	g := cfg.Plugins.GitSync
+	if g.Enabled || g.Remote != "" || g.AuthToken != "tok" {
+		t.Fatalf("git sync after migration: %+v", g)
 	}
 	raw, _ := os.ReadFile(global)
-	if strings.Contains(string(raw), "old.git") || !strings.Contains(string(raw), "tok") {
+	if strings.Contains(string(raw), "old.git") || strings.Contains(string(raw), "tok") {
 		t.Fatalf("global file after migration:\n%s", raw)
 	}
-	if _, err := os.Stat(VaultConfigPath(vault)); !os.IsNotExist(err) {
-		t.Fatalf("vault config written for an unrelated vault: %v", err)
+	local, _ := os.ReadFile(VaultConfigPath(vault))
+	if strings.Contains(string(local), "old.git") || !strings.Contains(string(local), "tok") {
+		t.Fatalf("vault file:\n%s", local)
 	}
 }
 
@@ -191,12 +218,18 @@ func TestWriteVaultConfigKeepsOnlyVaultKeys(t *testing.T) {
 			t.Fatalf("missing %q in\n%s", want, out)
 		}
 	}
-	if strings.Contains(out, "debounce") || strings.Contains(out, "path") || strings.Contains(out, "jieba") {
-		t.Fatalf("global keys leaked into the vault file:\n%s", out)
+	for _, leaked := range []string{"path"} {
+		if strings.Contains(out, leaked) {
+			t.Fatalf("global key %q leaked into the vault file:\n%s", leaked, out)
+		}
+	}
+	for _, want := range []string{"use_jieba", "debounce"} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("missing %q in\n%s", want, out)
+		}
 	}
 	vaultPart, _ := gp["vault"].(map[string]any)
-	gitPart, _ := gp["plugins"].(map[string]any)["git_sync"].(map[string]any)
-	if vaultPart["path"] != "/x" || gitPart["debounce"] != "1m" || len(vaultPart) != 1 || len(gitPart) != 1 {
+	if _, plugins := gp["plugins"]; plugins || vaultPart["path"] != "/x" || len(gp) != 1 || len(vaultPart) != 1 {
 		t.Fatalf("global part: %v", gp)
 	}
 }
@@ -270,6 +303,32 @@ func TestLoadForAnotherVaultUsesItsConfig(t *testing.T) {
 	}
 	if cfg.Vault.Path != other || strings.Join(cfg.Plugins.Search.ExcludePrefixes, ",") != "/other" {
 		t.Fatalf("got %+v %v", cfg.Vault, cfg.Plugins.Search.ExcludePrefixes)
+	}
+}
+
+func TestAnotherVaultKeepsBuiltInPluginDefaults(t *testing.T) {
+	vault, other := t.TempDir(), t.TempDir()
+	global := globalWithVault(t, vault, `
+[plugins.search]
+use_jieba = false
+exclude_prefixes = ["/from-global"]
+[plugins.git_sync]
+auth_token = "tok"
+debounce = "1m"
+`)
+	cfg, _, err := load(global, other)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !cfg.Plugins.Search.UseJieba || cfg.Plugins.GitSync.AuthToken != "" || cfg.Plugins.GitSync.Debounce != "5m" {
+		t.Fatalf("other vault inherited plugin settings: %+v %+v", cfg.Plugins.Search, cfg.Plugins.GitSync)
+	}
+	if strings.Join(cfg.Plugins.Search.ExcludePrefixes, ",") == "/from-global" {
+		t.Fatal("other vault took the global exclude list")
+	}
+	raw, _ := os.ReadFile(global)
+	if !strings.Contains(string(raw), "tok") || !strings.Contains(string(raw), "use_jieba") {
+		t.Fatalf("loading another vault stripped the global file:\n%s", raw)
 	}
 }
 

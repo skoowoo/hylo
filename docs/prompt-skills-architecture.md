@@ -21,7 +21,7 @@ flowchart LR
         T[Trigger<br/>事件 / 定时]
         O[OneShot<br/>内部单次请求，如 setup hello]
     end
-    C & T & O --> R["prompt.Run<br/>{Kind, Bot, Main, MCP, Intro, Overrides}"]
+    C & T & O --> R["prompt.Run<br/>{Kind, Bot, Main, MCP, Intro}"]
     R --> S["prompt.System(r)<br/>按顺序过滤 sections，用分隔线连接"]
     S --> M["prompt.Message(system, request, cwd, dir, resume)"]
     M --> A[agent CLI]
@@ -36,7 +36,7 @@ flowchart LR
 - `MCP`：这个 agent 是否注入了 Hylo MCP。
 - `Kind`：`oneShot` → OneShot，其余 → Chat（trigger 唤醒的轮次也是 Chat，任务外包一层 `prompt.WakeRequest`）。
 - `Intro`：onboarding 后的第一次聊天。
-- `Overrides[global]`：用户设置里的 `agent.system_prompt`。
+- `global` 这一层固定是 `text/global.md`，没有配置项。
 
 `prompt.Message` 产出 agent 真正收到的第一条消息：
 
@@ -64,7 +64,7 @@ agent CLI 没有独立的 system prompt 参数，所以指令只随第一轮发�
 
 | # | Section | 文本 | 生效条件 | 可覆盖 |
 | --- | --- | --- | --- | --- |
-| 1 | `global` | `text/global.md`：一句身份说明 | `Kind != OneShot` | ✅ `agent.system_prompt` |
+| 1 | `global` | `text/global.md`：一句身份说明 | `Kind != OneShot` | ❌ |
 | 2 | `vault` | `text/vault.md`：知识库路径、`[[ ]]` 链接规则、何时读哪些记忆文件 | `Kind != OneShot` | ❌ |
 | 3 | `bot` | `Run.Bot`：主 bot 用 `text/bot_hylo.md`，其他 bot 由用户或 hylo-bots 写 | 非空即生效 | — |
 | 4 | `mcp` | `text/mcp.md`：怎么用 Hylo 工具，按需局部读取（`extract_*`） | `MCP && Kind != OneShot` | ❌ |
@@ -72,7 +72,7 @@ agent CLI 没有独立的 system prompt 参数，所以指令只随第一轮发�
 | 6 | `capabilities` | `text/capabilities.md`：内容层（方法、`sources` 卡、去向）+ 自动化阶梯 L0–L3 | `Chat && Main && MCP && Intro == nil` | ❌ |
 | 7 | `intro` | `text/intro.md` 模板：启动 hylo-setup | `Intro != nil` | ❌ |
 
-`global` 和 `vault` 分开，是因为 skill 和工具依赖的约定（链接写法、`_knowledge/_indexes/`、`_memory/`）不能被用户的个性化 prompt 冲掉。
+`global` 是固定的身份说明。`vault` 单独一层，放 skill 和工具依赖的约定（链接写法、`_knowledge/_indexes/`、`_memory/`）。
 
 ### 各类运行实际拿到哪些 sections
 

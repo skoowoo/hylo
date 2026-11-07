@@ -21,44 +21,6 @@ path = "~/Documents/Hylo Vault"
 level = "info"  # debug | info | warn | error
 format = "text" # text | json
 
-# ── Plugins ───────────────────────────────────────────────────────────────────
-# All plugins are opt-in. Remove or set enabled = false to disable.
-
-# Settings that describe one vault live in <vault>/.hylo/config.toml and
-# override this file: plugins.search.exclude_prefixes, and git sync's
-# enabled / remote / branch.
-# Git sync's switch and remote are read only from there, so switching vaults
-# never points a new vault at the old one's repository:
-#
-#   [plugins.git_sync]
-#   enabled = true
-#   branch = "main"                           # required: where commits go
-#   remote = "git@github.com:you/vault.git"   # empty for local-only commits
-
-[plugins.git_sync]
-# Personal access token for HTTPS remotes (GitHub, GitLab, Gitea …).
-# For GitHub: Settings → Developer settings → Personal access tokens → repo scope.
-# Leave empty when using SSH or a public repo.
-auth_token = ""
-
-# =============================================================================
-# Local agent CLI integration (Open Design–compatible adapters)
-# =============================================================================
-# Exposes GET /api/agents, POST /api/chat (SSE), POST /api/runs, GET/POST
-# /api/runs/{id}/... — see internal/agent and internal/server/handler/agent_api.go.
-# For long agent turns, increase server.write_timeout (seconds) so the SSE
-# response is not cut off mid-stream.
-
-[plugins.search]
-# Vault-absolute path prefixes to exclude from the search index.
-# Notes whose path starts with any listed prefix are silently skipped.
-# Useful for auto-generated directories or archives you don't want surfaced
-# in search results.
-# Example: exclude_prefixes = ["/_knowledge/", "/archive/"]
-exclude_prefixes = ["/_assets", "/_knowledge/_indexes"]
-
-
-[plugins.image_fetch]
-# When true, new markdown notes trigger download of remote http(s) image URLs
-# into the vault assets tree (browser-like User-Agent). Failures are logged only.
-enabled = false
+# Search, git sync, and the bot's own rounds belong to one vault. They live in
+# <vault>/.hylo/config.toml. This file is the install: where the server listens
+# and which vault it opens. The global system prompt is built in.
