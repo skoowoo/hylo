@@ -142,6 +142,9 @@
   }
   function applyDragRegions() {
     if (platform !== "darwin") return;
+    // Only the shell itself, not its subtree: a press there is the gap around the inset sheet.
+    var shell = document.querySelector(".home-shell");
+    if (shell) shell.setAttribute("data-tauri-drag-region", "");
     var roots = document.querySelectorAll(".home-side-top, .home-list-head, .content-pane-tool-bar");
     for (var i = 0; i < roots.length; i++) {
       var root = roots[i];

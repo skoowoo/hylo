@@ -47,7 +47,7 @@ other same-origin views (desktop shell) in step.
   <script>(function(){
   var presets={{accentPresets}};
   window.__hyloAccentPresets=presets;
-  var KEY='hylo-accent',PROPS=['--accent','--accent-rgb','--accent-hov','--accent-text'];
+  var KEY='hylo-accent',PROPS=['--accent','--accent-rgb','--accent-hov','--accent-text','--accent-h'];
   function isLight(){
     var t=document.documentElement.getAttribute('data-theme');
     if(t==='light')return true;
@@ -65,6 +65,7 @@ other same-origin views (desktop shell) in step.
       }else{
         st.setProperty('--accent',p.a);
         st.setProperty('--accent-rgb',p.r);
+        st.setProperty('--accent-h',p.h);
         var light=isLight();
         st.setProperty('--accent-hov',light?p.hl:p.hd);
         if(light)st.removeProperty('--accent-text');else st.setProperty('--accent-text',p.td);
@@ -75,6 +76,29 @@ other same-origin views (desktop shell) in step.
   window.__hyloApplyAccent();
   window.addEventListener('storage',function(e){
     if(e.key===KEY)window.__hyloApplyAccent(e.newValue);
+  });
+})()</script>
+  <script>(function(){
+  // Home shell knobs (Appearance). Bounds keep the shell reading as grey glass: past them warm hues go brown.
+  var S=window.__hyloShell={
+    tint:{prop:'--shell-tint',min:0,max:2.5,def:1}
+  };
+  Object.keys(S).forEach(function(name){
+    var k=S[name],KEY='hylo-shell-'+name;
+    k.get=function(){
+      var v=NaN;try{v=parseFloat(localStorage.getItem(KEY));}catch(_){}
+      return isNaN(v)?k.def:Math.min(k.max,Math.max(k.min,v));
+    };
+    k.apply=function(){
+      var v=k.get(),st=document.documentElement.style;
+      if(v===k.def)st.removeProperty(k.prop);else st.setProperty(k.prop,v);
+    };
+    k.set=function(v){
+      try{if(v===k.def)localStorage.removeItem(KEY);else localStorage.setItem(KEY,String(v));}catch(_){}
+      k.apply();
+    };
+    k.apply();
+    window.addEventListener('storage',function(e){if(e.key===KEY)k.apply();});
   });
 })()</script>
   <script>(function(){if(window.hyloDesktop&&window.hyloDesktop.platform==='darwin')document.documentElement.classList.add('macos');})()</script>

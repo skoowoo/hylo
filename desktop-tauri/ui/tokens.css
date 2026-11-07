@@ -5,36 +5,40 @@
       --inverse-canvas:#ffffff; --inverse-ink:#000000;
       /* Brand accent — CTA / focus / links only. */
       --accent:#5e6ad2; --accent-fg:#ffffff;
+      /* OKLCH hue of --accent, for neutrals tinted toward it (the home shell). */
+      --accent-h:275.2;
+      /* Home shell tint, a multiple of each theme's shell chroma (Appearance; set on <html> by head.html). */
+      --shell-tint:1;
       /* Selected surface: surface-2 + --fg, not accent fill. */
       --control-active-bg:var(--surface-2); --control-active-fg:var(--fg);
       /* Modal scrim — shared by dialogs/settings/search/content pane. Lightbox has its own. */
       --overlay-bg:rgba(0,0,0,0.25);
       /* Hover is an ink wash like nav rows and buttons; an accent tint turns grey surfaces lavender. */
-      --card-hov:rgba(var(--ink-rgb),0.05);
+      --card-hov:oklch(var(--ink) / 0.05);
       /* Note cards at rest: half the hover step, so a page of them isn't a wall of grey tiles. */
-      --card-rest:rgba(var(--ink-rgb),0.025);
-      --icon-hov:rgba(var(--ink-rgb),0.08);
+      --card-rest:oklch(var(--ink) / 0.025);
+      --icon-hov:oklch(var(--ink) / 0.08);
       --tint-soft:rgba(var(--accent-rgb),0.06);
       --tint-md:rgba(var(--accent-rgb),0.10);
       --tint-strong:rgba(var(--accent-rgb),0.14);
       /* Borderless neutral buttons: rest / hover+press / selected. Ink-based so one ladder serves both themes. */
-      --btn-bg:rgba(var(--ink-rgb),0.06);
-      --btn-bg-hov:rgba(var(--ink-rgb),0.10);
-      --btn-bg-on:rgba(var(--ink-rgb),0.15);
+      --btn-bg:oklch(var(--ink) / 0.06);
+      --btn-bg-hov:oklch(var(--ink) / 0.10);
+      --btn-bg-on:oklch(var(--ink) / 0.15);
       --input-focus-ring:rgba(var(--accent-rgb),0.16);
       --selection-bg:rgba(var(--accent-rgb),0.30);
       /* --line-hair: structural seam between regions (sidebar/content, list rows).
          --line-edge: outer edge of a floating surface or input; always paired
          with a shadow. Prefer a bg step or whitespace over either. */
-      --line-hair:rgba(var(--ink-rgb),0.09);
-      --line-edge:rgba(var(--ink-rgb),0.16);
-      --nav-fg:rgba(var(--ink-rgb),0.82);
+      --line-hair:oklch(var(--ink) / 0.09);
+      --line-edge:oklch(var(--ink) / 0.16);
+      --nav-fg:oklch(var(--ink) / 0.82);
       /* Nav rows: translucent ink, so hover/selected read the same on any surface or glass. */
-      --nav-hov:rgba(var(--ink-rgb),0.03);
-      --cm-active-line:rgba(var(--ink-rgb),0.04);
-      --cnt-bg:rgba(var(--ink-rgb),0.07);
-      --scrollbar-thumb:rgba(var(--ink-rgb),0.10); --scrollbar-thumb-hov:rgba(var(--ink-rgb),0.20);
-      --nav-act:rgba(var(--ink-rgb),0.06);
+      --nav-hov:oklch(var(--ink) / 0.03);
+      --cm-active-line:oklch(var(--ink) / 0.04);
+      --cnt-bg:oklch(var(--ink) / 0.07);
+      --scrollbar-thumb:oklch(var(--ink) / 0.10); --scrollbar-thumb-hov:oklch(var(--ink) / 0.20);
+      --nav-act:oklch(var(--ink) / 0.06);
       /* Content-identity chips — theme-invariant. */
       --p0:#22d3ee; --p1:#f472b6; --p2:#a78bfa; --p3:#34d399;
       --entity-type-bg:var(--p2);
@@ -69,14 +73,15 @@
       --ease-spring:cubic-bezier(.34,1.56,.64,1);
       --bd-w:1px; /* whole px — fractional breaks AA at radius arcs */
       --glass-scrim-filter:blur(3px);
-      /* Glass for what floats over moving content (menus, toasts, panels): a tint plus a blur that keeps colour. */
-      --glass-filter:blur(20px) saturate(1.6);
+      /* Glass for what floats over moving content (menus, toasts, panels): a thin tint (--glass-bg) plus a blur
+         wide enough that text behind it stays texture, never a second line to read. */
+      --glass-filter:blur(24px) saturate(1.6);
 
       /* ═══ Layer 4: component-scoped ═══ */
-      --srch-ic:var(--muted); --srch-ph:var(--muted-soft); --srch-av:rgba(var(--ink-rgb),0.08);
+      --srch-ic:var(--muted); --srch-ph:var(--muted-soft); --srch-av:oklch(var(--ink) / 0.08);
       --sr-dir:var(--cover-dir); --sr-ic:var(--muted); --sr-em:var(--muted);
       /* The whole search panel is glass; the preview is an ink step on it, not a solid card. */
-      --srch-panel-bd:var(--line-edge); --srch-panel-bg:var(--glass-bg); --srch-card-bg:rgba(var(--ink-rgb),0.05);
+      --srch-panel-bd:var(--line-edge); --srch-panel-bg:var(--glass-bg); --srch-card-bg:oklch(var(--ink) / 0.05);
 
       /* Lightbox/images — fixed veil over arbitrary photos. */
       --lightbox-overlay-bg:rgba(0,0,0,0.4); --lightbox-viewer-bg:#0c0c0c;
@@ -101,19 +106,23 @@
       /* --btn-h primary; --btn-h-xs compact secondary; --btn-h-sm chrome-bar. */
       --btn-h:32px; --btn-h-sm:36px; --btn-h-xs:28px;
       --card-note-h:96px; --card-note-w-max:210px;
-      /* Every neutral sits on one hue (OKLCH h≈275) at low, even chroma; steps differ by lightness only. */
-      --ink-rgb:239,240,244;
-      --bg:#18191e; --fg:#eff0f4;
-      --muted:#91939d; --surface-soft:#212227; --surface-2:#292b2f;
+      /* Every neutral sits on the accent's hue; steps differ by lightness only. Warm and green hues read as
+         colour far sooner than blue, so chroma stays where every preset still reads grey: .004 here, the shell glass .010. */
+      /* Ink: --fg's OKLCH components, for every ink wash and hairline (oklch(var(--ink) / α)). */
+      --ink:0.9555 0.004 var(--accent-h);
+      --bg:oklch(0.2146 0.004 var(--accent-h)); --fg:oklch(var(--ink));
+      --muted:oklch(0.6648 0.004 var(--accent-h)); --surface-soft:oklch(0.253 0.004 var(--accent-h)); --surface-2:oklch(0.2887 0.004 var(--accent-h));
       /* Extra lift when container already sits on --surface-soft. */
-      --control-active-bg-on-soft:#3d3f44;
+      --control-active-bg-on-soft:oklch(0.3676 0.004 var(--accent-h));
       --seg-thumb:var(--control-active-bg-on-soft);
-      /* macOS vibrancy wash: enough to hold a bright or saturated wallpaper on the neutral hue, thin enough to stay glass. */
-      --sidebar-glass-bg:rgba(33,34,39,0.45);
-      --glass-bg:rgba(33,34,39,0.72);
-      --canvas:#ffffff; --muted-soft:#696b74;
+      /* Home shell: --surface-soft's lightness. The macOS vibrancy wash is enough to hold a bright wallpaper, thin enough to stay glass. */
+      --shell-c:calc(0.010 * var(--shell-tint));
+      --shell-bg:oklch(0.253 var(--shell-c) var(--accent-h));
+      --shell-glass-bg:oklch(0.253 var(--shell-c) var(--accent-h) / 0.45);
+      --glass-bg:oklch(0.253 0.004 var(--accent-h) / 0.62);
+      --canvas:#ffffff; --muted-soft:oklch(0.5291 0.004 var(--accent-h));
       /* Secondary content (excerpts, table heads) — between --fg and --muted, ~8:1. */
-      --fg-2:#b6b8c1;
+      --fg-2:oklch(0.7837 0.004 var(--accent-h));
             --accent-hov:#7b86e8;
       /* Accent as text on the canvas (links, active labels): lifted for dark; fills keep --accent. */
       --accent-text:#707ad7;
@@ -127,20 +136,20 @@
       --shadow-color:rgba(0,0,0,0.55);
       --bq-bd:rgba(var(--accent-rgb),0.55);
       --ul-mk:var(--prose-body); --ol-mk:var(--prose-body);
-      --code-bg:rgba(var(--ink-rgb),0.055);
-      --th-bg:rgba(var(--ink-rgb),0.04); --tbl-bd:rgba(var(--ink-rgb),0.12);
+      --code-bg:oklch(var(--ink) / 0.055);
+      --th-bg:oklch(var(--ink) / 0.04); --tbl-bd:oklch(var(--ink) / 0.12);
       --th-tx:var(--fg-2);
-      --link:#eff0f4;
+      --link:var(--fg);
       --link-ul:var(--accent); --link-ul-hov:var(--accent-hov);
       /* Headings step down by size, never below the body's ink; only the tiny h6 goes muted. */
-      --h1:#eff0f4; --h2:#eff0f4; --h3:#eff0f4; --h4:#eff0f4; --h5:var(--prose-body); --h6:#91939d;
-      --prose-body:#d0d2d9;
-      --prose-strong:#eff0f4; --prose-em:#d0d2d9;
-      --pre-tx:#e8e9ee;
-      --code-tx:#d0d2d9;
-      --bq-tx:rgba(208,210,217,0.85);
-      --td-tx:#d0d2d9;
-      --cm-md-muted:#91939d;
+      --h1:var(--fg); --h2:var(--fg); --h3:var(--fg); --h4:var(--fg); --h5:var(--prose-body); --h6:var(--muted);
+      --prose-body:oklch(0.8643 0.004 var(--accent-h));
+      --prose-strong:var(--fg); --prose-em:var(--prose-body);
+      --pre-tx:oklch(0.9347 0.004 var(--accent-h));
+      --code-tx:var(--prose-body);
+      --bq-tx:oklch(0.8643 0.004 var(--accent-h) / 0.85);
+      --td-tx:var(--prose-body);
+      --cm-md-muted:var(--muted);
       /* Code-fence syntax highlighting — Tokyo Night. */
       --syn-keyword:#bb9af7; --syn-const:#ff9e64; --syn-string:#9ece6a;
       --syn-escape:#b4f9f8; --syn-def:#7aa2f7; --syn-param:#e0af68;
@@ -148,16 +157,18 @@
       --syn-property:#73daca; --syn-comment:#565f89; --syn-invalid:#db4b4b;
     }
     :root[data-theme="light"] {
-      --ink-rgb:23,24,27;
-      --bg:#fafafb; --fg:#17181b;
-      --muted:#696b75; --surface-soft:#f2f2f4; --surface-2:#e5e6ea;
+      --ink:0.2092 0.0061 var(--accent-h);
+      --bg:oklch(0.9854 0.003 var(--accent-h)); --fg:oklch(var(--ink));
+      --muted:oklch(0.5295 0.008 var(--accent-h)); --surface-soft:oklch(0.9617 0.003 var(--accent-h)); --surface-2:oklch(0.9253 0.0055 var(--accent-h));
       --control-active-bg-on-soft:var(--surface-2);
       --seg-thumb:var(--canvas);
       /* Brighter canvas needs a more visible thumb than the shared (dark-tuned) value. */
-      --scrollbar-thumb:rgba(var(--ink-rgb),0.12); --scrollbar-thumb-hov:rgba(var(--ink-rgb),0.24);
-      --sidebar-glass-bg:rgba(250,250,251,0.5);
-      --glass-bg:rgba(252,252,253,0.72);
-      --canvas:#ffffff; --muted-soft:#9c9ea7; --fg-2:#4d4f58;
+      --scrollbar-thumb:oklch(var(--ink) / 0.12); --scrollbar-thumb-hov:oklch(var(--ink) / 0.24);
+      --shell-c:calc(0.009 * var(--shell-tint));
+      --shell-bg:oklch(0.962 var(--shell-c) var(--accent-h));
+      --shell-glass-bg:oklch(0.985 var(--shell-c) var(--accent-h) / 0.5);
+      --glass-bg:oklch(0.9913 0.003 var(--accent-h) / 0.62);
+      --canvas:#ffffff; --muted-soft:oklch(0.7005 0.008 var(--accent-h)); --fg-2:oklch(0.4291 0.008 var(--accent-h));
             --accent-hov:#4c56c8;
       --accent-text:var(--accent);
       --cover-dir:var(--muted);
@@ -167,16 +178,16 @@
       --s-warn:#d97706; --s-warn-bg:rgba(217,119,6,0.07); --s-warn-bd:rgba(217,119,6,0.26);
       --s-ok-fg:var(--canvas); --s-err-fg:var(--canvas); --s-warn-fg:var(--canvas);
       --shadow-color:rgba(15,15,25,0.10);
-      --link:#17181b;
+      --link:var(--fg);
       --link-ul:var(--accent); --link-ul-hov:var(--accent-hov);
-      --h1:#17181b; --h2:#17181b; --h3:#17181b; --h4:#17181b; --h5:var(--prose-body); --h6:#696b75;
-      --prose-body:#3e3f46;
-      --prose-strong:#17181b; --prose-em:#3e3f46;
-      --pre-tx:#17181b;
-      --code-tx:#3e3f46;
-      --bq-tx:rgba(62,63,70,0.88);
-      --td-tx:#3e3f46;
-      --cm-md-muted:#9c9ea7;
+      --h1:var(--fg); --h2:var(--fg); --h3:var(--fg); --h4:var(--fg); --h5:var(--prose-body); --h6:var(--muted);
+      --prose-body:oklch(0.3694 0.008 var(--accent-h));
+      --prose-strong:var(--fg); --prose-em:var(--prose-body);
+      --pre-tx:var(--fg);
+      --code-tx:var(--prose-body);
+      --bq-tx:oklch(0.3694 0.008 var(--accent-h) / 0.88);
+      --td-tx:var(--prose-body);
+      --cm-md-muted:var(--muted-soft);
       /* Code-fence syntax highlighting — Tokyo Night Light. */
       --syn-keyword:#5a4a78; --syn-const:#965027; --syn-string:#385f0d;
       --syn-escape:#0f4b6e; --syn-def:#34548a; --syn-param:#8f5e15;
@@ -185,16 +196,18 @@
     }
     @media (prefers-color-scheme: light) {
       :root:not([data-theme="dark"]) {
-      --ink-rgb:23,24,27;
-      --bg:#fafafb; --fg:#17181b;
-      --muted:#696b75; --surface-soft:#f2f2f4; --surface-2:#e5e6ea;
+      --ink:0.2092 0.0061 var(--accent-h);
+      --bg:oklch(0.9854 0.003 var(--accent-h)); --fg:oklch(var(--ink));
+      --muted:oklch(0.5295 0.008 var(--accent-h)); --surface-soft:oklch(0.9617 0.003 var(--accent-h)); --surface-2:oklch(0.9253 0.0055 var(--accent-h));
       --control-active-bg-on-soft:var(--surface-2);
       --seg-thumb:var(--canvas);
       /* Brighter canvas needs a more visible thumb than the shared (dark-tuned) value. */
-      --scrollbar-thumb:rgba(var(--ink-rgb),0.12); --scrollbar-thumb-hov:rgba(var(--ink-rgb),0.24);
-      --sidebar-glass-bg:rgba(250,250,251,0.5);
-      --glass-bg:rgba(252,252,253,0.72);
-      --canvas:#ffffff; --muted-soft:#9c9ea7; --fg-2:#4d4f58;
+      --scrollbar-thumb:oklch(var(--ink) / 0.12); --scrollbar-thumb-hov:oklch(var(--ink) / 0.24);
+      --shell-c:calc(0.009 * var(--shell-tint));
+      --shell-bg:oklch(0.962 var(--shell-c) var(--accent-h));
+      --shell-glass-bg:oklch(0.985 var(--shell-c) var(--accent-h) / 0.5);
+      --glass-bg:oklch(0.9913 0.003 var(--accent-h) / 0.62);
+      --canvas:#ffffff; --muted-soft:oklch(0.7005 0.008 var(--accent-h)); --fg-2:oklch(0.4291 0.008 var(--accent-h));
             --accent-hov:#4c56c8;
       --accent-text:var(--accent);
       --cover-dir:var(--muted);
@@ -204,16 +217,16 @@
       --s-warn:#d97706; --s-warn-bg:rgba(217,119,6,0.07); --s-warn-bd:rgba(217,119,6,0.26);
       --s-ok-fg:var(--canvas); --s-err-fg:var(--canvas); --s-warn-fg:var(--canvas);
       --shadow-color:rgba(15,15,25,0.10);
-      --link:#17181b;
+      --link:var(--fg);
       --link-ul:var(--accent); --link-ul-hov:var(--accent-hov);
-      --h1:#17181b; --h2:#17181b; --h3:#17181b; --h4:#17181b; --h5:var(--prose-body); --h6:#696b75;
-      --prose-body:#3e3f46;
-      --prose-strong:#17181b; --prose-em:#3e3f46;
-      --pre-tx:#17181b;
-      --code-tx:#3e3f46;
-      --bq-tx:rgba(62,63,70,0.88);
-      --td-tx:#3e3f46;
-      --cm-md-muted:#9c9ea7;
+      --h1:var(--fg); --h2:var(--fg); --h3:var(--fg); --h4:var(--fg); --h5:var(--prose-body); --h6:var(--muted);
+      --prose-body:oklch(0.3694 0.008 var(--accent-h));
+      --prose-strong:var(--fg); --prose-em:var(--prose-body);
+      --pre-tx:var(--fg);
+      --code-tx:var(--prose-body);
+      --bq-tx:oklch(0.3694 0.008 var(--accent-h) / 0.88);
+      --td-tx:var(--prose-body);
+      --cm-md-muted:var(--muted-soft);
       /* Code-fence syntax highlighting — Tokyo Night Light. */
       --syn-keyword:#5a4a78; --syn-const:#965027; --syn-string:#385f0d;
       --syn-escape:#0f4b6e; --syn-def:#34548a; --syn-param:#8f5e15;

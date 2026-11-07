@@ -467,6 +467,30 @@
     .seg-btn.active { background: var(--seg-thumb); color: var(--control-active-fg); }
     .seg-btn svg { width: 13px; height: 13px; flex-shrink: 0; }
     .seg-btn:disabled { opacity: 0.4; cursor: default; background: transparent; color: var(--muted); }
+
+    /* ── Shared slider: an ink track like .seg's, an --fg thumb. --range-mark
+       (0–1) notches a reference value such as the default; unset, the notch
+       sits off the track. ── */
+    .range {
+      -webkit-appearance: none; appearance: none;
+      width: 160px; height: 20px; margin: 0; padding: 0;
+      background: transparent; cursor: pointer;
+      --range-thumb: 12px;
+      --range-track:
+        linear-gradient(var(--muted-soft), var(--muted-soft))
+          calc(var(--range-thumb) / 2 - 1px + var(--range-mark, -1) * (100% - var(--range-thumb))) 0 / 2px 100% no-repeat,
+        var(--btn-bg-on);
+    }
+    .range::-webkit-slider-runnable-track { height: 4px; border-radius: var(--r-full); background: var(--range-track); }
+    .range::-moz-range-track { height: 4px; border-radius: var(--r-full); background: var(--range-track); }
+    .range::-webkit-slider-thumb {
+      -webkit-appearance: none; appearance: none;
+      width: var(--range-thumb); height: var(--range-thumb); margin-top: calc(2px - var(--range-thumb) / 2);
+      border: none; border-radius: var(--r-full); background: var(--fg);
+      transition: transform var(--motion-fast);
+    }
+    .range::-moz-range-thumb { width: var(--range-thumb); height: var(--range-thumb); border: none; border-radius: var(--r-full); background: var(--fg); }
+    .range:active::-webkit-slider-thumb { transform: scale(1.15); }
     /* A count after a tab label, e.g. "Triggers 3". */
     .seg-count {
       min-width: 1.1em; font-size: var(--text-2xs); font-variant-numeric: tabular-nums;

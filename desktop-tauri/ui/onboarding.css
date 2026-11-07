@@ -80,7 +80,7 @@
   border-radius: 0;
   -webkit-user-drag: none;
   /* Traces the icon's own shape, so its dark tile still reads on the dark page. */
-  filter: drop-shadow(0 0 0.75px rgba(var(--ink-rgb), 0.4));
+  filter: drop-shadow(0 0 0.75px oklch(var(--ink) / 0.4));
 }
 .ob-logo-name {
   display: flex;

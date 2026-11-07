@@ -9,5 +9,5 @@
       content: ''; position: absolute; inset: -4px; border-radius: var(--r-full);
       border: 2px solid transparent; transition: border-color var(--motion-fast);
     }
-    .accent-swatch:hover::after { border-color: rgba(var(--ink-rgb), 0.25); }
+    .accent-swatch:hover::after { border-color: oklch(var(--ink) / 0.25); }
     .accent-swatch.active::after { border-color: var(--sw); }

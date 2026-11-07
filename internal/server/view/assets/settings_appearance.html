@@ -1,4 +1,4 @@
-{{/* Appearance tab: theme, accent and line-break preferences. */}}
+{{/* Appearance tab: theme, accent, sidebar and line-break preferences. */}}
           <div class="settings-page" x-show="tab === 'appearance'">
             <div class="settings-body">
               <div class="settings-list">
@@ -29,6 +29,17 @@
                                 @click="setAccent(p.id)"></button>
                       </template>
                     </div>
+                  </div>
+                </div>
+                <div class="settings-row">
+                  <div>
+                    <span class="settings-label">Sidebar tint</span>
+                    <span class="settings-desc">How much of the accent color tints the sidebar and the frame around your notes. The mark is the default; double-click to return to it.</span>
+                  </div>
+                  <div class="settings-row-ctrl">
+                    <input type="range" class="range" aria-label="Sidebar tint"
+                           :min="shell.tint.min" :max="shell.tint.max" step="0.05" :value="shellPref.tint" :style="shellMark('tint')"
+                           @input="setShell('tint', $event.target.value)" @dblclick="setShell('tint', shell.tint.def)">
                   </div>
                 </div>
                 <div class="settings-row">

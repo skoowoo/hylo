@@ -71,6 +71,20 @@
     return (name || '').replace(/\.(md|markdown)$/i, '');
   }
 
+  // A list narrower than this share of the split is too small to use, so the
+  // split snaps to maximized (ratio 0) instead.
+  var SPLIT_SNAP = 0.05;
+
+  function __hyloSplitGap(main) {
+    return parseFloat(getComputedStyle(main).getPropertyValue('--split-gap')) || 0;
+  }
+
+  // The list's width at a ratio, as home.css lays it out: the pane takes
+  // (box + gap) * (1 - ratio) rounded down, the list the rest.
+  function __hyloSplitListWidth(mainW, gap, ratio) {
+    return Math.max(0, mainW - Math.floor((mainW + gap) * (1 - ratio)));
+  }
+
   // "/a/b/Note.md" -> "a/b"; "" at the vault root.
   function __hyloNoteDir(path) {
     var p = String(path || '').replace(/^\/+/, '');
@@ -93,8 +107,10 @@
       layoutOpen: false, layoutRatio: 0.5,
 
       // Maximized is just splitRatio 0: the sidebar stays.
+      isEditorMaximized() { return this.splitRatio === 0; },
+
       toggleMaximizeEditor() {
-        if (this.splitRatio > 0.02) {
+        if (!this.isEditorMaximized()) {
           this._prevSplitRatio = this.splitRatio;
           this.splitRatio = 0;
         } else {
@@ -103,11 +119,12 @@
       },
 
       revealListPane() {
-        if (this.contentPaneOpen && this.splitRatio <= 0.02) this.toggleMaximizeEditor();
+        if (this.contentPaneOpen && this.isEditorMaximized()) this.toggleMaximizeEditor();
       },
 
       // Drags the divider. Ratio is the list's share of .home-main; 0 is
-      // maximized, and the editor is capped so it never vanishes while open.
+      // maximized (anything under SPLIT_SNAP snaps there), and the editor is
+      // capped so it never vanishes while open.
       // The vars go straight onto the shell once per frame and splitRatio
       // syncs on mouseup, so Alpine doesn't re-run :style per mousemove. The
       // capture layer keeps a fast drag over CodeMirror from selecting text.
@@ -124,7 +141,9 @@
         var main = shell && shell.querySelector('.home-main');
         if (!main) return;
         var mainRect = main.getBoundingClientRect();
-        var avail = mainRect.width;
+        // The ratio splits box + gap (home.css); the cursor tracks the gap's middle.
+        var gap = __hyloSplitGap(main);
+        var avail = mainRect.width + gap;
         if (avail <= 0) return;
 
         self.isPaneResizing = true;
@@ -140,14 +159,23 @@
 
         var latestRatio = self.splitRatio;
         var rafId = null;
+        // Crossing the snap point eases instead of following the cursor, so the snap reads as one.
+        var snapped = latestRatio === 0, snapTimer = null;
+        var snapMs = parseFloat(getComputedStyle(shell).getPropertyValue('--motion-slow')) || 0;
         function applyRatio() {
           rafId = null;
+          if ((latestRatio === 0) !== snapped) {
+            snapped = !snapped;
+            shell.classList.add('is-split-snapping');
+            clearTimeout(snapTimer);
+            snapTimer = setTimeout(function() { shell.classList.remove('is-split-snapping'); }, snapMs);
+          }
           shell.style.setProperty('--split-ratio', latestRatio);
           shell.style.setProperty('--split-ratio-inv', 1 - latestRatio);
         }
         function onMove(ev) {
-          var ratio = (ev.clientX - mainRect.left) / avail;
-          latestRatio = Math.min(0.9, Math.max(0, ratio));
+          var ratio = (ev.clientX - mainRect.left + gap / 2) / avail;
+          latestRatio = ratio < SPLIT_SNAP ? 0 : Math.min(0.9, ratio);
           if (rafId == null) rafId = requestAnimationFrame(applyRatio);
         }
         function onUp() {
@@ -234,7 +262,7 @@
         this._sideLive = true;
         try {
           var savedRatio = parseFloat(localStorage.getItem('hylo.splitRatio'));
-          if (!isNaN(savedRatio) && savedRatio >= 0 && savedRatio <= 0.9) this.splitRatio = savedRatio;
+          if (!isNaN(savedRatio) && savedRatio >= 0 && savedRatio <= 0.9) this.splitRatio = savedRatio < SPLIT_SNAP ? 0 : savedRatio;
         } catch(_) {}
         this.layoutRatio = this.splitRatio;
 
@@ -287,10 +315,11 @@
           this.$watch(function() { return self.contentPaneOpen + ':' + self.splitRatio; }, function() {
             if (self.isPaneResizing) return;
             var list = document.getElementById('home-list-pane');
-            var mainW = list ? list.parentElement.clientWidth : 0;
+            var main = list && list.parentElement;
+            var mainW = main ? main.clientWidth : 0;
             self._beginSplitMotion(list ? {
               listFrom: list.getBoundingClientRect().width,
-              listTo: self.contentPaneOpen ? mainW * self.splitRatio : mainW,
+              listTo: self.contentPaneOpen ? __hyloSplitListWidth(mainW, __hyloSplitGap(main), self.splitRatio) : mainW,
             } : null);
             requestAnimationFrame(commitLayout);
           });

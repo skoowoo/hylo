@@ -1,3 +1,16 @@
+// Cytoscape parses only hex/rgb/hsl; tokens may be oklch(), so paint one pixel and read it back.
+var __hyloGraphColorCtx = null;
+function __hyloGraphCssColor(name, fallback, alpha) {
+  var v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  var ctx = __hyloGraphColorCtx || (__hyloGraphColorCtx = document.createElement('canvas').getContext('2d', { willReadFrequently: true }));
+  ctx.clearRect(0, 0, 1, 1);
+  ctx.fillStyle = fallback;
+  ctx.fillStyle = v;
+  ctx.fillRect(0, 0, 1, 1);
+  var d = ctx.getImageData(0, 0, 1, 1).data;
+  return 'rgba(' + d[0] + ',' + d[1] + ',' + d[2] + ',' + (alpha == null ? +(d[3] / 255).toFixed(3) : alpha) + ')';
+}
+
 function homeGraphMixin() {
   return {
     loading: false,
@@ -127,18 +140,12 @@ function homeGraphMixin() {
     },
 
     _tagColor(tag) {
-      if (!tag) {
-        var s = getComputedStyle(document.documentElement);
-        return s.getPropertyValue('--bg').trim() || '#1a1a1a';
-      }
+      if (!tag) return this._neutral.fill;
       return this._hexToRgba(this._tagPaletteColor(tag), 0.30);
     },
 
     _tagBorder(tag) {
-      if (!tag) {
-        var s = getComputedStyle(document.documentElement);
-        return s.getPropertyValue('--line-edge').trim() || 'rgba(244,244,245,0.09)';
-      }
+      if (!tag) return this._neutral.stroke;
       return this._tagPaletteColor(tag);
     },
 
@@ -182,14 +189,13 @@ function homeGraphMixin() {
       var self = this;
 
       var css = getComputedStyle(document.documentElement);
-      var nodeLabelColor = css.getPropertyValue('--fg').trim() || '#f4f4f5';
-      var bgColor = css.getPropertyValue('--bg').trim() || '#0f0f0f';
+      var nodeLabelColor = __hyloGraphCssColor('--fg', '#f4f4f5');
+      var bgColor = __hyloGraphCssColor('--bg', '#0f0f0f');
+      // Untyped nodes, read once per render rather than per node.
+      this._neutral = { fill: bgColor, stroke: __hyloGraphCssColor('--line-edge', 'rgba(244,244,245,0.09)') };
       var accentColor = css.getPropertyValue('--accent').trim() || '#cc785c';
-      var mutedHex = css.getPropertyValue('--muted').trim() || '#71717a';
       var labelFont = css.getPropertyValue('--font-ui').trim() || 'sans-serif';
-      var edgeColor = /^#[0-9a-f]{6}$/i.test(mutedHex)
-        ? self._hexToRgba(mutedHex, 0.32)
-        : 'rgba(113,113,122,0.32)';
+      var edgeColor = __hyloGraphCssColor('--muted', '#71717a', 0.32);
 
       var prep = __hyloGraphPrepare(data.nodes, data.edges || []);
       var hubs = new Set(__hyloGraphLabeledHubs(prep.degree, data.nodes.length));

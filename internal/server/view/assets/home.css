@@ -11,8 +11,8 @@
        has to be the one that goes transparent — it's the layer directly
        above the window's own compositor surface, so it's the only thing
        actually standing between the vibrancy and the sidebar's pixels.
-       .home-main picks up its own explicit background so the content pane
-       still reads as solid; everywhere else (web browser, Windows/Linux
+       The list and editor cards paint their own backgrounds so they
+       still read as solid; everywhere else (web browser, Windows/Linux
        desktop) is untouched. */
     html.macos body { background: transparent; }
     /* ── Home layout: sidebar + list body fills the full height ───── */
@@ -44,35 +44,47 @@
          Eased in as well as out: ease-out's full-speed start covers a fifth
          of the way in the first frame and reads as a jump, not a slide. */
       --pane-motion: var(--motion-view) var(--ease-standard);
-      background: var(--surface-soft);
+      /* Around the content cards (sheet) and between them (split). */
+      --sheet-gap: 6px; --split-gap: 4px;
+      /* The sidebar fill, tinted toward the accent (shared_tokens.go). */
+      background: var(--shell-bg);
     }
     html.macos .home-shell {
-      background: var(--sidebar-glass-bg);
+      background: var(--shell-glass-bg);
     }
     /* Everything right of the sidebar: #home-list-pane → .home-pane-resizer
-       → .content-pane. Opaque on macOS too, unlike the vibrant sidebar.
-       A query container so the editor sheet can size itself off this box
-       (100cqw) rather than off the pane that is animating around it. */
+       → .content-pane. Holds the list and editor cards over the shell's
+       sidebar fill: flush with the sidebar on the left, inset on the other
+       three sides. A query container so the editor sheet can size itself off
+       this box (100cqw) rather than off the pane that is animating around it.
+       flex-end: maximized, the pane is one gap wider than this box, and the
+       overflow (its leading gap) falls off the left edge. */
     .home-main {
       flex: 1;
-      display: flex;
+      display: flex; justify-content: flex-end;
       min-width: 0; min-height: 0;
+      margin: var(--sheet-gap) var(--sheet-gap) var(--sheet-gap) 0;
       overflow: hidden;
-      background: var(--bg);
       container-type: inline-size;
     }
     /* The split is one real width transition on .content-pane; the list
        takes what is left, so the divider, the list's reflow and the editor
        all move on the same frame by construction. The editor's own content
        never resizes mid-motion (see .content-pane-panel). */
-    /* Whole pixels, so nothing in the pane sits on a fractional x. */
-    .home-shell.content-pane-open .content-pane { width: round(down, 100% * var(--split-ratio-inv), 1px); }
+    /* The pane's width includes the gap before its card, so the gap moves with
+       the same transition. Ratio splits box + gap, so 0.5 gives equal cards.
+       Whole pixels, so nothing in the pane sits on a fractional x. cqw, not %,
+       so it rounds exactly as .content-pane-panel does (% resolves in finer
+       layout units and can land 1px wider). */
+    .home-shell.content-pane-open .content-pane { width: round(down, (100cqw + var(--split-gap)) * var(--split-ratio-inv), 1px); }
     .home-shell.is-resizing .content-pane { transition: none; }
+    .home-shell.is-resizing.is-split-snapping .content-pane { transition: width var(--motion-slow) var(--ease-out); }
 
     /* ── Pane resizer ─────────────────────────────────────────── */
-    /* Only the grab target: the divider line is the editor panel's own edge
-       (content_pane.css), so it moves and clips with the pane. Zero-width in
-       flow at that edge, widened by ::before; ::after draws the accent. */
+    /* Only the grab target: zero-width in flow at the list card's edge, so
+       the gap lies just after it. ::before covers the gap plus 4px either
+       side (still 4px inside the box when maximized pushes the gap out).
+       The gap itself is the divider; only the cursor marks it. */
     .home-pane-resizer {
       flex: none; width: 0;
       cursor: col-resize;
@@ -80,15 +92,8 @@
     }
     .home-shell:not(.content-pane-open) .home-pane-resizer { display: none; }
     .home-pane-resizer::before {
-      content: ""; position: absolute; top: 0; bottom: 0; left: -4px; right: -4px;
+      content: ""; position: absolute; top: 0; bottom: 0; left: -4px; right: calc(-4px - var(--split-gap));
       cursor: col-resize;
-    }
-    .home-pane-resizer::after {
-      content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: var(--bd-w);
-    }
-    .home-pane-resizer:hover::after,
-    .home-shell.is-resizing .home-pane-resizer::after {
-      background: var(--accent);
     }
 
     /* ── Sidebar ──────────────────────────────────────────────── */
@@ -285,8 +290,8 @@
       min-height: 0; overflow: hidden;
       /* Reflows every frame of a split change; keep that pass local. */
       contain: layout paint style;
-      /* No own background — .home-main is the opaque backstop for this
-         whole region (see its own rule above). */
+      background: var(--bg);
+      border-radius: var(--r-md);
     }
     /* The shared header row for sections that need one (Favorites, a folder,
        Knowledge, Images, Agents, Shorts) — same height/padding/no-border

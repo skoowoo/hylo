@@ -12,12 +12,13 @@
     }
     /* Always laid out at the width the pane has at rest, open or not, and
        pinned to the divider: opening and closing slide it in and out whole,
-       and CodeMirror never sees an intermediate width. Its left edge is the
-       divider line. */
+       and CodeMirror never sees an intermediate width. The pane's leading
+       gap (home.css) sits before it. */
     .content-pane-panel {
-      position: absolute; top: 0; bottom: 0; left: 0;
-      width: round(down, 100cqw * var(--split-ratio-inv), 1px);
-      border-left: var(--bd-w) solid var(--line-hair);
+      position: absolute; top: 0; bottom: 0; left: var(--split-gap);
+      width: calc(round(down, (100cqw + var(--split-gap)) * var(--split-ratio-inv), 1px) - var(--split-gap));
+      background: var(--bg);
+      border-radius: var(--r-md);
       display: flex; flex-direction: column; overflow: hidden;
       /* Shared by every floating popover in here — more menu, bot menu,
          the find/replace card — so they all sit the same distance off
@@ -25,8 +26,6 @@
          own gap. */
       --float-panel-gap: 0.5rem;
     }
-    /* Maximized, it meets the sidebar, whose change of fill is the edge. */
-    .home-shell.is-editor-maximized .content-pane-panel { border-left-color: transparent; }
 
     /* ── Tool bar ────────────────────────────────────────────────── */
     .content-pane-expand-btn {

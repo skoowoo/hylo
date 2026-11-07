@@ -30,5 +30,19 @@
         if (window.__hyloApplyAccent) window.__hyloApplyAccent(id);
       },
 
+      // Sidebar knobs: bounds and storage live in head.html's __hyloShell, which applies them at first paint.
+      shell: window.__hyloShell,
+      shellPref: {
+        tint: window.__hyloShell.tint.get(),
+      },
+      setShell(name, v) {
+        this.shellPref[name] = Math.round(parseFloat(v) * 100) / 100;
+        this.shell[name].set(this.shellPref[name]);
+      },
+      shellMark(name) {
+        var k = this.shell[name];
+        return '--range-mark:' + (k.def - k.min) / (k.max - k.min);
+      },
+
     };
   }

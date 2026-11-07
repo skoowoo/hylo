@@ -61,7 +61,7 @@ body {
   height: 28px;
   border-radius: 0;
   -webkit-user-drag: none;
-  filter: drop-shadow(0 0 0.75px rgba(var(--ink-rgb), 0.4));
+  filter: drop-shadow(0 0 0.75px oklch(var(--ink) / 0.4));
 }
 .sv-wordmark { font-size: 0.8125rem; font-weight: var(--fw-semibold); letter-spacing: 0.32em; color: var(--fg); }
 /* While a server is entered the list hides behind the splash; it fades back

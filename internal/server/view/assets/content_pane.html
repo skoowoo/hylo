@@ -10,11 +10,11 @@
              used. -->
         <button type="button" class="icon-btn-ghost content-pane-expand-btn"
                 @click.stop="toggleMaximizeEditor(); $el.blur()"
-                :title="(splitRatio <= 0.02 ? 'Restore split' : 'Maximize editor') + ' (' + (isMac ? '⌘\\' : 'Ctrl+\\') + ')'">
+                :title="(isEditorMaximized() ? 'Restore split' : 'Maximize editor') + ' (' + (isMac ? '⌘\\' : 'Ctrl+\\') + ')'">
           <!-- maximize: corners pointing outward -->
-          {{icon "maximize" `x-show="splitRatio > 0.02"`}}
+          {{icon "maximize" `x-show="!isEditorMaximized()"`}}
           <!-- restore: corners pointing inward -->
-          {{icon "minimize" `x-show="splitRatio <= 0.02"`}}
+          {{icon "minimize" `x-show="isEditorMaximized()"`}}
         </button>
         <!-- Open tabs live in the sidebar (home.html); the header names the active note. -->
         <div class="content-pane-title" x-show="activeTab >= 0" :title="tabs[activeTab] && tabs[activeTab].path || 'Untitled'">
