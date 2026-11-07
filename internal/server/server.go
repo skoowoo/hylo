@@ -17,6 +17,7 @@ import (
 	"github.com/hardhacker/hylo/internal/agent"
 	"github.com/hardhacker/hylo/internal/channels"
 	"github.com/hardhacker/hylo/internal/config"
+	"github.com/hardhacker/hylo/internal/desktop"
 	"github.com/hardhacker/hylo/internal/live"
 	"github.com/hardhacker/hylo/internal/mate"
 	"github.com/hardhacker/hylo/internal/plugin"
@@ -26,6 +27,7 @@ import (
 	"github.com/hardhacker/hylo/internal/plugins/renamesync"
 	"github.com/hardhacker/hylo/internal/plugins/search"
 	"github.com/hardhacker/hylo/internal/prompt"
+	"github.com/hardhacker/hylo/internal/pulse"
 	"github.com/hardhacker/hylo/internal/relaunch"
 	"github.com/hardhacker/hylo/internal/server/handler"
 	"github.com/hardhacker/hylo/internal/skills"
@@ -156,6 +158,28 @@ func New(cfg *config.Config, cfgFileLoaded string, logger *slog.Logger, vault *s
 	runsCtx, endRuns := context.WithCancel(context.Background())
 	ah.SetLifetime(runsCtx)
 
+	var desk *desktop.Tracker
+	var rounds *pulse.Pulse
+	if mateStore != nil {
+		// Presence only serves rounds, so it is kept only while they run.
+		desk = desktop.New(mateStore, cfg.Proactive.Enabled && cfg.Proactive.Desktop)
+	}
+	if mateStore != nil && cfg.Proactive.Enabled {
+		deps := pulse.Deps{Store: mateStore, Desk: desk, Round: ah.Pulse, Wake: ah.Wake, Idle: ah.ChatIdle, Tasks: vault.OpenTasks,
+			ChangesFile: filepath.Join(vault.Root(), ".hylo", "pulse_changes.json")}
+		if channelHub != nil {
+			deps.Pushable = channelHub.Pushable
+		}
+		if p, err := pulse.New(deps, cfg.Proactive, logger); err != nil {
+			logger.Warn("pulse: not started", "err", err)
+		} else {
+			mgr.Register(p)
+			rounds = p
+			ah.SetRounds(true)
+			logger.Info("pulse plugin registered")
+		}
+	}
+
 	s := &Server{
 		logger:    logger,
 		cfg:       cfg,
@@ -165,7 +189,7 @@ func New(cfg *config.Config, cfgFileLoaded string, logger *slog.Logger, vault *s
 		endRuns:   endRuns,
 		restart:   make(chan struct{}, 1),
 	}
-	s.handler = newRouter(logger, cfg, vault, cfgFileLoaded, gitPlugin, searchPlugin, compilePlugin, mateStore, mateRunner, skillsMgr, feed, cfg.Server.APIKey, channelHub, proxy, ah, s.requestRestart)
+	s.handler = newRouter(logger, cfg, vault, cfgFileLoaded, gitPlugin, searchPlugin, compilePlugin, mateStore, mateRunner, skillsMgr, feed, cfg.Server.APIKey, channelHub, proxy, ah, rounds, desk, s.requestRestart)
 	return s
 }
 

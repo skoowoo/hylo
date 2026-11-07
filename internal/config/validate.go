@@ -65,6 +65,21 @@ func Validate(cfg *Config) error {
 		}
 	}
 
+	// Empty is no hours at all, so rounds that are on could never start.
+	if cfg.Proactive.Enabled || cfg.Proactive.ActiveHours != "" {
+		if _, _, err := cfg.Proactive.Hours(); err != nil {
+			add("proactive.active_hours", err.Error())
+		}
+	}
+	if gap, err := cfg.Proactive.Gap(); err != nil {
+		add("proactive.min_gap", err.Error())
+	} else if gap < 0 {
+		add("proactive.min_gap", "must be >= 0")
+	}
+	if cfg.Proactive.WakesPerDay < 0 {
+		add("proactive.wakes_per_day", "must be >= 0")
+	}
+
 	if len(errs) != 0 {
 		return ValidationError{Errors: errs}
 	}

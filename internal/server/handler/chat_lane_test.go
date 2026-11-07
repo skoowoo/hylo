@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hardhacker/hylo/internal/agent"
 	"github.com/hardhacker/hylo/internal/mate"
 )
 
@@ -127,4 +128,58 @@ func TestWakesNeverRunBackToBack(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("the next wake never ran after the gap")
 	}
+}
+
+func TestLaneIdleWaitsLikeAWake(t *testing.T) {
+	quietFor(t, 50*time.Millisecond)
+	var l chatLane
+	if !l.idle() {
+		t.Fatal("a fresh chat is idle")
+	}
+	user, _ := l.join(false, "")
+	if l.idle() {
+		t.Fatal("idle while the user's turn holds the chat")
+	}
+	l.leave(user)
+	if l.idle() {
+		t.Fatal("idle right after the user's turn")
+	}
+	time.Sleep(60 * time.Millisecond)
+	if !l.idle() {
+		t.Fatal("not idle once the user went quiet")
+	}
+	wake, _ := l.join(true, "k")
+	if l.idle() {
+		t.Fatal("idle while a wake holds the chat")
+	}
+	l.leave(wake)
+}
+
+func TestWakeThatNeverReachesTheChatStillEnds(t *testing.T) {
+	quietFor(t, 0)
+	a := testAgentAPI(t)
+	store, err := mate.Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	a.store, a.hub = store, agent.NewHub()
+	bot := &mate.Mate{Name: "Hylo", Main: true, Enabled: false}
+	if err := store.CreateMate(bot); err != nil {
+		t.Fatal(err)
+	}
+	ended := make(chan WakeEnd, 1)
+	a.SetWakeEnd(func(e WakeEnd) { ended <- e })
+	if err := a.Wake(bot, mate.Wake{Event: mate.MateEventPulse, Prompt: "brief", Ref: "round-1"}); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case e := <-ended:
+		if e.Ref != "round-1" || e.Status != "failed" {
+			t.Fatalf("end = %+v", e)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("a wake turned away by its bot never ended")
+	}
+	a.Wait()
 }

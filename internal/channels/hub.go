@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -240,6 +241,21 @@ func (h *Hub) spawn(parent context.Context, ch mate.Channel) {
 			h.log.Error("channels: stopped", "kind", ch.Kind, "mate", ch.MateID, "err", err)
 		}
 	}()
+}
+
+// Pushable lists the kinds of the bot's connected apps that can start a
+// chat, which PushWake reaches.
+func (h *Hub) Pushable(mateID string) []string {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	var kinds []string
+	for _, l := range h.running {
+		if _, ok := l.link.(pusher); ok && l.ch.MateID == mateID && !slices.Contains(kinds, l.ch.Kind) {
+			kinds = append(kinds, l.ch.Kind)
+		}
+	}
+	slices.Sort(kinds)
+	return kinds
 }
 
 // PushWake sends a bot's wake reply to each of its live apps that can start a

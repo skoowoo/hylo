@@ -33,6 +33,9 @@ func (rw *responseWriter) Flush() {
 // the server's write timeout.
 func (rw *responseWriter) Unwrap() http.ResponseWriter { return rw.ResponseWriter }
 
+// heartbeats are polled all day; they log at debug unless they fail.
+var heartbeats = map[string]bool{"/api/desktop/presence": true}
+
 // Logger logs each request with method, path, status, and duration.
 func Logger(logger *slog.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
@@ -40,7 +43,11 @@ func Logger(logger *slog.Logger) func(http.Handler) http.Handler {
 			start := time.Now()
 			rw := newResponseWriter(w)
 			next.ServeHTTP(rw, r)
-			logger.Info("request",
+			level := slog.LevelInfo
+			if heartbeats[r.URL.Path] && rw.statusCode < 400 {
+				level = slog.LevelDebug
+			}
+			logger.Log(r.Context(), level, "request",
 				"method", r.Method,
 				"path", r.URL.Path,
 				"status", rw.statusCode,

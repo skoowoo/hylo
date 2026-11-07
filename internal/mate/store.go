@@ -171,7 +171,7 @@ func Open(vaultRoot string) (*Store, error) {
 		db.Close()
 		return nil, fmt.Errorf("mate: note activity: %w", err)
 	}
-	if _, err := db.Exec(schemaSQL); err != nil {
+	if _, err := db.Exec(schemaSQL + pulseSchemaSQL + desktopSchemaSQL); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("mate: schema: %w", err)
 	}
@@ -192,9 +192,11 @@ func Open(vaultRoot string) (*Store, error) {
 		{"chat_messages", "trigger_id", "TEXT NOT NULL DEFAULT ''"},
 		{"chat_messages", "trace", "TEXT NOT NULL DEFAULT ''"},
 		{"chat_messages", "attachments", "TEXT NOT NULL DEFAULT ''"},
+		{"chat_messages", "app", "TEXT NOT NULL DEFAULT ''"},
 		{"conversations", "agent_session_cwd", "TEXT NOT NULL DEFAULT ''"},
 		{"mates", "main", "INTEGER NOT NULL DEFAULT 0"},
 		{"mates", "seen_at", "INTEGER NOT NULL DEFAULT 0"},
+		{"pulse_runs", "nudged", "TEXT NOT NULL DEFAULT ''"},
 	} {
 		if _, err := db.Exec(`ALTER TABLE ` + c.table + ` ADD COLUMN ` + c.col + ` ` + c.def); err != nil {
 			if !strings.Contains(err.Error(), "duplicate column name") {
@@ -211,6 +213,11 @@ func Open(vaultRoot string) (*Store, error) {
 	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS chat_messages_wake_idx ON chat_messages(mate_id, updated_at) WHERE role = 'assistant' AND trigger_event != ''`); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("mate: wake index: %w", err)
+	}
+	// A bot's latest messages (ListMates, pulse) are read on every pacing minute.
+	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS chat_messages_mate_idx ON chat_messages(mate_id, role, created_at)`); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("mate: chat mate index: %w", err)
 	}
 	// Trigger runs used to land in their own conversation and an inbox; they are chat turns now.
 	for _, q := range []string{

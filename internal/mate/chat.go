@@ -223,10 +223,10 @@ func (s *Store) InsertMessage(m Message) (Message, error) {
 	m.CreatedAt = time.UnixMilli(now)
 	m.UpdatedAt = time.UnixMilli(now)
 	_, err := s.db.Exec(
-		`INSERT INTO chat_messages(id, conversation_id, role, content, attachments, agent_id, mate_id, model_id, run_id, status, trigger_event, trigger_id, created_at, updated_at)
-		 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+		`INSERT INTO chat_messages(id, conversation_id, role, content, attachments, agent_id, mate_id, model_id, run_id, status, trigger_event, trigger_id, app, created_at, updated_at)
+		 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
 		m.ID, m.ConversationID, m.Role, m.Content, encodeAttachments(m.Attachments),
-		m.AgentID, m.MateID, m.ModelID, m.RunID, m.Status, m.TriggerEvent, m.TriggerID, now, now,
+		m.AgentID, m.MateID, m.ModelID, m.RunID, m.Status, m.TriggerEvent, m.TriggerID, m.App, now, now,
 	)
 	if err != nil {
 		return Message{}, fmt.Errorf("mate: insert message: %w", err)
@@ -325,7 +325,7 @@ func (s *Store) UpdateMessageDone(id, content, trace, status string) error {
 	return nil
 }
 
-const messageCols = `id, conversation_id, role, content, agent_id, mate_id, model_id, run_id, status, trigger_event, trigger_id, trace, attachments, created_at, updated_at`
+const messageCols = `id, conversation_id, role, content, agent_id, mate_id, model_id, run_id, status, trigger_event, trigger_id, trace, attachments, app, created_at, updated_at`
 
 func (s *Store) ListMessages(conversationID string) ([]Message, error) {
 	rows, err := s.db.Query(
@@ -353,8 +353,17 @@ func (s *Store) ListMessages(conversationID string) ([]Message, error) {
 // ones when beforeID is empty), oldest first, plus whether older ones remain.
 // rowid breaks created_at ties so the cursor never skips or repeats a row.
 func (s *Store) ListMessagesPage(conversationID, beforeID string, limit int) ([]Message, bool, error) {
+	return s.listMessagesPage(conversationID, beforeID, limit, true)
+}
+
+// listMessagesPage is ListMessagesPage, leaving wake tasks out when wakes is
+// false, so limit and more count only the messages a reader sees.
+func (s *Store) listMessagesPage(conversationID, beforeID string, limit int, wakes bool) ([]Message, bool, error) {
 	q := `SELECT ` + messageCols + ` FROM chat_messages WHERE conversation_id = ?`
 	args := []any{conversationID}
+	if !wakes {
+		q += ` AND role != 'wake'`
+	}
 	if beforeID != "" {
 		q += ` AND (created_at, rowid) < (SELECT created_at, rowid FROM chat_messages WHERE id = ?)`
 		args = append(args, beforeID)
@@ -620,7 +629,7 @@ func scanMessages(rows *sql.Rows) ([]Message, error) {
 		if err := rows.Scan(
 			&m.ID, &m.ConversationID, &m.Role, &m.Content,
 			&m.AgentID, &m.MateID, &m.ModelID, &m.RunID, &m.Status, &m.TriggerEvent, &m.TriggerID,
-			&trace, &attachments, &createdMs, &updatedMs,
+			&trace, &attachments, &m.App, &createdMs, &updatedMs,
 		); err != nil {
 			return nil, err
 		}

@@ -1,0 +1,1 @@
+You keep an agenda with the `agenda_*` tools, and you look around on your own now and then. When you promise something for later ("remind me tomorrow", a follow-up you offered), add it with `agenda_add`, with `due` if it has a time: you'll be woken for it then. Close items with `agenda_done` once settled.

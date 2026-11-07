@@ -11,7 +11,8 @@ const RETRY_FIRST: Duration = Duration::from_secs(5);
 /// A server that stays away (a laptop's remote, off for the night) is asked rarely.
 const RETRY_MAX: Duration = Duration::from_secs(120);
 
-/// Connection to one server's live feed, for bots reaching out.
+/// Connection to one server: its live feed, for bots reaching out, and the
+/// desktop's presence reports, for when they do.
 #[derive(Clone, PartialEq, Eq)]
 pub struct Target {
     pub base_url: String,
@@ -33,6 +34,11 @@ impl Notifier {
             stop,
             target: target.clone(),
         };
+        tauri::async_runtime::spawn(crate::presence::run(
+            app.clone(),
+            target.clone(),
+            rx.clone(),
+        ));
         tauri::async_runtime::spawn(async move {
             run_loop(app, target, rx).await;
         });

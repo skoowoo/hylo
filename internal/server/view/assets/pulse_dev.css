@@ -1,0 +1,11 @@
+/* /dev/pulse — the main bot's rounds: pacing, agenda and journal. */
+.pulse-actions { display: flex; gap: var(--space-sm); }
+.pulse-error { margin: 0; font-size: var(--text-sm); color: var(--danger); }
+.pulse-table { width: 100%; }
+.pulse-table th, .pulse-table td { padding-left: 0; vertical-align: top; }
+.pulse-nowrap { white-space: nowrap; }
+.pulse-text { white-space: pre-wrap; max-width: 72ch; }
+.pulse-dim { color: var(--muted); font-size: var(--text-xs); }
+.pulse-silent { color: var(--muted); }
+.pulse-speak { font-weight: 600; }
+.pulse-failed, .pulse-warn { color: var(--danger); }

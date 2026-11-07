@@ -13,12 +13,14 @@ import (
 const (
 	mcpServerName = "hylo"
 	// mcpKeyEnv carries the API key to the agent process; configs only reference it by name.
-	mcpKeyEnv = "HYLO_API_KEY"
-	// mcpRunEnv carries the run id to agents whose config is a shared project file; the
-	// file references it in mcpRunHeader (mcp.runHeader), so it stays the same across runs.
-	mcpRunEnv    = "HYLO_RUN_ID"
+	mcpKeyEnv    = "HYLO_API_KEY"
 	mcpRunHeader = "X-Hylo-Run"
 )
+
+// RunEnv carries the run id into every agent process, for the hylo CLI and
+// for agents whose MCP config is a shared project file that references it in
+// mcpRunHeader (mcp.runHeader), so the file stays the same across runs.
+const RunEnv = "HYLO_RUN_ID"
 
 // mcpAgents lists the agent CLIs PrepareMCP knows how to configure.
 var mcpAgents = map[string]bool{
@@ -67,7 +69,7 @@ func PrepareMCP(agentID string, ep MCPEndpoint, cwd string, baseEnv []string) (M
 	}
 	switch agentID {
 	case "cursor-agent", "pi":
-		inj.Env[mcpRunEnv] = ep.RunID
+		inj.Env[RunEnv] = ep.RunID
 	default:
 		ep = ep.runScoped()
 	}
@@ -104,7 +106,7 @@ func PrepareMCP(agentID string, ep MCPEndpoint, cwd string, baseEnv []string) (M
 		// Without --approve-mcps a project server stays "not loaded (needs approval)".
 		inj.Args = []string{"--approve-mcps"}
 		srv := httpServer(ep, "${env:"+mcpKeyEnv+"}")
-		addHeader(srv, mcpRunHeader, "${env:"+mcpRunEnv+"}")
+		addHeader(srv, mcpRunHeader, "${env:"+RunEnv+"}")
 		if err := mergeMCPFile(filepath.Join(cwd, ".cursor", "mcp.json"), srv); err != nil {
 			return MCPInjection{}, err
 		}
@@ -113,7 +115,7 @@ func PrepareMCP(agentID string, ep MCPEndpoint, cwd string, baseEnv []string) (M
 		// Pi ignores project-local MCP config unless the project is trusted for this run.
 		inj.Args = []string{"-a"}
 		srv := httpServer(ep, "${"+mcpKeyEnv+"}")
-		addHeader(srv, mcpRunHeader, "${"+mcpRunEnv+"}")
+		addHeader(srv, mcpRunHeader, "${"+RunEnv+"}")
 		if err := mergeMCPFile(filepath.Join(cwd, ".pi", "mcp.json"), srv); err != nil {
 			return MCPInjection{}, err
 		}

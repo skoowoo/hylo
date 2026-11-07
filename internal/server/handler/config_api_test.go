@@ -141,6 +141,24 @@ func TestPatchRejectsBadVaultValue(t *testing.T) {
 	}
 }
 
+func TestPatchEnablesProactiveWithoutRepeatingDefaultHours(t *testing.T) {
+	vault := t.TempDir()
+	h, _ := testConfigFile(t, &config.Config{Vault: config.VaultConfig{Path: vault}})
+	rec := patchConfig(h, "127.0.0.1:9", "", `{"patch":{"proactive":{"enabled":true}}}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("enable: %d %s", rec.Code, rec.Body.String())
+	}
+	raw, err := os.ReadFile(config.VaultConfigPath(vault))
+	if err != nil || !strings.Contains(string(raw), "enabled = true") || strings.Contains(string(raw), "active_hours") {
+		t.Fatalf("vault file: %v\n%s", err, raw)
+	}
+
+	rec = patchConfig(h, "127.0.0.1:9", "", `{"patch":{"proactive":{"active_hours":""}}}`)
+	if rec.Code != http.StatusBadRequest || !strings.Contains(rec.Body.String(), "active_hours") {
+		t.Fatalf("empty hours: %d %s", rec.Code, rec.Body.String())
+	}
+}
+
 func TestPatchWritesNothingWhenVaultPartIsInvalid(t *testing.T) {
 	vault := t.TempDir()
 	h, path := testConfigFile(t, &config.Config{Vault: config.VaultConfig{Path: vault}})

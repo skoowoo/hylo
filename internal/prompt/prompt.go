@@ -28,8 +28,10 @@ type Run struct {
 	// Main is set for the main bot, the user's one entry point.
 	Main bool
 	// MCP is set when Hylo's MCP tools are injected into this run.
-	MCP   bool
-	Intro *Intro
+	MCP bool
+	// Agenda is set when the bot's own rounds are on, so a due agenda item wakes it.
+	Agenda bool
+	Intro  *Intro
 	// Overrides replaces a section's built-in text by section ID, e.g. the
 	// user's agent.system_prompt for Global. Blank values are ignored.
 	Overrides map[string]string

@@ -7,6 +7,7 @@ import (
 	"github.com/hardhacker/hylo/internal/channels"
 	"github.com/hardhacker/hylo/internal/client"
 	"github.com/hardhacker/hylo/internal/config"
+	"github.com/hardhacker/hylo/internal/desktop"
 	"github.com/hardhacker/hylo/internal/editorbus"
 	"github.com/hardhacker/hylo/internal/live"
 	"github.com/hardhacker/hylo/internal/mate"
@@ -14,6 +15,7 @@ import (
 	"github.com/hardhacker/hylo/internal/plugins/compile"
 	"github.com/hardhacker/hylo/internal/plugins/gitsync"
 	"github.com/hardhacker/hylo/internal/plugins/search"
+	"github.com/hardhacker/hylo/internal/pulse"
 	"github.com/hardhacker/hylo/internal/server/handler"
 	"github.com/hardhacker/hylo/internal/server/middleware"
 	"github.com/hardhacker/hylo/internal/server/static"
@@ -39,6 +41,8 @@ func newRouter(
 	channelHub *channels.Hub,
 	proxy config.Proxy,
 	ah *handler.AgentAPI,
+	rounds *pulse.Pulse,
+	desk *desktop.Tracker,
 	restart func()) http.Handler {
 	mux := http.NewServeMux()
 
@@ -62,6 +66,9 @@ func newRouter(
 		mateRunner.SetWakeFunc(ah.Wake)
 	}
 	ah.SetWakeEnd(func(e handler.WakeEnd) {
+		if rounds != nil && e.Event == string(mate.MateEventPulse) && e.Ref != "" {
+			rounds.WakeEnded(e.Ref, e.Status, e.Silent)
+		}
 		feed.Publish(live.Change{Topic: live.TopicChat, Op: "wake", Data: e})
 		if channelHub != nil && e.Status == "succeeded" && !e.Silent && !e.Retry {
 			channelHub.PushWake(e.MateID, e.Text)
@@ -102,6 +109,15 @@ func newRouter(
 		mux.HandleFunc("DELETE /api/mates/{id}", mh.MateDELETE)
 		mux.HandleFunc("POST /api/mates/{id}/seen", mh.MateSeenPOST)
 		mux.HandleFunc("POST /api/mates/{id}/triggers/{tid}/run", ah.TriggerRunPOST)
+		mux.HandleFunc("GET /api/agenda", ah.AgendaGET)
+		mux.HandleFunc("POST /api/agenda", ah.AgendaPOST)
+		mux.HandleFunc("POST /api/agenda/{id}/done", ah.AgendaDonePOST)
+		mux.HandleFunc("GET /api/mates/{id}/chat", ch.BotChatGET)
+		mux.HandleFunc("GET /api/activity", handler.NewActivityAPI(mateStore).ActivityGET)
+		dh := handler.NewDesktopAPI(desk)
+		mux.HandleFunc("POST /api/desktop/presence", dh.PresencePOST)
+		mux.HandleFunc("GET /api/desktop/screen-time", dh.ScreenTimeGET)
+		mux.HandleFunc("DELETE /api/desktop", dh.DesktopDELETE)
 
 		chHTTP := handler.NewChannelHTTP(logger, mateStore, proxy)
 		mux.HandleFunc("GET /api/mates/{id}/channels", chHTTP.List)
@@ -141,6 +157,12 @@ func newRouter(
 	mux.HandleFunc("GET /notes/search", vh.SearchResults)
 	mux.HandleFunc("GET /home", vh.Home)
 	mux.HandleFunc("GET /dev/icons", vh.IconSpecimen)
+	if mateStore != nil {
+		vh.SetPulse(rounds, mateStore, desk)
+	}
+	mux.HandleFunc("GET /dev/pulse", vh.PulsePage)
+	mux.HandleFunc("POST /dev/pulse/run", vh.PulseRunPOST)
+	mux.HandleFunc("POST /dev/pulse/clear-desktop", vh.PulseClearDesktopPOST)
 	mux.HandleFunc("GET /home/refresh", vh.HomeRefresh)
 	mux.HandleFunc("GET /home/section", vh.HomeSection)
 	mux.HandleFunc("GET /home/section/more", vh.HomeSectionMore)

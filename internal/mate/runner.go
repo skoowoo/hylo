@@ -17,6 +17,8 @@ import (
 type RunResult struct {
 	Success     bool
 	LastMessage string
+	Wrote       []string // notes the run wrote
+	RunID       string
 }
 
 // Runner implements plugin.Plugin and wakes bots whose triggers match vault

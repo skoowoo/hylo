@@ -750,6 +750,7 @@
 
   // ── Wake source: a reply the bot sent on its own says, quietly, what woke it ──
   var WAKE_ICONS = {
+    pulse: hyloIcon('bot'),
     scheduled: hyloIcon('recent'),
     compile_requested: hyloIcon('layers'),
     note: hyloIcon('file'),
@@ -762,17 +763,27 @@
   }
 
   // The trigger as named in settings, sent along with the reply; an unnamed or
-  // deleted one goes by its event.
+  // deleted one goes by its event. Only a trigger opens: the bot's own rounds have none.
   function wakeSource(m, snap) {
+    if (m.triggerEvent === 'pulse') return { name: 'On its own', title: 'Sent on its own, after looking around', opens: false };
     var label = snap.triggerLabel(m.triggerEvent);
     var s = m.triggerSchedule || '';
     var when = s ? s.charAt(0).toUpperCase() + s.slice(1) : label;
     var name = m.triggerName || label;
-    return { name: name, title: 'Sent on its own, woken by ' + name + (when !== name ? ' · ' + when : '') };
+    return { name: name, title: 'Sent on its own, woken by ' + name + (when !== name ? ' · ' + when : ''), opens: true };
   }
 
   function openTriggers() {
     window.dispatchEvent(new CustomEvent('hylo:open-settings', { detail: { tab: 'agent-bots' } }));
+  }
+
+  function wakeSourceNode(opens) {
+    var n = el(opens ? 'button' : 'span', 'msg-wake-source');
+    if (opens) {
+      n.type = 'button';
+      n.addEventListener('click', openTriggers);
+    }
+    return n;
   }
 
   // Same height in every state: only what's in it changes.
@@ -780,9 +791,7 @@
     var foot = el('div', 'msg-footer');
     var stateEl = el('span', 'msg-footer-state');
     var time = el('span', 'msg-agent-time');
-    var source = el('button', 'msg-wake-source');
-    source.type = 'button';
-    source.addEventListener('click', openTriggers);
+    var source = wakeSourceNode(false);
     var copy = el('button', 'msg-copy-btn');
     copy.type = 'button';
     copy.title = 'Copy reply';
@@ -820,6 +829,11 @@
         var srcKey = src ? m.triggerEvent + '\0' + src.name + '\0' + src.title : '';
         if (srcKey !== shownSource) {
           shownSource = srcKey;
+          if (src && src.opens !== (source.tagName === 'BUTTON')) {
+            var swap = wakeSourceNode(src.opens);
+            source.replaceWith(swap);
+            source = swap;
+          }
           source.replaceChildren();
           if (src) {
             source.appendChild(svg(wakeIcon(m.triggerEvent)));

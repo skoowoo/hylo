@@ -1,19 +1,5 @@
 /* /dev/icons — the line icon specimen. Sidebar rows reuse base.css's
    .side-nav-item / .side-nav-icon, so what shows here is what ships. */
-*, *::before, *::after { box-sizing: border-box; }
-html, body { height: 100%; margin: 0; }
-body { background: var(--bg); color: var(--fg); overflow: hidden; }
-.spec {
-  height: 100%; overflow-y: auto; box-sizing: border-box;
-  padding: var(--space-xl) var(--space-lg) var(--space-xxl);
-  display: flex; flex-direction: column; gap: var(--space-xl);
-}
-.spec-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-md); flex-wrap: wrap; }
-.spec-title { margin: 0; font-size: 22px; font-weight: 600; letter-spacing: -0.014em; }
-.spec-meta { margin: 6px 0 0; font-size: var(--text-sm); color: var(--muted); }
-.spec-meta code, .spec-src { font-family: var(--font-mono); font-size: var(--text-xs); }
-.spec-section { display: flex; flex-direction: column; gap: var(--space-sm); }
-.spec-h2 { margin: 0; font-size: var(--text-xs); font-weight: 600; color: var(--muted); }
 .spec-note { margin: 0; max-width: 64ch; font-size: var(--text-sm); color: var(--muted); line-height: 1.5; }
 
 /* A sidebar column at the real width and fill. */
@@ -32,12 +18,7 @@ body { background: var(--bg); color: var(--fg); overflow: hidden; }
 .spec-child-icon { flex-shrink: 0; width: 13px; height: 13px; opacity: 0.6; }
 
 .spec-table-wrap { overflow-x: auto; }
-.spec-table { border-collapse: collapse; font-size: var(--text-sm); }
-.spec-table th, .spec-table td {
-  padding: 8px 14px; text-align: left; vertical-align: middle; white-space: nowrap;
-  border-bottom: var(--bd-w) solid var(--line-hair);
-}
-.spec-table thead th { font-size: var(--text-xs); font-weight: 500; color: var(--muted); }
+.spec-table th, .spec-table td { vertical-align: middle; white-space: nowrap; }
 .spec-name { font-weight: 500; }
 .spec-glyph { display: inline-flex; color: var(--nav-fg); }
 .spec-glyph svg { width: var(--s); height: var(--s); display: block; }
@@ -55,5 +36,5 @@ body { background: var(--bg); color: var(--fg); overflow: hidden; }
 .spec-grid svg { width: 72px; height: 72px; display: block; position: relative; }
 .spec-num { font-family: var(--font-mono); font-size: var(--text-xs); font-variant-numeric: tabular-nums; }
 .spec-num.is-off { color: var(--s-warn); font-weight: 600; }
-.spec-src { color: var(--muted); }
+.spec-src { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--muted); }
 .spec-changes { display: block; color: var(--muted-soft); font-family: var(--font-ui); margin-top: 2px; }

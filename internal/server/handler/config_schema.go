@@ -85,6 +85,21 @@ func buildConfigSchema() []SchemaField {
 			Default:     "5m"},
 		{Key: "plugins.git_sync.sync_interval", Type: "duration", Section: "plugins.git_sync", Label: "Sync interval",
 			Description: "Pull/push interval; empty or 0 disables periodic remote sync.", Default: "24h"},
+
+		{Key: "proactive.enabled", Type: "bool", Section: "proactive", Label: "Own rounds",
+			Description: "The main bot wakes on its own at irregular times, looks around, and messages you only when something is worth it.", Default: true},
+		{Key: "proactive.wakes_per_day", Type: "int", Section: "proactive", Label: "Wakes per day",
+			Description: "Most rounds end in silence; each one is an agent run.", Default: 24, Constraints: map[string]int{"min": 0}},
+		{Key: "proactive.active_hours", Type: "string", Section: "proactive", Label: "Active hours",
+			Description: "When the bot is awake, local time, e.g. 08:00-24:00. The end may pass midnight.", Default: "08:00-24:00"},
+		{Key: "proactive.min_gap", Type: "duration", Section: "proactive", Label: "Minimum gap",
+			Description: "Least time between two rounds (Go duration format).", Default: "20m"},
+		{Key: "proactive.model", Type: "string", Section: "proactive", Label: "Rounds model",
+			Description: "Model for the rounds; empty uses the bot's own. A message to you is still written by the bot's model.", Default: ""},
+		{Key: "proactive.desktop", Type: "bool", Section: "proactive", Label: "Desktop presence",
+			Description: "The desktop app reports whether you're at the computer and which app is in front, by app name only, never window titles. Rounds use it to pick their moment, so nothing is kept while they're off. Kept 30 days.", Default: true},
+		{Key: "proactive.mute", Type: "string_list", Section: "proactive", Label: "Muted nudges",
+			Description: "Nudges the bot never raises, one per line: writing (you haven't written in a while), reading (a look back at older notes), todos (open to-dos left untouched for weeks).", Default: []string{}},
 	}
 }
 

@@ -145,7 +145,29 @@ func newBotCmd() *cobra.Command {
 		},
 	}
 
-	cmd.AddCommand(listCmd, getCmd, createCmd, botUpdateCmd, botDeleteCmd)
+	var chatBefore string
+	var chatLimit int
+	chatCmd := &cobra.Command{
+		Use:          "chat <bot-id>",
+		Short:        "Read a bot's current chat, newest messages last",
+		Args:         cobra.ExactArgs(1),
+		SilenceUsage: true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			c, err := openClient()
+			if err != nil {
+				return err
+			}
+			chat, err := c.BotChat(args[0], chatBefore, chatLimit)
+			if err != nil {
+				return err
+			}
+			return printJSON(chat)
+		},
+	}
+	chatCmd.Flags().StringVar(&chatBefore, "before", "", "message id: read the messages before it")
+	chatCmd.Flags().IntVar(&chatLimit, "limit", 10, "how many messages, at most 50")
+
+	cmd.AddCommand(listCmd, getCmd, createCmd, botUpdateCmd, botDeleteCmd, chatCmd)
 	return cmd
 }
 

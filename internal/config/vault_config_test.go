@@ -216,6 +216,34 @@ func TestLegacyGlobalWithoutBranchStillMigrates(t *testing.T) {
 	}
 }
 
+func TestEnablingProactiveKeepsDefaultHours(t *testing.T) {
+	vault := t.TempDir()
+	if err := WriteVaultConfig(vault, map[string]any{
+		"proactive": map[string]any{"enabled": true},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	cfg, _, err := Load(globalWithVault(t, vault, ""))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !cfg.Proactive.Enabled || cfg.Proactive.ActiveHours != "08:00-24:00" || cfg.Proactive.MinGap != "20m" {
+		t.Fatalf("effective config: %+v", cfg.Proactive)
+	}
+	raw, _ := os.ReadFile(VaultConfigPath(vault))
+	if strings.Contains(string(raw), "active_hours") {
+		t.Fatalf("default hours were stored in the vault file:\n%s", raw)
+	}
+
+	err = WriteVaultConfig(vault, map[string]any{
+		"proactive": map[string]any{"active_hours": ""},
+	})
+	var ve ValidationError
+	if !errors.As(err, &ve) || !strings.Contains(err.Error(), `got ""`) {
+		t.Fatalf("explicit empty hours: %v", err)
+	}
+}
+
 func TestEnabledVaultNeedsBranch(t *testing.T) {
 	vault := t.TempDir()
 	err := WriteVaultConfig(vault, map[string]any{"plugins": map[string]any{"git_sync": map[string]any{"enabled": true}}})

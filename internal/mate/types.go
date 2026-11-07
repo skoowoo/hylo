@@ -24,6 +24,7 @@ type Mate struct {
 	Triggers     []MateTrigger `json:"triggers,omitempty"`
 	TriggerCount int           `json:"triggerCount,omitempty"` // populated in list views
 	Unread       int           `json:"unread,omitempty"`       // wake replies not yet seen; populated in list views
+	LastActiveAt time.Time     `json:"lastActiveAt,omitzero"`  // its latest chat message; populated in list views
 	// Channels lists connected app kinds. Filled for the bots list, not stored on the row.
 	Channels []string `json:"channels,omitempty"`
 }
@@ -75,6 +76,7 @@ type Message struct {
 	Role           string       `json:"role"`    // "user" | "wake" | "assistant"
 	Content        string       `json:"content"` // the reply: the run's last text, without narration
 	Attachments    []Attachment `json:"attachments,omitempty"`
+	App            string       `json:"app,omitempty"` // the connected app a user message came from; "" for the desktop
 	AgentID        string       `json:"agentId"`
 	MateID         string       `json:"mateId"`
 	ModelID        string       `json:"modelId"`

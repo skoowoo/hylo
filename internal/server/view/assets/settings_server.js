@@ -40,6 +40,7 @@
           'proxy': 'Proxy',
           'vault': 'Vault', 'agent': 'Agent',
           'plugins.search': 'Search', 'plugins.git_sync': 'Git Sync',
+          'proactive': 'Proactive',
         };
         return m[s] || s;
       },
@@ -51,6 +52,7 @@
           'agent': 'Agent CLI integration and global prompt settings.',
           'plugins.search': 'Indexing and search quality.',
           'plugins.git_sync': 'Automatic git push/pull. Whether it runs, and where it pushes, is set per vault.',
+          'proactive': 'The main bot\'s own rounds, set per vault.',
         };
         return m[s] || '';
       },

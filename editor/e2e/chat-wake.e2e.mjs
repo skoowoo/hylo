@@ -217,3 +217,28 @@ test('a split change parks rows around a wake reply without moving what is in vi
     await page.close();
   }
 });
+
+test("a reply from the bot's own rounds names no trigger it could open", async (t) => {
+  if (launchError) return t.skip('WebKit unavailable');
+  const page = await browser.newPage({ viewport: { width: 760, height: 720 } });
+  try {
+    await open(page);
+    await page.evaluate((reply) => {
+      const T = window.__T, at = new Date().toISOString();
+      T.db.push({ id: 'w4', role: 'wake', content: 'BRIEF', triggerEvent: 'pulse', createdAt: at, updatedAt: at });
+      T.db.push({ id: 'r4', role: 'assistant', mateId: 'm1', agentId: 'claude', status: 'succeeded', triggerEvent: 'pulse', content: reply, createdAt: at, updatedAt: at });
+      T.live.chat([{ topic: 'chat', op: 'wake', data: { mateId: 'm1', wakeId: 'w4', replyId: 'r4', status: 'succeeded', silent: false } }]);
+    }, REPLY);
+    await page.waitForSelector('.msg-wake-source[title]');
+    const src = await page.evaluate(() => {
+      const s = document.querySelector('.msg-wake-source[title]');
+      const plain = document.querySelector('.msg-row-assistant .msg-footer');
+      return { tag: s.tagName, text: s.innerText.trim(), h: s.parentElement.getBoundingClientRect().height, plain: plain.getBoundingClientRect().height };
+    });
+    assert.equal(src.tag, 'SPAN', 'nothing to open, so nothing to click or focus');
+    assert.equal(src.text, 'On its own');
+    assert.ok(Math.abs(src.h - src.plain) < 0.5, `the source made the footer ${src.h}px, not ${src.plain}px`);
+  } finally {
+    await page.close();
+  }
+});

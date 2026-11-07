@@ -7,6 +7,7 @@ mod locale;
 mod nav;
 mod notify;
 mod onboarding;
+mod presence;
 mod remote;
 mod server;
 mod servers;

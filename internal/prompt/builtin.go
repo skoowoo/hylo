@@ -28,6 +28,30 @@ func WakeRequest(reason, task string) string {
 	return execute(wakeTmpl, struct{ Reason, Task string }{reason, task})
 }
 
+var pulseTmpl = parse("pulse")
+
+// PulseRound is what the agent reads for one of its own rounds: why it woke
+// and the digest of what changed. Its reply is SilentReply or a brief.
+func PulseRound(why, digest string) string {
+	return execute(pulseTmpl, struct{ Why, Digest string }{why, digest})
+}
+
+var pulseWakeTmpl = parse("pulse_wake")
+
+// PulseWake carries a round's brief into the bot's chat. A round that wrote
+// notes must say so, so its chat turn may not stay silent. phone: the reply
+// lands on the user's phone as a notification. nudge: the brief raises a
+// nudge, which asks something of the user.
+func PulseWake(brief string, wrote []string, phone, nudge bool) string {
+	return execute(pulseWakeTmpl, struct {
+		Brief, Wrote string
+		Phone, Nudge bool
+	}{brief, quoted(wrote), phone, nudge})
+}
+
+// Nudge is how a round raises nudge name (internal/pulse), from text/nudge_<name>.md.
+func Nudge(name string) string { return load("nudge_" + name) }
+
 // Trigger templates of the Hylo bot.
 var (
 	TriggerCompile = load("trigger_compile")

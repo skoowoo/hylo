@@ -5,11 +5,11 @@
   <link rel="stylesheet" href="{{asset "bundle/icons.css"}}">
 </head>
 <body>
-<div class="spec">
-  <header class="spec-head">
+<div class="dev">
+  <header class="dev-head">
     <div>
-      <h1 class="spec-title">Line icons</h1>
-      <p class="spec-meta">{{.Count}} icons · stroke {{.Stroke}} · Lucide-based · sources in <code>internal/server/view/icons/</code>, compiled by <code>make icons</code></p>
+      <h1 class="dev-title">Line icons</h1>
+      <p class="dev-meta">{{.Count}} icons · stroke {{.Stroke}} · Lucide-based · sources in <code>internal/server/view/icons/</code>, compiled by <code>make icons</code></p>
     </div>
     <div class="seg" role="group" aria-label="Theme">
       <button type="button" class="seg-btn" data-theme-set="light">Light</button>
@@ -17,8 +17,8 @@
     </div>
   </header>
 
-  <section class="spec-section">
-    <h2 class="spec-h2">In the sidebar</h2>
+  <section class="dev-section">
+    <h2 class="dev-h2">In the sidebar</h2>
     <div class="spec-side">
       <div class="spec-side-top">
         <span class="icon-btn-ghost">{{icon "search"}}</span>
@@ -41,11 +41,11 @@
   </section>
 
   {{range .Tables}}
-  <section class="spec-section">
-    <h2 class="spec-h2">{{.Title}}</h2>
+  <section class="dev-section">
+    <h2 class="dev-h2">{{.Title}}</h2>
     <p class="spec-note">{{.Note}}</p>
     <div class="spec-table-wrap">
-      <table class="spec-table">
+      <table class="dev-table spec-table">
         <thead><tr><th>Name</th><th>13</th><th>15</th><th>16</th><th>24</th><th>Grid</th><th>Optical</th><th>Offset</th><th>Zoom</th><th>Source</th></tr></thead>
         <tbody>
         {{$check := .Check}}

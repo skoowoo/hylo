@@ -110,3 +110,26 @@ func (c *ConversationAPI) ConversationDELETE(w http.ResponseWriter, r *http.Requ
 	}
 	respondJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
+
+// BotChatGET handles GET /api/mates/{id}/chat?limit=N&before=msgId: the bot's
+// current chat as another bot reads it, oldest first.
+func (c *ConversationAPI) BotChatGET(w http.ResponseWriter, r *http.Request) {
+	limit := 10
+	if n, err := strconv.Atoi(r.URL.Query().Get("limit")); err == nil && n > 0 {
+		limit = min(n, 50)
+	}
+	m, err := c.store.GetMate(r.PathValue("id"))
+	if err != nil || m == nil {
+		http.Error(w, "no bot with that id", http.StatusNotFound)
+		return
+	}
+	chat, lines, more, err := c.store.BotChat(m.ID, r.URL.Query().Get("before"), limit)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if lines == nil {
+		lines = []mate.ChatLine{}
+	}
+	respondJSON(w, http.StatusOK, map[string]any{"bot": m.Name, "chatId": chat, "messages": lines, "hasMore": more})
+}

@@ -64,6 +64,14 @@ func (l *chatLane) join(wake bool, key string) (*ticket, error) {
 	return t, nil
 }
 
+// idle reports whether no turn holds or waits for the chat and the user has
+// been quiet for wakeQuiet.
+func (l *chatLane) idle() bool {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return !l.busy && len(l.users) == 0 && len(l.wakes) == 0 && time.Since(l.lastUser) >= wakeQuiet
+}
+
 // wait blocks until t has the chat, or ctx ends and t gives up its place.
 func (l *chatLane) wait(ctx context.Context, t *ticket) bool {
 	select {

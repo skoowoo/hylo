@@ -17,6 +17,13 @@ var vaultKeys = []string{
 	"plugins.git_sync.enabled",
 	"plugins.git_sync.remote",
 	"plugins.git_sync.branch",
+	"proactive.enabled",
+	"proactive.wakes_per_day",
+	"proactive.active_hours",
+	"proactive.min_gap",
+	"proactive.model",
+	"proactive.desktop",
+	"proactive.mute",
 }
 
 // IsVaultKey reports whether the dotted key belongs in the vault's config.
@@ -94,11 +101,18 @@ func PrepareVaultConfig(root string, patch map[string]any) (commit func() error,
 	}
 	merged := pickKeys(raw, true)
 	deepMerge(merged, pickKeys(patch, true))
-	var probe Config
-	if err := decodeInto(&probe, merged); err != nil {
+	// A key the vault file never sets keeps its built-in default, which is
+	// what Load and the settings screen already show. A zero Config would
+	// read that as "" and reject turning rounds on.
+	probe, err := defaultConfig()
+	if err != nil {
+		return nil, err
+	}
+	clearRepoKeys(probe)
+	if err := decodeInto(probe, merged); err != nil {
 		return nil, ValidationError{Errors: []string{err.Error()}}
 	}
-	if err := Validate(&probe); err != nil {
+	if err := Validate(probe); err != nil {
 		return nil, err
 	}
 	out, err := toml.Marshal(merged)

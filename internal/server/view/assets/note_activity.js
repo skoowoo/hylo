@@ -1,11 +1,12 @@
-  // The note in front of the user, reported as a visit once it was read for
+  // The note the user is reading, reported as a visit once it was read for
   // 15s or edited. Sampled rather than hooked: the open note changes in many
   // places. Every 5s is enough against a 15s threshold; leaving the window is
   // caught at once by its own events.
   var __HYLO_VISIT_MIN_MS = 15000;
   var __HYLO_VISIT_SAMPLE_MS = 5000;
-  // No input for this long is someone away from a window left open: the visit ends.
-  var __HYLO_VISIT_IDLE_MS = 5 * 60 * 1000;
+  // A note left open while the user works elsewhere isn't being read: the
+  // visit lasts only this long past the last input inside the note.
+  var __HYLO_VISIT_IDLE_MS = 2 * 60 * 1000;
 
   function __hyloVisitReport(v) {
     return {path: v.path, action: v.edited ? 'write' : 'read', at: v.last};
@@ -28,17 +29,25 @@
   }
 
   var __hyloVisit = { path: '', since: 0, last: 0, edited: false, sent: false };
-  var __hyloVisitInputAt = Date.now();
+  // Last input inside the note (scroll, click, keys), tied to the note it hit.
+  // Input events, not scroll events: restores and the agent scroll too.
+  var __hyloVisitTouch = { path: '', at: 0 };
 
-  // Only a focused window someone is using counts; the agent's turns in the
-  // editor are its own activity, not the user's.
+  function __hyloVisitTouched() {
+    __hyloVisitTouch.path = __hyloEditor.currentPath;
+    __hyloVisitTouch.at = Date.now();
+  }
+
+  // Only a focused window with recent input in this note counts; the agent's
+  // turns in the editor are its own activity, not the user's.
   function __hyloVisitViewing() {
     var pane = window.__hyloContentPane;
-    if (document.visibilityState !== 'visible' || !document.hasFocus() || Date.now() - __hyloVisitInputAt > __HYLO_VISIT_IDLE_MS) return '';
+    if (document.visibilityState !== 'visible' || !document.hasFocus()) return '';
     if (!pane || !pane.contentPaneOpen || pane.agentWriting) return '';
     var tab = pane.tabs[pane.activeTab];
     var path = __hyloEditor.currentPath;
-    return tab && tab.path === path && /\.md$/i.test(path) ? path : '';
+    if (!tab || tab.path !== path || !/\.md$/i.test(path)) return '';
+    return __hyloVisitTouch.path === path && Date.now() - __hyloVisitTouch.at <= __HYLO_VISIT_IDLE_MS ? path : '';
   }
 
   function __hyloVisitPost(r) {
@@ -52,7 +61,7 @@
     __hyloVisitStep(__hyloVisit, path, Date.now(), edited === true).forEach(__hyloVisitPost);
   }
 
-  function __hyloVisitEdited() { __hyloVisitInputAt = Date.now(); __hyloVisitTick(true); }
+  function __hyloVisitEdited() { __hyloVisitTouched(); __hyloVisitTick(true); }
 
   // A write the user made outside the open note's edits: a short, or a new
   // note's first save, which lands before the note has a path to visit.
@@ -65,6 +74,7 @@
   // The server moves the visit's rows to the new path; later reports follow it.
   function __hyloVisitRenamed(oldPath, newPath) {
     if (__hyloVisit.path === oldPath) __hyloVisit.path = newPath;
+    if (__hyloVisitTouch.path === oldPath) __hyloVisitTouch.path = newPath;
   }
 
   if (typeof document !== 'undefined') {
@@ -72,8 +82,12 @@
     document.addEventListener('visibilitychange', __hyloVisitTick);
     window.addEventListener('focus', __hyloVisitTick);
     window.addEventListener('blur', __hyloVisitTick);
-    ['pointerdown', 'pointermove', 'keydown', 'wheel'].forEach(function(type) {
-      document.addEventListener(type, function() { __hyloVisitInputAt = Date.now(); }, {capture: true, passive: true});
+    // No pointermove: a cursor drifting over the note while typing elsewhere isn't reading.
+    ['pointerdown', 'keydown', 'wheel'].forEach(function(type) {
+      document.addEventListener(type, function(e) {
+        var area = document.getElementById('content-pane-edit-area');
+        if (area && e.target instanceof Node && area.contains(e.target)) __hyloVisitTouched();
+      }, {capture: true, passive: true});
     });
     // The page can still read as visible while it unloads.
     window.addEventListener('pagehide', function() { __hyloVisitTick(false, true); });

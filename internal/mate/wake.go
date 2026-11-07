@@ -15,6 +15,8 @@ type Wake struct {
 	Key string
 	// Path is the note the wake is about, if any, so its progress can be looked up by note.
 	Path string
+	// Ref is told back when the wake's turn is over, however it ended.
+	Ref string
 }
 
 // WakeFunc runs w in m's chat. It returns at once; the turn waits its turn

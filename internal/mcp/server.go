@@ -44,6 +44,8 @@ func NewHandler(c *client.Client, opts ...Option) http.Handler {
 	registerShortTools(srv, c)
 	registerImageTools(srv, c)
 	registerBotTools(srv, c)
+	registerAgendaTools(srv, c)
+	registerExploreTools(srv, c)
 	registerCapabilitiesTool(srv, c)
 	if o.editor != nil {
 		registerEditorTools(srv, c, o.editor)

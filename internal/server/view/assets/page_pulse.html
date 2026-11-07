@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+{{template "head" "Rounds — Hylo"}}
+  <link rel="stylesheet" href="{{asset "bundle/pulse.css"}}">
+</head>
+<body>
+<div class="dev">
+  <header class="dev-head">
+    <div>
+      <h1 class="dev-title">Rounds</h1>
+      {{if not .On}}
+      <p class="dev-meta">Off. Set <code>proactive.enabled = true</code> in the vault's <code>.hylo/config.toml</code> (or Settings › Server › Proactive) and restart.</p>
+      {{else if not .Status.Bot}}
+      <p class="dev-meta">No enabled main bot.</p>
+      {{else}}{{with .Status}}
+      <p class="dev-meta">{{.Bot}} · {{if .Awake}}awake until {{.DayTo.Format "15:04"}}{{else}}asleep{{end}} ({{.ActiveHours}}) · {{.Rounds}}/{{.PerDay}} rounds today · gap {{.MinGap}}{{if .Model}} · {{.Model}}{{end}}{{if not .LastRound.IsZero}} · last {{.LastRound.Format "15:04"}}{{end}}{{if .Running}} · <strong>running</strong>{{end}}</p>
+      {{end}}
+      <p class="dev-meta">Latest minute{{if not .Status.Odds.At.IsZero}} ({{.Status.Odds.At.Format "15:04"}}){{end}}: {{if .Status.Odds.Skip}}{{.Status.Odds.Skip}}{{else}}{{.Chance}} chance, boost {{printf "%.2f" .Status.Odds.Boost}}{{with .Status.Odds.Reach}}, user: {{.}}{{end}}{{if .Status.Odds.Signals}}, {{.Status.Odds.Signals}}{{end}}{{end}}</p>
+      {{with .Status.Nudges}}<p class="dev-meta">Nudges: {{range $i, $n := .}}{{if $i}}; {{end}}{{$n.Name}}{{if $n.Live}} (live){{end}}: {{$n.State}}{{end}}</p>{{end}}
+      {{end}}
+    </div>
+    {{if .On}}
+    <div class="pulse-actions">
+      <form method="post" action="/dev/pulse/clear-desktop"><button type="submit" class="btn-ghost">Clear desktop history</button></form>
+      <form method="post" action="/dev/pulse/run"><button type="submit" class="btn-outline">Run a round now</button></form>
+    </div>
+    {{end}}
+  </header>
+  {{if .Error}}<p class="pulse-error">{{if eq .Error "busy"}}A round is already running.{{else}}{{.Error}}{{end}}</p>{{end}}
+
+  {{if .On}}
+  <section class="dev-section">
+    <h2 class="dev-h2">Agenda</h2>
+    {{if .Agenda}}
+    <table class="dev-table pulse-table">
+      <thead><tr><th>Item</th><th>Due</th><th>Added</th></tr></thead>
+      <tbody>{{range .Agenda}}
+        <tr><td>{{.Text}}</td><td class="pulse-nowrap">{{if .Due.IsZero}}—{{else}}{{.Due.Format "Mon 01-02 15:04"}}{{if not .FiredAt.IsZero}} · woke{{end}}{{end}}</td><td class="pulse-nowrap">{{.Created.Format "01-02 15:04"}}</td></tr>
+      {{end}}</tbody>
+    </table>
+    {{else}}<p class="dev-meta">Empty.</p>{{end}}
+  </section>
+
+  <section class="dev-section">
+    <h2 class="dev-h2">Journal</h2>
+    {{if .Rounds}}
+    <table class="dev-table pulse-table">
+      <thead><tr><th>When</th><th>Why</th><th>Decision</th><th>What it found</th><th>Chat</th></tr></thead>
+      <tbody>{{range .Rounds}}
+        <tr>
+          <td class="pulse-nowrap">{{.At.Format "Mon 15:04"}}{{if not .EndedAt.IsZero}}<br><span class="pulse-dim">to {{.EndedAt.Format "15:04"}}</span>{{end}}</td>
+          <td>{{.Why}}</td>
+          <td class="pulse-nowrap pulse-{{.Decision}}">{{if .Decision}}{{.Decision}}{{else}}running{{end}}</td>
+          <td class="pulse-text">{{if .Brief}}{{.Brief}}{{else}}{{.Summary}}{{end}}{{if .Wrote}}<br><span class="pulse-warn">wrote {{range $i, $p := .Wrote}}{{if $i}}, {{end}}{{$p}}{{end}}</span>{{end}}</td>
+          <td class="pulse-nowrap">{{.Delivery}}</td>
+        </tr>
+      {{end}}</tbody>
+    </table>
+    {{else}}<p class="dev-meta">No rounds yet.</p>{{end}}
+  </section>
+  {{end}}
+</div>
+</body>
+</html>

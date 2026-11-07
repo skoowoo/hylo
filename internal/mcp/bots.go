@@ -75,6 +75,8 @@ type botSummary struct {
 	Description  string `json:"description,omitempty"`
 	Enabled      bool   `json:"enabled"`
 	TriggerCount int    `json:"trigger_count"`
+	Unread       int    `json:"unread,omitempty"`      // messages it sent on its own that the user hasn't opened
+	LastActive   string `json:"last_active,omitempty"` // its latest chat message, local time
 }
 
 type triggerOut struct {
@@ -136,12 +138,16 @@ func toBotOut(m *mate.Mate) botOut {
 
 // registerBotTools exposes agent bots, their triggers and the skills they run.
 func registerBotTools(s *sdk.Server, c *client.Client) {
-	addTool(s, "bot_list", "List agent bots with how many triggers each has.", readOnly,
+	addTool(s, "bot_list", "List agent bots with how many triggers each has, how many messages they sent on their own that the user hasn't opened, and when they were last active.", readOnly,
 		func(_ context.Context, _ noReq) (botsOut, error) {
 			bots, err := c.Bots()
 			out := botsOut{Bots: []botSummary{}}
 			for _, m := range bots {
-				out.Bots = append(out.Bots, botSummary{ID: m.ID, Name: m.Name, Description: m.Description, Enabled: m.Enabled, TriggerCount: m.TriggerCount})
+				b := botSummary{ID: m.ID, Name: m.Name, Description: m.Description, Enabled: m.Enabled, TriggerCount: m.TriggerCount, Unread: m.Unread}
+				if !m.LastActiveAt.IsZero() {
+					b.LastActive = m.LastActiveAt.Local().Format("2006-01-02 15:04")
+				}
+				out.Bots = append(out.Bots, b)
 			}
 			return out, err
 		})

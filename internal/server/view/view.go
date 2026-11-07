@@ -7,8 +7,10 @@ import (
 	"time"
 
 	"github.com/hardhacker/hylo/internal/config"
+	"github.com/hardhacker/hylo/internal/desktop"
 	"github.com/hardhacker/hylo/internal/mate"
 	"github.com/hardhacker/hylo/internal/plugins/search"
+	"github.com/hardhacker/hylo/internal/pulse"
 	"github.com/hardhacker/hylo/internal/storage"
 	"github.com/hardhacker/hylo/internal/util"
 )
@@ -19,6 +21,9 @@ type ViewHandler struct {
 	searcher search.Searcher
 	cfg      *config.Config
 	mates    mateReader
+	pulse    *pulse.Pulse
+	journal  pulseJournal
+	desk     *desktop.Tracker
 }
 
 type mateReader interface {

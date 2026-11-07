@@ -53,6 +53,7 @@ func init() {
 	))
 
 	static.Bundle("bundle/login.css", appTokensCSS+readAssets("base.css", "login.css"))
-	static.Bundle("bundle/icons.css", appTokensCSS+readAssets("base.css", "icons_specimen.css"))
+	static.Bundle("bundle/icons.css", appTokensCSS+readAssets("base.css", "dev_page.css", "icons_specimen.css"))
 	static.Bundle("bundle/icons.js", readAssets("icons_specimen.js"))
+	static.Bundle("bundle/pulse.css", appTokensCSS+readAssets("base.css", "dev_page.css", "pulse_dev.css"))
 }

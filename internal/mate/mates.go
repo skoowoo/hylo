@@ -20,7 +20,8 @@ func (s *Store) ListMates() ([]Mate, error) {
 		`SELECT m.id, m.name, m.description, m.agent_id, m.model, m.color, m.cwd, m.main, m.system_prompt, m.enabled, m.created_at, m.updated_at,
 		        (SELECT COUNT(*) FROM mate_triggers t WHERE t.mate_id = m.id) AS trigger_count,
 		        (SELECT COUNT(*) FROM chat_messages c WHERE c.mate_id = m.id AND c.role = 'assistant' AND c.trigger_event != ''
-		           AND c.status NOT IN ('', 'running') AND c.updated_at > m.seen_at) AS unread
+		           AND c.status NOT IN ('', 'running') AND c.updated_at > m.seen_at) AS unread,
+		        COALESCE((SELECT MAX(c.created_at) FROM chat_messages c WHERE c.mate_id = m.id), 0) AS last_active
          FROM mates m ORDER BY m.sort_order ASC, m.created_at ASC`,
 	)
 	if err != nil {
@@ -37,12 +38,21 @@ func (s *Store) MarkChatSeen(id string) error {
 }
 
 func (s *Store) GetMate(id string) (*Mate, error) {
+	return s.getMate(`WHERE id = ?`, id)
+}
+
+// MainBot returns the main bot, enabled or not; nil when there is none.
+func (s *Store) MainBot() (*Mate, error) {
+	return s.getMate(`WHERE main = 1`)
+}
+
+func (s *Store) getMate(where string, args ...any) (*Mate, error) {
 	var m Mate
 	var createdMs, updatedMs int64
 	var enabled, main int
 	err := s.db.QueryRow(
 		`SELECT id, name, description, agent_id, model, color, cwd, main, system_prompt, enabled, created_at, updated_at
-         FROM mates WHERE id = ?`, id,
+         FROM mates `+where, args...,
 	).Scan(&m.ID, &m.Name, &m.Description, &m.AgentID, &m.Model, &m.Color, &m.Cwd, &main,
 		&m.SystemPrompt, &enabled, &createdMs, &updatedMs)
 	if err == sql.ErrNoRows {
@@ -407,12 +417,13 @@ func scanMateRow(rows *sql.Rows, withTriggerCount bool) (Mate, error) {
 	var createdMs, updatedMs int64
 	var enabled, main int
 	var triggerCount, unread int
+	var lastActive int64
 	var cols = []any{
 		&m.ID, &m.Name, &m.Description, &m.AgentID, &m.Model, &m.Color, &m.Cwd, &main,
 		&m.SystemPrompt, &enabled, &createdMs, &updatedMs,
 	}
 	if withTriggerCount {
-		cols = append(cols, &triggerCount, &unread)
+		cols = append(cols, &triggerCount, &unread, &lastActive)
 	}
 	if err := rows.Scan(cols...); err != nil {
 		return Mate{}, err
@@ -424,6 +435,7 @@ func scanMateRow(rows *sql.Rows, withTriggerCount bool) (Mate, error) {
 	if withTriggerCount {
 		m.TriggerCount = triggerCount
 		m.Unread = unread
+		m.LastActiveAt = fromMs(lastActive)
 	}
 	return m, nil
 }

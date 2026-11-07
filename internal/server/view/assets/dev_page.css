@@ -1,0 +1,21 @@
+/* /dev pages: one scrolling column, a header, then titled sections. */
+*, *::before, *::after { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body { background: var(--bg); color: var(--fg); overflow: hidden; }
+.dev {
+  height: 100%; overflow-y: auto;
+  padding: var(--space-xl) var(--space-lg) var(--space-xxl);
+  display: flex; flex-direction: column; gap: var(--space-xl);
+}
+.dev-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-md); flex-wrap: wrap; }
+.dev-title { margin: 0; font-size: 22px; font-weight: 600; letter-spacing: -0.014em; }
+.dev-meta { margin: 6px 0 0; font-size: var(--text-sm); color: var(--muted); }
+.dev-meta code { font-family: var(--font-mono); font-size: var(--text-xs); }
+.dev-section { display: flex; flex-direction: column; gap: var(--space-sm); }
+.dev-h2 { margin: 0; font-size: var(--text-xs); font-weight: 600; color: var(--muted); }
+.dev-table { border-collapse: collapse; font-size: var(--text-sm); }
+.dev-table th, .dev-table td {
+  padding: 8px 14px; text-align: left;
+  border-bottom: var(--bd-w) solid var(--line-hair);
+}
+.dev-table thead th { font-size: var(--text-xs); font-weight: 500; color: var(--muted); }

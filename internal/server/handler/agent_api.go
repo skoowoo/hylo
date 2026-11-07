@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 
@@ -38,6 +39,8 @@ type AgentAPI struct {
 	setupMu    sync.Mutex      // one first-bot setup at a time, so two can't both find no bots
 	lanes      sync.Map        // mateID -> *chatLane; one chat run at a time, the user's first
 	queued     sync.Map        // runID -> context.CancelFunc; a run still waiting for its bot's chat
+	runBots    sync.Map        // runID -> mateID while a bot's run is going; its tool calls name the run
+	rounds     bool            // the main bot's own rounds run, so its agenda wakes it
 	life       context.Context // detached runs end with it; nil leaves them to their own lifetime
 	runs       sync.WaitGroup
 }
@@ -55,6 +58,7 @@ func (a *AgentAPI) SetMateRunner(r *mate.Runner) {
 // WakeEnd is a wake whose turn is over. A silent one has already left the chat.
 type WakeEnd struct {
 	MateID         string `json:"mateId"`
+	Event          string `json:"event"`
 	Bot            string `json:"bot"`
 	ConversationID string `json:"conversationId"`
 	WakeID         string `json:"wakeId"`
@@ -64,7 +68,12 @@ type WakeEnd struct {
 	// Retry: the user ran it again from the chat, watching, so it isn't news to them.
 	Retry bool   `json:"retry,omitempty"`
 	Text  string `json:"text,omitempty"`
+	// Ref is the wake's mate.Wake.Ref.
+	Ref string `json:"-"`
 }
+
+// SetRounds says the main bot's own rounds are running (internal/pulse).
+func (a *AgentAPI) SetRounds(on bool) { a.rounds = on }
 
 // SetWakeEnd registers fn to hear of every wake whose turn is over.
 func (a *AgentAPI) SetWakeEnd(fn func(WakeEnd)) { a.onWake = fn }
@@ -112,7 +121,7 @@ type chatBody struct {
 	ProjectID          string            `json:"projectId"`
 	ConversationID     string            `json:"conversationId"`
 	NewChat            bool              `json:"newChat"`            // the client allocated ConversationID; the turn starts that chat unless it exists
-	UserMessageID     string            `json:"userMessageId"`      // pre-allocated by client (optional)
+	UserMessageID      string            `json:"userMessageId"`      // pre-allocated by client (optional)
 	AssistantMessageID string            `json:"assistantMessageId"` // pre-allocated by client (optional)
 	TriggerEvent       string            `json:"triggerEvent"`       // set on a wake: the event that woke the bot; the message is its task
 	TriggerID          string            `json:"triggerId"`          // set on a wake: the trigger that woke the bot
@@ -122,7 +131,9 @@ type chatBody struct {
 	oneShot            bool              // self-contained internal ask; see prompt.OneShot
 	app                string            // wechat, discord or telegram; the stored message stays the raw text
 	held               bool              // the caller already holds the bot's chat (inChat)
+	pulse              bool              // one of the bot's own rounds: a session of its own, off the chat (Pulse)
 	ticket             *ticket           // a wake's place in its bot's chat, taken by Wake; nil joins as the user
+	ref                string            // a wake's mate.Wake.Ref, told back in its WakeEnd
 }
 
 // AgentsGET handles GET /api/agents.
@@ -379,32 +390,56 @@ func (a *AgentAPI) Wake(m *mate.Mate, w mate.Wake) error {
 	if w.Path != "" {
 		a.pathRuns.Store(w.Path, run.ID)
 	}
-	body := chatBody{MateID: m.ID, Message: w.Prompt, TriggerEvent: string(w.Event), TriggerID: w.TriggerID, ticket: t}
+	body := chatBody{MateID: m.ID, Message: w.Prompt, TriggerEvent: string(w.Event), TriggerID: w.TriggerID, ticket: t, ref: w.Ref}
 	a.detach(context.Background(), func(ctx context.Context) { a.inChat(ctx, run, body) })
 	return nil
+}
+
+// Pulse runs one of m's own rounds in a session of its own, off the chat: no
+// message is saved and the user's turns don't wait for it. model overrides
+// the bot's when set. The reply is the round's decision (prompt.PulseRound).
+func (a *AgentAPI) Pulse(ctx context.Context, m *mate.Mate, request, model string) mate.RunResult {
+	if a.hub == nil {
+		return mate.RunResult{}
+	}
+	run := a.hub.CreateRun(nil)
+	res := a.executeChat(ctx, run, chatBody{MateID: m.ID, Message: request, Model: model, pulse: true})
+	res.RunID = run.ID
+	return res
+}
+
+// ChatIdle reports whether nothing holds or waits for the bot's chat and the
+// user has been quiet there a while, the same quiet a wake waits for.
+func (a *AgentAPI) ChatIdle(mateID string) bool {
+	return a.lane(mateID).idle()
 }
 
 // inChat runs body in its bot's current chat once the chat is free. The bot is
 // checked and the chat picked only then, so a bot or trigger turned off, or a
 // /new or desktop new chat made, while it waited is what it goes by.
 func (a *AgentAPI) inChat(ctx context.Context, run *agent.Run, body chatBody) mate.RunResult {
+	// A wake that never reaches the chat still ends, so whoever waits on it hears.
+	abort := func(status string) mate.RunResult {
+		a.hub.Finish(run, status, map[string]any{})
+		if body.TriggerEvent != "" {
+			a.endWake(WakeEnd{MateID: body.MateID, Event: body.TriggerEvent, Ref: body.ref}, run, "")
+		}
+		return mate.RunResult{}
+	}
 	release, ok := a.queueChat(ctx, run.ID, body.MateID, body.ticket)
 	if !ok {
 		a.canceled.Delete(run.ID)
-		a.hub.Finish(run, "canceled", map[string]any{})
-		return mate.RunResult{}
+		return abort("canceled")
 	}
 	defer release()
 	if _, err := a.store.TurnBot(body.MateID, body.TriggerID); err != nil {
 		a.logger.Info("chat: turn dropped", slog.String("mate", body.MateID), slog.String("trigger", body.TriggerID), slog.String("err", err.Error()))
-		a.hub.Finish(run, "failed", map[string]any{})
-		return mate.RunResult{}
+		return abort("failed")
 	}
 	convID, err := a.store.CurrentConversationID(body.MateID)
 	if err != nil {
 		a.logger.Warn("chat: conversation", slog.String("err", err.Error()))
-		a.hub.Finish(run, "failed", map[string]any{})
-		return mate.RunResult{}
+		return abort("failed")
 	}
 	body.ConversationID = convID
 	body.held = true
@@ -431,7 +466,7 @@ func channelRequest(app, text string) string {
 func (a *AgentAPI) executeChat(ctx context.Context, run *agent.Run, body chatBody) (res mate.RunResult) {
 	// Desktop chat, connected apps and wakes share this bot's chat session, so
 	// only one of them runs at a time.
-	if body.MateID != "" && !body.held {
+	if body.MateID != "" && !body.held && !body.pulse {
 		release, ok := a.queueChat(ctx, run.ID, body.MateID, nil)
 		if !ok {
 			a.canceled.Delete(run.ID)
@@ -461,7 +496,9 @@ func (a *AgentAPI) executeChat(ctx context.Context, run *agent.Run, body chatBod
 	if body.MateID != "" && a.store != nil {
 		if m, err := a.store.GetMate(body.MateID); err == nil && m != nil {
 			body.AgentID = m.AgentID
-			body.Model = m.Model
+			if !body.pulse || body.Model == "" {
+				body.Model = m.Model
+			}
 			run.AgentID = m.AgentID
 			dir = m.Cwd
 			main = m.Main
@@ -475,6 +512,7 @@ func (a *AgentAPI) executeChat(ctx context.Context, run *agent.Run, body chatBod
 		Bot:       body.SystemPrompt,
 		Main:      main,
 		MCP:       a.mcpURL(body.AgentID) != "",
+		Agenda:    a.rounds,
 		Overrides: map[string]string{prompt.SectionGlobal: a.cfg.Agent.SystemPrompt},
 	}
 	if body.oneShot {
@@ -522,6 +560,7 @@ func (a *AgentAPI) executeChat(ctx context.Context, run *agent.Run, body chatBod
 			ModelID:        body.Model,
 			TriggerEvent:   body.TriggerEvent,
 			TriggerID:      body.TriggerID,
+			App:            body.app,
 		}); err != nil {
 			a.logger.Warn("chat: insert "+role+" message", slog.String("err", err.Error()))
 		} else {
@@ -544,13 +583,17 @@ func (a *AgentAPI) executeChat(ctx context.Context, run *agent.Run, body chatBod
 			assistantMsgID = am.ID
 		}
 	}
-	if wake && assistantMsgID != "" {
+	if wake {
 		defer func() {
-			a.endWake(WakeEnd{MateID: body.MateID, Bot: bot, ConversationID: body.ConversationID, WakeID: promptMsgID, ReplyID: assistantMsgID, Retry: body.RetryOf != ""}, run, res.LastMessage)
+			a.endWake(WakeEnd{MateID: body.MateID, Event: body.TriggerEvent, Bot: bot, ConversationID: body.ConversationID, WakeID: promptMsgID, ReplyID: assistantMsgID, Retry: body.RetryOf != "", Ref: body.ref}, run, res.LastMessage)
 		}()
 	}
-	if wake && body.RetryOf == "" && a.editorBus != nil {
+	if (wake && body.RetryOf == "" || body.pulse) && a.editorBus != nil {
 		defer a.editorBus.Unwatched(run.ID)()
+	}
+	if body.MateID != "" {
+		a.runBots.Store(run.ID, body.MateID)
+		defer a.runBots.Delete(run.ID)
 	}
 
 	def := agent.GetAgentDef(body.AgentID)
@@ -586,7 +629,8 @@ func (a *AgentAPI) executeChat(ctx context.Context, run *agent.Run, body chatBod
 	up := a.uploadRoot()
 	safeImages := filterImagePaths(body.ImagePaths, up)
 	request := channelRequest(body.app, agent.TurnText(def.ID, body.Message, safeImages))
-	if wake && a.store != nil {
+	// A round's brief comes already framed (prompt.PulseWake).
+	if wake && a.store != nil && body.TriggerEvent != string(mate.MateEventPulse) {
 		request = prompt.WakeRequest(a.store.WakeReason(body.TriggerID, mate.MateEventType(body.TriggerEvent)), request)
 	}
 	composed := prompt.Message(prompt.System(pr), request, cwd, dir, resumeTurn)
@@ -654,6 +698,8 @@ func (a *AgentAPI) executeChat(ctx context.Context, run *agent.Run, body chatBod
 		SessionID: sessionID, FirstSession: firstSession,
 	}
 	argv := agent.BuildInvocationArgs(def, argCtx)
+	// Tools and the hylo CLI name the run, so the server knows whose call it is.
+	env = mergeEnvKey(env, agent.RunEnv, run.ID)
 	argv, env = a.injectMCP(def.ID, run.ID, cwd, argv, env)
 	if e := agent.CheckWindowsCmdShimCommandLineBudget(def, bin, argv); e != nil {
 		a.logger.Warn("agent aborted",
@@ -741,7 +787,7 @@ func (a *AgentAPI) executeChat(ctx context.Context, run *agent.Run, body chatBod
 				_ = a.store.InsertMessageNoteAccess(assistantMsgID, toMateNoteAccess(noteTracker.Entries()))
 			}
 			a.hub.Finish(run, "failed", map[string]any{})
-			return mate.RunResult{Success: false, LastMessage: turn.Answer()}
+			return mate.RunResult{Success: false, LastMessage: turn.Answer(), Wrote: wrote(noteTracker.Entries())}
 		}
 	}
 	st := "succeeded"
@@ -771,7 +817,18 @@ func (a *AgentAPI) executeChat(ctx context.Context, run *agent.Run, body chatBod
 		slog.String("status", st),
 		slog.Int("exitCode", code))
 	a.hub.Finish(run, st, map[string]any{"exitCode": code})
-	return mate.RunResult{Success: st == "succeeded", LastMessage: turn.Answer()}
+	return mate.RunResult{Success: st == "succeeded", LastMessage: turn.Answer(), Wrote: wrote(noteTracker.Entries())}
+}
+
+// wrote lists the notes a run wrote, each once.
+func wrote(entries []agent.NoteAccess) []string {
+	var out []string
+	for _, e := range entries {
+		if e.Action == agent.NoteActionWrite && !slices.Contains(out, e.Path) {
+			out = append(out, e.Path)
+		}
+	}
+	return out
 }
 
 // endWake settles a wake once its turn is over: a silent one leaves the chat,
@@ -780,7 +837,9 @@ func (a *AgentAPI) endWake(e WakeEnd, run *agent.Run, reply string) {
 	e.Status, _ = run.StatusJSON()["status"].(string)
 	if e.Status == "succeeded" && prompt.IsSilent(reply) {
 		e.Silent = true
-		if err := a.store.DeleteMessages(e.WakeID, e.ReplyID); err != nil {
+		// A wake whose messages never got saved has none to drop.
+		ids := slices.DeleteFunc([]string{e.WakeID, e.ReplyID}, func(id string) bool { return id == "" })
+		if err := a.store.DeleteMessages(ids...); err != nil {
 			a.logger.Warn("wake: drop silent turn", slog.String("err", err.Error()))
 		}
 	} else {

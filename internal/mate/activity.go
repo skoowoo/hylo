@@ -59,6 +59,27 @@ func (s *Store) ListNoteActivity(from, to time.Time) ([]NoteActivity, error) {
 	if err != nil {
 		return nil, fmt.Errorf("mate: list note activity: %w", err)
 	}
+	return scanNoteActivity(rows)
+}
+
+// RecentNoteActivity returns actor's touches in [from, to), newest first, at
+// most limit of them (0 is all). An empty actor is everyone.
+func (s *Store) RecentNoteActivity(from, to time.Time, actor string, limit int) ([]NoteActivity, error) {
+	if limit <= 0 {
+		limit = -1
+	}
+	rows, err := s.db.Query(
+		`SELECT path, actor, action, at FROM note_activity
+		 WHERE at >= ? AND at < ? AND (? = '' OR actor = ?) ORDER BY at DESC LIMIT ?`,
+		from.UnixMilli(), to.UnixMilli(), actor, actor, limit,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("mate: recent note activity: %w", err)
+	}
+	return scanNoteActivity(rows)
+}
+
+func scanNoteActivity(rows *sql.Rows) ([]NoteActivity, error) {
 	defer rows.Close()
 	var out []NoteActivity
 	for rows.Next() {
