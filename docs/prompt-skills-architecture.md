@@ -36,7 +36,7 @@ flowchart LR
 - `MCP`：这个 agent 是否注入了 Hylo MCP。
 - `Kind`：`oneShot` → OneShot，其余 → Chat（trigger 唤醒的轮次也是 Chat，任务外包一层 `prompt.WakeRequest`）。
 - `Intro`：onboarding 后的第一次聊天。
-- `global` 这一层固定是 `text/global.md`，没有配置项。
+- `global` 这一层固定是 `text/system/global.md`，没有配置项。
 
 `prompt.Message` 产出 agent 真正收到的第一条消息：
 
@@ -51,7 +51,7 @@ Your working directory: <cwd> (the vault root | vault path /_bots/_xxx)
 
 # User request
 
-<用户消息，或 trigger 唤醒时的 WakeRequest（text/wake.md：谁唤醒的、回复会作为 bot 主动发的消息、可回 [silent]，再加 trigger prompt）>
+<用户消息，或 trigger 唤醒时的 WakeRequest（text/trigger/wake.md：谁唤醒的、回复会作为 bot 主动发的消息、可回 [silent]，再加 trigger prompt）>
 ```
 
 agent CLI 没有独立的 system prompt 参数，所以指令只随第一轮发送；**续聊（resume）只发用户消息**。改了 section 文本，已有会话不会生效，要新开会话才能验证。
@@ -64,15 +64,15 @@ agent CLI 没有独立的 system prompt 参数，所以指令只随第一轮发�
 
 | # | Section | 文本 | 生效条件 | 可覆盖 |
 | --- | --- | --- | --- | --- |
-| 1 | `global` | `text/global.md`：一句身份说明 | `Kind != OneShot` | ❌ |
-| 2 | `vault` | `text/vault.md`：知识库路径、`[[ ]]` 链接规则、何时读哪些记忆文件 | `Kind != OneShot` | ❌ |
-| 3 | `bot` | `Run.Bot`：主 bot 用 `text/bot_hylo.md`，其他 bot 由用户或 hylo-bots 写 | 非空即生效 | — |
-| 4 | `mcp` | `text/mcp.md`：怎么用 Hylo 工具，按需局部读取（`extract_*`） | `MCP && Kind != OneShot` | ❌ |
-| 5 | `choices` | `text/choices.md`：`choices` 按钮卡格式 | `Kind == Chat` | ❌ |
-| 6 | `capabilities` | `text/capabilities.md`：内容层（方法、`sources` 卡、去向）+ 自动化阶梯 L0–L3 | `Chat && Main && MCP && Intro == nil` | ❌ |
-| 7 | `intro` | `text/intro.md` 模板：启动 hylo-setup | `Intro != nil` | ❌ |
+| 1 | `global` | `text/system/global.md`：身份，外加一句语气 | `Kind != OneShot` | ❌ |
+| 2 | `vault` | `text/system/vault.md`：知识库路径、`[[ ]]` 链接规则、何时读哪些记忆文件 | `Kind != OneShot` | ❌ |
+| 3 | `bot` | `Run.Bot`：主 bot 用 `text/system/bot_hylo.md`，其他 bot 由用户或 hylo-bots 写 | 非空即生效 | — |
+| 4 | `mcp` | `text/system/mcp.md`：怎么用 Hylo 工具，按需局部读取（`extract_*`） | `MCP && Kind != OneShot` | ❌ |
+| 5 | `choices` | `text/system/choices.md`：`choices` 按钮卡格式 | `Kind == Chat` | ❌ |
+| 6 | `capabilities` | `text/system/capabilities.md`：内容层（方法、`sources` 卡、去向）+ 自动化阶梯 L0–L3 | `Chat && Main && MCP && Intro == nil` | ❌ |
+| 7 | `intro` | `text/setup/intro.md` 模板：启动 hylo-setup | `Intro != nil` | ❌ |
 
-`global` 是固定的身份说明。`vault` 单独一层，放 skill 和工具依赖的约定（链接写法、`_knowledge/_indexes/`、`_memory/`）。
+`global` 是固定的身份说明，并要求像人说话，不像产品。`vault` 单独一层，放 skill 和工具依赖的约定（链接写法、`_knowledge/_indexes/`、`_memory/`）。
 
 ### 各类运行实际拿到哪些 sections
 
@@ -96,7 +96,7 @@ agent CLI 没有独立的 system prompt 参数，所以指令只随第一轮发�
 flowchart TB
     subgraph Main["主 bot（Main = true）"]
         direction TB
-        MP["prompt: bot_hylo.md（内置）"]
+        MP["prompt: system/bot_hylo.md（内置）"]
         MC["cwd: / （vault 根）"]
         MS["skills: 9 个 DefaultSkills 常开 + 用户启用的"]
         MT["内置 triggers（setup_api.go 的 hyloBot）"]
@@ -116,16 +116,16 @@ flowchart TB
 
 | Trigger | 事件 | Prompt | 走哪个 skill |
 | --- | --- | --- | --- |
-| Compiler | `compile_requested` | `trigger_compile.md` | 点名 hylo-compile-note → hylo-index-knowledge → humanizer（有就用） |
+| Compiler | `compile_requested` | `trigger/compile.md` | 点名 hylo-compile-note → hylo-index-knowledge → humanizer（有就用） |
 | Compiler | `note_created`，限 `/Web Clips/` | 同上 | 同上 |
-| Memory | `scheduled`，daily 09:00 | `trigger_memory.md` | 不点名，靠 description 匹配到 hylo-memory |
+| Memory | `scheduled`，daily 09:00 | `trigger/memory.md` | 不点名，靠 description 匹配到 hylo-memory |
 
-回顾不在主 bot 上：周回顾和随机回顾是定时消费，不是对话，交给独立的 Recall bot，由 hylo-setup 的 recall-bot 步骤创建（`/_bots/_recall`，启用内置 hylo-recall），两条 trigger 由用户多选。trigger prompt 就是 `trigger_recall_weekly.md` 和 `trigger_recall_random.md`，步骤文件逐字引用，`TestRecallBotStepQuotesTriggerPrompts` 防止两边走样。创建短记不再自动回顾。
+回顾不在主 bot 上：周回顾和随机回顾是定时消费，不是对话，交给独立的 Recall bot，由 hylo-setup 的 recall-bot 步骤创建（`/_bots/_recall`，启用内置 hylo-recall），两条 trigger 由用户多选。trigger prompt 就是 `trigger/recall_weekly.md` 和 `trigger/recall_random.md`，步骤文件逐字引用，`TestRecallBotStepQuotesTriggerPrompts` 防止两边走样。创建短记不再自动回顾。
 
 | Trigger | 事件 | Prompt | 走哪个 skill |
 | --- | --- | --- | --- |
-| Weekly review | `scheduled`，weekly mon 09:05 | `trigger_recall_weekly.md` | 点名 hylo-recall（周回顾） |
-| Look back | `scheduled`，daily 15:00 | `trigger_recall_random.md` | 点名 hylo-recall（随机翻历史） |
+| Weekly review | `scheduled`，weekly mon 09:05 | `trigger/recall_weekly.md` | 点名 hylo-recall（周回顾） |
+| Look back | `scheduled`，daily 15:00 | `trigger/recall_random.md` | 点名 hylo-recall（随机翻历史） |
 
 **Trigger prompt 的写法**（hylo-bots `references/triggers.md` + `references/skills.md`）：只写做什么、点名用哪个 skill、加上用户偏好（话题、数量、语言），不写方法。不写 curl、URL、API 参数，这些属于 skill。
 
@@ -174,7 +174,7 @@ flowchart LR
     setup -->|about-you 步骤：Record one fact| memory[hylo-memory]
     setup -->|language 步骤：改写引导文| editor[hylo-editor]
     setup -.->|compile 步骤调 compile 工具<br/>→ compile_requested 事件<br/>→ 主 bot Compiler trigger| compile[hylo-compile-note]
-    compile -.->|trigger_compile.md 第 2 步| index[hylo-index-knowledge]
+    compile -.->|trigger/compile.md 第 2 步| index[hylo-index-knowledge]
     notes[hylo-notes] -->|写一篇 / 改一段| writing[hylo-writing]
     writing -->|实时写| editor
     writing -->|写完可编译回知识库| compile
@@ -182,8 +182,8 @@ flowchart LR
     writing -->|意见：对照旧笔记| recall[hylo-recall]
     recall -->|灵感之后写成文| writing
     bots -.->|capabilities / skills_catalog| ext[目录里的外部 skill]
-    botprompt["bot_hylo.md"] -->|记下关于用户的事| memory
-    caps["capabilities.md"] -->|提议自动化 / 改 / 撤销| bots
+    botprompt["system/bot_hylo.md"] -->|记下关于用户的事| memory
+    caps["system/capabilities.md"] -->|提议自动化 / 改 / 撤销| bots
 ```
 
 ---
@@ -197,12 +197,12 @@ flowchart LR
     K -->|hylo-index-knowledge| I["领域索引<br/>/_knowledge/_indexes/"]
     SN["短笔记<br/>/_shorts"] -->|hylo-memory 提取| MEM["/_memory/ 7 个文件<br/>identity, goals, state,<br/>preferences, beliefs, people, voice"]
     K -->|hylo-memory 提取| MEM
-    MEM -->|vault.md：每次运行按任务读| ALL[所有非 OneShot 运行]
+    MEM -->|system/vault.md：每次运行按任务读| ALL[所有非 OneShot 运行]
     I & K -->|检索| RW["hylo-recall（找、回应、灵感、回顾、探，只输出到对话）<br/>hylo-writing（成文、改稿、写作）"]
 ```
 
-- **知识**：compile-note 负责写，index-knowledge 负责建索引，其他 skill 只读。读的时候先看索引，再看单元，再看原文，最后才全文搜索（`vault.md` 规定的顺序，所有运行共用）。每个单元的 `perspective`（own / external / mixed）由 compile-note 写入，memory 和 recall 据此区分“你写的”和“你读到的”。
-- **记忆**：只有 hylo-memory 写。读的规则在 `vault.md`，所有运行共用。`_voice.md` 只记怎么写：后台只从短笔记学写法（短笔记是用户原样打出的字，知识单元经过编译改写），加上明确说过的规则和确认过的格式。写作时必读，衰减窗口 180 天。
+- **知识**：compile-note 负责写，index-knowledge 负责建索引，其他 skill 只读。读的时候先看索引，再看单元，再看原文，最后才全文搜索（`system/vault.md` 规定的顺序，所有运行共用）。每个单元的 `perspective`（own / external / mixed）由 compile-note 写入，memory 和 recall 据此区分“你写的”和“你读到的”。
+- **记忆**：只有 hylo-memory 写。读的规则在 `system/vault.md`，所有运行共用。`_voice.md` 只记怎么写：后台只从短笔记学写法（短笔记是用户原样打出的字，知识单元经过编译改写），加上明确说过的规则和确认过的格式。写作时必读，衰减窗口 180 天。
 - **hylo-memory 的提取规则**：自己写的内容可以提取身份、目标、观点等；外部来源只提取偏好。分辨内外靠知识单元的 `source_notes`，再对照 `_identity.md` 和 `_goals.md`。它常在后台 trigger 里运行，所以不向用户提问。
 
 ---
@@ -213,8 +213,8 @@ flowchart LR
 
 | 卡片 | 格式由谁定义 | 用途 | 交互 |
 | --- | --- | --- | --- |
-| `choices` | `text/choices.md` | 让用户在几个选项里选 | 点击后把选项文本作为用户消息发出，只有最新一条回复里的卡可点 |
-| `sources` | `text/capabilities.md` | 列出这次用到的笔记和 skill | 笔记可点击；skill 可换成 `swap:` 里的候选 |
+| `choices` | `text/system/choices.md` | 让用户在几个选项里选 | 点击后把选项文本作为用户消息发出，只有最新一条回复里的卡可点 |
+| `sources` | `text/system/capabilities.md` | 列出这次用到的笔记和 skill | 笔记可点击；skill 可换成 `swap:` 里的候选 |
 | `proposal` | hylo-bots `references/cards.md` | 自动化计划，接受即授权执行 | 摘要 + 可展开的细节 + 内嵌 choices |
 | `receipt` | hylo-bots `references/cards.md` | 执行回执；`ids` 记下做了哪些改动 | 撤销按钮发送撤销文本，由 hylo-bots `workflows/undo.md` 按 `ids` 从后往前回滚 |
 
@@ -234,7 +234,7 @@ sequenceDiagram
     participant T as MCP 工具
     U->>MB: 每天早上给我推 AI 新闻
     Note over MB: sections: global, vault, bot,<br/>mcp, choices, capabilities
-    Note over MB: capabilities.md：已经要求自动化<br/>→ 直接走 hylo-bots 的计划
+    Note over MB: system/capabilities.md：已经要求自动化<br/>→ 直接走 hylo-bots 的计划
     MB->>HB: 加载 SKILL.md → workflows/create 或 update
     HB->>T: capabilities（现有 bot / skill / 事件）
     HB->>HB: references/skills.md → 选中目录里的 news skill<br/>references/triggers.md → 写一句话的 trigger prompt
@@ -253,14 +253,14 @@ sequenceDiagram
 
 | 约定 | 唯一归属 |
 | --- | --- |
-| `[[ ]]` 链接、知识库路径、怎么读记忆 | `text/vault.md` |
+| `[[ ]]` 链接、知识库路径、怎么读记忆 | `text/system/vault.md` |
 | 怎么写记忆（含何时加 `pinned`） | hylo-memory 的 “Record one fact” |
-| 局部读取（`extract_*`） | `text/mcp.md` |
-| `choices` 卡格式 | `text/choices.md` |
-| `sources` 卡格式、升级阶梯 L0–L3 | `text/capabilities.md` |
+| 局部读取（`extract_*`） | `text/system/mcp.md` |
+| `choices` 卡格式 | `text/system/choices.md` |
+| `sources` 卡格式、升级阶梯 L0–L3 | `text/system/capabilities.md` |
 | `proposal` / `receipt` 卡格式 | hylo-bots `references/cards.md` |
 | 用 skill 还是直接写 prompt | hylo-bots `references/skills.md` |
-| 检索顺序、`perspective` 的含义 | `vault.md` |
+| 检索顺序、`perspective` 的含义 | `system/vault.md` |
 | 笔记存哪 | hylo-notes |
 | Markdown 方言 | hylo-editor `references/formats.md` |
 | 工具参数 | MCP 工具 schema（`internal/mcp/`） |
@@ -269,7 +269,7 @@ sequenceDiagram
 
 ## 9. 已知耦合
 
-- **Trigger prompt 靠 skill 名字耦合**：`trigger_compile.md`、`trigger_recall_*.md` 直接写 skill 名。`TestHyloBotTriggersAreValid` 检查主 bot 的 prompt 里出现的 `hylo-*` 都是内置 skill；内置 skill 改名时，在 `skills.Retired` 登记旧名，启动时会改写数据库里各 bot 和 trigger 存的 prompt 副本。
-- **“找不到工具就搜 deferred tools”在每个 skill 里重复一遍**：在 vault 目录里直接启动 Claude Code 时没有 Hylo 的 system prompt，只能靠这句话找到工具。这是有意保留的；改 MCP server 名时要和 `mcp.md` 一起改。
-- **“存哪”只在 hylo-notes 定义**：`bot_hylo.md` 只说“交给 hylo-notes，不问存哪”；hylo-writing 只保留一句“自己挑顶层文件夹”。改存放规则时改 hylo-notes 的表。
+- **Trigger prompt 靠 skill 名字耦合**：`trigger/compile.md`、`trigger/recall_*.md` 直接写 skill 名。`TestHyloBotTriggersAreValid` 检查主 bot 的 prompt 里出现的 `hylo-*` 都是内置 skill；内置 skill 改名时，在 `skills.Retired` 登记旧名，启动时会改写数据库里各 bot 和 trigger 存的 prompt 副本。
+- **“找不到工具就搜 deferred tools”在每个 skill 里重复一遍**：在 vault 目录里直接启动 Claude Code 时没有 Hylo 的 system prompt，只能靠这句话找到工具。这是有意保留的；改 MCP server 名时要和 `system/mcp.md` 一起改。
+- **“存哪”只在 hylo-notes 定义**：`system/bot_hylo.md` 只说“交给 hylo-notes，不问存哪”；hylo-writing 只保留一句“自己挑顶层文件夹”。改存放规则时改 hylo-notes 的表。
 - **section 文本只随第一轮发送**：改 prompt 后要新开会话验证，见第 1 节。

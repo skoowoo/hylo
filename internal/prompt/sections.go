@@ -15,17 +15,17 @@ const (
 	SectionAgenda       = "agenda"
 )
 
-// GlobalDefault is the global system prompt, from text/global.md.
-var GlobalDefault = load("global")
+// GlobalDefault is the global system prompt, from text/system/global.md.
+var GlobalDefault = load("system/global")
 
 var (
-	vaultText        = load("vault")
-	mcpText          = load("mcp")
-	choicesText      = load("choices")
-	embedText        = load("embed")
-	capabilitiesText = load("capabilities")
-	agendaText       = load("agenda")
-	introTmpl        = parse("intro")
+	vaultText        = load("system/vault")
+	mcpText          = load("system/mcp")
+	choicesText      = load("system/choices")
+	embedText        = load("system/embed")
+	capabilitiesText = load("system/capabilities")
+	agendaText       = load("system/agenda")
+	introTmpl        = parse("setup/intro")
 )
 
 // sections is the system prompt from the most general layer to the most

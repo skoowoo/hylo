@@ -455,7 +455,7 @@ agenda 只属于主 bot。系统会识别每一次操作来自谁：
 
 lead 可以声明 `every`：一次查看的结果保留多久。新 short、读过的笔记这类信号每分钟都看；习惯节奏要查 30 天的历史，每 15 分钟看一次就够；待办要扫描笔记，每小时一次。
 
-第 4 节的四种信号（short、笔记改动、阅读、回来）现在就是四个 lead，行为和以前一样。加一个新关注点，只需要写一个 look 函数，放进 `leads` 列表；如果它是 nudge，再写一段怎么提的说明（`prompt/text/nudge_<name>.md`）。节奏、digest、journal、观察页都不用改。
+第 4 节的四种信号（short、笔记改动、阅读、回来）现在就是四个 lead，行为和以前一样。加一个新关注点，只需要写一个 look 函数，放进 `leads` 列表；如果它是 nudge，再写一段怎么提的说明（`prompt/text/proactive/nudge_<name>.md`）。节奏、digest、journal、观察页都不用改。
 
 ### 8.2 Nudge：bot 主动提起的事
 

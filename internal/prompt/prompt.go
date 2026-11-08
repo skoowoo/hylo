@@ -1,6 +1,8 @@
-// Package prompt owns every prompt Hylo hands an agent: the layered system
-// prompt, the first-turn message envelope, the wake envelope, trigger
-// templates and the built-in texts under text/.
+// Package prompt owns every prompt Hylo hands an agent. The texts under text/
+// are grouped by what they do: system (the layered system prompt), setup
+// (the install hello and the first chat), proactive (a round the bot starts
+// on its own) and trigger (built-in trigger tasks, and the wake envelope
+// around one).
 package prompt
 
 import (

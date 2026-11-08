@@ -7,7 +7,7 @@ import (
 
 // HyloBot sits under the global prompt, which already covers the knowledge
 // base, memory and wiki links; this one gives the main bot its job.
-var HyloBot = load("bot_hylo")
+var HyloBot = load("system/bot_hylo")
 
 // SilentReply is what a woken bot answers when it has nothing worth sending;
 // the turn then leaves the chat.
@@ -19,7 +19,7 @@ func IsSilent(reply string) bool {
 	return strings.HasSuffix(strings.TrimSpace(reply), SilentReply)
 }
 
-var wakeTmpl = parse("wake")
+var wakeTmpl = parse("trigger/wake")
 
 // WakeRequest is what the agent reads for a wake: who started the turn, how
 // its reply reaches the user, and the task. reason names the source, e.g.
@@ -28,7 +28,7 @@ func WakeRequest(reason, task string) string {
 	return execute(wakeTmpl, struct{ Reason, Task string }{reason, task})
 }
 
-var pulseTmpl = parse("pulse")
+var pulseTmpl = parse("proactive/pulse")
 
 // PulseRound is what the agent reads for one of its own rounds: why it woke
 // and the digest of what changed. Its reply is SilentReply or a brief.
@@ -36,7 +36,7 @@ func PulseRound(why, digest string) string {
 	return execute(pulseTmpl, struct{ Why, Digest string }{why, digest})
 }
 
-var pulseWakeTmpl = parse("pulse_wake")
+var pulseWakeTmpl = parse("proactive/pulse_wake")
 
 // PulseWake carries a round's brief into the bot's chat. A round that wrote
 // notes must say so, so its chat turn may not stay silent. phone: the reply
@@ -49,21 +49,21 @@ func PulseWake(brief string, wrote []string, phone, nudge bool) string {
 	}{brief, quoted(wrote), phone, nudge})
 }
 
-// Nudge is how a round raises nudge name (internal/pulse), from text/nudge_<name>.md.
-func Nudge(name string) string { return load("nudge_" + name) }
+// Nudge is how a round raises nudge name (internal/pulse), from text/proactive/nudge_<name>.md.
+func Nudge(name string) string { return load("proactive/nudge_" + name) }
 
 // Trigger templates of the Hylo bot.
 var (
-	TriggerCompile = load("trigger_compile")
-	TriggerMemory  = load("trigger_memory")
+	TriggerCompile = load("trigger/compile")
+	TriggerMemory  = load("trigger/memory")
 )
 
 // Trigger templates of the Recall bot. Setup quotes the weekly and random ones
 // word for word. The short-note one stays for bots that already have it.
 var (
-	TriggerRecallShort  = load("trigger_recall_short")
-	TriggerRecallWeekly = load("trigger_recall_weekly")
-	TriggerRecallRandom = load("trigger_recall_random")
+	TriggerRecallShort  = load("trigger/recall_short")
+	TriggerRecallWeekly = load("trigger/recall_weekly")
+	TriggerRecallRandom = load("trigger/recall_random")
 )
 
 // Superseded maps former texts of the built-in trigger prompts to the current
@@ -78,7 +78,7 @@ var Superseded = map[string]string{
 	"Use the hylo-recall skill to cross-check this short note against my knowledge base — anything related or conflicting?\n\nShort note content: `{Content}`":                                                                                                                                                                                                                                                                                     TriggerRecallShort,
 }
 
-var helloTmpl = parse("hello")
+var helloTmpl = parse("setup/hello")
 
 // Hello scenes: what the first words should do for someone in that spot.
 const (

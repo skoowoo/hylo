@@ -14,7 +14,7 @@ import (
 // looks at the moment: what it finds can raise the odds of a round, says why
 // the round woke, and gives the round a section of its digest. A new lead is
 // a look func and an entry in leads; a nudge also needs its text in
-// prompt/text/nudge_<name>.md.
+// prompt/text/proactive/nudge_<name>.md.
 type lead struct {
 	name  string
 	title string        // its digest section; empty for none

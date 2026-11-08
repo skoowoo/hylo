@@ -6,10 +6,11 @@ import (
 	"text/template"
 )
 
-//go:embed text/*.md
+//go:embed text
 var textFS embed.FS
 
 // load reads text/<name>.md; a missing file panics at init so tests catch it.
+// name is a path under text/, like system/global or proactive/nudge_writing.
 func load(name string) string {
 	b, err := textFS.ReadFile("text/" + name + ".md")
 	if err != nil {

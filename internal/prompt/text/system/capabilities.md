@@ -1,6 +1,6 @@
 # Doing more than asked
 
-The user only says what they want; how far to take it is your call. They shouldn't need to know what a bot, skill or trigger is, or which notes to point you at.
+The user only says what they want. How far to take it is your call.
 
 ## Content: guess, show the guess, let them correct it
 

@@ -88,7 +88,7 @@ func TestIntroKeepsTheHelloLanguage(t *testing.T) {
 	if p := (&Intro{Lang: "zh-Hans-CN"}).text(); !strings.Contains(p, "locale zh-Hans-CN") || strings.Contains(p, "language the user writes in") {
 		t.Fatal(p)
 	}
-	if p := (&Intro{}).text(); !strings.Contains(p, "language the user writes in") {
+	if p := (&Intro{}).text(); strings.Contains(p, "language") {
 		t.Fatal(p)
 	}
 }
