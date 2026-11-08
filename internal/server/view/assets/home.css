@@ -148,7 +148,7 @@
        resets their min size to 0, so an overflowing list would crush rows
        instead of scrolling. */
     .home-side-heading {
-      flex-shrink: 0; padding: 14px 10px 4px;
+      flex-shrink: 0; padding: 12px 10px 4px;
       /* A whole-pixel line keeps every row below it on whole pixels. */
       font-size: var(--text-2xs); font-weight: var(--fw-medium); line-height: round(var(--text-2xs) * var(--lh-normal), 1px);
       color: var(--muted);
@@ -200,10 +200,10 @@
     .home-side-children-inner::after { content: ""; flex: none; height: 2px; }
     .home-side-children.is-open > .home-side-children-inner { opacity: 1; }
     /* Rows that render after first paint (open tabs from localStorage, bots
-       before Alpine) hold their final height until they arrive. 34px is a
-       32px row plus the 2px gap; 4px is the ::before/::after spacing. */
+       before Alpine) hold their final height until they arrive. 32px is a
+       30px row plus the 2px gap; 4px is the ::before/::after spacing. */
     .home-side-children[data-reserve] > .home-side-children-inner {
-      min-height: calc(var(--reserve-rows) * 34px + 4px);
+      min-height: calc(var(--reserve-rows) * 32px + 4px);
     }
     /* One leading column for every child row (tab status, avatar, icon), so all titles line up. */
     .home-side-child-lead {

@@ -308,7 +308,7 @@
        elsewhere in home.css (icon opacity, count color, etc). ── */
     .side-nav-item {
       display: flex; align-items: center; gap: 9px; flex-shrink: 0;
-      width: 100%; height: 32px; padding: 0 10px;
+      width: 100%; height: 30px; padding: 0 10px;
       border: var(--bd-w) solid transparent; background: transparent; border-radius: var(--r-md);
       color: var(--nav-fg); cursor: pointer; text-align: left; text-decoration: none;
       font-family: inherit; font-size: var(--text-sm); font-weight: var(--fw-regular);
