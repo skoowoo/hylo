@@ -353,7 +353,8 @@
 
     /* ── Agent bot avatar — two eyes on a disc, one color and one face per
        bot, drawn by agentBotAvatarSVG (home.js). A face moves only on a
-       one-shot .is-playing (hover, a new reply), and blinks only under
+       one-shot .is-playing (hover, a new reply) or, while its bot is at
+       work, a slow head turn (.is-working), and blinks only under
        [data-blink] (the sidebar and the latest reply). ── */
     .avatar { display: block; flex-shrink: 0; user-select: none; }
     .avatar--xs { width: 14px; height: 14px; }
@@ -365,6 +366,7 @@
     .bot-face :is(.face, .eye) { transform-box: fill-box; transform-origin: center; }
 
     [data-blink] .bot-face:not(.is-playing) .eye { animation: bot-blink 6.4s var(--blink-at) infinite; }
+    .is-working .bot-face:not(.is-playing) .face { animation: bot-turn 3.6s infinite; }
     .bot-face.is-playing[data-anim="squint"] .face { animation: bot-bob 1s ease-in-out; }
     .bot-face.is-playing[data-anim="squint"] .eye { animation: bot-squeeze 1s ease-in-out; }
     .bot-face.is-playing[data-anim="hop"] .face { animation: bot-hop .9s ease-in-out; }
@@ -379,6 +381,13 @@
     .bot-face.is-playing[data-anim="giggle"] .face { animation: bot-chuckle .9s ease-in-out; }
     .bot-face.is-playing[data-anim="wave"] .face { animation: bot-wave 1.1s ease-in-out; }
     .bot-face.is-playing[data-anim="wave"] .eye { animation: bot-stretch 1.1s ease-in-out; }
+    /* Sine-paced: fastest through the centre, easing into each side, where the eyes foreshorten. */
+    @keyframes bot-turn {
+      0% { transform: none; animation-timing-function: cubic-bezier(.61, 1, .88, 1); }
+      25% { transform: translateX(-7px) scaleX(.9); animation-timing-function: cubic-bezier(.37, 0, .63, 1); }
+      75% { transform: translateX(7px) scaleX(.9); animation-timing-function: cubic-bezier(.12, 0, .39, 0); }
+      100% { transform: none; }
+    }
     @keyframes bot-blink { 0%, 95%, 100% { transform: scaleY(1); } 97.5% { transform: scaleY(.12); } }
     @keyframes bot-bob { 0%, 100% { transform: translateY(0); } 25%, 65% { transform: translateY(-3px); } 45% { transform: translateY(0); } }
     @keyframes bot-squeeze { 0%, 100% { transform: scaleY(1); } 25%, 65% { transform: scaleY(.55); } 45% { transform: scaleY(1); } }

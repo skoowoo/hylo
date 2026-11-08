@@ -257,6 +257,46 @@ test('a small scroll up mid-stream leaves the bottom and stays where the reader 
   }
 });
 
+test('leaving and rejoining the bottom moves no row by even a fraction of a pixel', async (t) => {
+  if (launchError) return t.skip('WebKit unavailable');
+  const page = await browser.newPage({ viewport: { width: 760, height: 720 } });
+  try {
+    await page.addInitScript(stub, { reply: REPLY + '\n\n' + REPLY });
+    await page.goto(server.url + '/chat');
+    await page.evaluate(() => {
+      const k = window.__hyloChatCreate({});
+      k.start();
+      k.attach(document.getElementById('chat-root'));
+      k.tryOpen('m1');
+    });
+    await page.waitForSelector('.msg-row-assistant');
+    await page.fill('#chat-textarea', '整理一下流式界面的问题');
+    await page.press('#chat-textarea', 'Enter');
+    await page.waitForFunction(() => window.__T.endAt > 0, null, { timeout: 20000 });
+    await page.waitForTimeout(1000);
+    const place = () => page.evaluate(() => {
+      const sc = document.querySelector('#chat-scroll'), rows = document.querySelectorAll('.msg-row-assistant');
+      return { stuck: sc.classList.contains('is-stuck'), y: rows[rows.length - 1].getBoundingClientRect().top, h: document.querySelector('#chat-thread').getBoundingClientRect().height };
+    });
+    await page.mouse.move(380, 300);
+    for (let i = 0; i < 4; i++) { await page.mouse.wheel(0, -40); await page.waitForTimeout(16); }
+    const up = await place();
+    // Past the gesture's end, when the origin switches.
+    await page.waitForTimeout(900);
+    const read = await place();
+    for (let i = 0; i < 8; i++) { await page.mouse.wheel(0, 40); await page.waitForTimeout(16); }
+    const down = await place();
+    await page.waitForTimeout(900);
+    const back = await place();
+    assert.ok(up.h % 1, 'the thread height has a fraction, or this proves nothing');
+    assert.deepEqual([up.stuck, read.stuck, back.stuck], [true, false, true]);
+    assert.equal(read.y, up.y, 'leaving the bottom moved the rows');
+    assert.equal(back.y, down.y, 'rejoining the bottom moved the rows');
+  } finally {
+    await page.close();
+  }
+});
+
 test('a long trace stays capped with its newest step in view, and opens in full', async (t) => {
   if (launchError) return t.skip('WebKit unavailable');
   const page = await browser.newPage({ viewport: { width: 760, height: 720 } });

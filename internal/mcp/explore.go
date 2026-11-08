@@ -32,7 +32,7 @@ type activityOut struct {
 // registerExploreTools let a bot look at what the user's other bots said and
 // did, and at who read and wrote which notes.
 func registerExploreTools(s *sdk.Server, c *client.Client) {
-	addTool(s, "bot_chat", "Read a bot's current chat, newest messages last. Messages it sent on its own say what woke it, and whether the user has opened the chat since (unread).", readOnly,
+	addTool(s, "bot_chat", "Read a bot's current chat, newest messages last. Messages it sent on its own say what woke it; a reply the user hasn't seen yet is marked unread.", readOnly,
 		func(_ context.Context, in botChatReq) (client.BotChat, error) {
 			out, err := c.BotChat(in.BotID, in.Before, in.Limit)
 			if out.Messages == nil {

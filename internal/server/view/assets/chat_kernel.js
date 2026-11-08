@@ -1,8 +1,9 @@
 // Page-lifetime chat session. Session owns the transcript, transport owns
-// SSE, the live feed, and a run poller for a stream that drops, and a single
-// phase (idle | sending | streaming | stopping) is the only busy flag. The
-// view attaches only while the pane is in the DOM; a run keeps going when
-// the pane is swapped away.
+// SSE, the live feed, and a run poller for a stream that drops. Each bot has
+// its own turn, whose phase (idle | sending | streaming | stopping) is that
+// bot's only busy flag, so switching bots never waits on one. The view
+// attaches only while the pane is in the DOM; a run keeps going when the pane
+// is swapped away or another bot is opened.
 (function (root) {
   var R = root.__hyloChatReduce;
 
@@ -27,6 +28,8 @@
     // Only the newest PAGE messages load on open; scrolling up pages in older
     // ones. Rendering a whole long history made every bot switch stall.
     var PAGE = 50;
+    // Rows already reported seen, or on their way. Scrolling over them again sends nothing.
+    var reported = Object.create(null);
     var hasOlder = false;
     var loadingOlder = false;
     // The bot's chats with messages, most recently active first: { id, title, at }.
@@ -39,12 +42,12 @@
     // The reader's place while not stuck to the bottom, kept across remounts.
     var anchor = null;
 
-    var phase = 'idle';
-    var run = null; // { id, assistantMsgId } while streaming or stopping
-    var stoppingMsgId = ''; // stays until that message leaves `running`
+    // Each bot's turn: { phase, run: { id, assistantMsgId } while streaming
+    // or stopping, stoppingId (until that message leaves `running`), poll }.
+    // A turn writes into its own bot's messages, open or parked.
+    var turns = Object.create(null);
 
     var refreshSeq = 0;
-    var runCtrl = { seq: 0, timer: null, interval: 5000, firstDelay: 3000 };
     // A live "chat" change arrived. Pulled once the page is looking and no
     // local turn is in flight; one that lands during a turn waits until it ends.
     var transcriptGen = 0;
@@ -107,17 +110,44 @@
       notify(mateName(msg) + label, status === 'failed' ? 'err' : 'ok');
     }
 
-    function busy() { return phase !== 'idle'; }
-    function liveRun() { return phase === 'streaming' || phase === 'stopping'; }
+    function turnOf(id) {
+      if (!turns[id]) {
+        var poll = { seq: 0, timer: null, interval: 5000, firstDelay: 3000 };
+        poll.onError = function () { reportPoll('run', "Couldn't check the run"); };
+        turns[id] = { phase: 'idle', run: null, stoppingId: '', poll: poll };
+      }
+      return turns[id];
+    }
+
+    // The open bot's turn.
+    function turn() { return turnOf(mateId); }
+    function busy() { return turn().phase !== 'idle'; }
+    function liveRun() { var p = turn().phase; return p === 'streaming' || p === 'stopping'; }
+
+    // A bot's messages, whether its chat is open or parked.
+    function msgsOf(id) {
+      if (id === mateId) return messages;
+      return parked[id] ? parked[id].messages : [];
+    }
+
+    function findIn(id, msgId) {
+      var list = msgsOf(id);
+      for (var i = 0; i < list.length; i++) if (list[i].id === msgId) return list[i];
+      return null;
+    }
+
+    // A parked bot's turn changes nothing on screen.
+    function renderFor(id) { if (id === mateId) requestRender(); }
 
     function activeStoppingId() {
-      if (!stoppingMsgId) return '';
-      var msg = findMsg(stoppingMsgId);
+      var t = turn();
+      if (!t.stoppingId) return '';
+      var msg = findMsg(t.stoppingId);
       if (!msg || msg.status !== 'running') {
-        stoppingMsgId = '';
+        t.stoppingId = '';
         return '';
       }
-      return stoppingMsgId;
+      return t.stoppingId;
     }
 
     // jump: show the bottom and stick to it, as after a send or opening a chat.
@@ -149,6 +179,7 @@
     // it's done, so one the bot keeps silent never appears and no turn ever has
     // to leave the thread. A retry the user started is theirs to watch.
     function shown() {
+      var run = turn().run;
       var live = run && run.assistantMsgId;
       return messages.filter(function (m) {
         if (m.role === 'wake') return false;
@@ -170,9 +201,9 @@
         draft: draft,
         images: images,
         canSend: canSend(),
-        phase: phase,
+        phase: turn().phase,
         busy: busy(),
-        runId: run ? run.id : null,
+        runId: turn().run ? turn().run.id : null,
         stoppingId: activeStoppingId(),
         stick: stick,
         hasOlder: hasOlder,
@@ -224,34 +255,87 @@
         // Rows rebuild only when what they draw changed, not on every trigger edit.
         var sig = JSON.stringify(mates.map(function (m) { return [m.id, m.name, m.color]; }));
         if (sig !== matesSig) { matesSig = sig; catalogEpoch++; }
-        if (host.onMates) host.onMates(mates);
+        publishMates();
         requestRender();
-        if (watching()) markSeen(mateId);
+        // A count that still says unread may have raced the last report: the rows in view go once more.
+        var cur = mateById(mateId);
+        if (cur && cur.unread) reported = Object.create(null);
+        checkSeen();
       } catch (e) { notify("Couldn't load bots"); }
     }
 
-    // The user is looking at this bot's chat right now.
-    function watching(id) {
-      return !!view && !!mateId && (!id || id === mateId) && document.visibilityState === 'visible';
+    // A bot is at work while its turn here streams, or while the server holds
+    // a reply of its on the way (a wake, a turn from a connected app).
+    function publishMates() {
+      mates = mates.map(function (m) {
+        var p = turns[m.id] ? turns[m.id].phase : 'idle';
+        var on = !!m.running || p === 'streaming' || p === 'stopping';
+        // A new object: the sidebar's rows are bound to these, and an edit in place goes unseen.
+        return !!m.working === on ? m : Object.assign({}, m, { working: on });
+      });
+      if (host.onMates) host.onMates(mates);
     }
 
-    // Opening a bot's chat reads what it sent on its own.
-    function markSeen(id) {
-      var m = mateById(id);
-      if (!m || !m.unread) return;
-      // A new object: the sidebar's rows are bound to these, and an edit in place goes unseen.
-      mates = mates.map(function (x) { return x === m ? Object.assign({}, x, { unread: 0 }) : x; });
-      if (host.onMates) host.onMates(mates);
-      fetch('/api/mates/' + encodeURIComponent(id) + '/seen', { method: 'POST' }).catch(function () { /* the next open retries */ });
+    function windowFocused() {
+      return typeof document.hasFocus !== 'function' || document.hasFocus();
+    }
+
+    // The chat is up and this window is in front: a visible window behind another app isn't looked at.
+    function watching() {
+      return !!view && !!mateId && document.visibilityState === 'visible' && windowFocused();
+    }
+
+    // A reply, asked for or sent on its own, is read once its row is in view.
+    // The server takes the newest stored time among the rows in view, so a
+    // reply above or below the fold, or not yet rendered, stays unread.
+    function checkSeen() {
+      var m = mateById(mateId);
+      if (!m || !watching() || !view.visibleIds) return;
+      var last = lastReplyId();
+      if (!m.unread && (!last || reported[last])) return;
+      var ids = view.visibleIds().filter(function (id) {
+        var msg = findMsg(id);
+        return msg && msg.status !== 'running' && !reported[id];
+      });
+      if (!ids.length) return;
+      ids.forEach(function (id) { reported[id] = true; });
+      markSeen(m.id, ids);
+    }
+
+    function lastReplyId() {
+      for (var i = messages.length - 1; i >= 0; i--) {
+        var msg = messages[i];
+        if (msg.role === 'assistant' && msg.status !== 'running') return msg.id;
+      }
+      return '';
+    }
+
+    async function markSeen(id, ids) {
+      try {
+        var resp = await fetch('/api/mates/' + encodeURIComponent(id) + '/seen', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids: ids }),
+        });
+        if (!resp.ok) throw new Error(String(resp.status));
+        var n = (await resp.json()).unread || 0;
+        var m = mateById(id);
+        if (!m || m.unread === n) return;
+        // A new object: the sidebar's rows are bound to these, and an edit in place goes unseen.
+        mates = mates.map(function (x) { return x === m ? Object.assign({}, x, { unread: n }) : x; });
+        if (host.onMates) host.onMates(mates);
+      } catch (e) {
+        // The next look retries.
+        ids.forEach(function (x) { delete reported[x]; });
+      }
     }
 
     // A wake's turn is over, or some other writer changed the transcript.
     // A silent wake leaves the chat; any other wake is unread until the user looks.
     function onChat(changes) {
-      var unread = false, drop = false, sync = false, full = false;
+      var reload = false, drop = false, sync = false, full = false;
       changes.forEach(function (c) {
-        if (c.op === 'resync') { unread = true; full = true; return; }
-        if (c.op === 'change') { if (!ownChange(c.data)) sync = true; return; }
+        if (c.op === 'resync') { reload = true; full = true; return; }
+        // Someone else's turn started or ended: the list says which bots are at work.
+        if (c.op === 'change') { if (!ownChange(c.data)) { sync = true; reload = true; } return; }
         var e = c.data;
         if (c.op !== 'wake' || !e) return;
         if (e.silent) {
@@ -260,11 +344,11 @@
           if (messages.length !== before) drop = true;
           return;
         }
-        unread = true;
+        reload = true;
         if (e.mateId === mateId) sync = true;
       });
       if (drop) requestRender();
-      if (unread) void loadMates();
+      if (reload) void loadMates();
       if (full) noteTranscript(true);
       else if (sync) noteTranscript(false);
     }
@@ -281,7 +365,7 @@
     }
 
     function pumpTranscript() {
-      if (!transcriptPending || transcriptFlying || !mateId || liveRun() || phase === 'sending') return;
+      if (!transcriptPending || transcriptFlying || !mateId || busy()) return;
       if (document.visibilityState !== 'visible') return;
       void pullTranscript();
     }
@@ -361,17 +445,16 @@
       } catch (e) { notify("Couldn't load triggers"); }
     }
 
-    function cancelRunPoller() { stopLoop(runCtrl); }
+    function cancelRunPoller(id) { stopLoop(turnOf(id).poll); }
 
-    runCtrl.onError = function () { reportPoll('run', "Couldn't check the run"); };
-
-    function spawnRunPoller(runId, msgId) {
-      cancelRunPoller();
+    function spawnRunPoller(id, runId, msgId) {
+      var ctrl = turnOf(id).poll;
+      stopLoop(ctrl);
       var n = 0;
-      loop(runCtrl, async function (seq) {
+      loop(ctrl, async function (seq) {
         if (n++ > 720) return false;
         var info = await fetchJSON('/api/runs/' + runId);
-        if (runCtrl.seq !== seq) return false;
+        if (ctrl.seq !== seq) return false;
         if (!info) {
           reportPoll('run', "Couldn't check the run");
           return 5000;
@@ -379,14 +462,15 @@
         clearPoll('run');
         var s = info.status;
         if (s === 'succeeded' || s === 'failed' || s === 'canceled') {
-          var msg = findMsg(msgId);
+          var msg = findIn(id, msgId);
           if (msg && msg.status === 'running') {
             msg.status = s;
             msg.completedAt = info.updatedAt || Date.now();
             R.touch(msg);
-            requestRender();
+            renderFor(id);
           }
           toastFor(s, msg);
+          void loadMates();
           return false;
         }
         return 5000;
@@ -472,7 +556,7 @@
       finally { loadingOlder = false; }
     }
 
-    async function syncLastFromDB(convId, msg) {
+    async function syncLastFromDB(convId, msg, id) {
       try {
         var resp = await fetch('/api/conversations/' + convId + '?limit=' + PAGE, { cache: 'no-store' });
         if (!resp.ok) { notify("Couldn't sync the reply"); return; }
@@ -483,11 +567,12 @@
         }
         if (!dbMsg || !msg || msg.role !== 'assistant') return;
         R.replaceTextFromDB(msg, dbMsg.content);
-        requestRender();
+        renderFor(id);
       } catch (e) { notify("Couldn't sync the reply"); }
     }
 
-    async function consumeSSE(resp, msg) {
+    async function consumeSSE(resp, msg, id) {
+      var t = turnOf(id);
       var reader = resp.body.getReader();
       var decoder = new TextDecoder();
       var buf = '';
@@ -502,14 +587,14 @@
             var data;
             try { data = JSON.parse(raw); } catch (e) { return; }
             var out = R.applySSE(msg, event, data);
-            if (out.runId && run) run.id = out.runId;
+            if (out.runId && t.run) t.run.id = out.runId;
             if (event === 'start') {
-              requestRender();
+              renderFor(id);
               return;
             }
             if (out.ended && document.hidden) toastFor(out.status, msg);
             R.touch(msg);
-            requestRender();
+            renderFor(id);
           });
           buf = fed.buf;
           if (fed.gotEnd) gotEnd = true;
@@ -525,6 +610,8 @@
 
     async function runTurn(text, userMsgId, mate, extra) {
       if (!mate) return;
+      var t = turnOf(mate.id);
+      var convId = conversationId;
       var assistant = {
         id: R.genId(),
         role: 'assistant', agentId: mate.agentId, agentBotId: mate.id,
@@ -534,8 +621,9 @@
       };
       messages.push(assistant);
       mine[userMsgId] = mine[assistant.id] = true;
-      phase = 'streaming';
-      run = { id: null, assistantMsgId: assistant.id };
+      t.phase = 'streaming';
+      t.run = { id: null, assistantMsgId: assistant.id };
+      publishMates();
       requestRender(true);
       var sseGotEnd = true;
       var settled = false;
@@ -547,8 +635,8 @@
             mateId: mate.id,
             message: text,
             attachments: (extra && extra.attachments) || [],
-            conversationId: conversationId,
-            newChat: !chats.some(function (c) { return c.id === conversationId; }),
+            conversationId: convId,
+            newChat: !chats.some(function (c) { return c.id === convId; }),
             userMessageId: userMsgId,
             assistantMessageId: assistant.id,
             retryOf: (extra && extra.retryOf) || '',
@@ -565,25 +653,32 @@
           R.touch(assistant);
           return;
         }
-        sseGotEnd = await consumeSSE(resp, assistant);
+        sseGotEnd = await consumeSSE(resp, assistant, mate.id);
         settled = sseGotEnd;
         var finish = finishers[mate.agentId];
-        if (sseGotEnd && conversationId && finish) await finish(conversationId, assistant);
+        if (sseGotEnd && convId && finish) await finish(convId, assistant, mate.id);
       } catch (e) {
-        if (messages.indexOf(assistant) !== -1) {
+        if (msgsOf(mate.id).indexOf(assistant) !== -1) {
           assistant.segments.push({ type: 'error', message: (e && e.message) || 'Connection error' });
           assistant.status = 'failed';
           R.touch(assistant);
         }
       } finally {
-        var runId = run && run.id;
-        phase = 'idle';
-        run = null;
-        if (!sseGotEnd && runId) spawnRunPoller(runId, assistant.id);
-        // Without its end the reply here isn't final: the stored one is.
-        if (!settled) { delete mine[assistant.id]; noteTranscript(false); }
-        else pumpTranscript();
-        requestRender();
+        var runId = t.run && t.run.id;
+        t.phase = 'idle';
+        t.run = null;
+        publishMates();
+        if (!sseGotEnd && runId) spawnRunPoller(mate.id, runId, assistant.id);
+        // Without its end the reply here isn't final: the stored one is. A
+        // parked bot reloads its chat when opened again.
+        if (!settled) delete mine[assistant.id];
+        if (mate.id === mateId) {
+          if (!settled) noteTranscript(false);
+          else pumpTranscript();
+          requestRender();
+        }
+        // The reply counts as unread on the server until it's seen in view.
+        void loadMates();
       }
     }
 
@@ -605,6 +700,7 @@
       retry: function (id) { return retry(id); },
       openChat: function (id) { return openChat(id); },
       loadOlder: function () { return loadOlder(); },
+      noteSeen: function () { checkSeen(); },
     };
 
     function attach(el) {
@@ -616,7 +712,6 @@
       if (jump) stick = true;
       view.render();
       view.focusComposer();
-      if (watching()) markSeen(mateId);
     }
 
     function detach() {
@@ -630,7 +725,6 @@
     }
 
     function switchMate(id) {
-      if (busy()) return false;
       bootstrapped = true;
       if (id !== mateId) {
         openConversation(id);
@@ -640,8 +734,6 @@
       if (host.onMate) host.onMate(id);
       if (view) view.focusComposer();
       requestRender();
-      if (watching()) markSeen(id);
-      return true;
     }
 
     // Settings changed the bots: a deleted or missing current bot hands the
@@ -664,14 +756,12 @@
     }
 
     function tryOpen(id) {
-      if (!switchMate(id)) return false;
+      switchMate(id);
       void refresh();
-      return true;
     }
 
     // Parks the open conversation and brings back the one last seen for this mate.
     function openConversation(id) {
-      cancelRunPoller();
       transcriptGen++;
       transcriptPending = false;
       transcriptFull = false;
@@ -685,7 +775,6 @@
       lastMsgMs = back ? back.lastMsgMs : 0;
       chats = back ? back.chats : [];
       loaded = !!back;
-      stoppingMsgId = '';
       stick = true;
       refreshSeq++;
     }
@@ -693,12 +782,14 @@
     // Opens one of the bot's chats, or with '' a new one that starts with its first message.
     async function openChat(id) {
       if (busy() || !mateId || id === conversationId) return;
-      phase = 'sending';
+      var bot = mateId;
+      var t = turn();
+      t.phase = 'sending';
       requestRender();
-      cancelRunPoller();
+      cancelRunPoller(bot);
       var ok = false;
       try {
-        var resp = await fetch('/api/mates/' + encodeURIComponent(mateId) + '/conversation', {
+        var resp = await fetch('/api/mates/' + encodeURIComponent(bot) + '/conversation', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ conversationId: id }),
@@ -706,9 +797,11 @@
         ok = resp.ok;
         if (!ok) notify(id ? "Couldn't continue that chat" : "Couldn't start a new chat");
       } catch (e) { notify(id ? "Couldn't continue that chat" : "Couldn't start a new chat"); }
-      finally { if (phase === 'sending') phase = 'idle'; }
+      finally { if (t.phase === 'sending') t.phase = 'idle'; }
+      // Another bot opened meanwhile: this one's chat loads when it's opened again.
+      if (bot !== mateId) { delete parked[bot]; return; }
       if (ok) {
-        stoppingMsgId = '';
+        t.stoppingId = '';
         await refresh();
       }
       pumpTranscript();
@@ -788,7 +881,8 @@
       var mate = mateById(mateId);
       if (!mate) return;
       var sent = publicImages(pics);
-      phase = 'sending';
+      var t = turn();
+      t.phase = 'sending';
       requestRender();
       // A new chat is started by the server with its first turn, under this id.
       if (!conversationId) conversationId = R.genId();
@@ -806,8 +900,8 @@
         dropImages(pics);
         await runTurn(text, userMsgId, mate, Object.assign({}, extra, { attachments: sent }));
       } finally {
-        if (phase === 'sending') phase = 'idle';
-        requestRender();
+        if (t.phase === 'sending') t.phase = 'idle';
+        renderFor(mate.id);
       }
     }
 
@@ -853,10 +947,11 @@
     }
 
     async function cancel() {
-      var id = run && run.id;
-      if (phase !== 'streaming' || !id) return;
-      phase = 'stopping';
-      stoppingMsgId = run.assistantMsgId;
+      var t = turn();
+      var id = t.run && t.run.id;
+      if (t.phase !== 'streaming' || !id) return;
+      t.phase = 'stopping';
+      t.stoppingId = t.run.assistantMsgId;
       requestRender();
       try {
         var resp = await fetch('/api/runs/' + id + '/cancel', { method: 'POST' });
@@ -889,9 +984,11 @@
         }
         document.addEventListener('visibilitychange', function () {
           if (document.visibilityState !== 'visible') return;
-          if (watching()) markSeen(mateId);
+          checkSeen();
           pumpTranscript();
         });
+        // Rows that came into view while the window was behind another app are seen once it's back.
+        if (typeof window.addEventListener === 'function') window.addEventListener('focus', checkSeen);
       },
       bootstrap: async function () {
         if (bootstrapped) return;
@@ -924,7 +1021,6 @@
         try { sessionStorage.setItem('hylo_agent_bot_id', id); } catch (e) { /* ignore */ }
         if (host.onMate) host.onMate(id);
         await refresh();
-        if (watching()) markSeen(id);
         if (intro) await maybeIntro(introLang);
       },
       attach: attach,

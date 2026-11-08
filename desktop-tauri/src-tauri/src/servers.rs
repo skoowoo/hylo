@@ -350,7 +350,6 @@ pub fn sync_notifiers(app: &AppHandle) {
         let Ok(cfg) = state.config.lock() else {
             return;
         };
-        let multi = cfg.servers.len() > 1;
         cfg.servers
             .iter()
             .filter_map(|s| {
@@ -361,7 +360,6 @@ pub fn sync_notifiers(app: &AppHandle) {
                     Target {
                         base_url: s.url.clone(),
                         key: Some(key),
-                        label: multi.then(|| s.name.clone()),
                     },
                 ))
             })
@@ -383,10 +381,7 @@ pub fn sync_notifiers(app: &AppHandle) {
         }
     }
     for (id, target) in wanted {
-        if live
-            .get(&id)
-            .is_some_and(|h: &Notifier| h.matches(&target))
-        {
+        if live.get(&id).is_some_and(|h: &Notifier| h.matches(&target)) {
             continue;
         }
         if let Some(old) = live.remove(&id) {

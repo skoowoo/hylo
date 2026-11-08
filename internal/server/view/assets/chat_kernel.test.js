@@ -108,8 +108,9 @@ test('phase, cancel, and cursor finisher', async function () {
     throw new Error('unmocked ' + u);
   };
 
+  var working = null;
   var chat = global.__hyloChatCreate({
-    onMates: function () { matesReady(); },
+    onMates: function (list) { working = list[0].working; matesReady(); },
     onToast: function (text) { toasts.push(text); },
   });
   try {
@@ -128,7 +129,7 @@ test('phase, cancel, and cursor finisher', async function () {
     assert.equal(mid.phase, 'streaming');
     assert.equal(mid.runId, 'r1');
     assert.equal(mid.busy, true);
-    assert.equal(chat.tryOpen('m2'), false);
+    assert.equal(working, true, 'the sidebar shows the bot at work');
 
     await api.cancel();
     var stopping = api.state();
@@ -143,6 +144,7 @@ test('phase, cancel, and cursor finisher', async function () {
     var done = api.state();
     assert.equal(done.phase, 'idle');
     assert.equal(done.busy, false);
+    assert.ok(!working, 'and stops when its turn ends');
     assert.equal(done.stoppingId, '');
     var assistant = done.messages[done.messages.length - 1];
     assert.equal(assistant.status, 'succeeded');
@@ -150,6 +152,78 @@ test('phase, cancel, and cursor finisher', async function () {
     assert.equal(assistant.copied, undefined);
     assert.equal(assistant.stopping, undefined);
     assert.deepEqual(toasts, []);
+  } finally {
+    disarm();
+  }
+});
+
+test('another bot opens and sends while one is still answering, and its reply lands in its own chat', async function () {
+  var api;
+  global.__hyloChatMount = function (el, facade) {
+    api = facade;
+    return {
+      render: function () {}, destroy: function () {},
+      draftValue: function () { return facade.draft(); }, clearComposer: function () {}, focusComposer: function () {},
+    };
+  };
+  var hang;
+  var chatBodies = [];
+  global.fetch = async function (url, opts) {
+    var u = String(url);
+    if (u === '/api/mates') return jsonResponse(200, { mates: [{ id: 'm1', name: 'Ada', enabled: true, agentId: 'pi' }, { id: 'm2', name: 'Bo', enabled: true, agentId: 'pi' }] });
+    if (u === '/api/mate-events') return jsonResponse(200, { events: [] });
+    if (u === '/api/conversations?mateId=m1') return jsonResponse(200, { conversations: [{ id: 'c1' }], activeId: 'c1' });
+    if (u === '/api/conversations?mateId=m2') return jsonResponse(200, { conversations: [{ id: 'c2' }], activeId: 'c2' });
+    if (u.split('?')[0] === '/api/conversations/c1' || u.split('?')[0] === '/api/conversations/c2') return jsonResponse(200, { messages: [] });
+    if (u === '/api/chat') {
+      var body = JSON.parse(opts.body);
+      chatBodies.push(body);
+      if (body.mateId === 'm1') {
+        return sseResponse(['event: start\ndata: {"runId":"r1"}\n\n', new Promise(function (resolve) { hang = resolve; })]);
+      }
+      return sseResponse(['event: start\ndata: {"runId":"r2"}\n\n', 'event: agent\ndata: {"type":"text_delta","delta":"Bo here"}\n\nevent: end\ndata: {"status":"succeeded"}\n\n']);
+    }
+    throw new Error('unmocked ' + u);
+  };
+  var chat = global.__hyloChatCreate({});
+  try {
+    chat.start();
+    await tick();
+    chat.attach({});
+    chat.tryOpen('m1');
+    await tick();
+    api.setDraft('to Ada');
+    var first = api.send();
+    await tick();
+    assert.equal(api.state().phase, 'streaming');
+
+    chat.tryOpen('m2');
+    await tick();
+    var b = api.state();
+    assert.equal(b.mateId, 'm2', 'the switch is not held up by the running turn');
+    assert.equal(b.busy, false);
+    assert.equal(b.runId, null);
+    assert.deepEqual(b.messages, []);
+    await api.cancel();
+
+    api.setDraft('to Bo');
+    await api.send();
+    var bDone = api.state().messages;
+    assert.equal(bDone.length, 2);
+    assert.equal(bDone[1].status, 'succeeded');
+    assert.equal(chatBodies[1].conversationId, 'c2');
+
+    hang({ done: false, value: Buffer.from('event: agent\ndata: {"type":"text_delta","delta":"Ada here"}\n\nevent: end\ndata: {"status":"succeeded"}\n\n') });
+    await first;
+    await tick();
+    assert.equal(api.state().messages.length, 2, 'the other reply stays out of this chat');
+
+    chat.tryOpen('m1');
+    var a = api.state();
+    assert.equal(a.busy, false);
+    var reply = a.messages[a.messages.length - 1];
+    assert.equal(reply.status, 'succeeded', 'it finished while away, not stopped by the other bot');
+    assert.equal(reply.segments[reply.segments.length - 1].content, 'Ada here');
   } finally {
     disarm();
   }
@@ -348,7 +422,10 @@ test('a wake reply shows only once it is done, so a silent one never appears', a
   var api;
   global.__hyloChatMount = function (el, facade) {
     api = facade;
-    return { render: function () {}, destroy: function () {}, draftValue: function () { return facade.draft(); }, clearComposer: function () {}, focusComposer: function () {} };
+    return {
+      render: function () { facade.noteSeen(); }, destroy: function () {}, draftValue: function () { return facade.draft(); }, clearComposer: function () {}, focusComposer: function () {},
+      visibleIds: function () { return facade.state().messages.map(function (m) { return m.id; }); },
+    };
   };
   var seen = [];
   var unread = 1;
@@ -356,7 +433,7 @@ test('a wake reply shows only once it is done, so a silent one never appears', a
     var u = String(url);
     if (u === '/api/mates') return jsonResponse(200, { mates: [{ id: 'm1', name: 'Ada', enabled: true, agentId: 'pi', unread: unread }] });
     if (u === '/api/mate-events') return jsonResponse(200, { events: [] });
-    if (u === '/api/mates/m1/seen') { seen.push(opts.method); unread = 0; return jsonResponse(200, { ok: true }); }
+    if (u === '/api/mates/m1/seen') { seen.push(JSON.parse(opts.body).ids); unread = 0; return jsonResponse(200, { unread: 0 }); }
     if (u.indexOf('/api/conversations?') === 0) return jsonResponse(200, { conversations: [{ id: 'c1' }], activeId: 'c1' });
     if (u.split('?')[0] === '/api/conversations/c1') {
       return jsonResponse(200, {
@@ -377,7 +454,7 @@ test('a wake reply shows only once it is done, so a silent one never appears', a
     await chat.bootstrap();
     chat.attach({});
     await tick();
-    assert.deepEqual(seen, ['POST'], 'looking at the chat reads what the bot sent');
+    assert.deepEqual(seen, [['a0']], 'the reply in view is reported');
     assert.equal(shown[0].unread, 0);
     assert.deepEqual(api.state().messages.map(function (m) { return m.id; }), ['a0'], 'the running wake waits off screen');
     assert.equal(api.state().messages[0].triggerName, 'Short notes');
@@ -385,6 +462,97 @@ test('a wake reply shows only once it is done, so a silent one never appears', a
     listeners.chat([{ topic: 'chat', op: 'wake', data: { mateId: 'm1', wakeId: 'w1', replyId: 'a1', status: 'succeeded', silent: true } }]);
     assert.deepEqual(api.state().messages.map(function (m) { return m.id; }), ['a0']);
   } finally {
+    delete global.__hyloLive;
+    disarm();
+  }
+});
+
+test('a reply is read only once its row is in view of a window in front', async function () {
+  var listeners = {};
+  var onFocus = null;
+  var prevListen = global.addEventListener;
+  global.addEventListener = function (type, fn) { if (type === 'focus') onFocus = fn; };
+  var prevFocus = global.document.hasFocus;
+  var focused = true;
+  global.document.hasFocus = function () { return focused; };
+  global.__hyloLive = { on: function (topic, fn) { listeners[topic] = fn; } };
+  var api;
+  var inView = ['u1', 'a0'];
+  global.__hyloChatMount = function (el, facade) {
+    api = facade;
+    return {
+      render: function () { facade.noteSeen(); }, destroy: function () {}, draftValue: function () { return ''; }, clearComposer: function () {}, focusComposer: function () {},
+      visibleIds: function () { return inView; },
+    };
+  };
+  var msgs = [
+    { id: 'u1', role: 'user', content: 'hi', updatedAt: '2026-11-08T10:00:00.000Z' },
+    { id: 'a0', role: 'assistant', status: 'succeeded', content: 'hello', updatedAt: '2026-11-08T10:00:01.000Z' },
+  ];
+  // The server's side: seen moves to the newest reported row; every finished reply after it is unread.
+  var seenAt = 0;
+  var reports = [];
+  function at(m) { return new Date(m.updatedAt).getTime(); }
+  function unread() {
+    return msgs.filter(function (m) { return m.role === 'assistant' && m.status !== 'running' && at(m) > seenAt; }).length;
+  }
+  global.fetch = async function (url, opts) {
+    var u = String(url);
+    if (u === '/api/mates') return jsonResponse(200, { mates: [{ id: 'm1', name: 'Ada', enabled: true, agentId: 'pi', unread: unread() }] });
+    if (u === '/api/mate-events') return jsonResponse(200, { events: [] });
+    if (u === '/api/mates/m1/seen') {
+      var ids = JSON.parse(opts.body).ids;
+      reports.push(ids);
+      msgs.forEach(function (m) { if (ids.indexOf(m.id) >= 0) seenAt = Math.max(seenAt, at(m)); });
+      return jsonResponse(200, { unread: unread() });
+    }
+    if (u.indexOf('/api/conversations?') === 0) return jsonResponse(200, { conversations: [{ id: 'c1' }], activeId: 'c1' });
+    if (u.split('?')[0] === '/api/conversations/c1') return jsonResponse(200, { messages: msgs });
+    throw new Error('unmocked ' + u);
+  };
+  var shown = [];
+  var chat = global.__hyloChatCreate({ onMates: function (list) { shown = list; } });
+  try {
+    chat.start();
+    await chat.bootstrap();
+    chat.attach({});
+    await tick(); await tick();
+    assert.deepEqual(reports, [['u1', 'a0']], 'the reply that finished while away is read on open');
+    assert.equal(shown[0].unread, 0);
+
+    msgs.push({ id: 'a1', role: 'assistant', status: 'succeeded', content: 'later', triggerEvent: 'scheduled', updatedAt: '2026-11-08T10:05:00.000Z' });
+    listeners.chat([{ topic: 'chat', op: 'wake', data: { mateId: 'm1', status: 'succeeded' } }]);
+    await tick(); await tick(); await tick();
+    assert.equal(shown[0].unread, 1, 'the reply is not in view yet, so the badge stays');
+
+    focused = false;
+    inView = ['a0', 'a1'];
+    api.noteSeen();
+    await tick();
+    assert.equal(shown[0].unread, 1, 'a window behind another app is not looked at');
+
+    focused = true;
+    onFocus();
+    await tick(); await tick();
+    assert.deepEqual(reports[reports.length - 1], ['a1']);
+    assert.equal(shown[0].unread, 0);
+
+    // A reply this page didn't count yet still reports once it shows.
+    msgs.push({ id: 'a2', role: 'assistant', status: 'succeeded', content: 'answer', updatedAt: '2026-11-08T10:06:00.000Z' });
+    inView = ['a1', 'a2'];
+    listeners.chat([{ topic: 'chat', op: 'change', data: ['a2'] }]);
+    await tick(); await tick(); await tick();
+    assert.deepEqual(reports[reports.length - 1], ['a2']);
+    assert.equal(seenAt, at(msgs[3]));
+
+    var before = reports.length;
+    api.noteSeen();
+    await tick();
+    assert.equal(reports.length, before, 'rows already reported send nothing');
+  } finally {
+    global.addEventListener = prevListen;
+    if (prevFocus) global.document.hasFocus = prevFocus;
+    else delete global.document.hasFocus;
     delete global.__hyloLive;
     disarm();
   }

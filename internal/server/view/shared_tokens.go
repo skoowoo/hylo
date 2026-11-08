@@ -127,9 +127,9 @@ const appTokensDark = `
       /* Every neutral sits on the accent's hue; steps differ by lightness only. Warm and green hues read as
          colour far sooner than blue, so chroma stays where every preset still reads grey: .004 here, the shell glass .010. */
       /* Ink: --fg's OKLCH components, for every ink wash and hairline (oklch(var(--ink) / α)). */
-      --ink:0.9555 0.004 var(--accent-h);
+      --ink:0.965 0.004 var(--accent-h);
       --bg:oklch(0.2146 0.004 var(--accent-h)); --fg:oklch(var(--ink));
-      --muted:oklch(0.6648 0.004 var(--accent-h)); --surface-soft:oklch(0.253 0.004 var(--accent-h)); --surface-2:oklch(0.2887 0.004 var(--accent-h));
+      --muted:oklch(0.68 0.004 var(--accent-h)); --surface-soft:oklch(0.253 0.004 var(--accent-h)); --surface-2:oklch(0.2887 0.004 var(--accent-h));
       /* Extra lift when container already sits on --surface-soft. */
       --control-active-bg-on-soft:oklch(0.3676 0.004 var(--accent-h));
       --seg-thumb:var(--control-active-bg-on-soft);
@@ -138,9 +138,9 @@ const appTokensDark = `
       --shell-bg:oklch(0.253 var(--shell-c) var(--accent-h));
       --shell-glass-bg:oklch(0.253 var(--shell-c) var(--accent-h) / 0.45);
       --glass-bg:oklch(0.253 0.004 var(--accent-h) / 0.62);
-      --canvas:#ffffff; --muted-soft:oklch(0.5291 0.004 var(--accent-h));
+      --canvas:#ffffff; --muted-soft:oklch(0.54 0.004 var(--accent-h));
       /* Secondary content (excerpts, table heads) — between --fg and --muted, ~8:1. */
-      --fg-2:oklch(0.7837 0.004 var(--accent-h));
+      --fg-2:oklch(0.805 0.004 var(--accent-h));
             --accent-hov:#7b86e8;
       /* Accent as text on the canvas (links, active labels): lifted for dark; fills keep --accent. */
       --accent-text:#707ad7;

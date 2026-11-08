@@ -42,8 +42,8 @@
               <template x-for="m in agentBots" :key="m.id">
                 <button type="button" class="side-nav-item home-side-child" :class="{'is-active': curType() === 'chat' && selectedAgentBotId === m.id}"
                         x-press="selectChatAgentBot(m.id)" data-avatar-hover>
-                  <span class="avatar avatar--sm home-side-child-lead" data-blink
-                        x-html="agentBotAvatar(m.name)"></span>
+                  <span class="avatar avatar--sm home-side-child-lead" data-blink :class="{'is-working': m.working}"
+                        x-effect="paintAvatar($el, m.name)"></span>
                   <span class="home-side-child-name" x-text="m.name"></span>
                   <span class="home-side-count home-side-count--unread" x-show="m.unread > 0" x-text="m.unread"></span>
                 </button>

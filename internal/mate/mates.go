@@ -19,8 +19,8 @@ func (s *Store) ListMates() ([]Mate, error) {
 	rows, err := s.db.Query(
 		`SELECT m.id, m.name, m.description, m.agent_id, m.model, m.color, m.cwd, m.main, m.system_prompt, m.enabled, m.created_at, m.updated_at,
 		        (SELECT COUNT(*) FROM mate_triggers t WHERE t.mate_id = m.id) AS trigger_count,
-		        (SELECT COUNT(*) FROM chat_messages c WHERE c.mate_id = m.id AND c.role = 'assistant' AND c.trigger_event != ''
-		           AND c.status NOT IN ('', 'running') AND c.updated_at > m.seen_at) AS unread,
+		        ` + unreadCount + ` AS unread,
+		        EXISTS (SELECT 1 FROM chat_messages c WHERE c.mate_id = m.id AND c.status = 'running') AS running,
 		        COALESCE((SELECT MAX(c.created_at) FROM chat_messages c WHERE c.mate_id = m.id), 0) AS last_active
          FROM mates m ORDER BY m.sort_order ASC, m.created_at ASC`,
 	)
@@ -31,10 +31,32 @@ func (s *Store) ListMates() ([]Mate, error) {
 	return scanMatesWithTriggerCount(rows)
 }
 
-// MarkChatSeen clears the bot's unread wake replies: the user has looked at its chat.
-func (s *Store) MarkChatSeen(id string) error {
-	_, err := s.db.Exec(`UPDATE mates SET seen_at = ? WHERE id = ?`, time.Now().UnixMilli(), id)
-	return err
+// unreadCount counts mate m's finished replies, to the user or on its own,
+// newer than what the user has seen. A reply to a connected app was read there.
+const unreadCount = `(SELECT COUNT(*) FROM chat_messages c WHERE c.mate_id = m.id AND c.role = 'assistant' AND c.app = ''
+		           AND c.status NOT IN ('', 'running') AND c.updated_at > m.seen_at)`
+
+// MarkChatSeen records that the user saw the bot's chat up to the newest of
+// the rows ids (the ones in view) and returns what is still unread. The mark
+// is those rows' own stored times, never now, and only moves forward: a reply
+// that lands while the request is in flight was not seen.
+func (s *Store) MarkChatSeen(mateID string, ids []string) (int, error) {
+	if len(ids) > 0 {
+		args := []any{mateID}
+		for _, id := range ids {
+			args = append(args, id)
+		}
+		args = append(args, mateID)
+		q := `UPDATE mates SET seen_at = MAX(seen_at, COALESCE((SELECT MAX(updated_at) FROM chat_messages
+		        WHERE mate_id = ? AND status != 'running' AND id IN (?` + strings.Repeat(",?", len(ids)-1) + `)), 0))
+		      WHERE id = ?`
+		if _, err := s.db.Exec(q, args...); err != nil {
+			return 0, err
+		}
+	}
+	var n int
+	err := s.db.QueryRow(`SELECT `+unreadCount+` FROM mates m WHERE m.id = ?`, mateID).Scan(&n)
+	return n, err
 }
 
 func (s *Store) GetMate(id string) (*Mate, error) {
@@ -416,14 +438,14 @@ func scanMateRow(rows *sql.Rows, withTriggerCount bool) (Mate, error) {
 	var m Mate
 	var createdMs, updatedMs int64
 	var enabled, main int
-	var triggerCount, unread int
+	var triggerCount, unread, running int
 	var lastActive int64
 	var cols = []any{
 		&m.ID, &m.Name, &m.Description, &m.AgentID, &m.Model, &m.Color, &m.Cwd, &main,
 		&m.SystemPrompt, &enabled, &createdMs, &updatedMs,
 	}
 	if withTriggerCount {
-		cols = append(cols, &triggerCount, &unread, &lastActive)
+		cols = append(cols, &triggerCount, &unread, &running, &lastActive)
 	}
 	if err := rows.Scan(cols...); err != nil {
 		return Mate{}, err
@@ -435,6 +457,7 @@ func scanMateRow(rows *sql.Rows, withTriggerCount bool) (Mate, error) {
 	if withTriggerCount {
 		m.TriggerCount = triggerCount
 		m.Unread = unread
+		m.Running = running != 0
 		m.LastActiveAt = fromMs(lastActive)
 	}
 	return m, nil

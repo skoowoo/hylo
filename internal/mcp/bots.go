@@ -75,7 +75,7 @@ type botSummary struct {
 	Description  string `json:"description,omitempty"`
 	Enabled      bool   `json:"enabled"`
 	TriggerCount int    `json:"trigger_count"`
-	Unread       int    `json:"unread,omitempty"`      // messages it sent on its own that the user hasn't opened
+	Unread       int    `json:"unread,omitempty"`      // finished replies the user hasn't seen yet
 	LastActive   string `json:"last_active,omitempty"` // its latest chat message, local time
 }
 

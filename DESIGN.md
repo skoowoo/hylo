@@ -11,11 +11,11 @@ colors:
   accent-focus: "#5e6ad2"
   bg-dark: "#18191e"
   bg-light: "#fafafb"
-  fg-dark: "#eff0f4"
+  fg-dark: "#f2f3f6"
   fg-light: "#17181b"
-  muted-dark: "#91939d"
+  muted-dark: "#97989b"
   muted-light: "#696b75"
-  muted-soft-dark: "#696b74"
+  muted-soft-dark: "#6e6e71"
   muted-soft-light: "#9c9ea7"
   surface-soft-dark: "#212227"
   surface-soft-light: "#f2f2f4"
@@ -26,7 +26,7 @@ colors:
   canvas: "#ffffff"
   inverse-canvas: "#ffffff"
   inverse-ink: "#000000"
-  fg-2-dark: "#b6b8c1"
+  fg-2-dark: "#bebfc2"
   fg-2-light: "#4d4f58"
   identity-cyan: "#22d3ee"
   identity-pink: "#f472b6"
@@ -218,7 +218,7 @@ components:
 
 ## Overview
 
-Hylo's UI runs on a deep graphite canvas (`{colors.bg-dark}` #18191e) with soft-white ink (`{colors.fg-dark}` #eff0f4) and a single chromatic accent, lavender-blue (`{colors.accent}` #5e6ad2). The accent is scarce by design: primary actions, focus rings, list/tab selected-state text, and link emphasis — never a section background or card fill.
+Hylo's UI runs on a deep graphite canvas (`{colors.bg-dark}` #18191e) with soft-white ink (`{colors.fg-dark}` #f2f3f6) and a single chromatic accent, lavender-blue (`{colors.accent}` #5e6ad2). The accent is scarce by design: primary actions, focus rings, list/tab selected-state text, and link emphasis — never a section background or card fill.
 
 Depth is carried almost entirely by a **surface ladder** (`--bg` → `--surface-soft` → `--surface-2`) plus 1px hairline borders, not box-shadow. The one deliberate exception is a small set of floating layers — confirm/info dialogs, the settings modal, the search overlay, drawer popovers — which opt into a restrained lift-off shadow (`--shadow-{xs,sm,md,lg}` paired with `--shadow-color`) so a card reads as "off the surface" rather than a flat bordered rectangle. Everything else stays flat.
 

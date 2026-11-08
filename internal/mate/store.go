@@ -209,10 +209,19 @@ func Open(vaultRoot string) (*Store, error) {
 		db.Close()
 		return nil, fmt.Errorf("mate: main index: %w", err)
 	}
-	// Each bot's unread count (ListMates) reads only wake replies.
+	// Pulse reads a bot's recent wake replies.
 	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS chat_messages_wake_idx ON chat_messages(mate_id, updated_at) WHERE role = 'assistant' AND trigger_event != ''`); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("mate: wake index: %w", err)
+	}
+	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS chat_messages_reply_idx ON chat_messages(mate_id, updated_at) WHERE role = 'assistant'`); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("mate: reply index: %w", err)
+	}
+	// Whether a bot is at work (ListMates): only the few replies still on their way.
+	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS chat_messages_running_idx ON chat_messages(mate_id) WHERE status = 'running'`); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("mate: running index: %w", err)
 	}
 	// A bot's latest messages (ListMates, pulse) are read on every pacing minute.
 	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS chat_messages_mate_idx ON chat_messages(mate_id, role, created_at)`); err != nil {

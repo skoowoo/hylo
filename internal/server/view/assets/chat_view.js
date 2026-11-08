@@ -175,6 +175,7 @@
     var taRO = null;
     var contentRo = null;
     var scrollRaf = 0;
+    var seenRaf = 0;
     var timeTimer = 0;
     var emptyKind = '';
 
@@ -220,9 +221,27 @@
     function syncOrigin() {
       var want = api.stick();
       if (reversed() === want || userScrolling()) return;
+      var before = thread.getBoundingClientRect().top;
       var top = fromTop();
       scrollEl.classList.toggle('is-stuck', want);
       scrollEl.scrollTop = want ? 0 : top;
+      // Stuck rests exactly on the bottom; a whole-pixel miss there is the snap to it.
+      var k = shiftBy(before - thread.getBoundingClientRect().top);
+      if (!want && k) scrollEl.scrollTop = top - k;
+    }
+
+    // scrollTop is whole pixels and the thread's height isn't, so the two origins
+    // (and a compensation for rows that grew) land rows on different fractions of a
+    // pixel. The thread's own offset carries the remainder; returns the whole pixels
+    // still to scroll up by.
+    var shift = 0;
+    function shiftBy(d) {
+      var want = shift + d, k = Math.round(want);
+      if (want - k !== shift) {
+        shift = want - k;
+        thread.style.top = shift ? shift + 'px' : '';
+      }
+      return k;
     }
 
     // A glide in progress owns the scroll position until it lands, the reader's
@@ -249,7 +268,8 @@
       var delta = row.node.getBoundingClientRect().top - scrollEl.getBoundingClientRect().top - a.top;
       // A relative scroll adds to WebKit's in-flight position; assigning scrollTop would
       // overwrite it and drop a compensation still on its way.
-      if (Math.abs(delta) >= 1) scrollEl.scrollBy(0, delta);
+      var k = shiftBy(-delta);
+      if (k) scrollEl.scrollBy(0, -k);
       return true;
     }
 
@@ -702,6 +722,36 @@
       paint();
       restoreLostFocus();
       takeFocus();
+      noteSeenSoon();
+    }
+
+    // Measured a frame later, once the rows just built have settled into place.
+    function noteSeenSoon() {
+      if (seenRaf) return;
+      seenRaf = requestAnimationFrame(function () {
+        seenRaf = 0;
+        if (scrollEl) api.noteSeen();
+      });
+    }
+
+    // Rows in view. The composer floats over the thread's
+    // bottom, so a row under it isn't in view; a tall row counts once a fair
+    // stretch of it shows.
+    var SEEN_MIN_PX = 48;
+    function visibleIds() {
+      if (!scrollEl) return [];
+      var box = scrollEl.getBoundingClientRect();
+      var top = box.top;
+      var bottom = panel && panel.offsetParent ? Math.min(box.bottom, panel.getBoundingClientRect().top) : box.bottom;
+      var out = [];
+      for (var n = thread.lastChild; n; n = n.previousSibling) {
+        if (!n._msgId) continue;
+        var r = n.getBoundingClientRect();
+        if (r.bottom <= top) break;
+        var shown = Math.min(r.bottom, bottom) - Math.max(r.top, top);
+        if (r.height > 0 && shown >= Math.min(r.height, SEEN_MIN_PX)) out.push(n._msgId);
+      }
+      return out;
     }
 
     function paint() {
@@ -745,6 +795,7 @@
         scrollRaf = 0;
         if (!scrollEl) return;
         if (fromTop() < 400) void api.loadOlder();
+        api.noteSeen();
       });
     }
 
@@ -1069,6 +1120,7 @@
 
     return {
       render: render,
+      visibleIds: visibleIds,
       draftValue: function () { return ta ? ta.value : api.draft(); },
       clearComposer: function () {
         if (!ta) return;
@@ -1082,6 +1134,7 @@
         splitSettled();
         if (slash) { slash.close(); slash = null; }
         endGlide();
+        if (seenRaf) { cancelAnimationFrame(seenRaf); seenRaf = 0; }
         rows.forEach(function (row) { row.destroy(); });
         shelf.forEach(function (row) { row.destroy(); });
         shelf.clear();

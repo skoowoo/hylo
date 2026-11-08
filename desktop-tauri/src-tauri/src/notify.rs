@@ -5,6 +5,10 @@ use serde::Deserialize;
 use tauri::{AppHandle, Manager};
 use tokio::sync::watch;
 
+#[cfg(target_os = "macos")]
+#[path = "notify_mac.rs"]
+mod mac;
+
 use crate::commands::ShellState;
 
 const RETRY_FIRST: Duration = Duration::from_secs(5);
@@ -17,13 +21,11 @@ const RETRY_MAX: Duration = Duration::from_secs(120);
 pub struct Target {
     pub base_url: String,
     pub key: Option<String>,
-    /// Prefixes notification titles so several servers stay distinguishable.
-    pub label: Option<String>,
 }
 
 pub struct Notifier {
     stop: watch::Sender<bool>,
-    /// What the loop was started with, to detect a changed URL, key or label.
+    /// What the loop was started with, to detect a changed URL or key.
     target: Target,
 }
 
@@ -122,7 +124,7 @@ async fn connect(
                     Ok(Ok(Some(bytes))) => {
                         buf.push_str(&String::from_utf8_lossy(&bytes));
                         for raw in drain_events(&mut buf) {
-                            show_wake(app, &raw, target.label.as_deref());
+                            show_wake(app, &raw);
                         }
                     }
                     _ => return Loop::Retry(true),
@@ -195,7 +197,7 @@ fn wake_message(raw: &str) -> Option<(String, String)> {
     Some((title, body))
 }
 
-fn show_wake(app: &AppHandle, raw: &str, label: Option<&str>) {
+fn show_wake(app: &AppHandle, raw: &str) {
     let Some((title, body)) = wake_message(raw) else {
         return;
     };
@@ -206,10 +208,6 @@ fn show_wake(app: &AppHandle, raw: &str, label: Option<&str>) {
         return;
     };
     if settings.text_enabled {
-        let title = match label {
-            Some(l) => format!("[{l}] {title}"),
-            None => title,
-        };
         let handle = app.clone();
         let _ = app.run_on_main_thread(move || {
             let _ = notify(&handle, &title, &body);
@@ -220,14 +218,33 @@ fn show_wake(app: &AppHandle, raw: &str, label: Option<&str>) {
     }
 }
 
+/// Asks once, at launch, so the system prompt is up before a bot speaks.
+pub fn install(app: &AppHandle) {
+    #[cfg(target_os = "macos")]
+    mac::install(app);
+    #[cfg(not(target_os = "macos"))]
+    let _ = app;
+}
+
 fn notify(app: &AppHandle, title: &str, body: &str) -> Result<(), String> {
-    use tauri_plugin_notification::NotificationExt;
-    app.notification()
-        .builder()
-        .title(title)
-        .body(body)
-        .show()
-        .map_err(|e| e.to_string())
+    // macOS 26 no longer delivers NSUserNotificationCenter, which is what
+    // tauri-plugin-notification still posts through. The call returns ok and
+    // nothing appears.
+    #[cfg(target_os = "macos")]
+    {
+        let _ = app;
+        return mac::show(title, body);
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        use tauri_plugin_notification::NotificationExt;
+        app.notification()
+            .builder()
+            .title(title)
+            .body(body)
+            .show()
+            .map_err(|e| e.to_string())
+    }
 }
 
 pub fn play_sound(sound: &str) {

@@ -236,11 +236,20 @@ func (h *MateAPI) MateDELETE(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
-// MateSeenPOST handles POST /api/mates/{id}/seen: the user has read the bot's chat.
+// MateSeenPOST handles POST /api/mates/{id}/seen {ids}: the user saw the bot's
+// chat up to the newest of those rows. Replies with what is still unread.
 func (h *MateAPI) MateSeenPOST(w http.ResponseWriter, r *http.Request) {
-	if err := h.store.MarkChatSeen(r.PathValue("id")); err != nil {
+	var body struct {
+		IDs []string `json:"ids"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || len(body.IDs) == 0 || len(body.IDs) > 200 {
+		http.Error(w, "ids required", http.StatusBadRequest)
+		return
+	}
+	n, err := h.store.MarkChatSeen(r.PathValue("id"), body.IDs)
+	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	respondJSON(w, http.StatusOK, map[string]any{"ok": true})
+	respondJSON(w, http.StatusOK, map[string]any{"unread": n})
 }

@@ -146,6 +146,9 @@ pub fn run() {
             }
 
             let app_handle = app.handle().clone();
+            // After the window exists, so the notification permission prompt has
+            // an app to attach to.
+            notify::install(&app_handle);
             #[cfg(target_os = "macos")]
             watch_app_activation(app_handle.clone());
             session::start_heartbeat(app_handle.clone());
@@ -263,9 +266,8 @@ fn bundled_archive(app: &tauri::AppHandle) -> Option<std::path::PathBuf> {
 fn install_menu(app: &tauri::AppHandle) -> tauri::Result<()> {
     use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
 
-    let item = |id: &str, text: &str, accel: Option<&str>| {
-        MenuItem::with_id(app, id, text, true, accel)
-    };
+    let item =
+        |id: &str, text: &str, accel: Option<&str>| MenuItem::with_id(app, id, text, true, accel);
     let sep = || PredefinedMenuItem::separator(app);
 
     let app_menu = Submenu::with_items(

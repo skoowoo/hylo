@@ -33,7 +33,8 @@ url = "2"
 block2 = "0.6"
 objc2 = "0.6"
 objc2-app-kit = { version = "0.3.2", default-features = false, features = ["NSAnimation", "NSAnimationContext", "NSApplication", "NSResponder", "NSRunningApplication", "NSScreen", "NSView", "NSWindow", "NSWorkspace", "block2"] }
-objc2-foundation = { version = "0.3.2", default-features = false, features = ["NSBundle", "NSDictionary", "NSGeometry", "NSNotification", "NSString", "NSOperation", "NSURL", "NSValue", "block2"] }
+objc2-foundation = { version = "0.3.2", default-features = false, features = ["NSBundle", "NSDictionary", "NSError", "NSGeometry", "NSNotification", "NSString", "NSOperation", "NSURL", "NSValue", "block2"] }
+objc2-user-notifications = { version = "0.3.2", default-features = false, features = ["std", "block2", "UNUserNotificationCenter", "UNNotificationContent", "UNNotificationRequest", "UNNotificationSettings", "UNNotification", "UNNotificationResponse", "UNNotificationTrigger"] }
 
 [target."cfg(windows)".dependencies]
 windows-sys = { version = "0.60", features = ["Win32_Globalization", "Win32_UI_Input_KeyboardAndMouse"] }

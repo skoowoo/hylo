@@ -14,7 +14,7 @@ type ChatLine struct {
 	At       time.Time `json:"at"`
 	OnItsOwn bool      `json:"onItsOwn,omitempty"` // the bot sent it unasked
 	Source   string    `json:"source,omitempty"`   // what woke it: a trigger's name, or "rounds"
-	Unread   bool      `json:"unread,omitempty"`   // sent on its own after the user last opened the chat
+	Unread   bool      `json:"unread,omitempty"`   // a finished reply the user hasn't seen yet
 	Status   string    `json:"status,omitempty"`   // set when the reply didn't succeed
 }
 
@@ -54,8 +54,8 @@ func (s *Store) BotChat(mateID, beforeID string, limit int) (chatID string, line
 				} else if l.Source == "" {
 					l.Source = EventLabel(MateEventType(m.TriggerEvent))
 				}
-				l.Unread = m.Status != "" && m.Status != "running" && m.UpdatedAt.UnixMilli() > seenMs
 			}
+			l.Unread = m.App == "" && m.Status != "" && m.Status != "running" && m.UpdatedAt.UnixMilli() > seenMs
 		}
 		lines = append(lines, l)
 	}

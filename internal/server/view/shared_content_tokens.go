@@ -24,11 +24,11 @@ const contentTokensDark = `
       --link-ul:var(--accent); --link-ul-hov:var(--accent-hov);
       /* Headings step down by size, never below the body's ink; only the tiny h6 goes muted. */
       --h1:var(--fg); --h2:var(--fg); --h3:var(--fg); --h4:var(--fg); --h5:var(--prose-body); --h6:var(--muted);
-      --prose-body:oklch(0.8643 0.004 var(--accent-h));
+      --prose-body:oklch(0.888 0.004 var(--accent-h));
       --prose-strong:var(--fg); --prose-em:var(--prose-body);
-      --pre-tx:oklch(0.9347 0.004 var(--accent-h));
+      --pre-tx:oklch(0.945 0.004 var(--accent-h));
       --code-tx:var(--prose-body);
-      --bq-tx:oklch(0.8643 0.004 var(--accent-h) / 0.85);
+      --bq-tx:oklch(0.888 0.004 var(--accent-h) / 0.85);
       --td-tx:var(--prose-body);
       --cm-md-muted:var(--muted);
       /* Code-fence syntax highlighting — Tokyo Night. */

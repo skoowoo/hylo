@@ -111,8 +111,8 @@ func TestBotChatMarksUnread(t *testing.T) {
 	s, id := pulseStore(t)
 	conv, _ := s.StartConversation(id, "")
 	s.InsertMessage(Message{ConversationID: conv.ID, Role: "user", MateID: id, Content: "hi"})
-	s.InsertMessage(Message{ConversationID: conv.ID, Role: "assistant", MateID: id, Status: "succeeded", Content: "hello"})
-	if err := s.MarkChatSeen(id); err != nil {
+	hello, _ := s.InsertMessage(Message{ConversationID: conv.ID, Role: "assistant", MateID: id, Status: "succeeded", Content: "hello"})
+	if _, err := s.MarkChatSeen(id, []string{hello.ID}); err != nil {
 		t.Fatal(err)
 	}
 	time.Sleep(2 * time.Millisecond)

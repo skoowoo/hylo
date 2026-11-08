@@ -423,6 +423,13 @@ function homeCtrl() {
     agentBotAvatar(name) {
       return window.agentBotAvatarSVG(name, this.agentBots);
     },
+    // Rewrites the face only when it changed: every list refresh would restart its moves.
+    paintAvatar(el, name) {
+      var svg = this.agentBotAvatar(name);
+      if (el._avatar === svg) return;
+      el._avatar = svg;
+      el.innerHTML = svg;
+    },
 
     agentBotColor(name) {
       return window.agentBotColor(name, this.agentBots);

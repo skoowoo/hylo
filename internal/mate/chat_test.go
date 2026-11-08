@@ -379,11 +379,13 @@ func TestUnreadCountsFinishedWakeReplies(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	add := func(msg Message) {
+	add := func(msg Message) Message {
 		msg.ConversationID, msg.MateID = conv.ID, m.ID
-		if _, err := store.InsertMessage(msg); err != nil {
+		out, err := store.InsertMessage(msg)
+		if err != nil {
 			t.Fatal(err)
 		}
+		return out
 	}
 	unread := func() int {
 		list, err := store.ListMates()
@@ -392,19 +394,24 @@ func TestUnreadCountsFinishedWakeReplies(t *testing.T) {
 		}
 		return list[0].Unread
 	}
-	add(Message{Role: "assistant", Status: "succeeded"})
+	reply := add(Message{Role: "assistant", Status: "succeeded"})
 	add(Message{Role: "assistant", Status: "running", TriggerEvent: "scheduled"})
-	add(Message{Role: "assistant", Status: "succeeded", TriggerEvent: "scheduled"})
-	add(Message{Role: "assistant", Status: "failed", TriggerEvent: "note_created"})
-	if n := unread(); n != 2 {
-		t.Fatalf("unread = %d, want the two finished wake replies", n)
-	}
+	add(Message{Role: "assistant", Status: "succeeded", App: "telegram"})
 	time.Sleep(2 * time.Millisecond)
-	if err := store.MarkChatSeen(m.ID); err != nil {
-		t.Fatal(err)
+	wake := add(Message{Role: "assistant", Status: "succeeded", TriggerEvent: "scheduled"})
+	time.Sleep(2 * time.Millisecond)
+	last := add(Message{Role: "assistant", Status: "failed", TriggerEvent: "note_created"})
+	if n := unread(); n != 3 {
+		t.Fatalf("unread = %d, want the three finished replies, to the user or on its own, but not the one read in Telegram", n)
 	}
-	if n := unread(); n != 0 {
-		t.Fatalf("unread after seen = %d", n)
+	if n, err := store.MarkChatSeen(m.ID, []string{reply.ID, wake.ID, "gone"}); err != nil || n != 1 {
+		t.Fatalf("seen up to the wake reply: unread = %d, %v; want the later one left", n, err)
+	}
+	if n, err := store.MarkChatSeen(m.ID, []string{last.ID}); err != nil || n != 0 {
+		t.Fatalf("unread after seen = %d, %v", n, err)
+	}
+	if n, err := store.MarkChatSeen(m.ID, []string{reply.ID}); err != nil || n != 0 {
+		t.Fatalf("an older row moved seen back: unread = %d, %v", n, err)
 	}
 }
 
@@ -687,5 +694,41 @@ func TestChatTitleFallsBackForChatsTheBotStarted(t *testing.T) {
 	}
 	if len(convs) != len(want) {
 		t.Fatalf("%d chats, want %d", len(convs), len(want))
+	}
+}
+
+func TestListMatesRunning(t *testing.T) {
+	store, err := Open(filepath.Join(t.TempDir(), "vault"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	m := &Mate{Name: "Recall", Enabled: true}
+	if err := store.CreateMate(m); err != nil {
+		t.Fatal(err)
+	}
+	conv, err := store.CreateConversation(m.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	running := func() bool {
+		list, err := store.ListMates()
+		if err != nil {
+			t.Fatal(err)
+		}
+		return list[0].Running
+	}
+	reply, err := store.InsertMessage(Message{ConversationID: conv.ID, MateID: m.ID, Role: "assistant", Status: "running", App: "telegram"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !running() {
+		t.Fatal("a reply on its way, from any app, should show the bot at work")
+	}
+	if err := store.UpdateMessageDone(reply.ID, "done", "", "succeeded"); err != nil {
+		t.Fatal(err)
+	}
+	if running() {
+		t.Fatal("still at work after its reply finished")
 	}
 }

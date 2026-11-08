@@ -576,6 +576,7 @@ func (a *AgentAPI) executeChat(ctx context.Context, run *agent.Run, body chatBod
 			Status:         "running",
 			TriggerEvent:   body.TriggerEvent,
 			TriggerID:      body.TriggerID,
+			App:            body.app,
 		}); err != nil {
 			a.logger.Warn("chat: insert assistant placeholder", slog.String("err", err.Error()))
 		} else {

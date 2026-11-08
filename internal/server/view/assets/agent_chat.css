@@ -105,6 +105,8 @@
     /* Grows with its rows (never squeezed to the viewport) so a ResizeObserver
        on it sees every reflow: cards, images, the composer's clearance. */
     .chat-scroll-inner {
+      /* chat_view.js shiftBy offsets it by a sub-pixel `top`. */
+      position: relative;
       flex: 1 0 auto;
       width: 100%;
       max-width: 48rem;
