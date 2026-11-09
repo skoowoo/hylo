@@ -12,6 +12,8 @@
     }
   </script>
   <link rel="stylesheet" href="fonts.css">
+  <!-- Onboarding's display face; served by Fontshare under the ITF FFL, which does not allow shipping the files in this repo. -->
+  <link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=erode@500&display=swap">
   <link rel="stylesheet" href="tokens.css">
   <link rel="stylesheet" href="shell.css">
   <link rel="stylesheet" href="onboarding.css">
@@ -24,35 +26,54 @@
 
 <body data-tauri-drag-region x-data="hyloShell">
   <div id="view-onboarding" class="ob" x-data="hyloOnboarding" x-show="view === 'onboarding'" x-cloak
-    :class="{ 'is-intro': intro, 'is-leaving': leaving }" :data-dir="dir"
+    :class="{ 'is-intro': intro, 'is-leaving': leaving }" :data-step="steps[step]"
     @keydown.window="onKey($event)" @mousedown="drag($event)">
+    <!-- Each step hangs its own painting; the sheet rises over it to carry the words. -->
+    <div class="ob-art" aria-hidden="true">
+      <template x-for="(s, i) in steps" :key="s">
+        <img :src="art[s].src" :class="{ 'is-on': i === step }" alt="" draggable="false">
+      </template>
+    </div>
+    <p class="ob-credit" x-show="step >= 0"><i x-text="piece().title"></i><span x-text="piece().by"></span></p>
+    <svg class="ob-mark" viewBox="0 0 64 64" aria-label="Hylo">
+      <rect x="18" y="11" width="28" height="12" rx="5" fill="currentColor" opacity=".45" />
+      <rect x="13" y="17" width="38" height="12" rx="5.5" fill="currentColor" opacity=".72" />
+      <rect x="8" y="23" width="48" height="31" rx="8" fill="currentColor" />
+    </svg>
+    <div class="ob-rail" aria-hidden="true">
+      <template x-for="(s, i) in steps" :key="s">
+        <span class="ob-rail-dot" :class="{ 'is-on': i === step, 'is-done': i < step }">
+          <svg x-show="i < step" fill="none" stroke="currentColor" stroke-width="2.6" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="m5 12.5 4.5 4.5L19 7.5" />
+          </svg>
+        </span>
+      </template>
+    </div>
+
+    <div class="ob-sheet">
+      <svg class="ob-sheet-edge" viewBox="0 0 1080 90" preserveAspectRatio="none" aria-hidden="true">
+        <path d="M0,86 C220,86 420,6 650,6 C840,6 970,34 1080,58 L1080,90 L0,90 Z" />
+      </svg>
+    </div>
+
     <div class="ob-stage">
       <section class="ob-step ob-step--welcome" x-show="is('welcome')"
         x-transition:enter="ob-enter" x-transition:enter-start="ob-enter-from"
         x-transition:leave="ob-leave" x-transition:leave-end="ob-leave-to">
-        <div class="ob-hero">
-          <p class="ob-logo" aria-label="Hylo">
-            <img class="ob-logo-mark ob-rise" style="--d:40ms" src="logo.png" alt="" draggable="false">
-            <span class="ob-logo-name"><span class="ob-rise" style="--d:160ms">H</span><span class="ob-rise"
-                style="--d:210ms">Y</span><span class="ob-rise" style="--d:260ms">L</span><span class="ob-rise"
-                style="--d:310ms">O</span></span>
-          </p>
-          <h1 class="ob-title ob-rise" style="--d:420ms">A personal notes agent</h1>
-          <p class="ob-lead ob-rise" style="--d:540ms">You write. Your bots organize, search and write notes for you.</p>
-          <p class="ob-points ob-rise" style="--d:620ms">Obsidian-compatible · Uses your AI agent · Self-hosted 24/7</p>
-        </div>
-        <div class="ob-actions ob-rise" style="--d:680ms">
+        <p class="sv-wordmark ob-brand ob-rise" style="--d:340ms">HYLO</p>
+        <h1 class="ob-title ob-rise" style="--d:440ms">Your notes. Your context. Your AI.</h1>
+        <div class="ob-actions ob-rise" style="--d:600ms">
           <button type="button" class="ob-primary" @click="primary()">
             Get started
             <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14m-6-6 6 6-6 6" />
             </svg>
           </button>
+          <label class="ob-toggle" x-show="pathNeeded" x-transition.opacity.duration.300ms>
+            <input type="checkbox" x-model="addPath">
+            <span>Also make <code>hylo</code> available in Terminal</span>
+          </label>
         </div>
-        <label class="ob-toggle" x-show="pathNeeded" x-transition.opacity.duration.300ms>
-          <input type="checkbox" x-model="addPath">
-          <span>Also make <code>hylo</code> available in Terminal</span>
-        </label>
       </section>
 
       <section class="ob-step" x-show="is('vault')" x-cloak
@@ -60,20 +81,19 @@
         x-transition:leave="ob-leave" x-transition:leave-end="ob-leave-to">
         <h2 class="ob-title">Where should your notes live?</h2>
         <p class="ob-lead">Plain Markdown files in a folder you own. You can change this later.</p>
-        <div class="ob-body ob-body--fill" role="radiogroup" aria-label="Notes folder">
+        <div class="ob-list" role="radiogroup" aria-label="Notes folder">
           <template x-for="o in options()" :key="o.path">
             <div class="ob-opt">
               <p class="ob-group" x-show="o.first">From Obsidian</p>
-              <button type="button" class="ob-card ob-card--option" role="radio"
+              <button type="button" class="ob-row" role="radio"
                 :aria-checked="selected === o.path" :class="{ 'is-selected': selected === o.path }"
                 @click="choose(o.path)">
-                <span class="ob-card-icon" x-html="icons[o.kind]"></span>
-                <span class="ob-card-text">
-                  <span class="ob-card-name" x-text="o.name"></span>
-                  <span class="ob-card-meta" x-text="meta(o)"></span>
+                <span class="ob-row-text">
+                  <span class="ob-row-name" x-text="o.name"></span>
+                  <span class="ob-row-meta" x-text="meta(o)"></span>
                 </span>
                 <span class="ob-tick" aria-hidden="true">
-                  <svg fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24">
+                  <svg fill="none" stroke="currentColor" stroke-width="2.6" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" d="m5 12.5 4.5 4.5L19 7.5" />
                   </svg>
                 </span>
@@ -87,8 +107,8 @@
             Choose another folder…
           </button>
         </div>
-        <p class="ob-note" :class="{ 'is-error': vaultError }" x-text="vaultHint()" aria-live="polite"></p>
         <div class="ob-actions">
+          <p class="ob-note" :class="{ 'is-error': vaultError }" x-text="vaultHint()" aria-live="polite"></p>
           <button type="button" class="ob-primary" :class="{ 'is-busy': saving }" :disabled="saving || !selected"
             @click="primary()">
             <span class="ob-spinner" x-show="saving"></span>
@@ -109,13 +129,13 @@
           <span class="ob-scan-name" x-show="scanName && !slowStart" x-text="scanName"></span>
         </div>
 
-        <div class="ob-found" role="radiogroup" aria-label="AI agent">
+        <div class="ob-found" :class="{ 'has-pick': agentPhase === 'ready' && selectedAgent }" role="radiogroup" aria-label="AI agent">
           <template x-for="id in revealed" :key="id">
             <button type="button" class="ob-agent" role="radio"
               :class="{ 'is-selected': agentPhase === 'ready' && selectedAgent === id }"
               :aria-checked="selectedAgent === id" @click="pickAgent(id)">
               <span class="ob-agent-logo" x-html="logo(id)"></span>
-              <span class="ob-agent-name" x-text="agentLabel(id)"></span>
+              <span x-text="agentLabel(id)"></span>
             </button>
           </template>
         </div>
@@ -140,26 +160,24 @@
 
           <div class="ob-hello" x-show="agentPhase === 'ready' && selectedAgent" :class="'is-' + hello.state"
             x-transition.opacity.duration.300ms>
-            <span class="ob-agent-logo ob-agent-logo--sm" x-html="logo(selectedAgent)"></span>
-            <div class="ob-hello-body">
-              <p class="ob-hello-name">
-                <span>Hylo</span>
-                <span class="ob-hello-ok" x-show="hello.state === 'ok'" x-transition.opacity>Connected</span>
-              </p>
-              <p class="ob-hello-text" x-ref="helloText" :class="{ 'is-over': helloOver }" x-show="hello.state !== 'fail'">
-                <span x-text="typed"></span><span class="ob-caret" x-show="hello.state === 'talking'"></span>
-              </p>
-              <template x-if="hello.state === 'fail'">
-                <div>
-                  <p class="ob-hello-fail" x-show="selectedAgent === 'pi'">Pi is installed but didn't answer. Run
-                    <code>pi</code> in Terminal to sign in to a model, then come back.</p>
-                  <p class="ob-hello-fail" x-show="selectedAgent !== 'pi'"
-                    x-text="agentLabel(selectedAgent) + ' is installed but didn\'t answer. Make sure it\'s signed in, then come back.'">
-                  </p>
-                  <p class="ob-hello-detail" x-show="hello.error" x-text="hello.error"></p>
-                </div>
-              </template>
-            </div>
+            <p class="ob-hello-name">
+              <span class="ob-agent-logo ob-agent-logo--sm" x-html="logo(selectedAgent)"></span>
+              <span>Hylo</span>
+              <span class="ob-hello-ok" x-show="hello.state === 'ok'" x-transition.opacity>Connected</span>
+            </p>
+            <p class="ob-hello-text" x-ref="helloText" :class="{ 'is-over': helloOver }" x-show="hello.state !== 'fail'">
+              <span x-text="typed"></span><span class="ob-caret" x-show="hello.state === 'talking'"></span>
+            </p>
+            <template x-if="hello.state === 'fail'">
+              <div>
+                <p class="ob-hello-fail" x-show="selectedAgent === 'pi'">Pi is installed but didn't answer. Run
+                  <code>pi</code> in Terminal to sign in to a model, then come back.</p>
+                <p class="ob-hello-fail" x-show="selectedAgent !== 'pi'"
+                  x-text="agentLabel(selectedAgent) + ' is installed but didn\'t answer. Make sure it\'s signed in, then come back.'">
+                </p>
+                <p class="ob-hello-detail" x-show="hello.error" x-text="hello.error"></p>
+              </div>
+            </template>
           </div>
         </div>
 
@@ -175,19 +193,12 @@
       </section>
     </div>
 
-    <div class="ob-foot">
-      <button type="button" class="ob-back" :disabled="step <= 0" @click="back()">
-        <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" d="m15 18-6-6 6-6" />
-        </svg>
-        Back
-      </button>
-      <div class="ob-dots" aria-hidden="true">
-        <template x-for="(s, i) in steps" :key="s">
-          <span class="ob-dot" :class="{ 'is-on': i === step, 'is-done': i < step }"></span>
-        </template>
-      </div>
-    </div>
+    <button type="button" class="ob-back" :disabled="step <= 0" @click="back()">
+      <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="m15 18-6-6 6-6" />
+      </svg>
+      Back
+    </button>
   </div>
 
   <div id="view-servers" class="sv" x-show="view === 'servers'" x-cloak :class="{ 'is-splash': splash }"

@@ -77,6 +77,10 @@ pub struct ConfigFile {
     /// any page loads, and seeds a page that has no theme of its own.
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub theme: String,
+    /// Bumped when onboarding sets `theme`: a page adopts the shell's theme once
+    /// per seed, over any theme of its own.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub theme_seed: String,
 }
 
 /// "dark" / "light", or None for following the OS.
@@ -106,6 +110,7 @@ impl Default for ConfigFile {
             notify: NotifySettings::default(),
             onboarding: Onboarding::default(),
             theme: String::new(),
+            theme_seed: String::new(),
         };
         cfg.ensure_valid();
         cfg

@@ -10,7 +10,13 @@ use crate::server;
 use crate::window_size;
 use crate::zoom;
 
-pub const COMPACT_SIZE: (f64, f64) = (520.0, 620.0);
+/// Wide enough for each step's painting to read as a picture.
+const COMPACT_SIZE: (f64, f64) = (1080.0, 760.0);
+
+/// Onboarding's window, never bigger than the main one it grows into.
+pub fn compact_size(main: (f64, f64)) -> (f64, f64) {
+    (COMPACT_SIZE.0.min(main.0), COMPACT_SIZE.1.min(main.1))
+}
 
 /// Set for a run that opened on onboarding's compact window.
 pub static STARTED_COMPACT: AtomicBool = AtomicBool::new(false);

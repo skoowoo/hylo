@@ -72,7 +72,7 @@
         </div>
         <div class="lb-sidebar-body">
           <template x-if="lbData && lbData.dir != null">
-          <div>
+          <div class="lb-section">
           <div class="lb-section-label">Linked Notes</div>
           <template x-if="lbData && lbData.notes && lbData.notes.length > 0">
             <div>
@@ -91,7 +91,6 @@
           <template x-if="!lbData || !lbData.notes || lbData.notes.length === 0">
             <div class="lb-no-notes">No linked notes</div>
           </template>
-          <div class="lb-divider"></div>
           </div>
           </template>
           <div class="lb-section-label">Info</div>

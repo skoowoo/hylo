@@ -50,11 +50,17 @@ pub fn run() {
             let mut config = ConfigFile::load(&data_dir);
             if onboarding::should_start(&data_dir) {
                 config.onboarding.pending = true;
-                // A new install starts dark; its first page keeps that as its own theme.
-                config.theme = "dark".into();
+                // Onboarding and the app it leads into start light, even over a
+                // replayed run's own theme: the seed has the page take it once.
+                config.theme = "light".into();
+                config.theme_seed = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map(|d| d.as_millis().to_string())
+                    .unwrap_or_default();
                 let _ = config.save(&data_dir);
             }
             let theme = config::theme_choice(&config.theme);
+            let theme_seed = config.theme_seed.clone();
             let compact = config.onboarding.pending;
             onboarding::STARTED_COMPACT.store(compact, Ordering::Relaxed);
             app.manage(ShellState {
@@ -75,8 +81,9 @@ pub fn run() {
                 _ => "",
             };
             let script = format!(
-                "window.__HYLO_PLATFORM__=\"{}\";\nwindow.__HYLO_THEME__=\"{theme_name}\";\n{INIT_SCRIPT}",
-                platform_name()
+                "window.__HYLO_PLATFORM__=\"{}\";\nwindow.__HYLO_THEME__=\"{theme_name}\";\nwindow.__HYLO_THEME_SEED__=\"{}\";\n{INIT_SCRIPT}",
+                platform_name(),
+                theme_seed
             );
             let main_size = window_size::launch_main_size(app.handle());
             let handle = app.handle().clone();
@@ -95,7 +102,7 @@ pub fn run() {
                     });
 
             window = if compact {
-                let (w, h) = onboarding::COMPACT_SIZE;
+                let (w, h) = onboarding::compact_size(main_size);
                 window
                     .inner_size(w, h)
                     .resizable(false)

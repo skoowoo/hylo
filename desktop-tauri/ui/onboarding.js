@@ -5,13 +5,15 @@ document.addEventListener('alpine:init', function () {
   var STEPS = ['welcome', 'vault', 'ai'];
   var INTRO_MS = 1600;
   var LEAVE_MS = 260;
-  var DAY = 86400000;
 
-  var ICONS = {
-    new: '<svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m-3-3h6M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>',
-    obsidian: '<img src="obsidian.svg" alt="">',
-    folder: '<svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>',
+  // Public-domain paintings (Wikimedia Commons); the welcome one is still a placeholder.
+  var ART = {
+    welcome: { src: 'art/welcome.jpg', title: 'Strolling along the Seashore', by: 'Sorolla, 1909' },
+    vault: { src: 'art/vault.jpg', title: 'Piles of French Novels', by: 'Van Gogh, 1887' },
+    ai: { src: 'art/ai.jpg', title: 'Seascape near Les Saintes-Maries-de-la-Mer', by: 'Van Gogh, 1888' },
   };
+  // Folder rows the vault step has room for at its smallest window.
+  var MAX_ROWS = 4;
 
   // Reveal order on the AI step; Pi leads because it's the one we recommend.
   var AGENTS = [
@@ -67,21 +69,11 @@ document.addEventListener('alpine:init', function () {
     return p.replace(/^\/(Users|home)\/[^/]+(?=\/|$)/, '~');
   }
 
-  function openedAgo(ms) {
-    var days = Math.floor((Date.now() - ms) / DAY);
-    if (days < 1) return 'opened today';
-    if (days < 2) return 'opened yesterday';
-    if (days < 14) return 'opened ' + days + ' days ago';
-    if (days < 60) return 'opened ' + Math.floor(days / 7) + ' weeks ago';
-    return 'opened ' + Math.floor(days / 30) + ' months ago';
-  }
-
   Alpine.data('hyloOnboarding', function () {
     return {
       steps: STEPS,
-      icons: ICONS,
+      art: ART,
       step: -1,
-      dir: 'fwd',
       intro: false,
       leaving: false,
 
@@ -161,9 +153,10 @@ document.addEventListener('alpine:init', function () {
 
       is(name) { return STEPS[this.step] === name; },
 
+      piece() { return ART[STEPS[this.step]] || {}; },
+
       go(i) {
         if (this.leaving || this.saving || this.entering || i < 0 || i >= STEPS.length || i === this.step) return;
-        this.dir = i > this.step ? 'fwd' : 'back';
         this.step = i;
         api().onboarding.setStep(STEPS[i]).catch(noop);
         if (this.is('ai')) this.enterAi();
@@ -438,7 +431,9 @@ document.addEventListener('alpine:init', function () {
         if (!this.vaults) return [];
         var list = [Object.assign({ kind: 'new' }, this.vaults.default)];
         if (this.vaults.current) list.push(Object.assign({ kind: 'folder' }, this.vaults.current));
-        this.vaults.obsidian.forEach(function (v, i) {
+        // The step never scrolls: only the most recent vaults fit, the rest are a Choose away.
+        var room = MAX_ROWS - list.length - (this.custom ? 1 : 0);
+        this.vaults.obsidian.slice(0, Math.max(0, room)).forEach(function (v, i) {
           list.push(Object.assign({ kind: 'obsidian', first: i === 0 }, v));
         });
         if (this.custom) list.push(this.custom);
@@ -453,7 +448,6 @@ document.addEventListener('alpine:init', function () {
       meta(o) {
         if (o.current) return 'Current vault · ' + o.display;
         if (o.kind === 'new') return 'New folder · ' + o.display;
-        if (o.kind === 'obsidian' && o.lastOpened) return o.display + ' · ' + openedAgo(o.lastOpened);
         return o.display;
       },
 
@@ -473,7 +467,7 @@ document.addEventListener('alpine:init', function () {
         this.vaultError = '';
         var root = this.$root;
         this.$nextTick(function () {
-          var el = root.querySelector('.ob-card--option.is-selected');
+          var el = root.querySelector('.ob-row.is-selected');
           if (el) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
         });
       },

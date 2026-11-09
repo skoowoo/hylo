@@ -3,7 +3,9 @@
 The theme script runs before first paint, so there's no flash of the wrong
 theme: dark lives on bare :root (shared_tokens.go), light applies via
 :root[data-theme="light"] or an unforced OS preference. With nothing stored,
-the desktop shell's theme (window.__HYLO_THEME__) seeds the choice once.
+the desktop shell's theme (window.__HYLO_THEME__) seeds the choice once. A
+new __HYLO_THEME_SEED__ (onboarding sets one) has the page take the shell's
+theme over its own, once per seed.
 Settings → Appearance stores light/dark/auto under 'hylo-theme' and calls
 __hyloApplyTheme; "auto" follows OS changes without a reload.
 
@@ -33,9 +35,10 @@ other same-origin views (desktop shell) in step.
     }catch(_){}
   };
   var stored=localStorage.getItem('hylo-theme');
-  // A page with no theme of its own starts on the desktop app's (dark for a new install).
-  var shellTheme=window.__HYLO_THEME__;
-  if(!stored&&(shellTheme==='light'||shellTheme==='dark')){stored=shellTheme;localStorage.setItem('hylo-theme',stored);}
+  var shellTheme=window.__HYLO_THEME__,seed=window.__HYLO_THEME_SEED__;
+  var fresh=seed&&localStorage.getItem('hylo-theme-seed')!==seed;
+  if((!stored||fresh)&&(shellTheme==='light'||shellTheme==='dark')){stored=shellTheme;localStorage.setItem('hylo-theme',stored);}
+  if(fresh)localStorage.setItem('hylo-theme-seed',seed);
   window.__hyloApplyTheme(stored==='light'||stored==='dark'?stored:'auto');
   if(window.matchMedia){
     window.matchMedia('(prefers-color-scheme: light)').addEventListener('change',function(){

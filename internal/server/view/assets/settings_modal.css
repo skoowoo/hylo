@@ -14,8 +14,7 @@
       top: round(down, (100vh - var(--panel-h)) / 2, 1px);
       width: var(--panel-w); height: var(--panel-h);
       background: var(--bg);
-      /* Shadow carries the floating edge; the line is only a whisper. */
-      border: var(--bd-w) solid var(--line-hair);
+      border: var(--bd-w) solid var(--line-edge);
       border-radius: var(--r-xl);
       box-shadow: var(--shadow-lg) var(--shadow-color);
       display: flex; overflow: hidden;

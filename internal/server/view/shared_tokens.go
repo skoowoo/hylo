@@ -46,7 +46,7 @@ const appTokensShared = `
          --line-edge: outer edge of a floating surface or input; always paired
          with a shadow. Prefer a bg step or whitespace over either. */
       --line-hair:oklch(var(--ink) / 0.09);
-      --line-edge:oklch(var(--ink) / 0.16);
+      --line-edge:oklch(var(--ink) / 0.12);
       --nav-fg:oklch(var(--ink) / 0.82);
       /* Nav rows: translucent ink, so hover/selected read the same on any surface or glass. */
       --nav-hov:oklch(var(--ink) / 0.03);

@@ -50,7 +50,7 @@
       padding: 0 var(--space-xs) var(--space-xs);
       overflow-y: auto;
     }
-    .srch-body.has-preview .srch-results-pane { flex: none; width: 300px; border-right: var(--bd-w) solid var(--line-hair); }
+    .srch-body.has-preview .srch-results-pane { flex: none; width: 300px; }
     .srch-sec {
       flex: none; padding: 12px 10px 8px;
       font-size: var(--text-2xs); font-weight: var(--fw-medium); line-height: 1;

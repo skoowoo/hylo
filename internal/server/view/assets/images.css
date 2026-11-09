@@ -122,6 +122,7 @@
       display: flex;
       overflow: hidden;
       background: var(--surface-soft);
+      border: var(--bd-w) solid var(--line-edge);
       box-shadow: var(--shadow-lg) var(--shadow-color);
       border-radius: var(--r-xl);
       transition: transform var(--motion-slow) ease;
@@ -194,7 +195,6 @@
     .lb-sidebar {
       flex: 0 0 256px; width: 256px; min-height: 0;
       display: flex; flex-direction: column;
-      border-left: var(--bd-w) solid var(--line-hair);
       background: var(--surface-soft);
     }
     .lb-sidebar-head {
@@ -235,7 +235,7 @@
       font-family: var(--font-mono);
       font-size: var(--text-xs); font-weight: 400;
     }
-    .lb-divider { height: var(--bd-w); background: var(--line-hair); margin: 0.5rem 0 0.875rem; }
+    .lb-section { margin-bottom: var(--space-lg); }
 
     .lb-sidebar-inner { display: contents; }
 
@@ -251,7 +251,7 @@
       height: auto; min-height: var(--panel-h);
       max-height: min(820px, 100vh - var(--panel-top) - 2rem);
     }
-    .lb-panel--text .lb-sidebar { flex: 1; width: auto; border-left: none; }
+    .lb-panel--text .lb-sidebar { flex: 1; width: auto; }
     .lb-panel--quote { --panel-w: min(480px, 100vw - 4rem); }
     .lb-panel--quote .lb-short-body { display: flex; flex-direction: column; justify-content: center; }
     .lb-panel--quote .lb-short-body .prose {
@@ -276,8 +276,7 @@
     @media (max-width: 720px) {
       .lb-panel--short { flex-direction: column; }
       .lb-panel--short .lb-viewer { flex: 0 0 55%; }
-      .lb-panel--short .lb-sidebar { flex: 1; width: auto; border-left: none; border-top: var(--bd-w) solid var(--line-hair); }
-      .lb-panel--text .lb-sidebar { border-top: none; }
+      .lb-panel--short .lb-sidebar { flex: 1; width: auto; }
     }
 
     /* ── Linked note cards ───────────────────────────────────────── */
