@@ -2,7 +2,7 @@
 
 Hylo 内置了一套 skill，agent 会根据你的请求内容自动选择合适的 skill 来执行——不需要你显式指定 skill 名字，用中文或英文直接描述需求就行（每个 skill 都同时支持中英文触发）。
 
-本文介绍每个内置 skill 的功能和用法。关于 skill 的安装、管理和自定义方式，见主 README 的 [Skills](../README_ZH.md#skills) 章节。
+本文介绍每个内置 skill 的功能和用法。从 GitHub 添加 skill、为 bot 启用 skill，见[管理 skill](#管理-skill)。
 
 ## 目录
 
@@ -16,6 +16,7 @@ Hylo 内置了一套 skill，agent 会根据你的请求内容自动选择合适
   - [hylo-recall —— 找、回应、灵感、回顾、探](#hylo-recall--找回应灵感回顾探)
   - [hylo-setup —— 在聊天里引导设置](#hylo-setup--在聊天里引导设置)
   - [hylo-writing —— 成文、改稿、写作](#hylo-writing--成文改稿写作)
+  - [管理 skill](#管理-skill)
 
 ## hylo-notes —— 保存和修改笔记
 
@@ -78,7 +79,7 @@ Hylo 内置了一套 skill，agent 会根据你的请求内容自动选择合适
 
 从你的 Short Notes 速记和知识库中提取个人记忆，写入 `/_memory/` 下的七个结构化文件：身份、偏好、目标、信念、人际关系、当前状态、文风（从你的短笔记里学到的写法，加上你明确说过的写作规则和常写文体的格式）。首次运行会扫描最近 90 天，之后每次只做增量扫描。长期没有被强化的记忆会逐渐淡出直至删除。
 
-完整设置方式（包括配置每日定时触发的 bot）见主 README 的[个人记忆（Memory）](../README_ZH.md#个人记忆memory)章节。
+记忆如何保持更新，见[上下文](./context_zh.md#个人记忆)。
 
 **适用场景**：让之后每一次对话都自带关于你的持久化背景信息，不用每次都重新自我介绍。
 
@@ -150,3 +151,32 @@ Hylo 内置了一套 skill，agent 会根据你的请求内容自动选择合适
 写一篇关于「SEO 正在失效」的文章，读者是独立开发者
 以后写东西别用破折号
 ```
+
+## 管理 skill
+
+内置 skill 打包在程序里，每次启动时写入 `~/.hylo/skills/`，和程序版本保持一致，对主 bot Hylo 始终开启。
+
+其他 skill 要先**添加（add）**到 `~/.hylo/skills/`，再为某个 bot **启用（enable）**。每个 bot 在 vault 里有自己的工作目录（主 bot 在 vault 根目录），skill 启用在 bot 的目录里。下面的操作也都可以在 **Settings → Skills** 和 **Settings → Bots** 里完成。
+
+```sh
+# 查看 Hylo 推荐的 skill
+hylo skills catalog --table
+hylo skills catalog --category news
+
+# 从 GitHub 添加（同名 skill 已存在时加 --force 替换）
+hylo skills add okou-ai/okou-skills --skill hackernews
+hylo skills add https://github.com/hardhackerlabs/podwise-cli --skill podwise
+
+# 为 bot 启用或停用
+hylo bot list
+hylo skills enable hackernews --bot-id <bot-id>
+hylo skills disable hackernews --bot-id <bot-id>
+
+# 查看或删除（删除会移除文件，无法撤销）
+hylo skills list --table
+hylo skills remove podwise
+```
+
+`add` 按 `--skill` 在仓库的常见位置里查找 skill，保存到 `~/.hylo/skills/<name>/`；不加 `--skill` 时用仓库名。
+
+想自己写 skill，把带 `SKILL.md` 的目录放进 `~/.hylo/skills/`，再为 bot 启用即可。Agent 通过目录名引用 skill。

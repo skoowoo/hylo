@@ -1,359 +1,80 @@
-# Hylo: a personal AI agent powered by your notes. Always on, Obsidian-compatible.
+# Hylo
 
-You just write. Hylo learns who you are from your notes, then works for you around the clock: organizing your notes into knowledge, answering from them, and going beyond them, like picking the news you'll care about.
+**Your notes. Your context. Your AI.**
+
+Hylo is a notes app with a Personal AI built in. You write; AI compiles your notes into context about you; your own AI uses that context to work for you. All your data stays on your own machine.
 
 [中文文档](./README_ZH.md)
 
-## Table of Contents
+![Hylo](./docs/assets/hero.jpeg)
 
-- [Highlight Features](#highlight-features)
-- [Design](#design)
-- [Architecture](#architecture)
-- [Installation](#installation)
-- [Obsidian Compatibility](#obsidian-compatibility)
-- [Editor](#editor)
-- [Bots](#bots)
-- [WeChat](#wechat)
-- [Discord](#discord)
-- [Telegram](#telegram)
-- [LLM-Wiki Compiler](#llm-wiki-compiler)
-- [Personal Memory](#personal-memory)
-- [Skills](#skills) ([full guide](./docs/skills.md))
-- [Customizing AI Behavior](#customizing-ai-behavior)
+## Your notes
 
-## Highlight Features
+A complete notes app, and every note file belongs to you.
 
-#### 📝 Full-Featured Note System
-- **Built-in WYSIWYG editor**: write in rich text or raw Markdown, switch anytime
-- **Wikilinks and wiki images**: fully Obsidian-compatible
-- **Shorts**: a daily capture stream for quick notes, accessible from anywhere
-- **Instant search** inspired by Raycast: find anything as you type
-- **Clip browser extension**: save any webpage as Markdown with one click
+- **Write and capture.** A WYSIWYG Markdown editor, Shorts for passing thoughts, instant search, and a browser extension that saves any page as Markdown.
+- **No lock-in.** Share the same vault with Obsidian, open it in any editor, and if you ever leave Hylo, your notes leave with you unchanged.
 
-#### 🤖 Event-Driven Multi-Agent System
-- **6 agent CLIs** supported out of the box
-- **Event-triggered automation**: agents run tasks automatically when notes change, messages arrive, or schedules fire
-- **WeChat, Discord & Telegram integration**: chat with agents directly from WeChat, Discord or Telegram DMs
+## Your context
 
-#### 🧠 LLM-Wiki Compiler
-- Compiles your notes into **structured knowledge** and builds an interconnected **LLM wiki network**
+Scattered notes are hard for an AI to use. Hylo has AI compile them into structured context that it can actually work with:
 
-#### 🪞 Personal Memory
-- Automatically extracts **personal memories** from your notes (identity, preferences, goals, beliefs, people, and current state) into structured files that stay current
-- Lets your AI agents truly **know you**: every conversation carries memory instead of starting cold
+- **Knowledge wiki.** Notes and web clips become linked knowledge units under `/_knowledge/`: a map of your knowledge, as an LLM wiki.
+- **Personal memory.** Who you are, what you're after, what you believe, the people around you, what you're doing now, how you write. Kept in `/_memory/` and updated as you write.
 
-#### ☁️ Always On, Self-Hosted
-- Deploy Hylo on a home server or cloud instance and your agent stays **online 24/7**, even when your laptop is closed
-- Scheduled bots keep running, and the agent answers on WeChat, Discord or Telegram anytime
-- Your data stays on a machine you own: Markdown files, SQLite metadata, full-text index. See [Remote Deployment](./docs/remote-deployment.md)
+Personal context is the most private data you have. Here it is Markdown in your own vault: you can read it, correct it, and no AI vendor keeps it for you.
 
-#### 🌐 Multiple Access Channels
-- Available via **CLI**, **desktop app**, **WeChat**, **Discord**, and **Telegram**
+## Your AI
 
-## Architecture
+A personal AI that knows you and works for you, not for a platform.
 
-```
-┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐
-│              │  │              │  │              │  │              │
-│  Desktop App │  │    WeChat    │  │     CLI      │  │  Clip (Ext)  │
-│              │  │              │  │              │  │              │
-└──────┬───────┘  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘
-       │                 │                 │                 │
-       └─────────────────┴─────────────────┴─────────────────┘
-                                  │
-                                  ▼
-┌────────────────────────────────────────────────────────────────────┐
-│                           Hylo Server                              │
-└──────┬─────────────────┬─────────────────┬─────────────────┬───────┘
-       │                 │                 │                 │
-       ▼                 ▼                 ▼                 ▼
-┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐
-│  Filesystem  │  │    SQLite    │  │    Bleve     │  │    Agents    │
-│   (Markdown) │  │  (Metadata)  │  │  (FTS Index) │  │  (CLI/MCP)   │
-└──────────────┘  └──────────────┘  └──────────────┘  └──────────────┘
-```
+- **Knows you.** Every conversation starts with your memory and knowledge, so you never have to explain yourself again.
+- **Works for you.** Bots act on their own when notes arrive or on a schedule: compiling what you clip, updating your memory, bringing old notes back. Add skills and they go further, like picking the news you'll care about. Talk to them in the app or from WeChat, Discord and Telegram.
+- **Not tied to a vendor.** Hylo drives the agent CLI you choose (**Claude Code, Codex, OpenCode, Cursor Agent, GitHub Copilot CLI or Pi**), and switching is a setting. Run the server on your own machine or cloud instance and it stays on with your laptop closed.
 
-**Hylo Server** is a single, self-contained Go binary with no external dependencies. It embeds SQLite and Bleve directly, so the entire server is just one executable you drop anywhere and run.
+## Get started
 
-Because it's a plain HTTP server, it deploys equally well on your local machine or a remote cloud instance. Run it on a home server or a container; all clients (desktop app, CLI, WeChat bridge) connect over the network the same way.
-
-#### ⚠️ Things you must know before using Hylo
-
-- **Avoid nested directories.** Hylo recommends a flat, single-level directory structure. You can technically create subdirectories inside category folders, but it is strongly discouraged.
-- **Keep filenames unique.** Hylo links notes using Wiki Link syntax `[[stem]]`, by filename rather than path. Duplicate filenames cause ambiguous references.
-- **Underscore-prefixed directories are system-reserved.** Directories like `_knowledge/`, `_shorts/`, and `_memory/` are used internally by Hylo. Do not use an underscore prefix for your own category directories.
-- **Hylo does not bundle an AI Agent.** You need an agent CLI already installed on your machine (e.g. Claude Code, OpenCode, Codex). Hylo discovers them automatically from your PATH with no extra configuration needed. See [Backing Agents](#backing-agents).
-
-## Installation
-
-> **To get started:** install the Desktop App and the Clip extension. The Desktop App detects the CLI on first launch and offers one-click installation if it is not found. To keep your agent online 24/7, also deploy the Server on a remote or home host (see [Remote Deployment](./docs/remote-deployment.md)).
-
-### 💻 Desktop App
-
-1. Download the latest `.dmg` file from the [Latest Release](https://github.com/skoowoo/hylo/releases/latest) page
-2. Open the dmg and drag Hylo into your Applications folder
-3. On first launch, macOS may block the app since it is signed but not notarized by Apple
-
-   **Fix:** Go to **System Settings → Privacy & Security**, scroll down to find the blocked app notice, and click **Open Anyway**
-
-4. The Desktop App installs the `hylo` CLI to `~/.local/bin/hylo`. Add this to your shell profile so agents can use it:
+1. **Desktop app.** Download the `.dmg` from [Releases](https://github.com/skoowoo/hylo/releases/latest). If macOS blocks it, go to **System Settings → Privacy & Security → Open Anyway**. The app installs the `hylo` CLI to `~/.local/bin`; add that to your `PATH`:
 
    ```sh
-   # zsh — add to ~/.zshrc or ~/.zprofile
-   export PATH="$HOME/.local/bin:$PATH"
-
-   # bash — add to ~/.bash_profile or ~/.bashrc
    export PATH="$HOME/.local/bin:$PATH"
    ```
 
-   Restart your terminal (or run `source ~/.zshrc` / `source ~/.bash_profile`) afterward.
+2. **Onboarding** creates the main **Hylo** bot on your agent CLI, ready to compile clips and update your memory.
+3. **Clip extension** (optional). Download `hylo-clip-*.zip` from the same page, unzip it, and load it in `chrome://extensions/` with Developer mode on.
+4. **Always on** (optional). Install the server on another host and follow [Remote Deployment](./docs/remote-deployment.md):
 
-### 🧩 Browser Extension (Clip)
+   ```sh
+   curl -sL https://raw.githubusercontent.com/skoowoo/hylo/main/install-cli.sh | sh
+   ```
 
-1. Download the latest `hylo-clip-*.zip` from the [Latest Release](https://github.com/skoowoo/hylo/releases/latest) page
-2. Unzip the file
-3. Open Chrome or Edge and go to `chrome://extensions/`
-4. Enable **Developer mode** in the top-right corner
-5. Click **Load unpacked** and select the unzipped folder
-6. The extension is now installed and visible in your browser toolbar
+### Use an existing Obsidian vault
 
-### ⌨️ Remote Server
+Pick the vault folder under **Settings → Server → Config → Vault** and save. Hylo initializes it automatically, adding a `.hylo/` folder and indexing your notes. Nothing else in the vault changes, and Obsidian keeps working on it as before.
 
-Run the following command to install the Hylo server and CLI:
+## Before you start
 
-```sh
-curl -sL https://raw.githubusercontent.com/skoowoo/hylo/main/install-cli.sh | sh
-```
+- **Keep folders flat.** One level of category folders works best.
+- **Keep filenames unique.** Wikilinks `[[name]]` point at filenames, not paths.
+- **`_` folders belong to Hylo.** `_knowledge/`, `_memory/`, `_shorts/` and similar are system folders; don't start your own folder names with `_`.
+- **Bring your own agent.** Install at least one of the supported agent CLIs first; Pi is recommended.
 
-To run it on a remote host behind HTTPS, follow [Remote Deployment](./docs/remote-deployment.md). Then in the Desktop App, open the server switcher → **Manage servers…** → **Add a remote server**, and paste the key from `hylo auth show` on that host.
+## Docs
 
-## Obsidian Compatibility
+- [Bots](./docs/bots.md): triggers, the Hylo bot, WeChat / Discord / Telegram, customizing prompts
+- [Context](./docs/context.md): how the knowledge wiki and personal memory are built
+- [Skills](./docs/skills.md): built-in skills, adding more from GitHub
+- [Remote Deployment](./docs/remote-deployment.md): running Hylo 24/7 behind HTTPS
 
-Hylo is **fully compatible with Obsidian**. Both tools can work on the same vault at the same time, no migration required, no need to pick one over the other.
+## Architecture
 
-- **Same vault, same files.** Hylo reads and writes plain Markdown in your existing directory structure. Keep using Obsidian as your primary editor if you prefer.
-- **Obsidian-native syntax.** Wikilinks (`[[Note]]`), aliases (`[[Page|Alias]]`), and wiki images (`![[image.png]]`) all work out of the box.
-- **No format conversion.** Everything Hylo creates or modifies stays standard Markdown — open it in Obsidian and it looks exactly as you'd expect.
-- **Hylo as your AI layer.** Point Hylo at your Obsidian vault and let it handle the AI side: LLM wiki compilation, personal memory, event-driven agents, WeChat, and search. You write in Obsidian; Hylo runs the automation on top.
-
-#### Get started with an existing vault
-
-Point `hylo init` at your Obsidian vault directory:
-
-```sh
-# Initialize the current directory
-hylo init
-
-# Or pass a path explicitly
-hylo init /path/to/your/obsidian-vault
-```
-
-This creates a `.hylo/` folder inside the directory, scans all Markdown files, registers them in the metadata database, and builds the full-text search index. If `.hylo/` already exists the command exits safely without changing anything. Your Obsidian vault is otherwise untouched.
-
-After running `hylo init`, open the **Hylo desktop app** and complete the setup:
-
-1. Go to **Settings → Server → Config**
-2. Under **Vault**, click the path field and select your vault directory
-3. Save config
-
-Your notes will now be available in Hylo — while Obsidian continues to work on the same vault as before.
-
-## Editor
-
-Hylo includes a built-in WYSIWYG Markdown editor. Notes open in rich-text mode by default; toggle to raw Markdown at any time with the mode button in the toolbar.
-
-#### ✍️ Writing
-
-The editor supports CommonMark and GFM: headings, bold, italic, strikethrough, inline code, code blocks, tables, and task lists. YAML frontmatter is preserved as-is.
-
-#### 🔗 Wikilinks and Wiki Images
-
-Type `[[` to insert a wikilink. Aliases follow Obsidian syntax: `[[Page Name|Alias]]`. Embed images with `![[filename.png]]`.
-
-## Bots
-
-Bots are custom AI agents you define in **Settings → Bots**. Each bot has a name, a system prompt, and a backing agent CLI (any agent CLI detected on your PATH).
-
-#### 🔔 Event Triggers
-
-Add one or more triggers to a bot and it runs automatically whenever a matching event fires. Hylo ships with these built-in events:
-
-| Event                | When it fires                                        |
-| -------------------- | ---------------------------------------------------- |
-| `note_created`       | Any new note is created in the vault                 |
-| `note_updated`       | Any existing note is modified                        |
-| `note_deleted`       | Any note is deleted                                  |
-| `short_note_created` | A short-note entry is appended                       |
-| `scheduled`          | On a configured interval, daily time, or weekly time |
-| `compile_requested`  | An LLM wiki compilation is manually triggered        |
-
-#### 🧩 The Hylo bot
-
-The desktop app creates a **Hylo** bot during onboarding. If you skipped that, or run Hylo on a server, open **Settings → Bots**: with no bots yet, it walks you through the same setup. The bot comes with these triggers:
-
-| Trigger                          | What it does                                                                  |
-| -------------------------------- | ----------------------------------------------------------------------------- |
-| `compile_requested`              | Compiles a note into knowledge units when you ask for it                      |
-| `note_created` on `/Web Clips/`  | Compiles new web clips automatically                                          |
-| `scheduled` daily 09:00          | Updates your personal memory                                                  |
-
-Edit or remove any of them under **Settings → Bots**, or click **New Bot** to build your own. The setup chat that follows onboarding also offers a **Recall** bot that brings your notes back to you, in either or both of two ways: a review of your past week every Monday, and a random walk through your history every afternoon.
-
-#### Backing Agents
-
-> **Hylo automatically discovers available agent CLIs from your local `PATH` with no extra configuration needed.** If you already use Claude Code, Codex, or Copilot in your terminal, Hylo finds them at startup and makes them available as backing agents for your bots.
-
-Hylo integrates **6 agent CLIs** out of the box:
-
-- Claude Code
-- OpenCode
-- Codex CLI
-- Cursor Agent
-- GitHub Copilot CLI
-- Pi
-
-## WeChat, Discord, Telegram
-
-Each bot can connect its own contact. A message from that contact is a turn in the bot's current chat, the same conversation as on the desktop. `/new` in the app starts a new one, and the desktop follows it.
-
-Open the bot under **Settings → Bots** and use **Channels**.
-
-- **WeChat:** click Connect and scan. One WeChat account stays on one bot. Scanning again disconnects the previous bot.
-- **Discord:** create a bot in the [Developer Portal](https://discord.com/developers/applications), enable **Message Content Intent**, and paste the bot token plus your user ID (Developer Mode → right-click your avatar → Copy User ID).
-- **Telegram:** message [@BotFather](https://t.me/BotFather), send `/newbot`, paste the token, then open the link on your phone and tap Start.
-
-One contact belongs to one Hylo bot. Only the account that completed the connection is answered. No server restart.
-
-If Discord, Telegram, WeChat, git, or link previews cannot reach the network, set a proxy under **Settings → Server → Config → Proxy** (for example `http://127.0.0.1:7890`) and restart.
-
-## LLM-Wiki Compiler
-
-Compile notes into structured knowledge units under `/_knowledge` and build an interconnected LLM wiki network automatically.
-
-#### Step 1 — Enable the Compiler
-
-Go to **Settings → Server → Config → Compile** and enable the compiler.
-
-#### Step 2 — Compile with a bot
-
-The **Hylo** bot created during onboarding already has two compile triggers:
-
-| Trigger             | When it fires                                                                         |
-| ------------------- | ------------------------------------------------------------------------------------- |
-| `compile_requested` | You manually compile a note in the app (e.g. from the note action menu)               |
-| `note_created`      | A new note is created under `/Web Clips/`, so clipped pages are compiled automatically |
-
-To set this up on another bot, add the same two triggers to it in **Settings → Bots**.
-
-Each run compiles the note with the `hylo-compile-note` skill, updates the knowledge index with `hylo-index-knowledge`, then polishes the new units with `humanizer`.
-
-To auto-compile other directories, edit the `note_created` trigger and change its **Path Prefixes** (e.g. `/journal/`).
-
-## Personal Memory
-
-Hylo can automatically extract personal memories from your notes into seven structured memory files (identity, preferences, goals, beliefs, people, current state, and voice — how you want your writing done) stored under `/_memory/`.
-
-**Default scan scope**: short notes (`/_shorts`) and knowledge units (`/_knowledge`). You can also specify additional directories directly in the prompt.
-
-#### ⏰ Option 1 — Daily trigger (recommended)
-
-The **Hylo** bot created during onboarding already updates your memory every day at 09:00 with a `scheduled` trigger. To change the time, or scan extra directories, edit that trigger in **Settings → Bots** and append them to its prompt:
+Hylo Server is one self-contained Go binary with SQLite and a full-text index built in. The desktop app, CLI, chat channels and Clip extension all talk to it over HTTP, the same way whether it runs locally or on a remote host.
 
 ```
-Please update my personal memory from my recent notes. Also scan /journal/.
+ Desktop App   CLI   WeChat / Discord / Telegram   Clip
+      └─────────┴──────────────┬──────────────────┘
+                               ▼
+                          Hylo Server
+      ┌──────────────┬─────────┴────┬──────────────┐
+  Markdown files   SQLite     Full-text index   Agent CLIs
 ```
-
-#### 💬 Option 2 — Trigger manually in chat
-
-Ask any agent in a conversation to update your personal memory:
-
-```
-Please update my personal memory. I'm [name], currently working on [project], … (brief self-introduction)
-```
-
-The agent invokes the `hylo-memory` skill and completes the extraction. The first run scans the last 90 days; later incremental runs scan only the last 2 days.
-
-## Skills
-
-Hylo ships with a set of built-in skills that agents can use when running tasks. They are bundled in the binary and written to `~/.hylo/skills/` on every start, so they always match the installed version. You can extend it with external skills from GitHub or your own custom skills placed in `~/.hylo/skills/`.
-
-Each skill is a directory containing a `SKILL.md` file:
-
-```
-~/.hylo/skills/
-└── your-skill/
-    └── SKILL.md
-```
-
-#### Managing skills with the CLI
-
-A skill is first **added** to `~/.hylo/skills/` from GitHub, then **enabled** for a bot, whose agent picks it up. Each bot works in a vault folder of its own (the main Hylo bot in the vault root), and a skill is on for a bot when it's enabled there. Built-in skills are always on for the main bot.
-
-**See what Hylo recommends**
-
-```sh
-hylo skills catalog --table
-hylo skills catalog --category news
-```
-
-Each entry lists the repository and name to add it with.
-
-**Add a skill from a GitHub repository**
-
-```sh
-hylo skills add okou-ai/okou-skills --skill hackernews
-hylo skills add https://github.com/hardhackerlabs/podwise-cli --skill podwise
-```
-
-The skill is looked up by `--skill` in the usual places in the repository and saved to `~/.hylo/skills/<name>/`; without `--skill` the repository's name is used. Use `--force` to replace a skill already added under that name.
-
-**Turn a skill on or off for a bot**
-
-```sh
-hylo bot list
-hylo skills enable hackernews --bot-id <bot-id>
-hylo skills disable hackernews --bot-id <bot-id>
-```
-
-In the app, a bot's skills are picked in **Settings → Bots**.
-
-**List added skills**
-
-```sh
-hylo skills list --table
-```
-
-**Remove a skill**
-
-```sh
-hylo skills remove podwise
-```
-
-Deletes the skill's files and turns it off; there is no undo.
-
-You can do all of this in **Settings → Skills** too.
-
-For what each built-in skill does and example prompts, see the [Skills Guide](./docs/skills.md).
-
-## Customizing AI Behavior
-
-The global system prompt is part of Hylo. What you can change:
-
-#### 1. Per-bot system prompt and trigger prompt
-
-In **Settings → Bots**, each bot exposes two customization points:
-
-- **System Prompt** — agent-bot-specific instructions. Appended to the global system prompt (joined with `---`).
-- **Trigger Prompt template**: the user message sent to the agent when a trigger fires. Supports variables: `{Path}`, `{Name}`, `{Content}` for vault events; `{Now}`, `{Date}`, `{Time}` for scheduled triggers.
-
-#### 2. Rewrite the LLM-Wiki Compile Skill
-
-The LLM wiki compilation behavior is defined in `~/.hylo/skills/hylo-compile-note/SKILL.md`. Edit this file to change how raw notes are compiled into structured knowledge and linked into the LLM wiki network. Note that Hylo overwrites it with the built-in version on every start, so keep your own copy of any changes.
-
-#### 3. Rewrite the Memory Extraction Skill
-
-The personal memory extraction behavior is defined in `~/.hylo/skills/hylo-memory/SKILL.md`. Edit this file to change what gets extracted and how memory files are structured. Like the compile skill, it is overwritten with the built-in version on every start.
-
-#### 4. Install or Build Custom Skills
-
-Drop any skill directory into `~/.hylo/skills/`, then enable it in **Settings → Skills**. Skills are referenced by agents via their directory name.

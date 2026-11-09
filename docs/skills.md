@@ -2,7 +2,7 @@
 
 Hylo ships with a set of built-in skills. Agents pick the right skill automatically based on what you ask for — you don't need to name a skill explicitly, just describe what you want in plain language (English or Chinese both work, since every skill triggers on both).
 
-This guide covers what each built-in skill does and how to talk to it. For how skills are installed, managed, and customized, see the [Skills](../README.md#skills) section in the main README.
+This guide covers what each built-in skill does and how to talk to it. To add skills from GitHub or turn them on for a bot, see [Managing skills](#managing-skills).
 
 ## Table of Contents
 
@@ -16,6 +16,7 @@ This guide covers what each built-in skill does and how to talk to it. For how s
   - [hylo-recall — find, reflect, inspire, review, explore](#hylo-recall--find-reflect-inspire-review-explore)
   - [hylo-setup — guided setup in chat](#hylo-setup--guided-setup-in-chat)
   - [hylo-writing — draft, revise, and write articles](#hylo-writing--draft-revise-and-write-articles)
+  - [Managing skills](#managing-skills)
 
 ## hylo-notes — save and change notes
 
@@ -78,7 +79,7 @@ Update the knowledge index to include anything I'm missing
 
 Extracts personal memory from your short notes and knowledge base into seven structured files under `/_memory/` — identity, preferences, goals, beliefs, people, current state, and voice (how you write, learned from your short notes, plus the writing rules you've stated and the formats of your recurring pieces). The first run scans the last 90 days; later runs scan incrementally. Memories that stop being reinforced fade out over time.
 
-See the [Personal Memory](../README.md#personal-memory) section in the main README for the full setup (including a daily scheduled bot trigger).
+See [Context](./context.md#personal-memory) for how memory is kept up to date.
 
 **Use it for:** giving every future conversation persistent context about who you are, without repeating your background each time.
 
@@ -150,3 +151,32 @@ Polish this. / What's weak about this paragraph? / Give it a title.
 Write an article on why SEO is dying, for indie hackers.
 From now on, never use em dashes in my writing.
 ```
+
+## Managing skills
+
+Built-in skills are bundled in the binary and written to `~/.hylo/skills/` on every start, so they always match the installed version. They are always on for the main Hylo bot.
+
+Other skills are first **added** to `~/.hylo/skills/`, then **enabled** for a bot. Each bot works in a vault folder of its own (the main bot in the vault root), and a skill is on for a bot when it's enabled there. Everything below can also be done in **Settings → Skills** and **Settings → Bots**.
+
+```sh
+# Browse skills Hylo recommends
+hylo skills catalog --table
+hylo skills catalog --category news
+
+# Add one from GitHub (--force replaces an existing skill of the same name)
+hylo skills add okou-ai/okou-skills --skill hackernews
+hylo skills add https://github.com/hardhackerlabs/podwise-cli --skill podwise
+
+# Turn it on or off for a bot
+hylo bot list
+hylo skills enable hackernews --bot-id <bot-id>
+hylo skills disable hackernews --bot-id <bot-id>
+
+# List or remove (remove deletes the files; no undo)
+hylo skills list --table
+hylo skills remove podwise
+```
+
+`add` looks the skill up by `--skill` in the usual places in the repository and saves it to `~/.hylo/skills/<name>/`; without `--skill` the repository's name is used.
+
+To write your own, put a directory with a `SKILL.md` in `~/.hylo/skills/` and enable it for a bot. Agents refer to skills by directory name.
