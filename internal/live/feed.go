@@ -15,6 +15,7 @@ const (
 	TopicNotes  = "notes"
 	TopicBots   = "bots"
 	TopicSkills = "skills"
+	TopicApps   = "apps"
 	TopicChat   = "chat"
 )
 

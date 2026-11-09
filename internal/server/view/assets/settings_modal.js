@@ -46,17 +46,22 @@
           __hyloLive.on('skills', () => {
             if (Alpine.store('settingsModal').open && this.tab === 'skills') this.loadSkills();
           });
+          __hyloLive.on('apps', () => {
+            if (Alpine.store('settingsModal').open && this.tab === 'apps') this.loadApps();
+          });
         }
         window.__hyloHotkeys.register('open-settings', ',', function() {
           Alpine.store('settingsModal').open = true;
         });
         this.$watch('tab', (val, old) => {
           if (old === 'agent-bots') this.stopBotSetup();
+          if (old === 'apps') this.closeAppConnect();
           if (Alpine.store('settingsModal').open) this.loadTab(val);
         });
         this.$watch('$store.settingsModal.open', (open) => {
           if (!open) {
             if (window.__hyloEscPop) window.__hyloEscPop('settings');
+            this.closeAppConnect();
             this.cancelChannelFlows();
             this.stopBotSetup();
             return;
@@ -84,6 +89,7 @@
           if (!this.agentBotEventDefs.length) this.loadAgentBotEvents();
         }
         else if (tab === 'skills') this.loadSkills();
+        else if (tab === 'apps') this.loadApps(true);
         else if (tab === 'agents') { if (!this.agentsLoaded) this.loadAgents(); }
         else if (tab === 'notifications') this.loadNotifySettings();
       },
@@ -118,7 +124,7 @@
     };
     // Each tab contributes its members; copying descriptors keeps their getters live.
     for (const tab of [settingsAppearanceTab, settingsServerTab, settingsAgentCLITab, settingsNotificationsTab,
-      settingsShortcutsTab, settingsAgentBotsTab, settingsSkillsTab]) {
+      settingsShortcutsTab, settingsAgentBotsTab, settingsSkillsTab, settingsAppsTab]) {
       Object.defineProperties(ctrl, Object.getOwnPropertyDescriptors(tab()));
     }
     return ctrl;

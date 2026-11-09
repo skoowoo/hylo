@@ -14,6 +14,7 @@ import (
 	"sync"
 
 	"github.com/hardhacker/hylo/internal/agent"
+	"github.com/hardhacker/hylo/internal/apps"
 	"github.com/hardhacker/hylo/internal/config"
 	"github.com/hardhacker/hylo/internal/editorbus"
 	"github.com/hardhacker/hylo/internal/mate"
@@ -41,6 +42,7 @@ type AgentAPI struct {
 	queued     sync.Map        // runID -> context.CancelFunc; a run still waiting for its bot's chat
 	runBots    sync.Map        // runID -> mateID while a bot's run is going; its tool calls name the run
 	rounds     bool            // the main bot's own rounds run, so its agenda wakes it
+	apps       RunApps         // optional; the apps the user connected, each on for some bots
 	life       context.Context // detached runs end with it; nil leaves them to their own lifetime
 	runs       sync.WaitGroup
 }
@@ -71,6 +73,15 @@ type WakeEnd struct {
 	// Ref is the wake's mate.Wake.Ref.
 	Ref string `json:"-"`
 }
+
+// RunApps is what a bot's runs take from the apps it has on (internal/apps).
+type RunApps interface {
+	Env(apps.Bot) map[string]string
+	Connected(apps.Bot) []apps.Brief
+}
+
+// SetApps hands bots' runs the apps the user connected.
+func (a *AgentAPI) SetApps(x RunApps) { a.apps = x }
 
 // SetRounds says the main bot's own rounds are running (internal/pulse).
 func (a *AgentAPI) SetRounds(on bool) { a.rounds = on }
@@ -514,6 +525,12 @@ func (a *AgentAPI) executeChat(ctx context.Context, run *agent.Run, body chatBod
 		MCP:    a.mcpURL(body.AgentID) != "",
 		Agenda: a.rounds,
 	}
+	appBot := apps.Bot{ID: body.MateID, Main: main, Dir: dir}
+	if body.MateID != "" && a.apps != nil {
+		for _, b := range a.apps.Connected(appBot) {
+			pr.Apps = append(pr.Apps, prompt.App{ID: b.ID, Name: b.Name, About: b.About, Skill: b.Skill})
+		}
+	}
 	if body.oneShot {
 		pr.Kind = prompt.OneShot
 	}
@@ -700,6 +717,11 @@ func (a *AgentAPI) executeChat(ctx context.Context, run *agent.Run, body chatBod
 	argv := agent.BuildInvocationArgs(def, argCtx)
 	// Tools and the hylo CLI name the run, so the server knows whose call it is.
 	env = mergeEnvKey(env, agent.RunEnv, run.ID)
+	if body.MateID != "" && a.apps != nil {
+		for k, v := range a.apps.Env(appBot) {
+			env = mergeEnvKey(env, k, v)
+		}
+	}
 	argv, env = a.injectMCP(def.ID, run.ID, cwd, argv, env)
 	if e := agent.CheckWindowsCmdShimCommandLineBudget(def, bin, argv); e != nil {
 		a.logger.Warn("agent aborted",

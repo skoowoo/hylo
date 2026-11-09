@@ -25,6 +25,9 @@ func TestSectionsApplyByRun(t *testing.T) {
 		{Run{Main: true, MCP: true}, "global,vault,mcp,choices,embed,capabilities"},
 		{Run{Main: true}, "global,vault,choices,embed"},
 		{Run{Main: true, MCP: true, Intro: &Intro{}}, "global,vault,mcp,choices,embed,intro"},
+		{Run{Main: true, MCP: true, Apps: []App{{ID: "x"}}}, "global,vault,mcp,choices,embed,capabilities,apps"},
+		{Run{MCP: true, Apps: []App{{ID: "x"}}}, "global,vault,mcp,choices,embed,apps"},
+		{Run{Apps: []App{{ID: "x"}}}, "global,vault,choices,embed"},
 	}
 	for _, c := range cases {
 		if got := ids(c.run); got != c.want {
@@ -50,6 +53,20 @@ func TestMessageResumeSendsOnlyTheRequest(t *testing.T) {
 	}
 	if got := Message("sys", "hi", "/vault", "/", true); got != "hi" {
 		t.Fatal(got)
+	}
+}
+
+// Each app says how the bot reaches it: its skill, or the apps_* tools.
+func TestAppsNameHowToReachThem(t *testing.T) {
+	got := System(Run{Main: true, MCP: true, Apps: []App{
+		{ID: "podwise", Name: "Podwise", About: "Podcasts."},
+		{ID: "weread", Name: "WeChat Reading", About: "Reading.", Skill: "weread-skills"},
+	}})
+	for _, want := range []string{"- Podwise: Podcasts. Its tools run through `apps_tools` and `apps_call` with app `podwise`",
+		"- WeChat Reading: Reading. Use its skill `weread-skills`"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("missing %q in:\n%s", want, got)
+		}
 	}
 }
 

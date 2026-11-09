@@ -15,9 +15,27 @@ import (
 const RunHeader = "X-Hylo-Run"
 
 // agendaBot is the bot whose agenda or rounds a call works on: the main bot.
-// A call naming a run comes from a bot (every agent process carries its run),
-// so only the main bot's own runs pass; one without is the user's.
 func (a *AgentAPI) agendaBot(r *http.Request) (*mate.Mate, int, error) {
+	return a.mainBotCall(r, "only the main bot keeps an agenda")
+}
+
+// RunBot is the bot whose run made the call, or "" for the user's own call.
+func (a *AgentAPI) RunBot(r *http.Request) (string, int, error) {
+	run := r.Header.Get(RunHeader)
+	if run == "" {
+		return "", 0, nil
+	}
+	v, ok := a.runBots.Load(run)
+	if !ok {
+		return "", http.StatusForbidden, errors.New("the run is over")
+	}
+	return v.(string), 0, nil
+}
+
+// mainBotCall is the main bot, when the call may act as it. A call naming a
+// run comes from a bot (every agent process carries its run), so only the main
+// bot's own runs pass; one without is the user's.
+func (a *AgentAPI) mainBotCall(r *http.Request, refusal string) (*mate.Mate, int, error) {
 	if a.store == nil {
 		return nil, http.StatusServiceUnavailable, errors.New("bots are unavailable")
 	}
@@ -34,7 +52,7 @@ func (a *AgentAPI) agendaBot(r *http.Request) (*mate.Mate, int, error) {
 			return nil, http.StatusForbidden, errors.New("the run is over")
 		}
 		if v.(string) != m.ID {
-			return nil, http.StatusForbidden, errors.New("only the main bot keeps an agenda")
+			return nil, http.StatusForbidden, errors.New(refusal)
 		}
 	}
 	return m, 0, nil

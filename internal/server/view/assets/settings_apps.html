@@ -1,0 +1,64 @@
+{{/* Apps tab: the user's accounts on outside platforms, connected for the main bot. */}}
+          <div class="settings-page" x-show="tab === 'apps'">
+           <div class="settings-body">
+            <p class="settings-intro">Connect the platforms you use, and your bots can look at what you listened to and read there. Apps are on for the main bot; turn them on for others in each bot's Apps tab.</p>
+            <div class="settings-status settings-status--err" x-show="appsError && !appsList.length" x-text="'Error: ' + appsError"></div>
+            <div class="settings-status" x-show="appsLoading && !appsList.length">Loading apps…</div>
+            <div class="settings-list">
+              <template x-for="a in appsList" :key="a.id">
+                <div class="app-row">
+                  <div class="settings-row">
+                    <img class="app-logo" :src="'/static/apps/' + a.id + '.png'" alt="">
+                    <div>
+                      <span class="settings-label" x-text="a.name"></span>
+                      <span class="settings-desc" :class="{'app-desc--err': a.problem}" x-text="appLine(a)"></span>
+                    </div>
+                    <div class="settings-row-ctrl">
+                      <template x-if="!a.connected || a.reconnect">
+                        <button type="button" class="btn-outline btn--xs" x-show="appsOpen !== a.id" @click="openAppConnect(a)"
+                                x-text="a.connected ? 'Reconnect' : 'Connect'"></button>
+                      </template>
+                      <template x-if="a.connected">
+                        <button type="button" class="btn-ghost btn--xs" :disabled="appsBusy === a.id" @click="disconnectApp(a)">Disconnect</button>
+                      </template>
+                    </div>
+                  </div>
+                  <div class="app-connect" x-show="appsOpen === a.id">
+                    <template x-if="appsOpen === a.id && a.kind === 'mcp' && appsSignIn && !appsUseToken">
+                      <div class="app-connect-step">
+                        <div class="app-connect-form" x-show="!appsWaiting">
+                          <a class="btn-solid btn--xs app-signin" :href="appsSignInURL || null" target="_blank" rel="noopener noreferrer"
+                             :aria-disabled="!appsSignInURL" @click="if (!appsSignInURL) $event.preventDefault(); else appsWaiting = true">
+                            <span x-text="appsSignInURL ? 'Sign in with ' + a.name : 'Preparing…'"></span>{{icon "external-link"}}</a>
+                          <button type="button" class="btn-ghost btn--xs" @click="closeAppConnect()">Cancel</button>
+                        </div>
+                        <div class="app-connect-form" x-show="appsWaiting">
+                          <span class="settings-msg">Finish signing in in your browser…</span>
+                          <button type="button" class="btn-ghost btn--xs" @click="closeAppConnect()">Cancel</button>
+                        </div>
+                        <button type="button" class="settings-link app-connect-alt" @click="appsUseToken = true; appsMsg = ''">Use an API token instead</button>
+                      </div>
+                    </template>
+                    <template x-if="appsOpen === a.id && (a.kind === 'skill' || !appsSignIn || appsUseToken)">
+                      <form class="app-connect-step" @submit.prevent="submitAppSecret(a)">
+                        <span class="settings-desc">
+                          <span x-text="a.kind === 'skill' ? 'Get your key' : (appsSignIn ? 'Create an API token' : 'Signing in needs Hylo open on this computer. Create an API token')"></span>
+                          on <a class="settings-link" :href="a.keyUrl" target="_blank" rel="noopener noreferrer" x-text="a.name"></a>, then paste it here.
+                        </span>
+                        <div class="app-connect-form">
+                          <input class="field-input app-secret" type="password" autocomplete="off" spellcheck="false" x-ref="appSecret"
+                                 :placeholder="a.keyPrefix ? a.keyPrefix + '…' : 'API token'" x-model="appsSecret"
+                                 @paste="setTimeout(() => submitAppSecret(a))">
+                          <button type="submit" class="btn-solid btn--xs" :disabled="!appsSecret.trim() || appsBusy === a.id"
+                                  x-text="appsBusy === a.id ? 'Checking…' : 'Connect'"></button>
+                          <button type="button" class="btn-ghost btn--xs" @click="closeAppConnect()">Cancel</button>
+                        </div>
+                      </form>
+                    </template>
+                    <span class="settings-msg settings-msg--err" x-show="appsMsg" x-text="appsMsg"></span>
+                  </div>
+                </div>
+              </template>
+            </div>
+           </div>
+          </div>

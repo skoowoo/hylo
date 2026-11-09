@@ -8,9 +8,9 @@ import (
 	"github.com/hardhacker/hylo/internal/agent"
 )
 
-// agendaRun is the agent run the command comes from, when an agent set it;
-// the agenda is then that run's bot's. Outside a run it is the main bot's.
-func agendaRun() string { return os.Getenv(agent.RunEnv) }
+// agentRun is the agent run the command comes from, when an agent set it;
+// the server then acts for that run's bot. Outside a run it is the user.
+func agentRun() string { return os.Getenv(agent.RunEnv) }
 
 func newAgendaCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -29,7 +29,7 @@ func newAgendaCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			items, err := c.Agenda(agendaRun())
+			items, err := c.Agenda(agentRun())
 			if err != nil {
 				return err
 			}
@@ -49,7 +49,7 @@ func newAgendaCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			it, err := c.AgendaAdd(agendaRun(), args[0], due)
+			it, err := c.AgendaAdd(agentRun(), args[0], due)
 			if err != nil {
 				return err
 			}
@@ -68,7 +68,7 @@ func newAgendaCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return c.AgendaDone(agendaRun(), args[0])
+			return c.AgendaDone(agentRun(), args[0])
 		},
 	}
 

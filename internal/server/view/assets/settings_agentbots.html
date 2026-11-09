@@ -170,6 +170,31 @@
                     </template>
                   </section>
 
+                  <section class="settings-form" role="tabpanel" x-show="botFormTab === 'apps'">
+                    <p class="settings-intro" x-show="connectedApps.length">Pick the apps this bot can use, to see your data on those platforms. They start on for the main bot and off for the rest.</p>
+                    <div class="settings-status" x-show="!connectedApps.length">No apps connected yet. Connect one under
+                      <button type="button" class="settings-link" @click="tab = 'apps'">Apps</button>.</div>
+                    <div class="settings-list" x-show="connectedApps.length">
+                      <template x-for="a in connectedApps" :key="a.id">
+                        <div class="app-row">
+                          <div class="settings-row">
+                            <img class="app-logo" :src="'/static/apps/' + a.id + '.png'" alt="">
+                            <div>
+                              <span class="settings-label" x-text="a.name"></span>
+                              <span class="settings-desc" x-text="a.about"></span>
+                            </div>
+                            <div class="settings-row-ctrl">
+                              <div class="seg">
+                                <button type="button" class="seg-btn" :class="{active: !agentBotApps[a.id]}" @click="agentBotApps[a.id] = false">Off</button>
+                                <button type="button" class="seg-btn" :class="{active: agentBotApps[a.id]}" @click="agentBotApps[a.id] = true">On</button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </template>
+                    </div>
+                  </section>
+
                   <section class="settings-form" role="tabpanel" x-show="botFormTab === 'triggers'">
                     <p class="settings-intro">Run this bot on vault events or on a schedule. Each trigger sends a prompt template to the agent.</p>
                     <div class="agent-bot-trigger-list">

@@ -139,3 +139,18 @@ func TestStaticAssetsSkipAuth(t *testing.T) {
 		t.Fatalf("non-GET static must authenticate: %d", got)
 	}
 }
+
+// The system browser has no Hylo session when a platform sends it back after
+// sign-in; only that GET passes without one.
+func TestSignInCallbackNeedsNoSession(t *testing.T) {
+	h := newAuthServer(t)
+	if got := do(h, httptest.NewRequest("GET", "/apps/oauth/callback?state=x", nil)).Code; got != 200 {
+		t.Fatalf("callback: %d", got)
+	}
+	if got := do(h, httptest.NewRequest("POST", "/apps/oauth/callback", nil)).Code; got != 401 {
+		t.Fatalf("POST callback: %d", got)
+	}
+	if got := do(h, httptest.NewRequest("GET", "/api/apps", nil)).Code == 200; got {
+		t.Fatal("apps API without a session")
+	}
+}

@@ -56,6 +56,7 @@ func init() {
 	rootCmd.AddCommand(newSkillsCmd())
 	rootCmd.AddCommand(newBotCmd())
 	rootCmd.AddCommand(newAgendaCmd())
+	rootCmd.AddCommand(newAppsCmd())
 	rootCmd.AddCommand(newActivityCmd())
 	rootCmd.AddCommand(newScreenTimeCmd())
 	rootCmd.AddCommand(newCapabilitiesCmd())

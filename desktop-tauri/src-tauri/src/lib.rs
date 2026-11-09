@@ -38,7 +38,9 @@ pub fn run() {
         }))
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
-        .plugin(tauri_plugin_opener::init())
+        // Its link script cancels every target=_blank click for an IPC call that remote
+        // pages may not make; links take the webview's own path to allow_url instead.
+        .plugin(tauri_plugin_opener::Builder::new().open_js_links_on_click(false).build())
         .plugin(window_state());
 
     builder = builder
@@ -87,6 +89,7 @@ pub fn run() {
             );
             let main_size = window_size::launch_main_size(app.handle());
             let handle = app.handle().clone();
+            let popup = handle.clone();
             let mut window =
                 WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
                     .title("Hylo")
@@ -96,8 +99,8 @@ pub fn run() {
                     // WKWebView, so an in-page drop never reaches a sidebar folder.
                     .disable_drag_drop_handler()
                     .on_navigation(move |url| session::allow_url(&handle, url))
-                    .on_new_window(|url, _features| {
-                        let _ = open::that(url.as_str());
+                    .on_new_window(move |url, _features| {
+                        session::open_external(&popup, url.as_str());
                         tauri::webview::NewWindowResponse::Deny
                     });
 
@@ -371,7 +374,7 @@ fn install_menu(app: &tauri::AppHandle) -> tauri::Result<()> {
             _ => None,
         };
         if let Some(url) = link {
-            let _ = open::that(url);
+            session::open_external(app, url);
             return;
         }
         let Some(window) = app.get_webview_window("main") else {

@@ -21,7 +21,7 @@
             <span class="settings-content-title" x-text="detailView() ? detailView().title : ({ {{- range $i, $t := settingsTabs}}{{if $i}},{{end}}'{{$t.ID}}':'{{$t.Label}}'{{end -}} }[tab] || '')"></span>
           </div>
 
-{{template "settings_appearance.html"}}{{template "settings_server.html"}}{{template "settings_shortcuts.html"}}{{template "settings_notifications.html"}}{{template "settings_agentbots.html"}}{{template "settings_skills.html"}}{{template "settings_agentcli.html"}}
+{{template "settings_appearance.html"}}{{template "settings_server.html"}}{{template "settings_shortcuts.html"}}{{template "settings_notifications.html"}}{{template "settings_agentbots.html"}}{{template "settings_apps.html"}}{{template "settings_skills.html"}}{{template "settings_agentcli.html"}}
         </div><!-- .settings-content -->
       </div><!-- .settings-modal-inner -->
       <!-- Must stay after .settings-modal-inner: see the -webkit-app-region note in the CSS above. -->

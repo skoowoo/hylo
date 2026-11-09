@@ -11,6 +11,8 @@
       agentBotTriggers: [],
       // Skill name → on, for the bot's working directory; applied on save.
       agentBotSkills: {},
+      // App id → on, for the bot; applied on save.
+      agentBotApps: {},
       agentBotSaving: false,
       agentBotSaveError: '',
       agentBotEventDefs: [],
@@ -247,6 +249,7 @@
         this.agentBotDraft = { name: '', description: '', agentId: first ? first.id : '', model: firstModel, cwd: '', main: false, systemPrompt: '', enabled: true };
         this.agentBotTriggers = [];
         this.agentBotSkills = {};
+        this.agentBotApps = {};
         this.agentBotEditId = '';
         this.agentBotSaveError = '';
         this.cancelChannelFlows();
@@ -259,13 +262,32 @@
       // Every added skill, built-ins last since most bots leave them alone.
       get agentBotSkillList() { return this.extraSkills.concat(this.builtinSkills); },
 
-      // Loads which skills are on for the bot, then marks the form as clean.
+      // Loads which skills and apps are on for the bot, then marks the form as clean.
       async loadAgentBotSkills(botId) {
-        await this.loadSkills(true);
+        await Promise.all([this.loadSkills(true), this.loadApps()]);
         const on = {};
         this.agentBotSkillList.forEach(function(s) { on[s.name] = !!botId && s.bots.some(function(b) { return b.id === botId; }); });
         this.agentBotSkills = on;
+        const apps = {};
+        this.connectedApps.forEach(function(a) { apps[a.id] = !!botId && (a.bots || []).some(function(b) { return b.id === botId; }); });
+        this.agentBotApps = apps;
         this._agentBotSaved = this.agentBotSnapshot();
+      },
+
+      // Turns apps on or off for the bot to match the form.
+      async applyAgentBotApps(bot) {
+        for (const a of this.connectedApps) {
+          const on = !!this.agentBotApps[a.id];
+          if (on === (a.bots || []).some(function(b) { return b.id === bot.id; })) continue;
+          const r = await fetch('/api/apps/' + encodeURIComponent(a.id) + '/bots/' + encodeURIComponent(bot.id), {
+            method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ on: on }),
+          });
+          if (!r.ok) {
+            const d = await r.json().catch(function() { return {}; });
+            throw new Error(d.error || 'Updating app ' + a.name + ' failed');
+          }
+        }
+        await this.loadApps();
       },
 
       // Turns skills on or off for the bot to match the form.
@@ -310,6 +332,7 @@
             });
           });
           this.agentBotSkills = {};
+          this.agentBotApps = {};
           this.agentBotEditId = m.id;
           this.agentBotSaveError = '';
           this.botFormTab = 'general';
@@ -331,7 +354,7 @@
       },
 
       agentBotSnapshot() {
-        return JSON.stringify([this.agentBotDraft, this.agentBotSkills, this.agentBotTriggers.map(function(t) {
+        return JSON.stringify([this.agentBotDraft, this.agentBotSkills, this.agentBotApps, this.agentBotTriggers.map(function(t) {
           const copy = Object.assign({}, t);
           delete copy._open;
           return copy;
@@ -357,6 +380,7 @@
         return [
           { id: 'general', label: 'General', count: 0 },
           { id: 'skills', label: 'Skills', count: skills },
+          { id: 'apps', label: 'Apps', count: this.connectedApps.filter((a) => this.agentBotApps[a.id]).length },
           { id: 'triggers', label: 'Triggers', count: this.agentBotTriggers.length },
           { id: 'channels', label: 'Channels', count: Object.values(this.botChannels).filter(Boolean).length, disabled: this.agentBotFormMode !== 'edit' },
         ];
@@ -574,6 +598,7 @@
           this.agentBotEditId = saved.id;
           this.agentBotDraft.cwd = saved.cwd;
           await this.applyAgentBotSkills(saved);
+          await this.applyAgentBotApps(saved);
           this.agentBotFormMode = null;
         } catch(e) { this.agentBotSaveError = e.message; }
         finally { this.agentBotSaving = false; }

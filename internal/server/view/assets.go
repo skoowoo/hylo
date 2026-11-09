@@ -35,7 +35,7 @@ func init() {
 		"confirm_dialog.css",
 		"settings_modal.css", "settings_appearance.css", "settings_server.css", "settings_chatlink.css",
 		"settings_agentcli.css", "settings_notifications.css", "settings_shortcuts.css", "settings_agentbots.css",
-		"settings_skills.css",
+		"settings_skills.css", "settings_apps.css",
 		"servers.css",
 	))
 
@@ -47,7 +47,7 @@ func init() {
 		"list_tighten.js", "scrollbar.js", "graph_layout.js", "editor_session.js", "editor_agent.js", "content_pane.js", "note_activity.js",
 		"search_overlay.js", "confirm_dialog.js", "info_dialog.js", "servers_store.js",
 		"settings_modal.js", "settings_appearance.js", "settings_server.js", "settings_agentcli.js",
-		"settings_notifications.js", "settings_shortcuts.js", "settings_agentbots.js", "settings_skills.js",
+		"settings_notifications.js", "settings_shortcuts.js", "settings_agentbots.js", "settings_skills.js", "settings_apps.js",
 		"section_cache.js", "home_images.js", "home_graph.js", "home_shorts.js", "tag_cloud.js",
 		"home_drag.js", "home.js", "note_shared.js",
 	))

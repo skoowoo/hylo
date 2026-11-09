@@ -1,8 +1,6 @@
 [
   {"name": "deep-reading-analyst", "repo": "yyh211/claude-meta-skill", "category": "reading",
    "description": "Read a clip or article for its argument, gaps, and what to do with it."},
-  {"name": "podwise", "repo": "hardhackerlabs/podwise-cli", "category": "podcast"},
-  {"name": "weread-skills", "repo": "Tencent/WeChatReading", "category": "reading"},
   {"name": "humanizer", "repo": "blader/humanizer", "category": "writing"},
   {"name": "humanizer-zh", "repo": "op7418/Humanizer-zh", "category": "writing",
    "description": "Polish Chinese prose: cut stock phrasing, keep the facts and the author's voice."},

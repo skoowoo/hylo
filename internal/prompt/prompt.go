@@ -33,7 +33,16 @@ type Run struct {
 	MCP bool
 	// Agenda is set when the bot's own rounds are on, so a due agenda item wakes it.
 	Agenda bool
-	Intro  *Intro
+	// Apps are the user's connected outside apps this bot has on.
+	Apps  []App
+	Intro *Intro
+}
+
+// App is a connected app (internal/apps): through its skill, or else through
+// the apps_* tools.
+type App struct {
+	ID, Name, About string
+	Skill           string
 }
 
 // Section is one layer of the system prompt.

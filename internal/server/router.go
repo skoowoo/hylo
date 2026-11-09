@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"net/http"
 
+	"github.com/hardhacker/hylo/internal/apps"
 	"github.com/hardhacker/hylo/internal/channels"
 	"github.com/hardhacker/hylo/internal/client"
 	"github.com/hardhacker/hylo/internal/config"
@@ -36,6 +37,7 @@ func newRouter(
 	mateStore *mate.Store,
 	mateRunner *mate.Runner,
 	skillsMgr *skills.Manager,
+	appsMgr *apps.Manager,
 	feed *live.Feed,
 	apiKey string,
 	channelHub *channels.Hub,
@@ -130,6 +132,19 @@ func newRouter(
 	}
 
 	skh := handler.NewSkillsHTTP(skillsMgr, mateStore)
+	if appsMgr != nil {
+		aph := handler.NewAppsHTTP(appsMgr, ah.RunBot)
+		mux.HandleFunc("GET /api/apps", aph.List)
+		mux.HandleFunc("POST /api/apps/check", aph.Check)
+		mux.HandleFunc("POST /api/apps/{id}/connect", aph.Connect)
+		mux.HandleFunc("POST /api/apps/{id}/sign-in", aph.SignIn)
+		mux.HandleFunc("DELETE /api/apps/{id}/sign-in", aph.CancelSignIn)
+		mux.HandleFunc("DELETE /api/apps/{id}", aph.Disconnect)
+		mux.HandleFunc("PUT /api/apps/{id}/bots/{bot}", aph.SetBot)
+		mux.HandleFunc("GET /api/apps/{id}/tools", aph.Tools)
+		mux.HandleFunc("POST /api/apps/{id}/call", aph.Call)
+		mux.HandleFunc("GET "+apps.CallbackPath, aph.Callback)
+	}
 	mux.HandleFunc("GET /api/skills", skh.List)
 	mux.HandleFunc("GET /api/skills/catalog", skh.Catalog)
 	mux.HandleFunc("POST /api/skills/add", skh.Add)

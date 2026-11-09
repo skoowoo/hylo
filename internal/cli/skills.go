@@ -118,8 +118,8 @@ the repository's; the skill is looked up by it in the usual places (the reposito
 root, <name>/, skills/<name>/, skills/*/<name>/, skills/, skill/) and added under it.
 An added skill of the same name is replaced only with --force.`,
 		Example: `  hylo skills add okou-ai/okou-skills --skill hackernews
-  hylo skills add https://github.com/hardhackerlabs/podwise-cli --skill podwise
-  hylo skills add blader/humanizer`,
+  hylo skills add https://github.com/blader/humanizer
+  hylo skills add op7418/Humanizer-zh --skill humanizer-zh`,
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {

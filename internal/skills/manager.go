@@ -94,7 +94,11 @@ type Manager struct {
 	st        state
 	descs     map[string]cachedDesc
 	onChange  func()
+	reserved  func(name string) string
 }
+
+// SetReserved keeps names taken elsewhere out of Add: reserved names who holds name, or "".
+func (m *Manager) SetReserved(fn func(name string) string) { m.reserved = fn }
 
 // SetOnChange registers fn to run after a skill is added, turned on or off,
 // or removed. Set it before the manager is in use.
@@ -114,15 +118,17 @@ type cachedDesc struct {
 	text string
 }
 
-// Open creates a Manager rooted at vaultRoot.
+// Open creates the Manager of the user's skills, ~/.hylo/skills, for the vault at vaultRoot.
 // State is loaded from disk; errors are silently ignored.
 func Open(vaultRoot string) *Manager {
 	home, _ := os.UserHomeDir()
-	m := &Manager{
-		sourceDir: filepath.Join(home, ".hylo", "skills"),
-		vaultRoot: vaultRoot,
-		stateFile: filepath.Join(vaultRoot, ".hylo", "skills_state.json"),
-	}
+	return OpenAt(filepath.Join(home, ".hylo", "skills"), vaultRoot, filepath.Join(vaultRoot, ".hylo", "skills_state.json"))
+}
+
+// OpenAt creates a Manager of the skills in sourceDir, keeping where they are
+// on in stateFile. Apps keep theirs apart from the user's this way (internal/apps).
+func OpenAt(sourceDir, vaultRoot, stateFile string) *Manager {
+	m := &Manager{sourceDir: sourceDir, vaultRoot: vaultRoot, stateFile: stateFile}
 	_ = m.loadState()
 	return m
 }
@@ -361,6 +367,11 @@ func (m *Manager) Add(repo, name string, force bool) (string, error) {
 	if isDefault(name) {
 		return "", fmt.Errorf("%q is a built-in skill", name)
 	}
+	if m.reserved != nil {
+		if by := m.reserved(name); by != "" {
+			return "", fmt.Errorf("%q comes with the %s app; connect it in Settings → Apps", name, by)
+		}
+	}
 	dest := filepath.Join(m.sourceDir, name)
 	if !force && isSkillDir(dest) {
 		return "", fmt.Errorf("skill %q is already added (use force to replace it)", name)
@@ -391,10 +402,17 @@ func (m *Manager) Add(repo, name string, force bool) (string, error) {
 	if err := os.MkdirAll(m.sourceDir, 0755); err != nil {
 		return "", fmt.Errorf("create skills dir: %w", err)
 	}
+	// Staged, so a replaced skill is gone only for a rename while bots may be reading it.
+	stage := filepath.Join(m.sourceDir, "."+name+".new")
+	_ = os.RemoveAll(stage)
+	if err := copyDir(src, stage); err != nil {
+		_ = os.RemoveAll(stage)
+		return "", fmt.Errorf("copy skill: %w", err)
+	}
 	if err := os.RemoveAll(dest); err != nil {
 		return "", fmt.Errorf("remove existing skill: %w", err)
 	}
-	if err := copyDir(src, dest); err != nil {
+	if err := os.Rename(stage, dest); err != nil {
 		return "", fmt.Errorf("copy skill: %w", err)
 	}
 	return name, m.changed(nil)
@@ -481,6 +499,36 @@ func isSkillDir(p string) bool {
 	}
 	_, err = os.Stat(filepath.Join(p, "SKILL.md"))
 	return err == nil
+}
+
+// Has reports whether name is added to this manager's skills.
+func (m *Manager) Has(name string) bool {
+	return ValidName(name) && isSkillDir(filepath.Join(m.sourceDir, name))
+}
+
+// EnabledDirs lists the vault directories name is on in.
+func (m *Manager) EnabledDirs(name string) []string {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return slices.Clone(m.st.Enabled[name])
+}
+
+// Version is the version name's SKILL.md declares, or "".
+func (m *Manager) Version(name string) string {
+	if !ValidName(name) {
+		return ""
+	}
+	src, err := os.ReadFile(filepath.Join(m.sourceDir, name, "SKILL.md"))
+	if err != nil {
+		return ""
+	}
+	fm, _ := util.ParseFrontmatter(src)
+	for _, e := range fm.All {
+		if e.Key == "version" {
+			return strings.TrimSpace(e.Value)
+		}
+	}
+	return ""
 }
 
 // skillDescription is called with m.mu held.

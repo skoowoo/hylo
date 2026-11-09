@@ -85,8 +85,18 @@ pub fn allow_url(app: &AppHandle, url: &Url) -> bool {
         );
         return false;
     }
-    let _ = app.opener().open_url(url.as_str(), None::<&str>);
+    open_external(app, url.as_str());
     false
+}
+
+/// Opens url in the system browser; a failure is logged, since the page can't tell.
+pub fn open_external(app: &AppHandle, url: &str) {
+    let result = app.opener().open_url(url, None::<&str>);
+    let state = app.state::<ShellState>();
+    match result {
+        Ok(()) => diag_log(&state.data_dir, &format!("open in browser {url}")),
+        Err(e) => diag_log(&state.data_dir, &format!("open in browser {url} failed: {e}")),
+    }
 }
 
 /// A server can die after its page loaded; nothing else notices until the next

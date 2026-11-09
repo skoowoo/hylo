@@ -165,7 +165,7 @@ hylo skills catalog --category news
 
 # Add one from GitHub (--force replaces an existing skill of the same name)
 hylo skills add okou-ai/okou-skills --skill hackernews
-hylo skills add https://github.com/hardhackerlabs/podwise-cli --skill podwise
+hylo skills add https://github.com/blader/humanizer
 
 # Turn it on or off for a bot
 hylo bot list
@@ -174,7 +174,7 @@ hylo skills disable hackernews --bot-id <bot-id>
 
 # List or remove (remove deletes the files; no undo)
 hylo skills list --table
-hylo skills remove podwise
+hylo skills remove humanizer
 ```
 
 `add` looks the skill up by `--skill` in the usual places in the repository and saves it to `~/.hylo/skills/<name>/`; without `--skill` the repository's name is used.

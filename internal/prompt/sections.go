@@ -13,6 +13,7 @@ const (
 	SectionCapabilities = "capabilities"
 	SectionIntro        = "intro"
 	SectionAgenda       = "agenda"
+	SectionApps         = "apps"
 )
 
 // GlobalDefault is the global system prompt, from text/system/global.md.
@@ -26,6 +27,7 @@ var (
 	capabilitiesText = load("system/capabilities")
 	agendaText       = load("system/agenda")
 	introTmpl        = parse("setup/intro")
+	appsTmpl         = parse("system/apps")
 )
 
 // sections is the system prompt from the most general layer to the most
@@ -44,6 +46,8 @@ var sections = []Section{
 	{ID: SectionCapabilities, Applies: func(r Run) bool { return r.Kind == Chat && r.Main && r.MCP && r.Intro == nil }, Text: func(Run) string { return capabilitiesText }},
 	// Promises for later only hold while rounds run to wake the bot for them.
 	{ID: SectionAgenda, Applies: func(r Run) bool { return r.Agenda && r.Main && r.MCP && r.Kind != OneShot }, Text: func(Run) string { return agendaText }},
+	// App tools go through Hylo's MCP; Apps holds only what this bot has on.
+	{ID: SectionApps, Applies: func(r Run) bool { return len(r.Apps) > 0 && r.MCP && r.Kind != OneShot }, Text: func(r Run) string { return execute(appsTmpl, r.Apps) }},
 	{ID: SectionIntro, Applies: func(r Run) bool { return r.Intro != nil }, Text: func(r Run) string { return r.Intro.text() }},
 }
 

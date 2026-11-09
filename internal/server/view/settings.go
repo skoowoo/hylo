@@ -13,6 +13,7 @@ var settingsTabs = []settingsTab{
 	{ID: "shortcuts", Label: "Shortcuts", Icon: "keyboard"},
 	{ID: "notifications", Label: "Notifications", DesktopOnly: true, Icon: "bell"},
 	{ID: "agent-bots", Label: "Bots", Icon: "bot"},
+	{ID: "apps", Label: "Apps", Icon: "link"},
 	{ID: "skills", Label: "Skills", Icon: "sparkles"},
 	{ID: "agents", Label: "Agents", Icon: "cpu"},
 }

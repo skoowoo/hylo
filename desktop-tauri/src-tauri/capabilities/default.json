@@ -8,7 +8,6 @@
     "core:webview:allow-internal-toggle-devtools",
     "dialog:default",
     "notification:default",
-    "opener:default",
     "allow-check-server",
     "allow-stop-hylo-server",
     "allow-get-server-process-status",

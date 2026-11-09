@@ -16,7 +16,7 @@ import (
 	"time"
 )
 
-//go:embed *.js agents vendor
+//go:embed *.js agents apps vendor
 var embedded embed.FS
 
 type file struct {

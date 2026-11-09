@@ -165,7 +165,7 @@ hylo skills catalog --category news
 
 # 从 GitHub 添加（同名 skill 已存在时加 --force 替换）
 hylo skills add okou-ai/okou-skills --skill hackernews
-hylo skills add https://github.com/hardhackerlabs/podwise-cli --skill podwise
+hylo skills add https://github.com/blader/humanizer
 
 # 为 bot 启用或停用
 hylo bot list
@@ -174,7 +174,7 @@ hylo skills disable hackernews --bot-id <bot-id>
 
 # 查看或删除（删除会移除文件，无法撤销）
 hylo skills list --table
-hylo skills remove podwise
+hylo skills remove humanizer
 ```
 
 `add` 按 `--skill` 在仓库的常见位置里查找 skill，保存到 `~/.hylo/skills/<name>/`；不加 `--skill` 时用仓库名。

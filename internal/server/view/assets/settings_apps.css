@@ -1,0 +1,17 @@
+    /* Apps: one row per app (logo, name and state, its action), and below it,
+       while connecting, the steps lined up with the name. */
+    .app-row + .app-row { border-top: var(--bd-w) solid var(--line-hair); }
+    .app-row > .settings-row { grid-template-columns: auto minmax(0, 1fr) auto; column-gap: var(--space-md); }
+    .app-logo { width: 32px; height: 32px; border-radius: var(--r-md); }
+    .app-desc--err { color: var(--s-err); }
+    .app-connect {
+      display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-xs);
+      padding: 0 0 var(--space-md) calc(32px + var(--space-md));
+    }
+    .app-connect-step { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-xs); width: 100%; }
+    .app-connect-form { display: flex; align-items: center; gap: var(--space-xs); width: 100%; }
+    .app-secret { flex: 1; min-width: 0; max-width: 320px; font-family: var(--font-mono); }
+    /* A link styled as a button, so it opens the page itself; buttons get this radius by default. */
+    .app-signin { border-radius: var(--r-md); }
+    .app-signin[aria-disabled="true"] { opacity: 0.4; cursor: default; }
+    .app-connect-alt { font-size: var(--text-xs); }

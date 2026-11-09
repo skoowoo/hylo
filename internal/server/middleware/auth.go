@@ -11,6 +11,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/hardhacker/hylo/internal/apps"
 )
 
 // The app has no route at "/".
@@ -59,6 +61,12 @@ func (a *authenticator) wrap(next http.Handler) http.Handler {
 		case "/healthz", "/version":
 			next.ServeHTTP(w, r)
 			return
+		case apps.CallbackPath:
+			// The system browser has no session; the sign-in's state vouches for it.
+			if r.Method == http.MethodGet {
+				next.ServeHTTP(w, r)
+				return
+			}
 		case "/login":
 			a.login(w, r)
 			return

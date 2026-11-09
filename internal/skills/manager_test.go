@@ -342,3 +342,45 @@ func TestBuiltinNamesMatchDirs(t *testing.T) {
 		}
 	}
 }
+
+// Apps keep their skills in a root of their own (internal/apps): the user's
+// list never shows them, both link into the same bot folders, and the user's
+// can't take an app's name, which would link to the same place.
+func TestAppSkillsLiveApart(t *testing.T) {
+	home, vault := t.TempDir(), t.TempDir()
+	user := OpenAt(filepath.Join(home, "skills"), vault, filepath.Join(vault, ".hylo", "skills_state.json"))
+	apps := OpenAt(filepath.Join(home, "apps", "skills"), vault, filepath.Join(vault, ".hylo", "app_skills.json"))
+	writeSkill(t, filepath.Join(home, "skills", "humanizer"))
+	writeSkill(t, filepath.Join(home, "apps", "skills", "weread-skills"))
+
+	if _, ok := listed(t, user)["weread-skills"]; ok || !user.Has("humanizer") || user.Has("weread-skills") {
+		t.Fatal("the user's skills show an app's")
+	}
+	if err := apps.Enable("weread-skills", "/_bots/_reader"); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(vault, "_bots", "_reader", ".claude", "skills", "weread-skills")
+	if target, err := os.Readlink(link); err != nil || target != filepath.Join(home, "apps", "skills", "weread-skills") {
+		t.Fatalf("link = %q, %v", target, err)
+	}
+	if got := apps.EnabledDirs("weread-skills"); !slices.Equal(got, []string{"/_bots/_reader"}) {
+		t.Fatalf("enabled dirs = %v", got)
+	}
+
+	user.SetReserved(func(name string) string {
+		if name == "weread-skills" {
+			return "WeChat Reading"
+		}
+		return ""
+	})
+	if _, err := user.Add("someone/weread-skills", "", false); err == nil {
+		t.Fatal("the user's skills took an app's name")
+	}
+
+	if err := apps.Remove("weread-skills"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Lstat(link); !os.IsNotExist(err) || apps.Has("weread-skills") {
+		t.Fatal("removing the app's skill left it behind")
+	}
+}

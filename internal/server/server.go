@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/hardhacker/hylo/internal/agent"
+	"github.com/hardhacker/hylo/internal/apps"
 	"github.com/hardhacker/hylo/internal/channels"
 	"github.com/hardhacker/hylo/internal/config"
 	"github.com/hardhacker/hylo/internal/desktop"
@@ -32,6 +33,7 @@ import (
 	"github.com/hardhacker/hylo/internal/server/handler"
 	"github.com/hardhacker/hylo/internal/skills"
 	"github.com/hardhacker/hylo/internal/storage"
+	"github.com/hardhacker/hylo/internal/util"
 )
 
 const shutdownTimeout = 15 * time.Second
@@ -106,6 +108,7 @@ func New(cfg *config.Config, cfgFileLoaded string, logger *slog.Logger, vault *s
 	}
 
 	// Mate runner: fires agent runs on vault events matching trigger configs.
+	var appsMgr *apps.Manager
 	var mateStore *mate.Store
 	var mateRunner *mate.Runner
 	var channelHub *channels.Hub
@@ -113,6 +116,8 @@ func New(cfg *config.Config, cfgFileLoaded string, logger *slog.Logger, vault *s
 		logger.Warn("mate store unavailable", "err", err)
 	} else {
 		mateStore = ms
+		appsMgr = openApps(vault.Root(), ms, proxy, feed, logger)
+		skillsMgr.SetReserved(apps.SkillOwner)
 		for old, repl := range prompt.Superseded {
 			if err := ms.ReplacePrompt(old, repl); err != nil {
 				logger.Warn("mate: replace superseded trigger prompt", "err", err)
@@ -130,6 +135,10 @@ func New(cfg *config.Config, cfgFileLoaded string, logger *slog.Logger, vault *s
 		ms.SetOnChange(func() {
 			feed.Notify(live.TopicBots)()
 			channelHub.Reload()
+			if appsMgr != nil {
+				// A new main bot gets its apps, a deleted bot's folder loses them.
+				go appsMgr.Reconcile()
+			}
 		})
 		ms.SetOnChat(func(ids []string) {
 			c := live.Change{Topic: live.TopicChat, Op: "change"}
@@ -157,6 +166,9 @@ func New(cfg *config.Config, cfgFileLoaded string, logger *slog.Logger, vault *s
 	ah := handler.NewAgentAPI(logger, cfg, vault, agent.NewHub(), mateStore, agentCache)
 	runsCtx, endRuns := context.WithCancel(context.Background())
 	ah.SetLifetime(runsCtx)
+	if appsMgr != nil {
+		ah.SetApps(appsMgr)
+	}
 
 	var desk *desktop.Tracker
 	var rounds *pulse.Pulse
@@ -189,8 +201,57 @@ func New(cfg *config.Config, cfgFileLoaded string, logger *slog.Logger, vault *s
 		endRuns:   endRuns,
 		restart:   make(chan struct{}, 1),
 	}
-	s.handler = newRouter(logger, cfg, vault, cfgFileLoaded, gitPlugin, searchPlugin, compilePlugin, mateStore, mateRunner, skillsMgr, feed, cfg.Server.APIKey, channelHub, proxy, ah, rounds, desk, s.requestRestart)
+	s.handler = newRouter(logger, cfg, vault, cfgFileLoaded, gitPlugin, searchPlugin, compilePlugin, mateStore, mateRunner, skillsMgr, appsMgr, feed, cfg.Server.APIKey, channelHub, proxy, ah, rounds, desk, s.requestRestart)
 	return s
+}
+
+// openApps opens the user's connected apps, whose credentials and skills live
+// outside the vault while which bots use them lives in it, and checks them in
+// the background. Apps' skills sit apart from the user's.
+func openApps(root string, ms *mate.Store, proxy config.Proxy, feed *live.Feed, logger *slog.Logger) *apps.Manager {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		logger.Warn("apps unavailable", "err", err)
+		return nil
+	}
+	dir := filepath.Join(home, ".hylo", "apps")
+	sk := skills.OpenAt(filepath.Join(dir, "skills"), root, filepath.Join(root, ".hylo", "app_skills.json"))
+	sk.SetOnChange(feed.Notify(live.TopicApps))
+	sk.LinkEnabled(logger)
+	m, err := apps.New(apps.Options{
+		Dir:       dir,
+		StateFile: filepath.Join(root, ".hylo", "apps.json"),
+		Bots:      appBots(ms),
+		Skills:    sk,
+		HTTP:      &http.Client{Transport: proxy.Transport(), Timeout: 30 * time.Second},
+		Logger:    logger,
+		OnChange:  feed.Notify(live.TopicApps),
+	})
+	if err != nil {
+		logger.Warn("apps unavailable", "err", err)
+		return nil
+	}
+	go m.CheckAll(context.Background())
+	return m
+}
+
+// appBots lists the bots as apps see them: id, name, and the folder their skills go in.
+func appBots(ms *mate.Store) func() ([]apps.Bot, error) {
+	return func() ([]apps.Bot, error) {
+		mates, err := ms.ListMates()
+		if err != nil {
+			return nil, err
+		}
+		out := make([]apps.Bot, 0, len(mates))
+		for _, m := range mates {
+			dir, err := util.CleanVaultDir(m.Cwd)
+			if err != nil {
+				continue
+			}
+			out = append(out, apps.Bot{ID: m.ID, Name: m.Name, Main: m.Main, Dir: dir})
+		}
+		return out, nil
+	}
 }
 
 func (s *Server) requestRestart() {

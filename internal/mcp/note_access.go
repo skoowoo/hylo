@@ -50,6 +50,7 @@ var noteTools = map[string]noteTool{
 	"tag_list": {}, "tag_count": {}, "short_list": {}, "image_upload": {},
 	"bot_list": {}, "bot_get": {}, "bot_create": {}, "bot_update": {}, "bot_delete": {},
 	"agenda_list": {}, "agenda_add": {}, "agenda_done": {},
+	"apps_list": {}, "apps_tools": {}, "apps_call": {},
 	"bot_chat": {}, "activity": {}, "screen_time": {},
 	"trigger_add": {}, "trigger_update": {}, "trigger_delete": {}, "trigger_run": {},
 	"skills_list": {}, "skills_catalog": {}, "skills_add": {}, "skills_enable": {}, "skills_disable": {}, "skills_remove": {},
@@ -131,7 +132,7 @@ var commandValueFlags = map[string]bool{
 	"-k": true, "--kind": true, "--name": true, "--description": true, "--system-prompt": true,
 	"--prompt": true, "--schedule": true, "--events": true, "--path-prefixes": true,
 	"--category": true, "--skill": true, "--bot-id": true, "--pid-file": true, "--images": true,
-	"--due": true, "--before": true, "--since": true, "--actor": true,
+	"--due": true, "--before": true, "--since": true, "--actor": true, "--args": true,
 }
 
 // CommandValueFlags reports whether flag (e.g. "-c", "--content") takes a value.
