@@ -179,11 +179,11 @@ const appTokensLight = `
       --s-err:#dc2626; --s-err-bg:rgba(239,68,68,0.06); --s-err-bd:rgba(239,68,68,0.25);
       --s-warn:#d97706; --s-warn-bg:rgba(217,119,6,0.07); --s-warn-bd:rgba(217,119,6,0.26);
       --s-ok-fg:var(--canvas); --s-err-fg:var(--canvas); --s-warn-fg:var(--canvas);
-      --shadow-color:rgba(15,15,25,0.10);
+      --shadow-color:oklch(var(--ink) / 0.10);
       /* On light the shadow alone draws the edge; a dark line over glass muddies with what's behind. */
       --float-bd:transparent;
-      --float-shadow:0 1px 3px rgba(15,15,25,0.08), 0 10px 32px rgba(15,15,25,0.14);
-      --float-shadow-lg:0 2px 6px rgba(15,15,25,0.08), 0 24px 64px rgba(15,15,25,0.18);`
+      --float-shadow:0 1px 3px oklch(var(--ink) / 0.08), 0 10px 32px oklch(var(--ink) / 0.14);
+      --float-shadow-lg:0 2px 6px oklch(var(--ink) / 0.08), 0 24px 64px oklch(var(--ink) / 0.18);`
 
 // Drop into a <style> tag. Dark on :root; light via data-theme or OS preference.
 const appTokensCSS = `    :root {` + appTokensShared + appTokensDark + contentTokensShared + contentTokensDark + `
