@@ -1,13 +1,13 @@
 {{/* Apps tab: the user's accounts on outside platforms, connected for the main bot. */}}
           <div class="settings-page" x-show="tab === 'apps'">
            <div class="settings-body">
-            <p class="settings-intro">Connect the platforms you use, and your bots can look at what you listened to and read there. Apps are on for the main bot; turn them on for others in each bot's Apps tab.</p>
+            <p class="settings-intro">Let bots read your activity on these platforms. On for the main bot; turn on for others in each bot.</p>
             <div class="settings-status settings-status--err" x-show="appsError && !appsList.length" x-text="'Error: ' + appsError"></div>
             <div class="settings-status" x-show="appsLoading && !appsList.length">Loading apps…</div>
             <div class="settings-list">
               <template x-for="a in appsList" :key="a.id">
                 <div class="app-row">
-                  <div class="settings-row">
+                  <div class="settings-row settings-row--lead">
                     <img class="app-logo" :src="'/static/apps/' + a.id + '.png'" alt="">
                     <div>
                       <span class="settings-label" x-text="a.name"></span>
@@ -19,7 +19,7 @@
                                 x-text="a.connected ? 'Reconnect' : 'Connect'"></button>
                       </template>
                       <template x-if="a.connected">
-                        <button type="button" class="btn-ghost btn--xs" :disabled="appsBusy === a.id" @click="disconnectApp(a)">Disconnect</button>
+                        <button type="button" class="btn-outline btn-outline--danger btn--xs" :disabled="appsBusy === a.id" @click="disconnectApp(a)">Disconnect</button>
                       </template>
                     </div>
                   </div>
@@ -46,7 +46,7 @@
                           on <a class="settings-link" :href="a.keyUrl" target="_blank" rel="noopener noreferrer" x-text="a.name"></a>, then paste it here.
                         </span>
                         <div class="app-connect-form">
-                          <input class="field-input app-secret" type="password" autocomplete="off" spellcheck="false" x-ref="appSecret"
+                          <input class="field-input field-input--mono app-secret" type="password" autocomplete="off" spellcheck="false" x-ref="appSecret"
                                  :placeholder="a.keyPrefix ? a.keyPrefix + '…' : 'API token'" x-model="appsSecret"
                                  @paste="setTimeout(() => submitAppSecret(a))">
                           <button type="submit" class="btn-solid btn--xs" :disabled="!appsSecret.trim() || appsBusy === a.id"

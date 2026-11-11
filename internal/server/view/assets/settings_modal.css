@@ -126,6 +126,18 @@
     .settings-row--block { grid-template-columns: minmax(0, 1fr); row-gap: var(--space-xs); }
     .settings-row-ctrl { display: flex; align-items: center; justify-content: flex-end; gap: var(--space-xs); min-width: 0; }
     .settings-row--block .settings-row-ctrl { justify-content: stretch; }
+    /* A mark (logo, avatar, icon, dot) before the label. */
+    .settings-row--lead { grid-template-columns: auto minmax(0, 1fr) auto; column-gap: var(--space-md); }
+    /* The whole row opens something; a chevron on the right says so. */
+    .settings-row--nav {
+      width: 100%; border: none; border-radius: 0; text-align: left; color: inherit;
+    }
+    .settings-row-chev { width: 14px; height: 14px; color: var(--muted-soft); transition: color var(--motion-fast); }
+    .settings-row--nav:hover .settings-row-chev { color: var(--fg); }
+    .settings-row--nav:focus-visible { outline-offset: -2px; }
+    .settings-row-label { display: flex; align-items: center; gap: var(--space-xs); min-width: 0; }
+    .settings-row-label > .settings-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .settings-row.is-off > :not(.settings-row-ctrl) { opacity: 0.5; }
 
     /* Editor form (a bot): label above its control. */
     .settings-form { display: flex; flex-direction: column; gap: var(--space-lg); }
@@ -140,6 +152,11 @@
     .settings-desc { display: block; margin-top: 2px; font-size: var(--text-xs); color: var(--muted); line-height: var(--lh-relaxed); }
     .settings-key { font-family: var(--font-mono); font-size: var(--text-2xs); color: var(--muted-soft); }
 
+    /* Nothing here yet: one line, centered, with the way to fill it. */
+    .settings-empty {
+      display: flex; flex-direction: column; align-items: center; gap: var(--space-xxs);
+      padding: var(--space-xxl) 0; text-align: center; font-size: var(--text-sm); color: var(--muted);
+    }
     /* Loading / error placeholders that stand in for a page's content. */
     .settings-status { font-size: var(--text-xs); color: var(--muted); padding: var(--space-xl) 0; }
     .settings-status--err { color: var(--s-err); }

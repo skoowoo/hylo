@@ -9,8 +9,7 @@
       skillsRepoOpen: false,
       skillsRepo: { repo: '', skill: '', adding: false },
 
-      skillsTab: 'added',
-      skillsBuiltinOpen: false,
+      skillsTab: 'builtin',
 
       get builtinSkills() {
         return this.addedSkills.filter(function(s) { return s.default; });

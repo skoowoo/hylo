@@ -23,6 +23,7 @@ type Mate struct {
 	UpdatedAt    time.Time     `json:"updatedAt"`
 	Triggers     []MateTrigger `json:"triggers,omitempty"`
 	TriggerCount int           `json:"triggerCount,omitempty"` // populated in list views
+	TriggersOn   int           `json:"triggersOn,omitempty"`   // enabled ones; populated in list views
 	Unread       int           `json:"unread,omitempty"`       // finished replies not yet seen; populated in list views
 	LastActiveAt time.Time     `json:"lastActiveAt,omitzero"`  // its latest chat message; populated in list views
 	Running      bool          `json:"running,omitempty"`      // a reply of its is on its way; populated in list views

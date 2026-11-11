@@ -14,35 +14,42 @@
 
               <template x-if="!openSection">
                 <div>
-                  <div class="srv-hero">
-                    <span class="srv-dot" :class="'is-' + heroState"></span>
-                    <div class="srv-hero-text">
-                      <span class="srv-hero-name" x-text="heroName"></span>
-                      <span class="srv-hero-url" x-text="heroSub"></span>
+                  <div class="settings-list srv-head">
+                    <div class="settings-row settings-row--lead">
+                      <span class="srv-dot" :class="'is-' + heroState"></span>
+                      <div>
+                        <span class="settings-label" x-text="heroName"></span>
+                        <span class="settings-desc srv-url" x-text="heroSub"></span>
+                      </div>
+                      <div class="settings-row-ctrl">
+                        <button type="button" class="btn-outline btn--xs" x-show="$store.servers.available" @click="$store.servers.openManager()">Manage servers</button>
+                      </div>
                     </div>
-                    <button type="button" class="btn-outline" x-show="$store.servers.available" @click="$store.servers.openManager()">Manage servers</button>
-                  </div>
-                  <div class="srv-process" x-show="isDesktop && serverManaged && editingLocalServer">
-                    <span>Server process started by this app</span>
-                    <button class="btn-outline btn-outline--danger btn--xs"
-                            @click="stopServer()"
-                            :disabled="!serverRunning || serverStopping"
-                            x-text="serverStopping ? 'Stopping…' : (serverRunning ? 'Stop' : 'Stopped')"></button>
+                    <div class="settings-row" x-show="isDesktop && serverManaged && editingLocalServer">
+                      <div>
+                        <span class="settings-label">Server process</span>
+                        <span class="settings-desc">Started by this app.</span>
+                      </div>
+                      <div class="settings-row-ctrl">
+                        <button class="btn-outline btn-outline--danger btn--xs"
+                                @click="stopServer()"
+                                :disabled="!serverRunning || serverStopping"
+                                x-text="serverStopping ? 'Stopping…' : (serverRunning ? 'Stop' : 'Stopped')"></button>
+                      </div>
+                    </div>
+                    <template x-for="section in (cfgLoading || cfgError ? [] : globalSections)" :key="section">{{template "cfg-section"}}
+                    </template>
                   </div>
                   <p class="settings-intro settings-msg--err" x-show="serverStopError" x-text="serverStopError"></p>
 
-                  <template x-for="group in sectionGroups" :key="group.id">
-                    <section class="settings-section cfg-group" x-show="!cfgLoading && !cfgError">
-                      <h3 class="settings-section-title" x-text="group.label"></h3>
-                      <div class="cfg-section-grid">
-                        <template x-for="section in group.sections" :key="section">
-                          <button type="button" class="list-card list-card--clickable cfg-section-card" @click="openSectionDetail(section)">
-                            <span class="cfg-section-card-title">
-                              <span x-text="sectionLabel(section)"></span>
-                              <span class="dot dot--accent" x-show="sectionHasDirty(section)" title="Unsaved changes in this section"></span>
-                            </span>
-                            <span class="settings-desc" x-text="sectionIntro(section)"></span>
-                          </button>
+                  <template x-for="group in sectionGroups.filter(g => g.id !== 'global')" :key="group.id">
+                    <section class="settings-section" x-show="!cfgLoading && !cfgError">
+                      <h3 class="settings-section-title">
+                        <span x-text="group.label"></span>
+                        <small class="cfg-vault-path" x-show="group.id === 'vault' && vaultPath" :title="vaultPath" x-text="vaultPath"></small>
+                      </h3>
+                      <div class="settings-list">
+                        <template x-for="section in group.sections" :key="section">{{template "cfg-section"}}
                         </template>
                       </div>
                     </section>
@@ -55,15 +62,43 @@
 
               <template x-if="openSection && !cfgLoading && !cfgError">
                 <div>
-                  <p class="settings-intro" x-show="sectionIntro(openSection)" x-text="sectionIntro(openSection)"></p>
                   <div class="settings-list">
                     <template x-for="field in fieldsForSection(openSection)" :key="field.key">
+{{template "cfg-field"}}
+                    </template>
+                  </div>
+                </div>
+              </template>
+
+            </div>
+
+            <div class="settings-foot" x-show="!cfgLoading && !cfgError">
+              <div class="settings-foot-status">
+                <span class="settings-msg settings-msg--ok" x-show="cfgSaveOk && !hasDirty">Saved</span>
+                <span class="settings-msg settings-msg--err" x-show="cfgSaveError" x-text="cfgSaveError"></span>
+                <span class="settings-msg settings-msg--err" x-show="cfgRestartError" x-text="cfgRestartError"></span>
+                <span class="settings-msg" x-show="cfgRestarting">Restarting server…</span>
+                <span class="badge" x-show="hasDirty"
+                      x-text="Object.keys(patch).length + ' unsaved change' + (Object.keys(patch).length !== 1 ? 's' : '')"></span>
+                <span class="settings-msg"
+                      x-show="!hasDirty && !cfgSaveOk && !cfgSaveError && !cfgRestartError && !cfgRestarting">
+                  Saving restarts the server.
+                </span>
+              </div>
+              <button class="btn-outline" x-show="hasDirty" @click="discardAll()">Discard</button>
+              <button class="btn-solid"
+                      @click="saveConfig()"
+                      :disabled="!hasDirty || cfgSaving || cfgRestarting"
+                      x-text="cfgRestarting ? 'Restarting…' : cfgSaving ? 'Saving…' : 'Save all'"></button>
+            </div>
+          </div>
+
+{{define "cfg-field"}}
                       <div class="settings-row"
                            :class="{'is-dirty': isDirty(field.key), 'settings-row--block': field.type === 'string_list' || field.multiline, 'settings-row--input': field.type !== 'bool' && field.type !== 'string_list' && !field.multiline}">
                         <div>
-                          <span class="settings-label cfg-label" x-text="field.label"></span>
+                          <span class="settings-label cfg-label" :title="field.key" x-text="field.label"></span>
                           <span class="settings-desc" x-text="field.description"></span>
-                          <code class="settings-key" x-text="field.key"></code>
                         </div>
                         <div class="settings-row-ctrl">
                           <template x-if="field.type === 'bool'">
@@ -80,20 +115,20 @@
                             </select>
                           </template>
                           <template x-if="field.type === 'int'">
-                            <input type="number" class="field-input cfg-number"
+                            <input type="number" class="field-input field-input--mono cfg-number"
                                    :value="getVal(field.key)"
                                    @change="setVal(field.key, Number($event.target.value))"
                                    :min="field.constraints ? field.constraints.min : undefined"
                                    :max="field.constraints ? field.constraints.max : undefined">
                           </template>
                           <template x-if="field.type === 'string_list'">
-                            <textarea class="field-input" rows="3" placeholder="One entry per line"
+                            <textarea class="field-input field-input--mono" rows="3" placeholder="One entry per line"
                                       :value="listToText(getVal(field.key))"
                                       @change="setVal(field.key, textToList($event.target.value))"></textarea>
                           </template>
                           <template x-if="field.sensitive && field.type !== 'bool' && field.type !== 'string_list'">
                             <div class="cfg-input-group">
-                              <input class="field-input"
+                              <input class="field-input field-input--mono"
                                      :type="revealed[field.key] ? 'text' : 'password'"
                                      :value="getVal(field.key) || ''"
                                      :placeholder="(secrets[field.key] && !getVal(field.key)) ? '••• set •••' : (field.default != null ? String(field.default) : '')"
@@ -114,7 +149,7 @@
                           </template>
                           <template x-if="!field.sensitive && (field.type === 'string' || field.type === 'duration') && !field.multiline && !(field.enum && field.enum.length)">
                             <div class="cfg-input-group">
-                              <input type="text" class="field-input"
+                              <input type="text" class="field-input field-input--mono"
                                      :value="getVal(field.key) ?? ''"
                                      :placeholder="field.default != null ? String(field.default) : ''"
                                      @input="setVal(field.key, $event.target.value)">
@@ -126,30 +161,25 @@
                           </template>
                         </div>
                       </div>
-                    </template>
-                  </div>
-                </div>
-              </template>
+{{end}}
 
-            </div>
-
-            <div class="settings-foot" x-show="!cfgLoading && !cfgError">
-              <div class="settings-foot-status">
-                <span class="settings-msg settings-msg--ok" x-show="cfgSaveOk && !hasDirty">Saved</span>
-                <span class="settings-msg settings-msg--err" x-show="cfgSaveError" x-text="cfgSaveError"></span>
-                <span class="settings-msg settings-msg--err" x-show="cfgRestartError" x-text="cfgRestartError"></span>
-                <span class="settings-msg" x-show="cfgRestarting">Restarting server…</span>
-                <span class="badge" x-show="hasDirty"
-                      x-text="Object.keys(patch).length + ' unsaved change' + (Object.keys(patch).length !== 1 ? 's' : '')"></span>
-                <span class="settings-msg"
-                      x-show="!hasDirty && !cfgSaveOk && !cfgSaveError && !cfgRestartError && !cfgRestarting">
-                  Save once when done; the server restarts to apply.
-                </span>
-              </div>
-              <button class="btn-outline" x-show="hasDirty" @click="discardAll()">Discard</button>
-              <button class="btn-solid"
-                      @click="saveConfig()"
-                      :disabled="!hasDirty || cfgSaving || cfgRestarting"
-                      x-text="cfgRestarting ? 'Restarting…' : cfgSaving ? 'Saving…' : 'Save all'"></button>
-            </div>
-          </div>
+{{define "cfg-section"}}
+                          <div class="cfg-item">
+                            <template x-if="fieldsForSection(section).length === 1">
+                              <div x-data="{ get field() { return fieldsForSection(section)[0]; } }">
+{{template "cfg-field"}}
+                              </div>
+                            </template>
+                            <template x-if="fieldsForSection(section).length > 1">
+                              <button type="button" class="settings-row settings-row--nav" @click="openSectionDetail(section)">
+                                <div>
+                                  <span class="settings-row-label">
+                                    <span class="settings-label" x-text="sectionLabel(section)"></span>
+                                    <span class="dot dot--accent" x-show="sectionHasDirty(section)" title="Unsaved changes"></span>
+                                  </span>
+                                  <span class="settings-desc" x-text="sectionIntro(section)"></span>
+                                </div>
+                                {{icon "chevron-right" "settings-row-chev"}}
+                              </button>
+                            </template>
+                          </div>{{end}}

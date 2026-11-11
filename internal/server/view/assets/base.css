@@ -440,8 +440,10 @@
       width: 100%;
       background: var(--btn-bg); border: var(--bd-w) solid transparent;
       font-size: var(--text-sm); color: var(--fg);
-      outline: none; font-family: var(--font-mono);
+      outline: none; font-family: var(--font-ui);
     }
+    /* Values that are code: paths, URLs, tokens, schedules. */
+    .field-input--mono { font-family: var(--font-mono); }
     .field-input:focus { border-color: var(--accent); }
     .field-input::placeholder { color: var(--muted-soft); font-style: italic; }
     select.field-input { cursor: pointer; }

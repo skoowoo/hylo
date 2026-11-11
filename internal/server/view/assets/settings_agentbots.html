@@ -5,17 +5,14 @@
             <template x-if="!agentBotFormMode">
               <div>
                 <div class="settings-toolbar" x-show="agentBotsList.length || agentBotsError">
-                  <button class="btn-outline" @click="newAgentBot()">
-                    {{icon "plus"}}
-                    New Bot
-                  </button>
-
-{{template "toolbar-refresh" (dict "Loading" `agentBotsLoading` "Click" `loadAgentBots()` "Busy" `Loading…`)}}
+                  <div class="settings-toolbar-end">
+                    <button class="btn-outline" @click="newAgentBot()">{{icon "plus"}}New Bot</button>
+                  </div>
                 </div>
                 <div class="settings-status settings-status--err" x-show="agentBotsError && !agentBotsLoading" x-text="'Error: ' + agentBotsError"></div>
-                <div class="agent-bots-list">
+                <div class="settings-list">
                   <template x-if="!agentBotsLoading && !agentBotsError && agentBotsList.length === 0">
-                    <div class="list-card bot-setup">
+                    <div class="bot-setup">
                       <h3 class="bot-setup-title">Set up Hylo</h3>
                       <p class="bot-setup-note">Hylo is your personal AI agent, powered by an AI agent on this server. Pick the one to use.</p>
                       <p class="bot-setup-note" x-show="botSetup.phase === 'scanning'">Looking for AI agents…</p>
@@ -60,34 +57,22 @@
                     </div>
                   </template>
                   <template x-for="(m, mi) in agentBotsList" :key="m.id">
-                    <div class="list-card list-card--hover agent-bot-card" :class="m.enabled ? '' : 'disabled-card'" data-avatar-hover>
-                      <div class="avatar avatar--lg agent-bot-avatar"
-                           x-html="window.agentBotAvatarSVG(m.name, agentBotsList)"></div>
-                      <div class="agent-bot-card-body">
-                        <div class="agent-bot-card-header">
-                          <span class="agent-bot-card-name" x-text="m.name"></span>
-                          <div class="agent-bot-card-actions">
-                            <button class="btn-outline btn--xs" @click.stop="moveAgentBot(mi, -1)" :disabled="mi === 0" type="button" title="Move up">↑</button>
-                            <button class="btn-outline btn--xs" @click.stop="moveAgentBot(mi, 1)" :disabled="mi === agentBotsList.length - 1" type="button" title="Move down">↓</button>
-                            <button class="btn-outline btn--xs" @click.stop="openAgentBotEdit(m.id)" type="button">Edit</button>
-                            <button class="btn-solid btn-solid--danger btn--xs" x-show="!m.main" @click.stop="deleteAgentBot(m.id)" type="button">Delete</button>
-                          </div>
-                        </div>
-                        <p class="agent-bot-card-desc" x-show="m.description" x-text="m.description"></p>
-                        <div class="agent-bot-card-tags">
-                          <span class="badge agent-bot-badge" x-show="m.main">Main</span>
-                          <span class="badge agent-bot-badge" x-text="m.agentId || '—'"></span>
-                          <template x-if="m.model">
-                            <span class="badge agent-bot-badge" x-text="m.model"></span>
-                          </template>
-                          <template x-if="m.triggerCount > 0">
-                            <span class="badge badge--ok agent-bot-badge"
-                                  x-text="m.triggerCount + (m.triggerCount === 1 ? ' trigger' : ' triggers')"></span>
-                          </template>
-                          <template x-for="k in (m.channels || [])" :key="m.id + k">
-                            <span class="badge badge--ok agent-bot-badge" x-text="channelLabel(k)"></span>
-                          </template>
-                        </div>
+                    <div class="settings-row settings-row--lead" :class="{'is-off': !m.enabled}" data-avatar-hover>
+                      <div class="avatar avatar--lg" x-html="window.agentBotAvatarSVG(m.name, agentBotsList)"></div>
+                      <div>
+                        <span class="settings-row-label">
+                          <span class="settings-label" x-text="m.name"></span>
+                          <span class="badge badge--sm" x-show="m.main">Main</span>
+                          <span class="badge badge--sm" x-show="!m.enabled">Off</span>
+                        </span>
+                        <span class="settings-desc" x-show="m.description" x-text="m.description"></span>
+                        <span class="settings-desc agent-bot-meta" x-text="agentBotMeta(m)"></span>
+                      </div>
+                      <div class="settings-row-ctrl">
+                        <button class="btn-outline btn--xs" @click.stop="moveAgentBot(mi, -1)" :disabled="mi === 0" type="button" title="Move up">↑</button>
+                        <button class="btn-outline btn--xs" @click.stop="moveAgentBot(mi, 1)" :disabled="mi === agentBotsList.length - 1" type="button" title="Move down">↓</button>
+                        <button class="btn-outline btn--xs" @click.stop="openAgentBotEdit(m.id)" type="button">Edit</button>
+                        <button class="btn-outline btn-outline--danger btn--xs" x-show="!m.main" @click.stop="deleteAgentBot(m.id)" type="button">Delete</button>
                       </div>
                     </div>
                   </template>
@@ -148,9 +133,7 @@
                   </section>
 
                   <section class="settings-form" role="tabpanel" x-show="botFormTab === 'skills'">
-                    <p class="settings-intro">Pick the skills this bot can use; hover one to see what it does.
-                      <span x-show="agentBotDraft.main">Built-in skills are always on for the main bot.</span>
-                      Add more under <button type="button" class="settings-link" @click="skillsTab = 'catalog'; tab = 'skills'">Skills</button>.</p>
+                    <p class="settings-intro"><span x-show="agentBotDraft.main">Built-in skills are always on for the main bot. </span>More in <button type="button" class="settings-link" @click="skillsTab = 'catalog'; tab = 'skills'">Skills</button>.</p>
                     <div class="agent-bot-skill-chips" x-show="extraSkills.length">
                       <template x-for="s in extraSkills" :key="s.name">
                         <button type="button" class="btn-outline btn--xs" :class="{active: agentBotSkills[s.name]}" :aria-pressed="!!agentBotSkills[s.name]"
@@ -171,13 +154,14 @@
                   </section>
 
                   <section class="settings-form" role="tabpanel" x-show="botFormTab === 'apps'">
-                    <p class="settings-intro" x-show="connectedApps.length">Pick the apps this bot can use, to see your data on those platforms. They start on for the main bot and off for the rest.</p>
-                    <div class="settings-status" x-show="!connectedApps.length">No apps connected yet. Connect one under
-                      <button type="button" class="settings-link" @click="tab = 'apps'">Apps</button>.</div>
+                    <div class="settings-empty" x-show="!connectedApps.length">
+                      No apps connected yet.
+                      <button type="button" class="settings-link" @click="tab = 'apps'">Connect an app</button>
+                    </div>
                     <div class="settings-list" x-show="connectedApps.length">
                       <template x-for="a in connectedApps" :key="a.id">
                         <div class="app-row">
-                          <div class="settings-row">
+                          <div class="settings-row settings-row--lead">
                             <img class="app-logo" :src="'/static/apps/' + a.id + '.png'" alt="">
                             <div>
                               <span class="settings-label" x-text="a.name"></span>
@@ -196,24 +180,24 @@
                   </section>
 
                   <section class="settings-form" role="tabpanel" x-show="botFormTab === 'triggers'">
-                    <p class="settings-intro">Run this bot on vault events or on a schedule. Each trigger sends a prompt template to the agent.</p>
+                    <p class="settings-intro">Run this bot on vault events or a schedule.</p>
                     <div class="agent-bot-trigger-list">
                       <template x-for="(t, ti) in agentBotTriggers" :key="ti">
                         <div class="agent-bot-trigger-card" :class="{'is-open': t._open, 'is-off': !t.enabled}">
-                          <div class="agent-bot-trigger-hdr" @click="t._open = !t._open">
-                            <div class="agent-bot-trigger-hdr-main">
+                          <div class="agent-bot-trigger-hdr">
+                            <button type="button" class="agent-bot-trigger-toggle" :aria-expanded="!!t._open" @click="t._open = !t._open">
                               <span class="agent-bot-trigger-chev" :class="{open: t._open}">
                                 {{icon "chevron-right" `aria-hidden="true"`}}
                               </span>
                               <span class="agent-bot-trigger-label" x-text="(t.name || '').trim() || 'Trigger ' + (ti + 1)"></span>
                               <span class="agent-bot-trigger-summary" x-show="!t._open" x-text="agentBotTriggerSummary(t)"></span>
-                            </div>
+                            </button>
                             <div class="agent-bot-trigger-hdr-actions">
-                              <div class="seg" @click.stop :title="t.enabled ? 'This trigger runs' : 'This trigger is paused'">
+                              <div class="seg">
                                 <button type="button" class="seg-btn" :class="{active: !t.enabled}" @click="t.enabled = false">Off</button>
                                 <button type="button" class="seg-btn" :class="{active: t.enabled}" @click="t.enabled = true">On</button>
                               </div>
-                              <button class="agent-bot-trigger-del" type="button" @click.stop="removeAgentBotTrigger(ti)">Remove</button>
+                              <button class="btn-outline btn-outline--danger btn--xs" type="button" @click="removeAgentBotTrigger(ti)">Remove</button>
                             </div>
                           </div>
                           <div class="agent-bot-trigger-body" x-show="t._open">
@@ -223,13 +207,12 @@
                             </div>
                             <div class="settings-field">
                               <span class="settings-label">Event</span>
-                              <span class="settings-desc" x-text="agentBotTriggerHint(t)"></span>
+                              <span class="settings-desc" x-show="agentBotTriggerHint(t)" x-text="agentBotTriggerHint(t)"></span>
 {{template "cselect-open" `(agentBotEventDefs.find(function(d){return d.type===(t.eventTypes[0]||'');}) || {label: 'Select event…'}).label`}}<template x-for="def in agentBotEventDefs" :key="def.type"><button type="button" class="cselect-option" :class="(t.eventTypes[0]||'')===def.type ? 'sel' : ''" :title="def.description" @click="setAgentBotET(t, def.type); csOpen=false"><span class="dot dot--fg cselect-option-dot"></span><span x-text="def.label"></span></button></template>{{template "cselect-close"}}
                             </div>
                             <template x-if="eventOf(t) === 'scheduled'">
                               <div class="settings-field">
                                 <span class="settings-label">Schedule</span>
-                                <span class="settings-desc">How often this trigger runs.</span>
                                 <div class="seg agent-bot-schedule-kind-seg">
                                   <button type="button" class="seg-btn" :class="{active: scheduleKindOf(t)==='every'}" @click="setScheduleKind(t, 'every')">Every</button>
                                   <button type="button" class="seg-btn" :class="{active: scheduleKindOf(t)==='daily'}" @click="setScheduleKind(t, 'daily')">Daily</button>
@@ -246,14 +229,14 @@
                                                 x-text="p.label"></button>
                                       </template>
                                     </div>
-                                    <span class="settings-desc">Minimum interval: 15 minutes. For another interval, edit the text below.</span>
+                                    <span class="settings-desc">At least 15 minutes. For other intervals, edit the text below.</span>
                                   </div>
                                 </template>
 
                                 <template x-if="scheduleKindOf(t) === 'daily'">
                                   <div class="agent-bot-schedule-kind-body agent-bot-schedule-at">
                                     <span>At</span>
-                                    <input class="field-input agent-bot-time" type="time" :value="scheduleTimeOf(t)" @change="setScheduleTime(t, $event.target.value)">
+                                    <input class="field-input field-input--mono agent-bot-time" type="time" :value="scheduleTimeOf(t)" @change="setScheduleTime(t, $event.target.value)">
                                     <span>server local time</span>
                                   </div>
                                 </template>
@@ -271,22 +254,22 @@
                                     </div>
                                     <div class="agent-bot-schedule-at">
                                       <span>At</span>
-                                      <input class="field-input agent-bot-time" type="time" :value="scheduleTimeOf(t)" @change="setScheduleTime(t, $event.target.value)">
+                                      <input class="field-input field-input--mono agent-bot-time" type="time" :value="scheduleTimeOf(t)" @change="setScheduleTime(t, $event.target.value)">
                                       <span>server local time</span>
                                     </div>
                                   </div>
                                 </template>
 
                                 <label class="agent-bot-schedule-custom-label">As text</label>
-                                <input class="field-input" type="text" x-model="t.schedule"
+                                <input class="field-input field-input--mono" type="text" x-model="t.schedule"
                                        placeholder="every 1h · daily 09:00 · weekly mon,wed 09:00">
                               </div>
                             </template>
                             <template x-if="hasPathFilter(t)">
                               <div class="settings-field">
                                 <span class="settings-label">Path Prefixes <small>(optional)</small></span>
-                                <span class="settings-desc">Only fire when the event path starts with one of these prefixes. Leave empty to match all paths. One prefix per line, e.g. /journal/</span>
-                                <textarea class="field-input agent-bot-form-textarea"
+                                <span class="settings-desc">One per line. Empty matches every path.</span>
+                                <textarea class="field-input field-input--mono agent-bot-form-textarea"
                                           rows="2" x-effect="t._open; agentBotAutoGrow($el)" @input="agentBotAutoGrow($el)"
                                           :value="(t.pathPrefixes || []).join('\n')"
                                           @change="t.pathPrefixes = $event.target.value.split('\n').map(function(s){return s.trim();}).filter(Boolean)"
@@ -295,7 +278,7 @@
                             </template>
                             <div class="settings-field agent-bot-trigger-prompt">
                               <span class="settings-label">Prompt template</span>
-                              <span class="settings-desc">The task the bot wakes up to, in its chat, when this trigger fires. Click a variable below to insert at cursor.</span>
+                              <span class="settings-desc">What the bot is asked when this fires. Click a variable to insert it.</span>
                               <div class="agent-bot-var-panel">
                                 <span class="agent-bot-var-panel-label">Variables</span>
                                 <div class="agent-bot-var-chips">
@@ -307,7 +290,7 @@
                                   </template>
                                 </div>
                               </div>
-                              <textarea class="field-input agent-bot-form-textarea agent-bot-prompt-textarea" x-model="t.prompt" rows="3"
+                              <textarea class="field-input agent-bot-form-textarea field-input--mono" x-model="t.prompt" rows="3"
                                         x-effect="t._open; agentBotAutoGrow($el)" @input="agentBotAutoGrow($el)"
                                         :placeholder="agentBotPromptPlaceholder(t)"></textarea>
                             </div>
@@ -319,7 +302,7 @@
                   </section>
 
                   <section class="settings-form" role="tabpanel" x-show="botFormTab === 'channels'">
-                    <p class="settings-intro">Connect an app to this bot. Messages there continue its current chat, the same conversation as on the desktop; send /new in the app to start a new one. One contact belongs to one bot. Connecting or disconnecting applies right away, without Save.</p>
+                    <p class="settings-intro">Chat with this bot from these apps; /new starts a new chat. Changes apply right away.</p>
 
                     <div class="bot-channel">
                       <div class="bot-channel-head">
@@ -330,13 +313,13 @@
                         <div>
                           <p class="settings-desc bot-channel-meta">Connected as <code x-text="botChannels.wechat.display"></code>. Only the account that scanned can talk to it.</p>
                           <div class="bot-channel-actions">
-                            <button type="button" class="btn-solid btn-solid--danger" @click="disconnectChannel('wechat')" :disabled="!!channelBusy" x-text="channelBusy === 'wechat' ? 'Disconnecting…' : 'Disconnect'"></button>
+                            <button type="button" class="btn-outline btn-outline--danger" @click="disconnectChannel('wechat')" :disabled="!!channelBusy" x-text="channelBusy === 'wechat' ? 'Disconnecting…' : 'Disconnect'"></button>
                           </div>
                         </div>
                       </template>
                       <template x-if="!botChannels.wechat">
                         <div>
-                          <p class="settings-desc bot-channel-meta">Scan with WeChat. One account stays on one bot. Scanning again disconnects the previous bot.</p>
+                          <p class="settings-desc bot-channel-meta">Scan with WeChat. One account links to one bot.</p>
                           <div class="bot-channel-qr" x-show="wxImage">
                             <img :src="wxImage" alt="WeChat login QR code">
                           </div>
@@ -357,16 +340,16 @@
                         <div>
                           <p class="settings-desc bot-channel-meta">Connected as <code x-text="botChannels.discord.display"></code>. Only your user ID can talk to it.</p>
                           <div class="bot-channel-actions">
-                            <button type="button" class="btn-solid btn-solid--danger" @click="disconnectChannel('discord')" :disabled="!!channelBusy" x-text="channelBusy === 'discord' ? 'Disconnecting…' : 'Disconnect'"></button>
+                            <button type="button" class="btn-outline btn-outline--danger" @click="disconnectChannel('discord')" :disabled="!!channelBusy" x-text="channelBusy === 'discord' ? 'Disconnecting…' : 'Disconnect'"></button>
                           </div>
                         </div>
                       </template>
                       <template x-if="!botChannels.discord">
                         <div>
-                          <p class="settings-desc bot-channel-meta">Create a bot in the Discord Developer Portal, turn on Message Content Intent, and paste its token plus your user ID (Developer Mode, right-click your avatar).</p>
+                          <p class="settings-desc bot-channel-meta">Create a bot in the Discord Developer Portal with Message Content Intent on, then paste its token and your user ID.</p>
                           <div class="bot-channel-actions">
-                            <input type="password" class="field-input" autocomplete="off" spellcheck="false" placeholder="Bot token" x-model="dcToken">
-                            <input type="text" class="field-input" autocomplete="off" spellcheck="false" placeholder="Your user ID" x-model="dcOwner">
+                            <input type="password" class="field-input field-input--mono" autocomplete="off" spellcheck="false" placeholder="Bot token" x-model="dcToken">
+                            <input type="text" class="field-input field-input--mono" autocomplete="off" spellcheck="false" placeholder="Your user ID" x-model="dcOwner">
                             <button type="button" class="btn-solid" @click="connectDiscord()" :disabled="!!channelBusy || !dcToken.trim() || !dcOwner.trim()" x-text="channelBusy === 'discord' ? 'Connecting…' : 'Connect'"></button>
                           </div>
                         </div>
@@ -382,15 +365,15 @@
                         <div>
                           <p class="settings-desc bot-channel-meta">Paired with <code x-text="botChannels.telegram.display"></code>. Only the account that tapped Start can talk to it.</p>
                           <div class="bot-channel-actions">
-                            <button type="button" class="btn-solid btn-solid--danger" @click="disconnectChannel('telegram')" :disabled="!!channelBusy" x-text="channelBusy === 'telegram' ? 'Disconnecting…' : 'Disconnect'"></button>
+                            <button type="button" class="btn-outline btn-outline--danger" @click="disconnectChannel('telegram')" :disabled="!!channelBusy" x-text="channelBusy === 'telegram' ? 'Disconnecting…' : 'Disconnect'"></button>
                           </div>
                         </div>
                       </template>
                       <template x-if="!botChannels.telegram">
                         <div>
-                          <p class="settings-desc bot-channel-meta">Create a bot with <a href="https://t.me/BotFather" target="_blank" rel="noopener noreferrer">@BotFather</a>, paste its token, then open the link on your phone and tap Start.</p>
+                          <p class="settings-desc bot-channel-meta">Create a bot with <a href="https://t.me/BotFather" target="_blank" rel="noopener noreferrer">@BotFather</a> and paste its token.</p>
                           <div class="bot-channel-actions" x-show="!tgCode">
-                            <input type="password" class="field-input" autocomplete="off" spellcheck="false" placeholder="123456:ABC-DEF…" x-model="tgToken" @keydown.enter.prevent="startTelegram()">
+                            <input type="password" class="field-input field-input--mono" autocomplete="off" spellcheck="false" placeholder="123456:ABC-DEF…" x-model="tgToken" @keydown.enter.prevent="startTelegram()">
                             <button type="button" class="btn-solid" @click="startTelegram()" :disabled="!!channelBusy || !tgToken.trim()" x-text="channelBusy === 'telegram' ? 'Checking…' : 'Connect'"></button>
                           </div>
                           <div x-show="tgCode">

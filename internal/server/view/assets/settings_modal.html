@@ -31,4 +31,4 @@
     </div><!-- .settings-modal-panel -->
   </div><!-- #hylo-settings-modal -->
 
-{{define "settings-nav"}}<nav class="settings-sidebar"><div class="settings-sidebar-title">Settings</div>{{range settingsTabs}}<button class="side-nav-item settings-sidebar-item"{{if .DesktopOnly}} x-show="isDesktop"{{end}} :class="{'is-active': tab === '{{.ID}}'}" x-press="tab = '{{.ID}}'">{{icon .Icon "side-nav-icon"}}{{.Label}}</button>{{end}}</nav>{{end}}
+{{define "settings-nav"}}<nav class="settings-sidebar"><div class="settings-sidebar-title">Settings</div>{{range settingsGroups}}<div class="home-side-heading">{{.Label}}</div>{{range .Tabs}}<button class="side-nav-item settings-sidebar-item"{{if .DesktopOnly}} x-show="isDesktop"{{end}} :class="{'is-active': tab === '{{.ID}}'}" x-press="tab = '{{.ID}}'">{{icon .Icon "side-nav-icon"}}{{.Label}}</button>{{end}}{{end}}</nav>{{end}}

@@ -38,8 +38,17 @@
         }
         return [
           { id: 'global', label: 'Global', sections: global },
-          { id: 'vault', label: 'Vault', sections: vault },
+          { id: 'vault', label: 'This vault', sections: vault },
         ].filter(g => g.sections.length);
+      },
+
+      // The vault in effect, not an unsaved edit of vault.path.
+      get vaultPath() { return (this.values && this.values.vault && this.values.vault.path) || ''; },
+
+      // Global sections sit with the server itself, under no heading.
+      get globalSections() {
+        const g = this.sectionGroups.find(g => g.id === 'global');
+        return g ? g.sections : [];
       },
 
       sectionLabel(s) {

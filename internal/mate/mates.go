@@ -19,6 +19,7 @@ func (s *Store) ListMates() ([]Mate, error) {
 	rows, err := s.db.Query(
 		`SELECT m.id, m.name, m.description, m.agent_id, m.model, m.color, m.cwd, m.main, m.system_prompt, m.enabled, m.created_at, m.updated_at,
 		        (SELECT COUNT(*) FROM mate_triggers t WHERE t.mate_id = m.id) AS trigger_count,
+		        (SELECT COUNT(*) FROM mate_triggers t WHERE t.mate_id = m.id AND t.enabled) AS triggers_on,
 		        ` + unreadCount + ` AS unread,
 		        EXISTS (SELECT 1 FROM chat_messages c WHERE c.mate_id = m.id AND c.status = 'running') AS running,
 		        COALESCE((SELECT MAX(c.created_at) FROM chat_messages c WHERE c.mate_id = m.id), 0) AS last_active
@@ -438,14 +439,14 @@ func scanMateRow(rows *sql.Rows, withTriggerCount bool) (Mate, error) {
 	var m Mate
 	var createdMs, updatedMs int64
 	var enabled, main int
-	var triggerCount, unread, running int
+	var triggerCount, triggersOn, unread, running int
 	var lastActive int64
 	var cols = []any{
 		&m.ID, &m.Name, &m.Description, &m.AgentID, &m.Model, &m.Color, &m.Cwd, &main,
 		&m.SystemPrompt, &enabled, &createdMs, &updatedMs,
 	}
 	if withTriggerCount {
-		cols = append(cols, &triggerCount, &unread, &running, &lastActive)
+		cols = append(cols, &triggerCount, &triggersOn, &unread, &running, &lastActive)
 	}
 	if err := rows.Scan(cols...); err != nil {
 		return Mate{}, err
@@ -456,6 +457,7 @@ func scanMateRow(rows *sql.Rows, withTriggerCount bool) (Mate, error) {
 	m.UpdatedAt = time.UnixMilli(updatedMs)
 	if withTriggerCount {
 		m.TriggerCount = triggerCount
+		m.TriggersOn = triggersOn
 		m.Unread = unread
 		m.Running = running != 0
 		m.LastActiveAt = fromMs(lastActive)

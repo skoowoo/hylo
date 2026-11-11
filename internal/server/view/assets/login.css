@@ -15,7 +15,7 @@
       margin: 0 0 20px; font-size: var(--text-title-lg); font-weight: 600;
       letter-spacing: 0.2em;
     }
-    .login-card .field-input { height: var(--btn-h); padding: 0 0.75rem; font-family: var(--font-ui); font-size: var(--text-base); box-sizing: border-box; }
+    .login-card .field-input { height: var(--btn-h); padding: 0 0.75rem; font-size: var(--text-base); box-sizing: border-box; }
     .login-btn { width: 100%; margin-top: 12px; }
     .login-btn:disabled { opacity: 0.5; cursor: default; }
     .login-msg { min-height: 1.25rem; margin-top: 10px; font-size: var(--text-sm); }

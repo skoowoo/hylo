@@ -19,22 +19,9 @@
 .srv-option-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .srv-option-url { color: var(--muted); font-size: var(--text-2xs); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* Settings → Server header: the server the tab below is editing. */
-.srv-hero {
-  display: flex; align-items: center; gap: 10px; padding: 12px 14px;
-  border-radius: var(--r-lg); background: var(--surface-soft);
-}
-.srv-hero-text { flex: 1; display: flex; flex-direction: column; min-width: 0; }
-.srv-hero-name { font-size: var(--text-base); font-weight: 600; color: var(--fg); }
-.srv-hero-url { color: var(--muted); font-size: var(--text-xs); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.srv-hero + .srv-process, .srv-hero ~ .settings-section { margin-top: var(--space-lg); }
 .srv-notice {
   display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
   margin-bottom: var(--space-md); padding: 8px 12px; border-radius: var(--r-md);
   background: var(--btn-bg); color: var(--fg-2); font-size: var(--text-xs);
 }
 .srv-notice-actions { display: flex; gap: 6px; }
-.srv-process {
-  display: flex; align-items: center; justify-content: space-between; gap: 10px;
-  color: var(--muted); font-size: var(--text-xs);
-}

@@ -38,11 +38,11 @@
       AGENT_BOT_EVENT_KINDS: {
         scheduled: {
           placeholder: 'Review my vault and write a daily digest. Time: {Now}',
-          hint: 'Scheduled triggers run on a timer — choose one schedule below',
+          hint: '',
         },
         compile_requested: {
           placeholder: 'Compile {Path} into knowledge units.',
-          hint: 'Fires when the user manually triggers compilation via the API — Path carries the note',
+          hint: 'When a note is sent to compile.',
         },
       },
       agentBotSchedulePresets: {
@@ -68,7 +68,7 @@
           if (!r.ok) throw new Error('HTTP ' + r.status);
           const d = await r.json();
           this.agentBotsList = d.mates || [];
-          if (this.agentBotsList.length) this.botSetup.phase = 'idle';
+          if (this.agentBotsList.length) { this.botSetup.phase = 'idle'; this.loadSkills(true); this.loadApps(); }
           else if (this.botSetup.phase === 'idle') this.startBotSetup();
         } catch(e) { this.agentBotsError = e.message; }
         finally { this.agentBotsLoading = false; }
@@ -386,8 +386,17 @@
         ];
       },
 
-      channelLabel(kind) {
-        return { wechat: 'WeChat', discord: 'Discord', telegram: 'Telegram' }[kind] || kind;
+      // What the bot runs on and what is switched on for it right now.
+      agentBotMeta(m) {
+        const has = function(x) { return (x.bots || []).some(function(b) { return b.id === m.id; }); };
+        const count = function(n, one) { return n ? n + ' ' + one + (n === 1 ? '' : 's') : ''; };
+        return [
+          m.agentId || '—', m.model,
+          count(this.skillsList.filter(has).length, 'skill'),
+          count(this.connectedApps.filter(function(a) { return !a.reconnect && has(a); }).length, 'app'),
+          count(m.triggersOn || 0, 'trigger'),
+          count((m.channels || []).length, 'channel'),
+        ].filter(Boolean).join(' · ');
       },
 
       cancelChannelFlows() {
@@ -587,7 +596,13 @@
           const r = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
           if (!r.ok) { this.agentBotSaveError = await r.text(); return; }
           const d = await r.json();
-          const saved = Object.assign({}, d.mate, { triggerCount: (d.mate.triggers || []).length });
+          const ts = d.mate.triggers || [];
+          const prev = this.agentBotsList.find(function(m) { return m.id === d.mate.id; });
+          // The save response has no list-view fields; channels are set elsewhere, so keep them.
+          const saved = Object.assign({}, d.mate, {
+            triggerCount: ts.length, triggersOn: ts.filter(function(t) { return t.enabled; }).length,
+            channels: prev ? prev.channels : [],
+          });
           if (this.agentBotFormMode === 'create') {
             this.agentBotsList.push(saved);
           } else {
@@ -668,7 +683,7 @@
 
       agentBotTriggerHint(t) {
         const kind = this.agentBotEventKind(t);
-        return kind ? kind.hint : 'Vault event that activates this trigger';
+        return kind ? kind.hint : '';
       },
 
       setAgentBotET(trigger, et) {

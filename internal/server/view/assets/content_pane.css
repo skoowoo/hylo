@@ -300,7 +300,6 @@
     input.hylo-sr-input {
       height: var(--btn-h-xs);
       padding: 0 0.5rem;
-      font-family: inherit;
     }
     /* Right padding reserves exactly the inset content's own width: row 1
        is count + 3 icons, row 2 (replace) is 2 text buttons — sized for

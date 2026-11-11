@@ -1,4 +1,6 @@
     .settings-row-ctrl .kbd { font-size: var(--text-xs); padding: 0.18rem 0.42rem; }
+    /* Only editable keys look pressable; fixed ones read as plain text. */
+    span.kbd { background: transparent; color: var(--muted); }
     button.kbd { cursor: pointer; }
     button.kbd:hover { background: var(--btn-bg-hov); }
     .kbd-recording { border-color: var(--accent); color: var(--muted); }

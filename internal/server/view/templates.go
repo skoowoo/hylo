@@ -33,9 +33,10 @@ var viewFuncs = template.FuncMap{
 		}
 		return m
 	},
-	"settingsTabs":  func() []settingsTab { return settingsTabs },
-	"accentPresets": func() []accentPreset { return accentPresets },
-	"accentDefault": func() string { return accentDefaultID },
+	"settingsTabs":   func() []settingsTab { return settingsTabs },
+	"settingsGroups": func() []settingsGroup { return settingsGroups },
+	"accentPresets":  func() []accentPreset { return accentPresets },
+	"accentDefault":  func() string { return accentDefaultID },
 	// tagsJSON serializes the wall's tag list for __hyloRenderTagCloud
 	// (home.js) to lay out client-side via d3-cloud. Returned as a plain
 	// string, not template.HTML, so html/template still HTML-escapes it into
