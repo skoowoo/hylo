@@ -1,4 +1,4 @@
-    .skills-repo-form { display: flex; align-items: center; gap: var(--space-xs); margin-bottom: var(--space-md); flex-wrap: wrap; }
+    .skills-repo-form { display: flex; align-items: center; gap: var(--space-xs); flex-wrap: wrap; }
     .skills-repo-form .field-input { flex: 2 1 14rem; min-width: 0; }
     .skills-repo-form .skills-repo-name { flex: 1 1 9rem; }
     .skill-icon {

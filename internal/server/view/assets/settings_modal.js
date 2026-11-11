@@ -19,6 +19,9 @@
           const name = this.agentBotDraft.name.trim();
           return { title: name || (this.agentBotFormMode === 'create' ? 'New bot' : 'Untitled bot'), parent: 'Bots', back: () => this.closeAgentBotForm() };
         }
+        if (this.tab === 'skills' && this.skillsAddOpen) {
+          return { title: 'Add skill', parent: 'Skills', back: () => { this.skillsAddOpen = false; } };
+        }
         return null;
       },
 

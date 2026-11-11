@@ -623,6 +623,7 @@ func (c *Client) tagRewrite(op string, body map[string]any) (*TagRewriteResponse
 type SkillInfo struct {
 	Name        string     `json:"name"`
 	Default     bool       `json:"default"`
+	MainOnly    bool       `json:"mainOnly,omitempty"`
 	Repo        string     `json:"repo,omitempty"`
 	Description string     `json:"description,omitempty"`
 	Bots        []SkillBot `json:"bots"`

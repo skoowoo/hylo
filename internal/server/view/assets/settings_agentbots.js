@@ -259,8 +259,13 @@
         await this.loadAgentBotSkills('');
       },
 
+      // Built-ins another bot may turn on; the rest run Hylo itself, for the main bot only.
+      get botBuiltinSkills() { return this.builtinSkills.filter(function(s) { return !s.mainOnly; }); },
+      agentBotSkillsOn(list) {
+        return list.filter((s) => this.agentBotSkills[s.name]).length + ' of ' + list.length + ' on';
+      },
       // Every added skill, built-ins last since most bots leave them alone.
-      get agentBotSkillList() { return this.extraSkills.concat(this.builtinSkills); },
+      get agentBotSkillList() { return this.extraSkills.concat(this.botBuiltinSkills); },
 
       // Loads which skills and apps are on for the bot, then marks the form as clean.
       async loadAgentBotSkills(botId) {
@@ -376,7 +381,7 @@
       agentBotFormTabs() {
         const on = (s) => this.agentBotSkills[s.name];
         const skills = this.extraSkills.filter(on).length +
-          (this.agentBotDraft.main ? this.builtinSkills.length : this.builtinSkills.filter(on).length);
+          (this.agentBotDraft.main ? this.builtinSkills.length : this.botBuiltinSkills.filter(on).length);
         return [
           { id: 'general', label: 'General', count: 0 },
           { id: 'skills', label: 'Skills', count: skills },

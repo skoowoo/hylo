@@ -6,10 +6,15 @@
       skillsError: '',
       skillsAdding: {},
       skillsRemoving: {},
-      skillsRepoOpen: false,
+      skillsAddOpen: false,
       skillsRepo: { repo: '', skill: '', adding: false },
 
       skillsTab: 'builtin',
+
+      openSkillsAdd() {
+        this.skillsAddOpen = true;
+        this.$nextTick(() => this.$refs.skillsRepo.focus());
+      },
 
       get builtinSkills() {
         return this.addedSkills.filter(function(s) { return s.default; });
@@ -45,6 +50,7 @@
       },
 
       skillUsedBy(s) {
+        if (s.mainOnly) return 'Main bot only';
         return s.bots.length ? s.bots.map(function(b) { return b.name; }).join(', ') : 'No bot';
       },
 
@@ -86,7 +92,7 @@
         f.adding = false;
         if (!ok) return;
         this.skillsRepo = { repo: '', skill: '', adding: false };
-        this.skillsRepoOpen = false;
+        this.skillsAddOpen = false;
         this.skillsTab = 'added';
       },
 

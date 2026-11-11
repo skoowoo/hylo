@@ -133,24 +133,28 @@
                   </section>
 
                   <section class="settings-form" role="tabpanel" x-show="botFormTab === 'skills'">
-                    <p class="settings-intro"><span x-show="agentBotDraft.main">Built-in skills are always on for the main bot. </span>More in <button type="button" class="settings-link" @click="skillsTab = 'catalog'; tab = 'skills'">Skills</button>.</p>
-                    <div class="agent-bot-skill-chips" x-show="extraSkills.length">
-                      <template x-for="s in extraSkills" :key="s.name">
-                        <button type="button" class="btn-outline btn--xs" :class="{active: agentBotSkills[s.name]}" :aria-pressed="!!agentBotSkills[s.name]"
-                                :title="s.description || s.name" @click="agentBotSkills[s.name] = !agentBotSkills[s.name]" x-text="s.name"></button>
-                      </template>
-                    </div>
-                    <template x-if="!agentBotDraft.main">
-                      <div class="settings-field">
-                        <span class="settings-label">Built-in</span>
-                        <div class="agent-bot-skill-chips">
-                          <template x-for="s in builtinSkills" :key="s.name">
-                            <button type="button" class="btn-outline btn--xs" :class="{active: agentBotSkills[s.name]}" :aria-pressed="!!agentBotSkills[s.name]"
-                                :title="s.description || s.name" @click="agentBotSkills[s.name] = !agentBotSkills[s.name]" x-text="s.name"></button>
-                          </template>
-                        </div>
+                    <p class="settings-intro">Choose which skills this bot can use.</p>
+                    <div class="settings-field">
+                      <div class="agent-bot-skill-head">
+                        <span class="settings-label">Your skills</span>
+                        <span class="settings-desc" x-show="extraSkills.length" x-text="agentBotSkillsOn(extraSkills)"></span>
                       </div>
-                    </template>
+                      <div class="settings-list" x-show="extraSkills.length">
+                        <template x-for="s in extraSkills" :key="s.name">{{template "bot-skill-row"}}
+                        </template>
+                      </div>
+                      <span class="settings-desc"><span x-text="extraSkills.length ? 'More in the' : 'None yet. Find some in the'"></span> <button type="button" class="settings-link" @click="tab = 'skills'; openSkillsAdd()">catalog</button>.</span>
+                    </div>
+                    <div class="settings-field">
+                      <div class="agent-bot-skill-head">
+                        <span class="settings-label">Built-in</span>
+                        <span class="settings-desc" x-text="agentBotDraft.main ? 'Always on for the main bot' : agentBotSkillsOn(botBuiltinSkills)"></span>
+                      </div>
+                      <div class="settings-list">
+                        <template x-for="s in (agentBotDraft.main ? builtinSkills : botBuiltinSkills)" :key="s.name">{{template "bot-skill-row"}}
+                        </template>
+                      </div>
+                    </div>
                   </section>
 
                   <section class="settings-form" role="tabpanel" x-show="botFormTab === 'apps'">
@@ -406,3 +410,23 @@
                       x-text="agentBotSaving ? 'Saving…' : 'Save'"></button>
             </div>
           </div>
+
+{{define "bot-skill-row"}}
+                          <div class="settings-row settings-row--lead skill-row" :class="{'is-added': agentBotDraft.main && s.default || agentBotSkills[s.name]}">
+                            <span class="skill-icon">{{template "skills-sparkle"}}</span>
+                            <div>
+                              <span class="settings-label" x-text="s.name" :title="s.name"></span>
+                              <span class="settings-desc skill-desc" :class="{'is-empty': !s.description}" :title="s.description || ''" x-text="s.description || 'No description.'"></span>
+                            </div>
+                            <div class="settings-row-ctrl">
+                              <template x-if="agentBotDraft.main && s.default">
+                                <span class="badge badge--sm">Always on</span>
+                              </template>
+                              <template x-if="!(agentBotDraft.main && s.default)">
+                                <div class="seg">
+                                  <button type="button" class="seg-btn" :class="{active: !agentBotSkills[s.name]}" @click="agentBotSkills[s.name] = false">Off</button>
+                                  <button type="button" class="seg-btn" :class="{active: agentBotSkills[s.name]}" @click="agentBotSkills[s.name] = true">On</button>
+                                </div>
+                              </template>
+                            </div>
+                          </div>{{end}}

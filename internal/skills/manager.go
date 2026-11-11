@@ -41,6 +41,10 @@ var DefaultSkills = func() []string {
 	return names
 }()
 
+// MainOnly are built-ins that run Hylo itself (setup, bots, the knowledge base,
+// memory), so only the main bot may use them.
+var MainOnly = []string{"hylo-bots", "hylo-compile-note", "hylo-index-knowledge", "hylo-memory", "hylo-setup"}
+
 // Retired maps built-in skills no longer shipped to the one that replaced them
 // ("" when none), so their files, links and the prompts naming them move on.
 var Retired = map[string]string{
@@ -61,6 +65,8 @@ type state struct {
 type SkillInfo struct {
 	Name    string `json:"name"`
 	Default bool   `json:"default"`
+	// MainOnly skills are on at the vault root only, for the main bot.
+	MainOnly bool `json:"mainOnly,omitempty"`
 	// Dirs lists every vault directory the skill is on in.
 	Dirs []string `json:"dirs"`
 	// Repo is set when the skill matches a catalog entry by name.
@@ -224,6 +230,7 @@ func (m *Manager) List() ([]SkillInfo, error) {
 		out = append(out, SkillInfo{
 			Name:        name,
 			Default:     isDefault(name),
+			MainOnly:    slices.Contains(MainOnly, name),
 			Dirs:        dirs,
 			Repo:        repos[name],
 			Description: m.skillDescription(dir),
@@ -252,6 +259,9 @@ func (m *Manager) Enable(name, dir string) error {
 	}
 	if isDefault(name) && dir == "/" {
 		return nil
+	}
+	if slices.Contains(MainOnly, name) {
+		return fmt.Errorf("skill %q is for the main bot only", name)
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -600,7 +610,8 @@ func copyFile(src, dst string, mode os.FileMode) error {
 }
 
 // SyncBuiltins writes each built-in skill into ~/.hylo/skills when what is there
-// differs from the binary's copy, replacing it whole, and clears out retired ones.
+// differs from the binary's copy, replacing it whole, clears out retired ones and
+// turns main-only ones off wherever else an older version let them on.
 // A built-in linked in by hand (a development checkout) is left alone.
 // Called once at server startup, before LinkEnabled.
 func (m *Manager) SyncBuiltins(logger *slog.Logger) {
@@ -632,6 +643,21 @@ func (m *Manager) SyncBuiltins(logger *slog.Logger) {
 			}
 		}
 		delete(m.st.Enabled, old)
+		if err := m.saveState(); err != nil {
+			logger.Warn("skills: save state", "err", err)
+		}
+	}
+	for _, name := range MainOnly {
+		dirs, ok := m.st.Enabled[name]
+		if !ok {
+			continue
+		}
+		for _, dir := range dirs {
+			if dir != "/" {
+				m.unlink(name, dir)
+			}
+		}
+		delete(m.st.Enabled, name)
 		if err := m.saveState(); err != nil {
 			logger.Warn("skills: save state", "err", err)
 		}

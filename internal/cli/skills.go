@@ -52,7 +52,9 @@ func newSkillsListCmd() *cobra.Command {
 					on = "no bot"
 				}
 				kind := ""
-				if s.Default {
+				if s.MainOnly {
+					kind = "built-in, main bot only"
+				} else if s.Default {
 					kind = "built-in"
 				}
 				rows[i] = []string{s.Name, on, kind, s.Description}

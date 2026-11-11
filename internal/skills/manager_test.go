@@ -320,6 +320,41 @@ func TestSyncBuiltinsRetires(t *testing.T) {
 	}
 }
 
+// Main-only built-ins can't be turned on for another bot, and an older state
+// that did is cleared on sync.
+func TestMainOnlySkillsStayAtRoot(t *testing.T) {
+	m, vault := newTestManager(t)
+	for _, name := range MainOnly {
+		if !isDefault(name) {
+			t.Errorf("%s is main-only but not built in", name)
+		}
+	}
+	writeSkill(t, filepath.Join(m.sourceDir, "hylo-memory"))
+	if err := m.Enable("hylo-memory", "/_bots/_x"); err == nil {
+		t.Error("main-only skill turned on for another bot")
+	}
+	if !listed(t, m)["hylo-memory"].MainOnly {
+		t.Error("main-only not reported")
+	}
+
+	for _, d := range m.linkDirs("/_bots/_x") {
+		if err := os.MkdirAll(d, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Symlink(filepath.Join(m.sourceDir, "hylo-memory"), filepath.Join(d, "hylo-memory")); err != nil {
+			t.Fatal(err)
+		}
+	}
+	m.st.Enabled = map[string][]string{"hylo-memory": {"/_bots/_x"}}
+	m.SyncBuiltins(slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if _, ok := m.st.Enabled["hylo-memory"]; ok {
+		t.Errorf("state kept: %v", m.st.Enabled)
+	}
+	if _, err := os.Lstat(filepath.Join(vault, "_bots/_x/.claude/skills/hylo-memory")); !os.IsNotExist(err) {
+		t.Error("link left in bot dir")
+	}
+}
+
 // Agents find a skill by its SKILL.md name, so each built-in must match its directory.
 func TestBuiltinNamesMatchDirs(t *testing.T) {
 	for _, name := range DefaultSkills {

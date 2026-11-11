@@ -1,6 +1,7 @@
-{{/* Skills tab: the skills Hylo ships, the ones the user added to ~/.hylo/skills, and the catalog Hylo curates. */}}
+{{/* Skills tab: the skills ready to use (Hylo's built-ins and the ones the user added to ~/.hylo/skills),
+     and an Add skill page that installs from Hylo's catalog or any GitHub repository. */}}
           <div class="settings-page" x-show="tab === 'skills'">
-           <div class="settings-body">
+           <div class="settings-body" :hidden="skillsAddOpen">
             <div class="settings-toolbar">
               <div class="seg" role="tablist">
                 <button type="button" class="seg-btn" role="tab" :class="{active: skillsTab === 'builtin'}"
@@ -11,24 +12,13 @@
                         :aria-selected="skillsTab === 'added'" @click="skillsTab = 'added'">
                   Added <span class="seg-count" x-show="!skillsLoading" x-text="extraSkills.length"></span>
                 </button>
-                <button type="button" class="seg-btn" role="tab" :class="{active: skillsTab === 'catalog'}"
-                        :aria-selected="skillsTab === 'catalog'" @click="skillsTab = 'catalog'">
-                  Catalog <span class="seg-count" x-show="!skillsLoading" x-text="catalogSkills.length"></span>
-                </button>
               </div>
               <div class="settings-toolbar-end">
-                <button type="button" class="btn-outline" @click="skillsRepoOpen = !skillsRepoOpen; $nextTick(() => skillsRepoOpen && $refs.skillsRepo.focus())">{{template "skills-plus"}}Add from GitHub</button>
+                <button type="button" class="btn-outline" @click="openSkillsAdd()">{{template "skills-plus"}}Add skill</button>
               </div>
             </div>
-            <form class="skills-repo-form" x-show="skillsRepoOpen" @submit.prevent="addSkillFromRepo()">
-              <input class="field-input field-input--mono" type="text" x-ref="skillsRepo" x-model="skillsRepo.repo" placeholder="owner/repo or GitHub URL" spellcheck="false">
-              <input class="field-input field-input--mono skills-repo-name" type="text" x-model="skillsRepo.skill" placeholder="Skill name (optional)" spellcheck="false">
-              <button type="submit" class="btn-solid" :disabled="!skillsRepo.repo.trim() || skillsRepo.adding" x-text="skillsRepo.adding ? 'Adding…' : 'Add'"></button>
-              <button type="button" class="btn-outline" @click="skillsRepoOpen = false">Cancel</button>
-            </form>
-            <p class="settings-intro" x-show="skillsTab === 'builtin'">Ship with Hylo. Always on for the main bot.</p>
+            <p class="settings-intro" x-show="skillsTab === 'builtin'">Ship with Hylo. Always on for the main bot; all but the main-only ones can be turned on for other bots too.</p>
             <p class="settings-intro" x-show="skillsTab === 'added'">Skills in <code>~/.hylo/skills/</code>. Turn them on per bot.</p>
-            <p class="settings-intro" x-show="skillsTab === 'catalog'">Curated by Hylo.</p>
             <div class="settings-status settings-status--err" x-show="skillsError && !skillsLoading" x-text="'Error: ' + skillsError"></div>
             <div class="settings-status" x-show="skillsLoading">Loading skills…</div>
             <div x-show="!skillsLoading && skillsTab === 'builtin'">
@@ -45,12 +35,28 @@
               <template x-if="extraSkills.length === 0">
                 <div class="settings-empty">
                   No skills added yet.
-                  <button type="button" class="settings-link" @click="skillsTab = 'catalog'">Browse the catalog</button>
+                  <button type="button" class="settings-link" @click="openSkillsAdd()">Add a skill</button>
                 </div>
               </template>
             </div>
-            <div x-show="!skillsLoading && skillsTab === 'catalog'">
-              <div class="settings-list">
+           </div>
+
+           <div class="settings-body settings-form" :hidden="!skillsAddOpen">
+            <div class="settings-field">
+              <span class="settings-label">From GitHub</span>
+              <span class="settings-desc">Any repository with a <code>SKILL.md</code>; name the skill when it holds several.</span>
+              <form class="skills-repo-form" @submit.prevent="addSkillFromRepo()">
+                <input class="field-input field-input--mono" type="text" x-ref="skillsRepo" x-model="skillsRepo.repo" placeholder="owner/repo or GitHub URL" spellcheck="false">
+                <input class="field-input field-input--mono skills-repo-name" type="text" x-model="skillsRepo.skill" placeholder="Skill name (optional)" spellcheck="false">
+                <button type="submit" class="btn-solid" :disabled="!skillsRepo.repo.trim() || skillsRepo.adding" x-text="skillsRepo.adding ? 'Adding…' : 'Add'"></button>
+              </form>
+            </div>
+            <div class="settings-field">
+              <span class="settings-label">Catalog</span>
+              <span class="settings-desc">Curated by Hylo.</span>
+              <div class="settings-status settings-status--err" x-show="skillsError && !skillsLoading" x-text="'Error: ' + skillsError"></div>
+              <div class="settings-status" x-show="skillsLoading">Loading catalog…</div>
+              <div class="settings-list" x-show="!skillsLoading">
                 <template x-for="s in catalogSkills" :key="s.name">{{template "skills-row"}}
                 </template>
               </div>
@@ -79,10 +85,10 @@
                             x-text="s.description || (s.added ? 'No description.' : 'Add to use with your agents.')"></span>
                     </div>
                     <div class="settings-row-ctrl">
-                      <template x-if="s.added && skillsTab !== 'catalog'">
+                      <template x-if="s.added && !skillsAddOpen">
                         <span class="skill-used" :class="{'is-unused': !s.bots.length}" :title="skillUsedBy(s)" x-text="skillUsedBy(s)"></span>
                       </template>
-                      <template x-if="s.added && skillsTab === 'catalog'">
+                      <template x-if="s.added && skillsAddOpen">
                         <span class="badge badge--sm">Added</span>
                       </template>
                       <template x-if="!s.added">
@@ -93,7 +99,7 @@
                           <span x-text="skillsAdding[s.name] ? 'Adding…' : 'Add'"></span>
                         </button>
                       </template>
-                      <template x-if="s.added && !s.default">
+                      <template x-if="s.added && !s.default && !skillsAddOpen">
                         <button type="button" class="btn-outline btn-outline--danger btn--xs"
                                 :disabled="!!skillsRemoving[s.name]"
                                 @click="removeSkill(s.name)" x-text="skillsRemoving[s.name] ? 'Removing…' : 'Remove'"></button>

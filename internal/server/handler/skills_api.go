@@ -29,6 +29,7 @@ type skillBot struct {
 type skillOut struct {
 	Name        string     `json:"name"`
 	Default     bool       `json:"default"`
+	MainOnly    bool       `json:"mainOnly,omitempty"`
 	Repo        string     `json:"repo,omitempty"`
 	Description string     `json:"description,omitempty"`
 	Bots        []skillBot `json:"bots"`
@@ -56,7 +57,7 @@ func (h *SkillsHTTP) List(w http.ResponseWriter, r *http.Request) {
 	}
 	out := make([]skillOut, 0, len(list))
 	for _, s := range list {
-		o := skillOut{Name: s.Name, Default: s.Default, Repo: s.Repo, Description: s.Description, Bots: []skillBot{}}
+		o := skillOut{Name: s.Name, Default: s.Default, MainOnly: s.MainOnly, Repo: s.Repo, Description: s.Description, Bots: []skillBot{}}
 		for _, d := range s.Dirs {
 			o.Bots = append(o.Bots, byDir[d]...)
 		}
