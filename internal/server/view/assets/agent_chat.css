@@ -363,13 +363,12 @@
       margin-bottom: 0.15em;
     }
 
-    /* Trace — a turn's thinking, tools and narration on one rail above the
-       reply. Live it shows the newest steps in a capped box; settled it folds
-       into the one-line summary. */
+    /* Trace — a turn's thinking and tools behind one line above its texts:
+       live it names the newest step, otherwise it sums the run up.
+       The line's box is fixed, so what it says never moves the reply. */
     .seg-trace {
       display: flex;
       flex-direction: column;
-      gap: 0.3rem;
       align-self: stretch;
       min-width: 0;
     }
@@ -380,7 +379,9 @@
       align-self: flex-start;
       gap: 0.35rem;
       max-width: 100%;
+      height: 1.5em;
       font-size: var(--text-xs);
+      line-height: 1.5;
       font-family: inherit;
       background: none;
       border: none;
@@ -401,21 +402,30 @@
 
     .seg-trace-head.open svg { transform: rotate(90deg); }
 
-    .seg-trace-head span {
+    .seg-trace-label,
+    .seg-trace-detail {
       min-width: 0;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
 
-    /* Same gap as the reply's blocks, so a narration line joining the rail
-       lands where it already was. */
+    /* The subject gives way before the verb does. */
+    .seg-trace-label { flex: 0 1 auto; }
+    .seg-trace-detail {
+      flex: 0 100 auto;
+      font-family: var(--font-mono);
+      color: var(--muted-soft);
+    }
+
+    /* The head's gap sits inside the fold, so a closed trace is one line. */
     .seg-trace-rail {
       flex-shrink: 0;
       position: relative;
       display: flex;
       flex-direction: column;
       gap: var(--row-gap);
+      margin-top: 0.3rem;
       padding-left: 0.7rem;
     }
 
@@ -429,25 +439,12 @@
       background: var(--line-hair);
     }
 
-    /* Capped until the reader opens it; older steps overflow upward. */
-    .seg-trace-shell.is-capped > .chat-clip {
-      max-height: 9.5rem;
-      justify-content: flex-end;
-    }
-    .seg-trace-shell.is-capped.is-overflow > .chat-clip {
-      -webkit-mask-image: linear-gradient(to bottom, transparent, #000 2.5rem);
-      mask-image: linear-gradient(to bottom, transparent, #000 2.5rem);
-    }
-
     .seg-trace.is-live .seg-trace-rail::before {
       background: linear-gradient(to bottom, var(--line-hair) 60%, var(--accent-text));
     }
 
-    .msg-body .seg-trace-text {
-      --prose-body: var(--muted);
-      --prose-strong: var(--muted);
-      color: var(--muted);
-    }
+    /* Each text the bot wrote is its own block, a paragraph apart. */
+    .msg-body > .prose + .prose { margin-top: calc(0.75em - var(--row-gap)); }
 
     .seg-trace .seg-thinking {
       border-left: 0;
@@ -574,7 +571,7 @@
     }
 
     .seg-tool.is-run .seg-tool-verb,
-    .seg-trace.is-live .seg-trace-head span,
+    .seg-trace.is-live .seg-trace-label,
     .seg-thinking-toggle.is-streaming .seg-thinking-label {
       background: linear-gradient(90deg, var(--muted) 30%, var(--accent-text) 50%, var(--muted) 70%) 0 0 / 250% 100%;
       -webkit-background-clip: text;
@@ -1387,7 +1384,7 @@
 
     @media (prefers-reduced-motion: reduce) {
       .seg-tool.is-run .seg-tool-verb,
-      .seg-trace.is-live .seg-trace-head span,
+      .seg-trace.is-live .seg-trace-label,
       .seg-thinking-toggle.is-streaming .seg-thinking-label {
         animation: none;
         background: none;

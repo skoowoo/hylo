@@ -48,7 +48,7 @@ function settle() {
 最后，我把这些整理进了 [[chat-redesign]]。`;
 
 // Runs in the page before the pane loads. missing: the vault has none of the notes;
-// steps: extra tool calls before the reply, for a trace taller than its cap.
+// steps: extra tool calls before the reply, for a long trace.
 function stub({ reply, missing, steps = 0 }) {
   const T = (window.__T = { db: [], frames: [], rebuilt: 0, sentAt: 0, endAt: 0 });
   const iso = (ms) => new Date(ms).toISOString();
@@ -59,6 +59,8 @@ function stub({ reply, missing, steps = 0 }) {
   T.db.push({ id: 'a0', role: 'assistant', mateId: 'm1', agentId: 'claude', content: '在的。', status: 'succeeded', createdAt: iso(t0), updatedAt: iso(t0),
     noteAccess: [{ path: '/old/note.md', action: 'read' }] });
   const events = [
+    // Every run opens with a status; it must never take room of its own.
+    [60, { type: 'status', label: 'initializing' }],
     [100, { type: 'thinking_start' }],
     [60, { type: 'thinking_delta', delta: '先查一下相关的笔记。' }],
     [100, { type: 'text_delta', delta: '我先看看你最近写的笔记，再整理一份回答给你。' }],
@@ -69,6 +71,10 @@ function stub({ reply, missing, steps = 0 }) {
     [100, { type: 'tool_use', id: 't2', name: 'Edit', input: { file_path: NOTES[1] } }],
     [60, { type: 'note_access', path: NOTES[1], action: 'write' }],
     [150, { type: 'tool_result', content: 'ok' }],
+    // A text that is only whitespace is no block.
+    [40, { type: 'text_delta', delta: '\n\n' }],
+    [40, { type: 'tool_use', id: 't3', name: 'Read', input: { file_path: NOTES[0] } }],
+    [60, { type: 'tool_result', content: 'october' }],
   ].concat(Array.from({ length: steps }, (_, i) => [
     [60, { type: 'tool_use', id: 's' + i, name: 'Grep', input: { pattern: 'step ' + i } }],
     [60, { type: 'tool_result', content: 'hit ' + i }],
@@ -130,19 +136,17 @@ function sample() {
   }).observe(thread, { childList: true, subtree: true });
   const blocks = new Map();
   let nextId = 1;
-  // The live trace's box, and whether its newest step sits inside it.
+  // The live trace's box, and the line that stands for it.
   const traceFrame = (row) => {
-    const clip = row && row.querySelector('.seg-trace-shell > .chat-clip');
-    const last = clip && clip.querySelector('.seg-trace-rail').lastElementChild;
-    if (!last) return null;
-    const c = clip.getBoundingClientRect(), r = last.getBoundingClientRect();
-    return { h: c.height, rail: clip.firstElementChild.offsetHeight, newest: r.bottom <= c.bottom + 0.5 && r.top >= c.top - 0.5 };
+    const trace = row && row.querySelector('.seg-trace');
+    if (!trace) return null;
+    return { h: trace.getBoundingClientRect().height, head: trace.querySelector('.seg-trace-head').getBoundingClientRect().height, text: trace.querySelector('.seg-trace-head').textContent };
   };
   const tick = () => {
     const users = thread.querySelectorAll('.msg-row-user');
     const rows = thread.querySelectorAll('.msg-row-assistant');
     // Only once a later block exists: the tail is redrawn as it grows, by design.
-    const prose = rows.length > 1 && rows[rows.length - 1].querySelector('.msg-body > .prose');
+    const prose = rows.length > 1 && [...rows[rows.length - 1].querySelectorAll('.msg-body > .prose')].pop();
     const first = prose && prose.children.length > 1 && prose.firstElementChild;
     const live = rows.length > 1 && rows[rows.length - 1];
     if (first && !blocks.has(first)) blocks.set(first, nextId++);
@@ -154,6 +158,7 @@ function sample() {
       first: first ? blocks.get(first) : 0,
       cards: rows.length > 1 ? rows[rows.length - 1].querySelectorAll('.seg-note-access-card').length : 0,
       trace: traceFrame(live),
+      bodyStatus: !!(live && live.querySelector('.msg-body > .seg-status')),
     });
     requestAnimationFrame(() => setTimeout(tick));
   };
@@ -197,6 +202,9 @@ test('a streamed reply never rebuilds, shrinks under the reader, or moves once s
       assert.ok(live[i].y <= live[i - 1].y + 0.5, `streaming moved earlier content down by ${(live[i].y - live[i - 1].y).toFixed(1)}px\n${live[i - 1].parts}\n${live[i].parts}`);
     }
     assert.ok(live.some((f) => f.cards > 0), 'touched notes show while the run is live');
+    assert.ok(T.frames.every((f) => !f.bodyStatus), 'a status never takes a block of its own');
+    const texts = await page.evaluate(() => [...[...document.querySelectorAll('.msg-row-assistant')].pop().querySelectorAll('.msg-body > .prose')].map((p) => p.textContent.slice(0, 6)));
+    assert.deepEqual(texts, ['我先看看你最', '接着把结论写', '根据你最近的'], 'every text the bot wrote stays in order, each its own block');
     assertSettledStill(T);
   } finally {
     await page.close();
@@ -297,25 +305,26 @@ test('leaving and rejoining the bottom moves no row by even a fraction of a pixe
   }
 });
 
-test('a long trace stays capped with its newest step in view, and opens in full', async (t) => {
+test('a live trace is one line that names its newest step, and opens in full', async (t) => {
   if (launchError) return t.skip('WebKit unavailable');
   const page = await browser.newPage({ viewport: { width: 760, height: 720 } });
   try {
     const T = await streamTurn(page, { steps: 10 });
-    const cap = await page.evaluate(() => parseFloat(getComputedStyle(document.documentElement).fontSize) * 9.5);
     const live = T.frames.filter((f) => f.t > T.sentAt && f.t < T.endAt && f.trace);
-    assert.ok(live.some((f) => f.trace.rail > cap + 20), 'the trace outgrew its cap');
-    live.forEach((f) => assert.ok(f.trace.h <= cap + 0.5, `the live trace grew to ${f.trace.h.toFixed(1)}px`));
-    live.forEach((f) => assert.ok(f.trace.newest, 'the newest step is in view'));
+    assert.ok(live.length, 'the trace showed while live');
+    live.forEach((f) => assert.ok(Math.abs(f.trace.h - f.trace.head) < 0.5 && Math.abs(f.trace.h - live[0].trace.h) < 0.5, `the live trace was ${f.trace.h.toFixed(1)}px, not one line`));
+    const said = new Set(live.map((f) => f.trace.text));
+    ['Thinking', 'Readingoctober', 'Editingchat-redesign', 'Searching ×10step 9'].forEach((s) => assert.ok(said.has(s), `the line never said "${s}": ${[...said].join(' | ')}`));
     // A stuck thread pins itself back to the bottom, so the head is clicked in place.
     const open = await page.evaluate(async () => {
       const row = [...document.querySelectorAll('.msg-row-assistant')].pop();
       row.querySelector('.seg-trace-head').click();
       await new Promise((r) => setTimeout(r, 600));
       const clip = row.querySelector('.seg-trace-shell > .chat-clip');
-      return { h: clip.getBoundingClientRect().height, rail: clip.firstElementChild.offsetHeight };
+      return { h: clip.getBoundingClientRect().height, rail: clip.firstElementChild.offsetHeight, top: parseFloat(getComputedStyle(clip.firstElementChild).marginTop) };
     });
-    assert.ok(Math.abs(open.h - open.rail) < 0.5, `opened, it shows ${open.h.toFixed(1)} of ${open.rail}px`);
+    assert.ok(open.rail > 100, 'the opened trace holds its steps');
+    assert.ok(Math.abs(open.h - open.rail - open.top) < 0.5, `opened, it shows ${open.h.toFixed(1)} of ${open.rail}px`);
   } finally {
     await page.close();
   }

@@ -75,10 +75,10 @@
     btn.replaceChildren(svg(on ? CHECK_SVG : COPY_SVG));
   }
 
+  // Every text the bot wrote this turn is part of what it told the reader.
   function answerText(msg) {
-    var segs = msg.segments || [];
-    var ai = R.answerIndex(segs, msg.status === 'running');
-    return ai >= 0 ? (segs[ai].content || '').trim() : '';
+    return (msg.segments || []).filter(function (s) { return s.type === 'text'; })
+      .map(function (s) { return (s.content || '').trim(); }).filter(Boolean).join('\n\n');
   }
 
   // ── Note info, shared by every row and the trigger log ──────────────
@@ -290,6 +290,25 @@
     return parts.join(' · ') || (live ? 'Working' : 'Worked');
   }
 
+  // What the run is doing right now: its newest step, as one line.
+  function traceNow(segs) {
+    for (var i = segs.length - 1; i >= 0; i--) {
+      var sg = segs[i];
+      if (sg.type === 'thinking') return { label: 'Thinking', detail: '' };
+      if (sg.type === 'tool_use') {
+        var calls = sg.calls || [], notes = sg.notes || [];
+        var last = calls[calls.length - 1];
+        var pending = (sg.results || []).length < sg.count;
+        return {
+          label: toolVerb(sg.name, pending) + (sg.count > 1 ? ' ×' + sg.count : ''),
+          detail: notes.length ? noteTitle(notes[notes.length - 1].path) : (last && last.arg) || '',
+        };
+      }
+      if (sg.type === 'status' && sg.label) return { label: sg.label, detail: '' };
+    }
+    return { label: 'Working', detail: '' };
+  }
+
   // ── Steps: one long-lived component per segment ─────────────────────
   // A folding body: its grid row animates between 0fr and 1fr, so opening or
   // closing slides the content below instead of dropping it. The clip between
@@ -308,10 +327,7 @@
       var p = Prose();
       return {
         node: p.node,
-        update: function (seg, ctx, role) {
-          p.node.classList.toggle('seg-trace-text', role === 'narration');
-          p.update(seg.content || '', ctx.running);
-        },
+        update: function (seg, ctx) { p.update(seg.content || '', ctx.running); },
         destroy: p.destroy,
       };
     },
@@ -500,57 +516,50 @@
     while (at) { var nx = at.nextSibling; parent.removeChild(at); at = nx; }
   }
 
-  // ── Trace: the run's steps, open while live, folded once settled ──
-  // Until the reader opens it, the rail is capped and overflows upward: the
-  // newest steps stay in view and the box stops growing once full, so the reply
-  // below holds still. The cap stays through the fold so it shrinks from there.
+  // ── Trace: the run's steps behind one line, open only when the reader asks ──
+  // Live, the line names the newest step; while the bot writes or once the run
+  // settles, it sums the run up. Its height never changes with what it says.
   function Trace(msg) {
     var wrap = el('div', 'seg-trace');
     var head = el('button', 'seg-trace-head');
     head.type = 'button';
     head.appendChild(svg(CHEVRON));
-    var label = el('span');
+    var label = el('span', 'seg-trace-label');
+    var detail = el('span', 'seg-trace-detail');
     head.appendChild(label);
+    head.appendChild(detail);
     var rail = el('div', 'seg-trace-rail');
     var shell = fold(rail, 'chat-fold seg-trace-shell');
-    var clip = shell.firstChild;
     wrap.appendChild(head);
     wrap.appendChild(shell);
     var live = null;
 
-    // The top edge fades only once older steps are cut off.
-    function syncOverflow() {
-      shell.classList.toggle('is-overflow', rail.offsetHeight > clip.clientHeight + 1);
-    }
-    var ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(syncOverflow) : null;
-    if (ro) { ro.observe(rail); ro.observe(clip); }
-
     function paint() {
-      var pick = openPick(msg, 'trace');
-      var open = pick === undefined ? live : pick;
+      var open = isOpen(msg, 'trace');
       head.classList.toggle('open', open);
-      shell.classList.toggle('is-open', open);
-      shell.classList.toggle('is-capped', pick === undefined);
+      setFold(shell, open);
     }
     head.addEventListener('click', function () {
-      var pick = openPick(msg, 'trace');
-      toggleOpen(msg, 'trace', pick === undefined ? live : pick);
+      toggleOpen(msg, 'trace');
       paint();
     });
 
     return {
       node: wrap,
       rail: rail,
-      update: function (segs, running) {
+      update: function (segs, running, writing) {
         if (running !== live) {
           live = running;
           wrap.classList.toggle('is-live', live);
           if (live) phase(label, 1800);
         }
-        setText(label, traceSummary(segs, live));
+        var now = running && !writing ? traceNow(segs) : null;
+        setText(label, now ? now.label : traceSummary(segs, running));
+        setText(detail, now ? now.detail : '');
+        detail.title = detail.textContent;
+        show(detail, !!detail.textContent);
         paint();
       },
-      destroy: function () { if (ro) ro.disconnect(); },
     };
   }
 
@@ -705,7 +714,7 @@
   }
 
   // ── Rows ────────────────────────────────────────────────────────────
-  var TRACE_TYPES = { thinking: 1, tool_use: 1, tool_result: 1, status: 1, text: 1 };
+  var TRACE_TYPES = { thinking: 1, tool_use: 1, tool_result: 1, status: 1 };
 
   function header(msg, snap) {
     var h = el('div', 'msg-agent-header');
@@ -816,7 +825,9 @@
       update: function (m, snap) {
         msg = m;
         var running = m.status === 'running';
-        var st = running && snap.stoppingId === m.id ? 'Stopping' : (running && !(m.segments || []).length ? 'Thinking' : '');
+        // A status alone shows nothing of its own, so this slot stands in for it.
+        var shown = (m.segments || []).some(function (sg) { return sg.type !== 'status'; });
+        var st = running && snap.stoppingId === m.id ? 'Stopping' : (running && !shown ? 'Thinking' : '');
         if (st !== shownState) {
           shownState = st;
           stateEl.replaceChildren(st ? dots(st) : '');
@@ -892,7 +903,6 @@
       var segs = m.segments || [];
       var ctx = { running: running, live: built };
       var keys = stepKeys(segs);
-      var ai = R.answerIndex(segs, running);
 
       var sig = [s.mateName(m), m.agentBotId, s.catalogEpoch].join('\0');
       if (built && sig !== headSig) {
@@ -902,15 +912,15 @@
       }
       headSig = sig;
 
-      var lead = [], rest = [], used = Object.create(null), stepCount = 0, traceSegs = [];
-      var answer = null;
+      // Steps fold into the trace; texts stay in order below it, each its own block.
+      var lead = [], texts = [], rest = [], used = Object.create(null), stepCount = 0, traceSegs = [];
       for (var i = 0; i < segs.length; i++) {
         var sg = segs[i], type = sg.type;
         if (type === 'note_access' || !steps[type]) continue;
         var c = comp(keys[i], type);
         used[keys[i]] = true;
-        c.update(sg, ctx, i === ai ? 'answer' : 'narration');
-        if (i === ai) answer = c.node;
+        c.update(sg, ctx);
+        if (type === 'text') { if ((sg.content || '').trim()) texts.push(c.node); }
         else if (TRACE_TYPES[type]) {
           lead.push(c.node);
           traceSegs.push(sg);
@@ -918,17 +928,15 @@
         } else rest.push(c.node);
       }
 
+      // A status is only ever the trace line's words, never a block of its own.
       var top = [];
       if (stepCount) {
         if (!trace) trace = Trace(m);
-        trace.update(traceSegs, running);
+        var tail = segs[segs.length - 1];
+        trace.update(traceSegs, running, !!tail && tail.type === 'text' && !!tail.content.trim());
         arrange(trace.rail, lead);
         top.push(trace.node);
-      } else {
-        if (trace) trace.destroy();
-        trace = null;
-        top = lead;
-      }
+      } else trace = null;
       // The notes a turn touched sit between its steps and its reply.
       var touched = touchedNotes(segs);
       if (touched.length && !notes) {
@@ -939,8 +947,7 @@
         notesReveal.set(notes.update(touched) > 0);
         top.push(notesReveal.node);
       }
-      if (answer) top.push(answer);
-      arrange(body, top.concat(rest));
+      arrange(body, top.concat(texts, rest));
 
       Object.keys(comps).forEach(function (k) {
         if (used[k]) return;
@@ -974,7 +981,6 @@
       copyBtn: footer.copy,
       destroy: function () {
         Object.keys(comps).forEach(function (k) { if (comps[k].destroy) comps[k].destroy(); });
-        if (trace) trace.destroy();
         if (notes) notes.destroy();
       },
     };

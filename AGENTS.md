@@ -32,4 +32,4 @@ Comments should be:
 ## Git Commits
 
 - Use a single short one-line message.
-- Never add Claude attribution (no `Co-Authored-By: Claude` or similar lines).
+- Never add a `Co-Authored-By` trailer, or any other attribution line.
