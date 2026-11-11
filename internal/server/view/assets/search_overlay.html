@@ -44,7 +44,7 @@
         </div>
 
         <div class="srch-body" :class="{'has-preview': showPreview && results.length > 0}">
-          <div x-ref="list" @mousemove="onResultHover($event)" class="srch-results-pane">
+          <div x-ref="list" x-init="__hyloEdgeFade($el)" @mousemove="onResultHover($event)" class="srch-results-pane edge-fade">
             <template x-for="(r, i) in results" :key="r.path">
               <div class="sr-item">
                 <div class="srch-sec" x-show="sectionLabel(i)" x-text="sectionLabel(i)"></div>

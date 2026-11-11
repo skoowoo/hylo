@@ -264,7 +264,7 @@ body {
   padding: 4px;
   border-radius: 10px;
   background: var(--surface-2);
-  box-shadow: 0 0 0 1px var(--line-edge), 0 8px 24px var(--shadow-color);
+  box-shadow: 0 0 0 1px var(--float-bd), var(--float-shadow);
 }
 .sv-menu button {
   display: block;

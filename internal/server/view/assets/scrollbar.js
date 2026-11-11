@@ -106,6 +106,30 @@
     show();
   }
 
+  // .edge-fade: each edge fades by how much content is hidden past it (capped at 24px).
+  // Content changes size without a scroll (groups opening, results swapping), so watch that too.
+  window.__hyloEdgeFade = function (el) {
+    function sync() {
+      var below = el.scrollHeight - el.clientHeight - el.scrollTop;
+      el.style.setProperty('--fade-top', Math.min(el.scrollTop, 24) + 'px');
+      el.style.setProperty('--fade-bottom', Math.min(Math.max(below, 0), 24) + 'px');
+    }
+    el.addEventListener('scroll', sync, { passive: true });
+    sync();
+    if (typeof ResizeObserver === 'undefined') return;
+    var ro = new ResizeObserver(sync);
+    ro.observe(el);
+    Array.prototype.forEach.call(el.children, function (c) { ro.observe(c); });
+    // Subtree too: display:contents children (.sr-item) have no box for ro to watch.
+    new MutationObserver(function (records) {
+      records.forEach(function (r) {
+        Array.prototype.forEach.call(r.addedNodes, function (n) { if (n.nodeType === 1 && n.parentNode === el) ro.observe(n); });
+        Array.prototype.forEach.call(r.removedNodes, function (n) { if (n.nodeType === 1) ro.unobserve(n); });
+      });
+      sync();
+    }).observe(el, { childList: true, subtree: true });
+  };
+
   document.addEventListener('scroll', function (e) {
     var el = e.target;
     if (el.nodeType !== 1 || !el.classList.contains('overlay-scroll')) return;

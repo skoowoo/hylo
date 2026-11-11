@@ -43,8 +43,8 @@ const appTokensShared = `
       --input-focus-ring:rgba(var(--accent-rgb),0.16);
       --selection-bg:rgba(var(--accent-rgb),0.30);
       /* --line-hair: structural seam between regions (sidebar/content, list rows).
-         --line-edge: outer edge of a floating surface or input; always paired
-         with a shadow. Prefer a bg step or whitespace over either. */
+         --line-edge: outer edge of an input or control. Floating surfaces use --float-bd.
+         Prefer a bg step or whitespace over either. */
       --line-hair:oklch(var(--ink) / 0.09);
       --line-edge:oklch(var(--ink) / 0.12);
       --nav-fg:oklch(var(--ink) / 0.82);
@@ -96,7 +96,7 @@ const appTokensShared = `
       --srch-ic:var(--muted); --srch-ph:var(--muted-soft); --srch-av:oklch(var(--ink) / 0.08);
       --sr-dir:var(--cover-dir); --sr-ic:var(--muted); --sr-em:var(--muted);
       /* The whole search panel is glass; the preview is an ink step on it, not a solid card. */
-      --srch-panel-bd:var(--line-edge); --srch-panel-bg:var(--glass-bg); --srch-card-bg:oklch(var(--ink) / 0.05);
+      --srch-panel-bd:var(--float-bd); --srch-panel-bg:var(--glass-bg); --srch-card-bg:oklch(var(--ink) / 0.05);
 
       /* Lightbox/images — fixed veil over arbitrary photos. */
       --lightbox-overlay-bg:rgba(0,0,0,0.4); --lightbox-viewer-bg:#0c0c0c;
@@ -151,7 +151,11 @@ const appTokensDark = `
       --s-warn:#eeae3a; --s-warn-bg:rgba(251,191,36,0.14); --s-warn-bd:rgba(251,191,36,0.36);
       /* Solid status fills need dark ink (these hues are too light for white text). */
       --s-ok-fg:var(--inverse-ink); --s-err-fg:var(--inverse-ink); --s-warn-fg:var(--inverse-ink);
-      --shadow-color:rgba(0,0,0,0.55);`
+      --shadow-color:rgba(0,0,0,0.55);
+      /* Floating surfaces (menus, popovers, dialogs). Shadows vanish on dark, so the edge is a lit line. */
+      --float-bd:var(--line-edge);
+      --float-shadow:var(--shadow-sm) var(--shadow-color);
+      --float-shadow-lg:var(--shadow-lg) var(--shadow-color);`
 
 // Light adaptation — the same accent-hued greys.
 const appTokensLight = `
@@ -175,7 +179,11 @@ const appTokensLight = `
       --s-err:#dc2626; --s-err-bg:rgba(239,68,68,0.06); --s-err-bd:rgba(239,68,68,0.25);
       --s-warn:#d97706; --s-warn-bg:rgba(217,119,6,0.07); --s-warn-bd:rgba(217,119,6,0.26);
       --s-ok-fg:var(--canvas); --s-err-fg:var(--canvas); --s-warn-fg:var(--canvas);
-      --shadow-color:rgba(15,15,25,0.10);`
+      --shadow-color:rgba(15,15,25,0.10);
+      /* On light the shadow alone draws the edge; a dark line over glass muddies with what's behind. */
+      --float-bd:transparent;
+      --float-shadow:0 1px 3px rgba(15,15,25,0.08), 0 10px 32px rgba(15,15,25,0.14);
+      --float-shadow-lg:0 2px 6px rgba(15,15,25,0.08), 0 24px 64px rgba(15,15,25,0.18);`
 
 // Drop into a <style> tag. Dark on :root; light via data-theme or OS preference.
 const appTokensCSS = `    :root {` + appTokensShared + appTokensDark + contentTokensShared + contentTokensDark + `

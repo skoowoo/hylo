@@ -323,7 +323,11 @@
         if (!list) return;
         if (reset) list.scrollTop = 0;
         const row = list.querySelectorAll('.sr-row')[this.active];
-        if (row) row.scrollIntoView({ block: 'nearest' });
+        if (!row) return;
+        // A row heading its section brings the label into view with it.
+        const sec = row.previousElementSibling;
+        if (sec && sec.classList.contains('srch-sec') && sec.getClientRects().length) sec.scrollIntoView({ block: 'nearest' });
+        row.scrollIntoView({ block: 'nearest' });
       },
       choose(i) {
         const r = this.results[i];

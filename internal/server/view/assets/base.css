@@ -527,6 +527,14 @@
       border-radius: var(--r-full); background: var(--scrollbar-thumb);
     }
     .scrollbar.is-hot .scrollbar-thumb, .scrollbar.is-dragging .scrollbar-thumb { background: var(--scrollbar-thumb-hov); }
+    /* Scroll edges fade instead of cutting rows off; __hyloEdgeFade (scrollbar.js) sets the depths.
+       --fade-scale shortens them, --fade-floor keeps the very edge partly visible. */
+    .edge-fade {
+      --fade-mask: linear-gradient(to bottom,
+        rgb(0 0 0 / var(--fade-floor, 0)) 0, #000 calc(var(--fade-top, 0px) * var(--fade-scale, 1)),
+        #000 calc(100% - var(--fade-bottom, 0px) * var(--fade-scale, 1)), rgb(0 0 0 / var(--fade-floor, 0)) 100%);
+      -webkit-mask-image: var(--fade-mask); mask-image: var(--fade-mask);
+    }
 
     /* ── Shared modal dialog chrome ───────────────────────────────
        Backs confirm_dialog.css and info_dialog.css (small, single-purpose
@@ -549,10 +557,10 @@
       position: absolute;
       width: calc(100vw - 3rem);
       background: var(--bg);
-      border: var(--bd-w) solid var(--line-edge);
+      border: var(--bd-w) solid var(--float-bd);
       border-radius: var(--r-xl);
       padding: 1.5rem 1.5rem 1.25rem;
-      box-shadow: var(--shadow-lg) var(--shadow-color);
+      box-shadow: var(--float-shadow-lg);
     }
     .dialog-title {
       font-size: var(--text-base);

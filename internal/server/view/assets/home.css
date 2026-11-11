@@ -140,9 +140,6 @@
       flex: 1; min-height: 0; overflow-y: auto;
       display: flex; flex-direction: column; gap: 2px;
       padding: 14px;
-      /* Each edge fades by how much content is hidden past it (capped at 24px). */
-      -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 var(--fade-top, 0px), #000 calc(100% - var(--fade-bottom, 0px)), transparent 100%);
-      mask-image: linear-gradient(to bottom, transparent 0, #000 var(--fade-top, 0px), #000 calc(100% - var(--fade-bottom, 0px)), transparent 100%);
     }
     /* flex-shrink:0 on every direct child of .home-side-nav: its overflow
        resets their min size to 0, so an overflowing list would crush rows
@@ -656,12 +653,12 @@
       position: fixed; top: -1000px; left: -1000px;
       padding: 4px 10px;
       background: var(--surface-soft);
-      border: var(--bd-w) solid var(--line-edge);
+      border: var(--bd-w) solid var(--float-bd);
       border-radius: var(--r-md);
       font-size: var(--text-xs);
       color: var(--fg);
       white-space: nowrap;
-      box-shadow: var(--shadow-sm) var(--shadow-color);
+      box-shadow: var(--float-shadow);
     }
 
     /* ── Sentinel ─────────────────────────────────────── */

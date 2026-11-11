@@ -273,20 +273,6 @@ function homeCtrl() {
       // The first render isn't an htmx swap, but arrives like one.
       __hyloSectionArrived(__hyloInitialSectionURL(), null);
     },
-    sideFade(nav) {
-      var below = nav.scrollHeight - nav.clientHeight - nav.scrollTop;
-      nav.style.setProperty('--fade-top', Math.min(nav.scrollTop, 24) + 'px');
-      nav.style.setProperty('--fade-bottom', Math.min(Math.max(below, 0), 24) + 'px');
-    },
-    // Content height changes without a scroll (groups opening, tabs), so watch it too.
-    initSideFade(nav) {
-      var self = this;
-      self.sideFade(nav);
-      if (typeof ResizeObserver === 'undefined') return;
-      var ro = new ResizeObserver(function () { self.sideFade(nav); });
-      ro.observe(nav);
-      Array.prototype.forEach.call(nav.children, function (c) { if (c.tagName !== 'SCRIPT') ro.observe(c); });
-    },
     botsEmpty() { return this.agentBotsLoaded && this.agentBots.length === 0; },
     botsUnread() { return this.agentBots.reduce(function (n, m) { return n + (m.unread || 0); }, 0); },
 

@@ -8,12 +8,13 @@
       border: var(--bd-w) solid var(--srch-panel-bd);
       background: var(--srch-panel-bg);
       -webkit-backdrop-filter: var(--glass-filter); backdrop-filter: var(--glass-filter);
-      box-shadow: var(--shadow-lg) var(--shadow-color);
+      box-shadow: var(--float-shadow-lg);
     }
+    /* No seams: the first section label opens the list. The icon lines up
+       with the row tiles and section labels (18px), the typed text with the row names (52px). */
     .srch-row {
-      display: flex; align-items: center; gap: 12px;
+      display: flex; align-items: center; gap: 16px;
       height: 56px; padding: 0 12px 0 18px;
-      border-bottom: var(--bd-w) solid var(--line-hair);
     }
     .srch-icon { flex: none; color: var(--srch-ic); }
     .srch-input {
@@ -49,6 +50,9 @@
       display: flex; flex-direction: column;
       padding: 0 var(--space-xs) var(--space-xs);
       overflow-y: auto;
+      /* A light fade (12px, edge at 35%); keyboard scrolling keeps rows clear of it. */
+      --fade-scale: 0.5; --fade-floor: 0.35;
+      scroll-padding-block: 12px;
     }
     .srch-body.has-preview .srch-results-pane { flex: none; width: 300px; }
     .srch-sec {
@@ -142,10 +146,10 @@
       position: absolute; top: 6px; right: 12px; z-index: 2;
       width: 280px; padding: 4px;
       display: flex; flex-direction: column; gap: 2px;
-      border: var(--bd-w) solid var(--line-edge); border-radius: var(--r-lg);
+      border: var(--bd-w) solid var(--float-bd); border-radius: var(--r-lg);
       background: var(--glass-bg);
       -webkit-backdrop-filter: var(--glass-filter); backdrop-filter: var(--glass-filter);
-      box-shadow: var(--shadow-sm) var(--shadow-color);
+      box-shadow: var(--float-shadow);
     }
     .srch-mode-item {
       display: flex; align-items: center; gap: 12px;
@@ -162,10 +166,10 @@
     .srch-foot {
       display: flex; align-items: center; gap: 8px;
       height: 40px; padding: 0 12px 0 18px;
-      border-top: var(--bd-w) solid var(--line-hair);
       font-size: var(--text-xs); color: var(--muted); font-family: var(--font-ui);
     }
-    .srch-foot-ctx { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    /* No seam: the list's faded edge and this quieter line set the footer apart. */
+    .srch-foot-ctx { color: var(--muted-soft); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .srch-foot-acts { display: flex; align-items: center; gap: 10px; }
     .srch-foot-act { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
     .srch-foot-act.is-primary { color: var(--fg); }

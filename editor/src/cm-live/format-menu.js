@@ -46,9 +46,9 @@ function ensureStyles() {
   background: var(--glass-bg, #ffffff);
   -webkit-backdrop-filter: var(--glass-filter, none);
   backdrop-filter: var(--glass-filter, none);
-  border: var(--bd-w, 1px) solid var(--line-edge, rgba(23,24,27,0.16));
+  border: var(--bd-w, 1px) solid var(--float-bd, rgba(23,24,27,0.16));
   border-radius: var(--r-lg, 12px);
-  box-shadow: var(--shadow-sm, 0 4px 16px) var(--shadow-color, rgba(0,0,0,0.16));
+  box-shadow: var(--float-shadow, 0 4px 16px rgba(0,0,0,0.16));
   font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);
 }
 .cm-format-menu-row {
@@ -68,12 +68,7 @@ function ensureStyles() {
 .cm-format-menu-row:disabled { opacity: 0.4; cursor: default; }
 .cm-format-menu-row.is-active,
 .cm-format-menu-row.is-active:hover { color: var(--accent-text, #5e6ad2); background: var(--tint-soft, rgba(94,106,210,0.1)); }
-/* Inset to the rows' own text padding, not the menu's edge, so the line
-   reads as a quiet seam under the content rather than a bar spanning wider
-   than it — same rule and same --line-hair token as
-   .content-pane-more-divider (that div sits inside a panel that already has
-   its own border, so even --line-edge is too much weight here; same logic
-   applies to this popup). */
+/* Inset to the rows' text, like .content-pane-more-divider, so it reads as a seam under the content. */
 .cm-format-menu-sep { margin: 0.25rem 0.55rem; border-top: var(--bd-w, 1px) solid var(--line-hair, rgba(23,24,27,0.09)); }
 `;
   document.head.appendChild(style);

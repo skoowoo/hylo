@@ -109,9 +109,9 @@
       transform-origin: top;
       min-width: 190px; max-width: min(320px, 90vw); padding: 0.25rem;
       background: var(--glass-bg); -webkit-backdrop-filter: var(--glass-filter); backdrop-filter: var(--glass-filter);
-      border: var(--bd-w) solid var(--line-edge);
+      border: var(--bd-w) solid var(--float-bd);
       border-radius: var(--r-lg);
-      box-shadow: var(--shadow-sm) var(--shadow-color);
+      box-shadow: var(--float-shadow);
     }
     .content-pane-more-enter { transition: opacity var(--motion-base) var(--ease-out), transform var(--motion-base) var(--ease-out); }
     .content-pane-more-leave { transition: opacity var(--motion-fast) var(--ease-in), transform var(--motion-fast) var(--ease-in); }
@@ -266,9 +266,9 @@
       width: max-content !important;
       z-index: 20;
       background: var(--glass-bg); -webkit-backdrop-filter: var(--glass-filter); backdrop-filter: var(--glass-filter); color: var(--fg);
-      border: var(--bd-w) solid var(--line-edge);
+      border: var(--bd-w) solid var(--float-bd);
       border-radius: var(--r-md);
-      box-shadow: var(--shadow-sm) var(--shadow-color);
+      box-shadow: var(--float-shadow);
       overflow: hidden;
     }
     .hylo-search-panel {

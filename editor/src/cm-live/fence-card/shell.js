@@ -39,10 +39,10 @@ const CSS = `
 .hy-card-error{padding:12px;font-size:var(--text-xs,.75rem);color:var(--s-err,#dc2626)}
 .hy-card-full{position:fixed;inset:0;z-index:800;background:var(--lightbox-overlay-bg,rgba(0,0,0,.4));backdrop-filter:var(--glass-scrim-filter,blur(3px));-webkit-backdrop-filter:var(--glass-scrim-filter,blur(3px));-webkit-app-region:no-drag;transition:opacity var(--motion-base,160ms) ease}
 .hy-card-full.hy-card-full-hidden{opacity:0}
-.hy-card-full>.hy-card{--full-w:min(1400px,100vw - 4rem);position:absolute;top:2rem;left:round(down,(100vw - var(--full-w))/2,1px);width:var(--full-w);height:calc(100vh - 4rem);margin:0;border-radius:var(--r-xl,16px);background:var(--surface-soft,#f2f2f4);box-shadow:var(--shadow-lg,0 14px 34px) var(--shadow-color,rgba(15,15,25,.1))}
+.hy-card-full>.hy-card{--full-w:min(1400px,100vw - 4rem);position:absolute;top:2rem;left:round(down,(100vw - var(--full-w))/2,1px);width:var(--full-w);height:calc(100vh - 4rem);margin:0;border-radius:var(--r-xl,16px);background:var(--surface-soft,#f2f2f4);box-shadow:var(--float-shadow-lg,0 14px 34px rgba(15,15,25,.1))}
 .hy-card-full .hy-card-body{height:100%!important}
 .hy-card-full .hy-card-bar{opacity:1;top:12px;right:12px}
-.hy-pip{position:absolute;z-index:20;display:flex;flex-direction:column;min-width:240px;min-height:160px;background:var(--surface-soft,#f2f2f4);border:1px solid var(--line-edge,rgba(23,24,27,.16));border-radius:var(--r-lg,12px);box-shadow:var(--shadow-md,0 5px 14px) var(--shadow-color,rgba(15,15,25,.1));overflow:hidden}
+.hy-pip{position:absolute;z-index:20;display:flex;flex-direction:column;min-width:240px;min-height:160px;background:var(--surface-soft,#f2f2f4);border:1px solid var(--float-bd,rgba(23,24,27,.16));border-radius:var(--r-lg,12px);box-shadow:var(--float-shadow,0 5px 14px rgba(15,15,25,.1));overflow:hidden}
 .hy-pip-head{flex:none;display:flex;align-items:center;justify-content:space-between;gap:var(--space-xs,8px);height:32px;padding:0 4px 0 var(--space-sm,12px);font:var(--fw-medium,500) var(--text-xs,.75rem)/1 var(--font-ui,system-ui,sans-serif);color:var(--muted,#696b75);cursor:grab;user-select:none;touch-action:none}
 .hy-pip-head:active{cursor:grabbing}
 .hy-pip-sep{flex:none;height:1px;background:var(--line-hair,rgba(23,24,27,.09))}

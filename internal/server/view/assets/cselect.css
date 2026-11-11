@@ -26,9 +26,9 @@
 .cselect-dropdown {
   position: absolute; top: calc(100% + 3px); left: 0; right: 0; z-index: 120;
   background: var(--glass-bg); -webkit-backdrop-filter: var(--glass-filter); backdrop-filter: var(--glass-filter);
-  border: var(--bd-w) solid var(--line-edge);
+  border: var(--bd-w) solid var(--float-bd);
   border-radius: var(--r-lg);
-  box-shadow: var(--shadow-sm) var(--shadow-color);
+  box-shadow: var(--float-shadow);
   overflow: hidden;
   max-height: 220px; overflow-y: auto;
   /* Inset padding — matches the content-pane more menu's recipe

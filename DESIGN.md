@@ -220,7 +220,7 @@ components:
 
 Hylo's UI runs on a deep graphite canvas (`{colors.bg-dark}` #18191e) with soft-white ink (`{colors.fg-dark}` #f2f3f6) and a single chromatic accent, lavender-blue (`{colors.accent}` #5e6ad2). The accent is scarce by design: primary actions, focus rings, list/tab selected-state text, and link emphasis — never a section background or card fill.
 
-Depth is carried almost entirely by a **surface ladder** (`--bg` → `--surface-soft` → `--surface-2`) plus 1px hairline borders, not box-shadow. The one deliberate exception is a small set of floating layers — confirm/info dialogs, the settings modal, the search overlay, drawer popovers — which opt into a restrained lift-off shadow (`--shadow-{xs,sm,md,lg}` paired with `--shadow-color`) so a card reads as "off the surface" rather than a flat bordered rectangle. Everything else stays flat.
+Depth is carried almost entirely by a **surface ladder** (`--bg` → `--surface-soft` → `--surface-2`) plus 1px hairline borders, not box-shadow. The one deliberate exception is a small set of floating layers — menus, popovers, the composer, dialogs, the settings modal, the search overlay — which opt into the float tokens (`--float-bd` + `--float-shadow{,-lg}`, see level 5 below) so a card reads as "off the surface" rather than a flat bordered rectangle. Everything else stays flat.
 
 Inter carries every weight of text, from modal titles down to 10px meta labels — there is no separate display/body family split; the type scale is tuned for a dense, chrome-heavy product (notes list, agent chat, graph, image grid) rather than a marketing page, so it tops out around 22px rather than a hero-sized display cut. JetBrains Mono covers code blocks and inline code.
 
@@ -328,9 +328,9 @@ The dark canvas IS the whitespace — sections separate by lifting onto `--surfa
 | 2 (surface-2 lift)       | `--surface-2` background                                   | Selected tabs/rows, active states                                                                       |
 | 3 (hairline)             | 1px `--border` / `--border-strong`                         | Card outlines, dividers, input outlines                                                                 |
 | 4 (focus ring)           | 2px `--accent-focus` outline at 50% opacity, 1px offset    | Focused input, focused button — the only glow-like effect in the system                                 |
-| 5 (float shadow, opt-in) | `box-shadow: var(--shadow-{sm,md,lg}) var(--shadow-color)` | Confirm/info dialogs (`lg`), settings modal (`lg`), search overlay panel (`lg`), drawer popovers (`sm`) |
+| 5 (float, opt-in)        | `border: var(--bd-w) solid var(--float-bd)` + `box-shadow: var(--float-shadow{,-lg})` | Menus, dropdowns, popovers, composer; dialogs, settings modal, search overlay panel (`-lg`) |
 
-Everything that doesn't explicitly opt into level 5 stays flat, matching the surface-ladder-only depth model. `--shadow-color` is the one actual shadow color per theme (`rgba(0,0,0,0.55)` dark, `rgba(15,15,25,0.10)` light); `--shadow-xs/sm/md/lg` only ever supply offset/blur shape.
+Everything that doesn't explicitly opt into level 5 stays flat, matching the surface-ladder-only depth model. Level 5 draws its edge differently per theme: on dark a shadow barely shows, so `--float-bd` is the lit `--line-edge` line over `--shadow-sm/lg`; on light `--float-bd` is transparent and a two-layer shadow (a tight contact shadow plus a wide soft one) draws the edge, since a dark line over glass muddies with whatever is behind it. `--line-edge` stays for inputs and controls.
 
 ### Decorative Depth
 - No atmospheric gradients, no spotlight cards, no product-screenshot hero treatment — this is an app UI, not a marketing canvas.
@@ -386,19 +386,19 @@ Nothing else is rounded by default: a box that only clips or scrolls, a divider,
 ### Dialogs & Overlays
 
 **`dialog-card`** (confirm/info dialogs) — Centered floating card over a blurred, dimmed scrim.
-- Background `--bg`, 1px `--border-strong` border, rounded `{rounded.xl}`, padding 24px/24px/20px, `--shadow-lg` lift. Title at `{typography.body}` weight 600; message at `{typography.small}`, `--muted`.
+- Background `--bg`, `--float-bd` edge, rounded `{rounded.xl}`, padding 24px/24px/20px, `--float-shadow-lg` lift. Title at `{typography.body}` weight 600; message at `{typography.small}`, `--muted`.
 
 **`drawer-panel`** — Edge-docked slide-in panel (note editor, agent chat side panel).
 - Background `--bg`, left border only, no radius (flush to 3 viewport edges), 80vw wide (100vw when expanded). Slides in via transform + opacity, not a fade alone, so it reads as spatial motion.
 
 **`search-panel`** — The command/search overlay.
-- A launcher window of one fixed size: a 56px input row (`--text-lg`), a 400px list area, a 40px footer, hairlines between them. Empty, no-result and preview states swap inside the list area; the frame never resizes.
-- Glass: `--glass-bg` with `--glass-filter`, 1px `--border-strong`, rounded `{rounded.lg}`, `--shadow-lg`. No scrim: the app stays visible and undimmed; a click outside closes. Opens and closes with an 80ms opacity fade only, on the panel itself.
+- A launcher window of one fixed size: a 56px input row (`--text-lg`), a 400px list area, a 40px footer, with no seams between them: the list's edges fade (`.edge-fade`) and the footer's scope text is `--muted-soft`. The search icon lines up with the row tiles and section labels, the typed text with the row names. Empty, no-result and preview states swap inside the list area; the frame never resizes.
+- Glass: `--glass-bg` with `--glass-filter`, `--float-bd` edge, rounded `{rounded.lg}`, `--float-shadow-lg`. No scrim: the app stays visible and undimmed; a click outside closes. Opens and closes with an 80ms opacity fade only, on the panel itself.
 - Rows are 40px: a 24px icon tile (`--btn-bg`, `--bg` when active), the name, the folder in `--sr-dir`, and on the right the type and list timestamp in `--muted`. The active row is an `--srch-av` ink wash. A small label heads each source: an empty query lists `Open tabs` then `Bots`; a query lists up to three name-matched `Bots` above `Notes · N`. Bot rows carry the sidebar avatar in the tile, the description, and unread count in `--accent-text`; ↵ opens that bot's chat, and the preview is its card. Bots appear only in the All scope. Beside the preview, rows show the name only.
 - The scope is a filter button at the input's right (accent tint when narrowed); its menu floats over the list rather than replacing it, and `/` opens it. The footer names the scope on the left and what ↵ and tab do on the right.
 - Search runs on every keystroke with no debounce; each request aborts the last.
 
-**`settings-modal`** — Same floating-card family as dialogs: `--bg`, `--border-strong`, rounded `{rounded.xl}`, `--shadow-lg`.
+**`settings-modal`** — Same floating-card family as dialogs: `--bg`, `--float-bd`, rounded `{rounded.xl}`, `--float-shadow-lg`.
 
 ### Sections
 

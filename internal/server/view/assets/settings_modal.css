@@ -14,9 +14,9 @@
       top: round(down, (100vh - var(--panel-h)) / 2, 1px);
       width: var(--panel-w); height: var(--panel-h);
       background: var(--bg);
-      border: var(--bd-w) solid var(--line-edge);
+      border: var(--bd-w) solid var(--float-bd);
       border-radius: var(--r-xl);
-      box-shadow: var(--shadow-lg) var(--shadow-color);
+      box-shadow: var(--float-shadow-lg);
       display: flex; overflow: hidden;
     }
     /* x-trap's initial focus lands here, not on the first nav row, so opening shows no ring. */
@@ -80,7 +80,8 @@
     .settings-foot {
       flex-shrink: 0; display: flex; align-items: center; gap: var(--space-xs);
       padding: var(--space-sm) 0; padding-inline: var(--settings-inline);
-      border-top: var(--bd-w) solid var(--line-hair);
+      /* Spans the column, not the panel: on light the panel has no border to meet. */
+      background: linear-gradient(var(--line-hair), var(--line-hair)) 0 calc(-1 * var(--space-sm)) / 100% var(--bd-w) no-repeat content-box border-box;
     }
     .settings-foot-status {
       flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--space-sm);

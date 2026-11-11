@@ -942,9 +942,9 @@
       background: var(--glass-bg);
       -webkit-backdrop-filter: var(--glass-filter);
       backdrop-filter: var(--glass-filter);
-      border: var(--bd-w) solid var(--line-edge);
+      border: var(--bd-w) solid var(--float-bd);
       border-radius: var(--r-xl);
-      box-shadow: var(--shadow-sm) var(--shadow-color);
+      box-shadow: var(--float-shadow);
       overflow: hidden; /* clips the scrollable list to the panel's rounded corners */
       z-index: 200;
     }
@@ -1028,7 +1028,8 @@
       font-family: var(--font-mono);
       font-style: italic;
       color: var(--muted);
-      border-top: var(--bd-w) solid var(--line-hair);
+      /* Inset to the text, not the panel edge: on light the panel has no border for a full-width line to meet. */
+      background: linear-gradient(var(--line-hair), var(--line-hair)) 0 -0.4rem / 100% var(--bd-w) no-repeat content-box border-box;
     }
 
     /* One-click context above the composer: the selection in the open note. */
@@ -1084,10 +1085,10 @@
       align-items: stretch;
       background: var(--glass-bg);
       -webkit-backdrop-filter: var(--glass-filter); backdrop-filter: var(--glass-filter);
-      border: var(--bd-w) solid var(--line-edge);
+      border: var(--bd-w) solid var(--float-bd);
       border-radius: calc(var(--btn-h) / 2 + var(--composer-pad) + var(--bd-w));
       padding: var(--composer-pad);
-      box-shadow: var(--shadow-sm) var(--shadow-color);
+      box-shadow: var(--float-shadow);
     }
 
     .chat-input-row {

@@ -122,8 +122,8 @@
       display: flex;
       overflow: hidden;
       background: var(--surface-soft);
-      border: var(--bd-w) solid var(--line-edge);
-      box-shadow: var(--shadow-lg) var(--shadow-color);
+      border: var(--bd-w) solid var(--float-bd);
+      box-shadow: var(--float-shadow-lg);
       border-radius: var(--r-xl);
       transition: transform var(--motion-slow) ease;
       user-select: none;
