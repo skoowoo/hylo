@@ -24,7 +24,7 @@ LDFLAGS := -s -w \
   -X $(MODULE)/internal/build.Commit=$(COMMIT) \
   -X $(MODULE)/internal/build.BuildDate=$(BUILD_DATE)
 
-.PHONY: build test test-js icons editor desktop-ui dist-all dist-clean dist-cli-snapshot dist-cli-linux dist-docker dist-clip dist-dmg dist-checksum help
+.PHONY: build test test-js icons editor desktop-ui dist-all dist-clean dist-cli-snapshot dist-cli-linux dist-docker dist-clip dist-dmg dist-notarize dist-checksum help
 
 ## build: compile the binary into ./bin/hylo
 build:
@@ -91,15 +91,28 @@ dist-dmg: dist-cli-snapshot
 	@TAR_GZ=$$(find dist -maxdepth 1 -name "hylo_$$(go env GOOS)_$$(go env GOARCH).tar.gz" | head -1); \
 	  test -n "$$TAR_GZ" || (echo "Error: dist/hylo_$$(go env GOOS)_$$(go env GOARCH).tar.gz not found"; exit 1); \
 	  echo "==> Bundling $$TAR_GZ into Hylo.app..."; \
-	  cp "$$TAR_GZ" desktop-tauri/bundled/hylo.tar.gz
+	  cp "$$TAR_GZ" desktop-tauri/bundled/hylo.tar.gz; \
+	  bash desktop-tauri/scripts/notarize-dmg.sh sign-archive desktop-tauri/bundled/hylo.tar.gz
 	@IDENTITY=$$(sh desktop-tauri/scripts/signing-identity.sh); \
-	  echo "==> Signing with $$IDENTITY; notarization is not configured"; \
-	  cd desktop-tauri && APPLE_SIGNING_IDENTITY="$$IDENTITY" npm install && APPLE_SIGNING_IDENTITY="$$IDENTITY" npm run build -- --bundles dmg --config src-tauri/tauri.dist.macos.json
+	  echo "==> Signing with $$IDENTITY"; \
+	  cd desktop-tauri && APPLE_SIGNING_IDENTITY="$$IDENTITY" npm install && \
+	  env -u APPLE_ID -u APPLE_PASSWORD -u APPLE_TEAM_ID \
+	      -u APPLE_API_KEY -u APPLE_API_ISSUER -u APPLE_API_KEY_PATH \
+	      APPLE_SIGNING_IDENTITY="$$IDENTITY" \
+	      npm run build -- --bundles dmg --config src-tauri/tauri.dist.macos.json
 	@VER=$$(node -p "require('./desktop-tauri/src-tauri/tauri.conf.json').version"); \
 	  DMG=$$(find desktop-tauri/src-tauri/target/release/bundle/dmg -name '*.dmg' | head -1); \
 	  test -n "$$DMG" || (echo "Error: Tauri DMG not found"; exit 1); \
-	  cp "$$DMG" "dist/Hylo-$$VER.dmg"
+	  cp "$$DMG" "dist/Hylo-$$VER.dmg"; \
+	  bash desktop-tauri/scripts/notarize-dmg.sh "dist/Hylo-$$VER.dmg"
 	@rm -rf desktop-tauri/bundled
+
+## dist-notarize: sign the CLI inside dist/Hylo-*.dmg if needed, then notarize and staple
+dist-notarize:
+	@set -- dist/Hylo-*.dmg; \
+	  test -f "$$1" || (echo "Error: dist/Hylo-*.dmg not found"; exit 1); \
+	  if [ -n "$${2:-}" ]; then echo "Error: more than one DMG in dist/"; exit 1; fi; \
+	  bash desktop-tauri/scripts/notarize-dmg.sh "$$1"
 
 ## dist-checksum: generate SHA-256 checksums for all dist artifacts into dist/checksums.txt
 dist-checksum:

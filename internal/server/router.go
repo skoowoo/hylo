@@ -116,6 +116,8 @@ func newRouter(
 		mux.HandleFunc("POST /api/agenda/{id}/done", ah.AgendaDonePOST)
 		mux.HandleFunc("GET /api/mates/{id}/chat", ch.BotChatGET)
 		mux.HandleFunc("GET /api/activity", handler.NewActivityAPI(mateStore).ActivityGET)
+		mux.HandleFunc("GET /api/activity/days", vh.ActivityDaysJSON)
+		mux.HandleFunc("GET /api/activity/day", vh.ActivityDayNotesJSON)
 		dh := handler.NewDesktopAPI(desk)
 		mux.HandleFunc("POST /api/desktop/presence", dh.PresencePOST)
 		mux.HandleFunc("GET /api/desktop/screen-time", dh.ScreenTimeGET)

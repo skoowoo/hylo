@@ -1,6 +1,7 @@
 package view
 
 import (
+	"encoding/json"
 	"net/http/httptest"
 	"slices"
 	"strings"
@@ -145,5 +146,95 @@ func TestActivityShareSplitsScoreAndFoldsOthers(t *testing.T) {
 	}
 	if tiny := activityShareRows([]mate.ActivityDay{{Date: today, User: mate.ActivityCount{Write: 100}, ByBot: map[string]mate.ActivityCount{"a": {Read: 1}}}}, today, names); tiny[1].Pct != 1 {
 		t.Errorf("a sliver shows %d%%, want 1%%", tiny[1].Pct)
+	}
+}
+
+// activityFixture: one bot wrote and read /a.md and wrote memory today; the user read /a.md.
+func activityFixture(t *testing.T) (*ViewHandler, string, time.Time) {
+	t.Helper()
+	v, err := storage.New(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range []storage.Path{"/a.md", "/_memory/_state.md"} {
+		if err := v.WriteNote(p, []byte("x"), ""); err != nil {
+			t.Fatal(err)
+		}
+	}
+	ms, err := mate.Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = ms.Close() })
+	bot := &mate.Mate{Name: "Mate", Enabled: true}
+	if err := ms.CreateMate(bot); err != nil {
+		t.Fatal(err)
+	}
+	conv, _ := ms.CreateConversation(bot.ID)
+	msg, err := ms.InsertMessage(mate.Message{ConversationID: conv.ID, Role: "assistant", MateID: bot.ID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := localMidnight(time.Now()).Add(12 * time.Hour)
+	if err := ms.InsertMessageNoteAccess(msg.ID, []mate.NoteAccessEntry{
+		{Path: "/a.md", Action: mate.NoteAccessRead, At: now.Add(-time.Minute)},
+		{Path: "/a.md", Action: mate.NoteAccessWrite, At: now.Add(-2 * time.Minute)},
+		{Path: "/_memory/_state.md", Action: mate.NoteAccessWrite, At: now.Add(-time.Minute)},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := ms.RecordUserVisit("/a.md", mate.NoteAccessRead, now); err != nil {
+		t.Fatal(err)
+	}
+	vh := NewView(v, nil, nil)
+	vh.SetMates(ms)
+	return vh, bot.ID, now
+}
+
+func TestActivityDaysJSONCountsLikeTheMap(t *testing.T) {
+	vh, botID, now := activityFixture(t)
+	rec := httptest.NewRecorder()
+	vh.ActivityDaysJSON(rec, httptest.NewRequest("GET", "/api/activity/days", nil))
+	var got struct {
+		From, Today string
+		Days        []activityDayJSON
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatal(err, rec.Body.String())
+	}
+	if len(got.Days) != 1 || got.Today != now.Format(time.DateOnly) || got.From == "" {
+		t.Fatalf("days = %+v", got)
+	}
+	d := got.Days[0]
+	// One note: the bot wrote it (strongest action), the user read it; memory isn't the user's note.
+	if d.All != (activityCountJSON{Write: 1}) || d.User != (activityCountJSON{Read: 1}) || d.Bots != (activityCountJSON{Write: 1}) {
+		t.Fatalf("counts = %+v", d)
+	}
+	if d.ByBot[botID] != (activityCountJSON{Write: 1}) || d.Levels != [3]int{1, 1, 1} {
+		t.Fatalf("byBot/levels = %+v %v", d.ByBot, d.Levels)
+	}
+}
+
+func TestActivityDayNotesJSONListsWhoTouchedEachNote(t *testing.T) {
+	vh, botID, now := activityFixture(t)
+	get := func(q string) (int, []activityTouchJSON) {
+		rec := httptest.NewRecorder()
+		vh.ActivityDayNotesJSON(rec, httptest.NewRequest("GET", "/api/activity/day?"+q, nil))
+		var out struct{ Notes []activityTouchJSON }
+		_ = json.Unmarshal(rec.Body.Bytes(), &out)
+		return rec.Code, out.Notes
+	}
+	code, notes := get("date=" + now.Format(time.DateOnly))
+	if code != 200 || len(notes) != 1 {
+		t.Fatalf("%d %+v", code, notes)
+	}
+	if n := notes[0]; n.Path != "/a.md" || n.Title != "a" || n.User != "read" || n.Bots[botID] != "write" {
+		t.Fatalf("note = %+v", n)
+	}
+	if code, notes := get("date=" + now.AddDate(0, 0, -1).Format(time.DateOnly)); code != 200 || len(notes) != 0 {
+		t.Fatalf("a quiet day = %d %+v", code, notes)
+	}
+	if code, _ := get("date=yesterday"); code != 400 {
+		t.Fatalf("bad date = %d", code)
 	}
 }

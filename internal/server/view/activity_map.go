@@ -1,7 +1,9 @@
 package view
 
 import (
+	"encoding/json"
 	"fmt"
+	"net/http"
 	"net/url"
 	"slices"
 	"strings"
@@ -85,13 +87,7 @@ func (vh *ViewHandler) activityData(today time.Time) (map[time.Time]map[string]*
 
 func (vh *ViewHandler) buildActivityMap(byDay map[time.Time]map[string]*mate.NoteDay, from, today, selected time.Time, names map[string]string) activityMap {
 	days := mate.ActivityDays(byDay, from, today)
-	scores := [3][]int{}
-	for _, d := range days {
-		scores[0] = append(scores[0], activityScore(d.All))
-		scores[1] = append(scores[1], activityScore(d.User))
-		scores[2] = append(scores[2], activityScore(d.Bots))
-	}
-	levels := [3][]int{activityLevels(scores[0]), activityLevels(scores[1]), activityLevels(scores[2])}
+	scores, levels := activityDayLevels(days)
 
 	var m activityMap
 	var week *activityWeek
@@ -122,6 +118,115 @@ func (vh *ViewHandler) buildActivityMap(byDay map[time.Time]map[string]*mate.Not
 	m.Summary = vh.activitySummary(scores, today)
 	m.Share = activityShareRows(days, today.AddDate(0, 0, 1-activityShareDays), names)
 	return m
+}
+
+// activityDayLevels scores each day for all, the user and bots, and steps the scores into levels.
+func activityDayLevels(days []mate.ActivityDay) (scores, levels [3][]int) {
+	for _, d := range days {
+		scores[0] = append(scores[0], activityScore(d.All))
+		scores[1] = append(scores[1], activityScore(d.User))
+		scores[2] = append(scores[2], activityScore(d.Bots))
+	}
+	for i := range scores {
+		levels[i] = activityLevels(scores[i])
+	}
+	return scores, levels
+}
+
+type activityCountJSON struct {
+	Read  int `json:"read"`
+	Write int `json:"write"`
+}
+
+type activityDayJSON struct {
+	Date   string                       `json:"date"`
+	Levels [3]int                       `json:"levels"` // all, user, bots: 0–4
+	All    activityCountJSON            `json:"all"`
+	User   activityCountJSON            `json:"user"`
+	Bots   activityCountJSON            `json:"bots"`
+	ByBot  map[string]activityCountJSON `json:"byBot,omitempty"`
+}
+
+// ActivityDaysJSON handles GET /api/activity/days: the Activity map's year as
+// data, for clients that draw it themselves. Counted as the map counts (notes
+// that still exist, each at its strongest action); quiet days are left out.
+func (vh *ViewHandler) ActivityDaysJSON(w http.ResponseWriter, r *http.Request) {
+	if vh.mates == nil {
+		http.Error(w, "activity unavailable", http.StatusNotFound)
+		return
+	}
+	today := localMidnight(time.Now())
+	byDay, _, from, err := vh.activityData(today)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	days := mate.ActivityDays(byDay, from, today)
+	_, levels := activityDayLevels(days)
+	count := func(c mate.ActivityCount) activityCountJSON { return activityCountJSON{c.Read, c.Write} }
+	out := []activityDayJSON{}
+	for i, d := range days {
+		if d.All.Total() == 0 {
+			continue
+		}
+		day := activityDayJSON{
+			Date:   d.Date.Format(time.DateOnly),
+			Levels: [3]int{levels[0][i], levels[1][i], levels[2][i]},
+			All:    count(d.All), User: count(d.User), Bots: count(d.Bots),
+		}
+		if len(d.ByBot) > 0 {
+			day.ByBot = map[string]activityCountJSON{}
+			for id, c := range d.ByBot {
+				day.ByBot[id] = count(c)
+			}
+		}
+		out = append(out, day)
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"from":  from.Format(time.DateOnly),
+		"today": today.Format(time.DateOnly),
+		"days":  out,
+	})
+}
+
+type activityTouchJSON struct {
+	Path  string            `json:"path"`
+	Title string            `json:"title"`
+	Last  time.Time         `json:"last"`
+	User  string            `json:"user,omitempty"` // write | read
+	Bots  map[string]string `json:"bots,omitempty"` // bot id → write | read
+}
+
+// ActivityDayNotesJSON handles GET /api/activity/day?date=YYYY-MM-DD: the notes
+// touched that day and by whom, most recent first — the list the Activity
+// section shows when a day on its map is picked.
+func (vh *ViewHandler) ActivityDayNotesJSON(w http.ResponseWriter, r *http.Request) {
+	if vh.mates == nil {
+		http.Error(w, "activity unavailable", http.StatusNotFound)
+		return
+	}
+	day, err := time.ParseInLocation(time.DateOnly, r.URL.Query().Get("date"), time.Local)
+	if err != nil {
+		http.Error(w, "date: want YYYY-MM-DD", http.StatusBadRequest)
+		return
+	}
+	byDay, notes, _, err := vh.activityData(localMidnight(time.Now()))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	out := []activityTouchJSON{}
+	for _, t := range mate.NotesOn(byDay, day) {
+		n := notes[t.Path]
+		title := n.Title
+		if title == "" {
+			title = strings.TrimSuffix(n.Name, ".md")
+		}
+		out = append(out, activityTouchJSON{Path: t.Path, Title: title, Last: t.Last, User: t.User, Bots: t.ByBot})
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{"date": day.Format(time.DateOnly), "notes": out})
 }
 
 func activityLevels(scores []int) []int {

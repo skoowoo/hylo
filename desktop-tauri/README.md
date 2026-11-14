@@ -18,7 +18,7 @@ npm run dev
 
 开发构建不带 CLI 安装包。发布用仓库根目录的 `make dist-dmg`，它会把当前平台的 `hylo` 归档打进 `Hylo.app/Contents/Resources/cli/hylo.tar.gz`，并把 DMG 复制成 `dist/Hylo-<version>.dmg`。
 
-签名和原来的 Electron 包一样：从钥匙串里取 `Developer ID Application`（没有就退回 ad-hoc），hardened runtime，entitlements 用 electron-builder 那份默认项，签 `.app` 和 DMG。没有公证凭据，不会走公证。
+签名从钥匙串里取 `Developer ID Application`（没有就退回 ad-hoc），hardened runtime，entitlements 用 electron-builder 那份默认项，签 `.app` 和 DMG。归档打进 App 之前，`desktop-tauri/scripts/notarize-dmg.sh sign-archive` 会用同一张证书给里面的 `hylo` 签上 hardened runtime 和 secure timestamp。公证服务会拆开这个 tar.gz，未签名的 CLI 会让整个 DMG 被拒。DMG 打完后同一个脚本提交公证并 staple。凭据用钥匙串里的 `hylo-notary`（`NOTARY_KEYCHAIN_PROFILE` 可改），或者 `APPLE_ID`、`APPLE_PASSWORD`、`APPLE_TEAM_ID`。打包时会清掉这组变量，避免 Tauri 先去公证 `.app`。已经打好的包用 `make dist-notarize`。
 
 ## 这一版有什么
 
