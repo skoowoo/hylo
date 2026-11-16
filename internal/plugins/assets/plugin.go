@@ -80,6 +80,33 @@ func (p *Plugin) Stop() error {
 	return nil
 }
 
+// BackfillCovers runs after image registration so local and cached remote refs resolve.
+func (p *Plugin) BackfillCovers(ctx context.Context) error {
+	notes, err := p.vault.ListAllNotes(storage.ListOptions{ExcludeKinds: []storage.Kind{storage.KindShort}})
+	if err != nil {
+		return err
+	}
+	for _, note := range notes {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		if strings.HasPrefix(note.PathString(), storage.AssetsDir+"/") {
+			continue
+		}
+		raw, err := p.vault.ReadNote(note.Path())
+		if err != nil {
+			return fmt.Errorf("read %s: %w", note.Path(), err)
+		}
+		if util.IsShortNote(raw) {
+			continue
+		}
+		if err := p.extractCover(note.Path(), note.PathString(), raw, true); err != nil {
+			return fmt.Errorf("cover %s: %w", note.Path(), err)
+		}
+	}
+	return nil
+}
+
 func (p *Plugin) handle(e plugin.Event) {
 	if e.Type == plugin.EventVaultImage || e.Type == plugin.EventFSImage {
 		p.handleImage(e.Path)
@@ -171,7 +198,7 @@ func (p *Plugin) extractBodyImages(sp storage.Path, pathStr string, raw []byte) 
 
 // extractCover picks the note's cover; without fetch, remote candidates count
 // only if already downloaded.
-func (p *Plugin) extractCover(sp storage.Path, pathStr string, raw []byte, fetch bool) {
+func (p *Plugin) extractCover(sp storage.Path, pathStr string, raw []byte, fetch bool) error {
 	var cover []storage.NoteAsset
 	for _, src := range parseCoverSources(raw) {
 		filename, sourceURL, ok := p.resolveCover(pathStr, src, fetch)
@@ -188,11 +215,12 @@ func (p *Plugin) extractCover(sp storage.Path, pathStr string, raw []byte, fetch
 
 	if err := p.vault.ReplaceNoteAssets(sp, storage.AssetKindCover, cover); err != nil {
 		p.logger.Warn("assets: set cover failed", "path", pathStr, "err", err)
-		return
+		return err
 	}
 	if len(cover) > 0 {
 		p.logger.Info("assets: cover saved", "path", pathStr, "cover", cover[0].Filename)
 	}
+	return nil
 }
 
 // resolveCover turns a candidate into a servable image filename. Local refs

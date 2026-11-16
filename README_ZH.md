@@ -52,6 +52,8 @@ Hylo 是一个自带 Personal AI 的笔记软件。你写笔记，AI 把笔记�
 
 在 **Settings → Server → Config → Vault** 里选中 vault 目录并保存。Hylo 会自动初始化，在目录里加一个 `.hylo/` 文件夹并为笔记建好索引，vault 里的其他内容不动，Obsidian 照常使用。
 
+也可以用 `hylo init [目录]`，通过 `--image`、`--graph`、`--index`、`--preview` 单独初始化功能，加 `--force` 重建。参见 [Vault 初始化与重建](./docs/vault-init.md)。
+
 ## 使用前须知
 
 - **目录保持扁平**：一层分类目录最好用。

@@ -402,7 +402,7 @@ func (g *Vault) BackfillKnowledgeLinks() error {
 // registered in the metadata DB, reading each one's content fresh from disk.
 // Unlike ScanAndRegisterFull, it only touches the preview column — kind,
 // tags, knowledge deps, and the search index are all left exactly as they
-// are. Used by `hylo init --preview-only` to backfill a vault that predates
+// are. Used by `hylo init --preview --force` to backfill a vault that predates
 // the preview feature (or one last registered by a version of
 // ScanAndRegisterFull that didn't compute it), without redoing the rest of a
 // full rescan. A note whose file can't be read (permissions, removed

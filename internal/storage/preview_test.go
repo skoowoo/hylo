@@ -245,7 +245,7 @@ func TestScanAndRegisterFullSkipsUnreadableFile(t *testing.T) {
 	}
 }
 
-// TestBackfillPreviewsRecomputesFromDisk covers `hylo init --preview-only`:
+// TestBackfillPreviewsRecomputesFromDisk covers `hylo init --preview --force`:
 // a note whose preview column is stale/empty (as any note registered before
 // the preview feature existed would be) gets it recomputed from the file
 // already sitting on disk.
