@@ -42,19 +42,11 @@ Plus `list {"path": "<path>", "latest": <scan_window>}` per extra path. If every
 | **state** | `_state.md` | Near-term mood, struggles, what's top of mind |
 | **voice** | `_voice.md` | How they write: habits of expression and writing rules they state ("no em dashes") |
 
-**Short notes** (`content` comes inline): the author's own words. All seven dimensions.
+Check authorship for every source, including short notes and extra paths. Skip uncertain attributions, tests, demo text, quotes and AI drafts; don't store them as “疑似”. Explicit user statements about the test environment or interaction preferences still qualify.
 
-**Voice comes only from short notes**: they're typed as is, while units are rewritten by compiling and other notes may be clipped. Learn it from how the shorts are written, not just what they say: sentence length, punctuation, tone, word choice, mixing languages, how a thought opens and ends. Write each item as a rule a writer can follow ("短句，很少用连接词", "中英混写，术语保留英文"). A habit seen in one short note isn't voice yet.
-
-**Knowledge units** (`knowledge_read` each): sort by `perspective`. Without one, judge from `source_notes`; a path under the author's own project (from the profile) is their own.
-
-- `own`, or no `source_notes` at all: every dimension but voice.
-- `external`, what they read or heard: no beliefs (the view is its source's), no people (guests and case-study figures aren't relationships). Only preferences, synthesized below.
-- `mixed`: both. Its title and tags join the external pool; other dimensions only from what it attributes to the author's own sources.
-
-**Preferences from external units**, after reading them all: pool their titles and tags, cluster by overlap, and write one item per cluster of two or more, as a trait, not a reading log. `[indie-dev, startup]`, `[ai, startup]`, `[ai, llm]` → `对 AI 驱动的独立技术创业有持续投入，偏工程实践侧`. Drop single-unit clusters.
-
-**Extra paths**: the author's own notes. Every dimension but voice.
+- **Short notes**: confirmed original writing can inform all seven dimensions. Learn voice only from repeated habits in these notes or explicit writing preferences, not from compiled prose. Record usable rules such as “短句，很少用连接词”.
+- **Knowledge units**: read each and check `perspective` against `source_notes`. Original writing can inform all dimensions except voice. External material can support only narrow interests evidenced by explicit statements or repeated independent choices; several units from one article count once. It does not establish endorsement or experience. Mixed units require attributing each claim separately.
+- **Extra paths**: confirmed original writing can inform every dimension except voice.
 
 ## Step 4 — Update the files
 
@@ -87,7 +79,7 @@ Rules, in order:
 
 ## Step 5 — Summary
 
-Run mode and window; items processed per source; files updated; counts added / refreshed / faded / deleted; deleted items by name, so the user can check.
+Briefly describe meaningful changes, naming corrected or removed facts. Give processing counts only when asked. An automatic run with nothing worth reporting returns exactly `[silent]`.
 
 ## Record one fact
 

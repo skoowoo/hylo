@@ -1,3 +1,4 @@
+import clipboard from '../../../internal/server/view/assets/clipboard.js';
 import { EditorView, ViewPlugin } from '@codemirror/view';
 import {
   toggleBold, toggleItalic, toggleStrikethrough, toggleInlineCode, insertLink,
@@ -108,9 +109,10 @@ function clipboardCommand(cmd) {
   return (view) => {
     const sel = view.state.selection.main;
     if (document.execCommand(cmd)) return true;
-    if (!navigator.clipboard) return false;
-    void navigator.clipboard.writeText(view.state.sliceDoc(sel.from, sel.to));
-    if (cmd === 'cut') view.dispatch({ changes: { from: sel.from, to: sel.to }, userEvent: 'delete.cut' });
+    const state = view.state;
+    clipboard.writeText(state.sliceDoc(sel.from, sel.to)).then(() => {
+      if (cmd === 'cut' && view.state.doc === state.doc) view.dispatch({ changes: { from: sel.from, to: sel.to }, userEvent: 'delete.cut' });
+    }).catch(() => {});
     return true;
   };
 }

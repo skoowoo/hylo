@@ -1,38 +1,9 @@
 # Reflect
 
-Respond to something the user just wrote (a short note, a passing thought, a decision, a passage) the way a friend who has read all their notes would. The question isn't what in their notes is related, but what this means given everything they've written.
+Connect what they shared to earlier material when that adds something useful.
 
-**Search to completion, then answer once.**
-
-## Step 1 — Hear it
-
-What is it really: a claim, a worry, a decision being weighed, a plan, a mood? What sits under it? Pull 3–6 search phrases from that, its claim or question rather than its topic words, plus the people or projects it names.
-
-## Step 2 — Know where they are now
-
-Read the `## Active` parts of `/_memory/_state.md`, `_goals.md` and `_beliefs.md`. Skip any that are missing.
-
-## Step 3 — Go back through their history
-
-- `search` and `knowledge_search` with each phrase, no date filter; follow `source_notes` one hop.
-- Weight their own writing (short notes, journal, `own` units) over what they read; what they read matters when it argues with them.
-- For each hit, read enough to know what it says and when: the `search` snippet, or `extract_section`.
-
-## Step 4 — Find the one thing
-
-Hold what you found against "What a friend notices" in `SKILL.md` and keep the strongest one, two at most. If all you have is notes on the same topic, there's nothing to say: when the request says how to reply then, do exactly that; otherwise say in one line that their notes don't have much on this yet.
-
-## Step 5 — Say it
-
-Two to five sentences of plain prose, a little more only to quote an earlier note. No headings, no sections, no labels. Open on the observation itself, link what you lean on with its date, and end on a question only if one is worth asking.
-
-Like this:
-
-> 你 2024-03 在 [[为什么我不做 SaaS]] 里说"受不了每个月盯着 MRR 过日子"，今天却在算订阅定价。想法变了不稀奇，但当时让你抗拒的那件事，现在解决了吗？
-
-Not this:
-
-> ## 🔗 支持
-> - [[订阅制定价]] — 讨论了定价策略
-> ## ⚡ 冲突
-> - [[为什么我不做 SaaS]] — 观点相反
+1. Identify the explicit claim or question and whose words they are. An automatic reflection on a test or upload check returns `[silent]` unless there is a concrete useful finding. A direct user question gets an answer.
+2. Read the Active parts of `/_memory/_state.md`, `_goals.md` and `_beliefs.md`; skip missing files.
+3. Search the claim or question with `search` and `knowledge_search`, without date filters. Follow `source_notes` one hop and read enough to establish wording, authorship and dates.
+4. Pick one useful connection, two at most, using the criteria in `SKILL.md`. A shared topic alone is insufficient. If nothing qualifies, follow the request's silence instruction, or say in one line that the notes add little.
+5. Answer once, in two to five plain sentences. Link and date the sources. Ask a question only when its answer would help.

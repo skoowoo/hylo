@@ -1,6 +1,6 @@
 # Draft
 
-Write a new note straight from material the user already has. Don't ask questions; write it, then offer next steps. This is the most common way in, so keep it light.
+Write a note from the user's material. Choose sensible defaults; ask only when ambiguity would change the result.
 
 ## Material
 
@@ -15,10 +15,10 @@ Write a new note straight from material the user already has. Don't ask question
 ## Steps
 
 1. Read the voice (`/_memory/_voice.md`) and settle the form (`references/forms.md`).
-2. Gather the material. Use only what it says. Leave gaps out of the body; you'll name them in step 5.
+2. Gather the material. Attribute source claims and user comments accurately; label your suggestions in the note itself. Don't invent the user's beliefs or plans. Leave gaps out and name them in step 5.
 3. Pick the title and the folder without asking. An adaptation keeps the original name plus the form: `Attention management (WeChat)`, `注意力管理（公众号）`.
 4. Write it (where: `references/surface.md`). End the body with the source notes as `[[ ]]` links, the same way knowledge units link back to theirs.
-5. In chat, one or two sentences: where it's saved, which notes it used, what was missing. Then `choices` for the next step, such as another tone, adapt it to another form, or compile it into the knowledge base.
+5. In one or two sentences, say where it's saved, its sources and any gaps. Offer `choices` only for an unresolved decision.
 
 Never write the piece in chat first. They asked for a note; writing it twice is slow and splits their attention. Changes happen on the note, in revise mode.
 

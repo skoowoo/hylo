@@ -68,6 +68,6 @@ Read the `## Active` items of `/_memory/_goals.md`. For each goal, find the doma
 1. Two to four sentences, each a finding with its numbers: the largest areas, the main sources and the split between their own writing and what they read, what's growing and what went quiet, and the gap between goals and knowledge. Link the units or notes you name.
 2. A `mindmap`: root `# My knowledge`, one `##` per domain labelled with its count (`## AI · 214`), mark the growing ones (`· growing`) and quiet ones (`· quiet`), and under each 3–5 of its units by title: for a growing domain, its recently updated units; otherwise, the first rows of its index. Show the largest 8–10 domains; fold the rest into `## Other · N`. Plain labels, no wikilinks.
 3. If the indexes were behind (Step 1), one line saying how many units aren't indexed yet and offering to index them.
-4. A `choices` block with 3–4 next steps in the user's language, such as: open up one domain (name the largest), what went quiet, how this lines up with my goals, index the missing units (only when they were behind).
+4. Only if a useful decision remains, offer a few concrete next steps as `choices` in the user's language, such as opening a domain or indexing missing units. A complete overview needs no menu.
 
 A pick of one domain: read its index and show its units grouped by type or tag, with the summaries. A pick of a quiet area or a unit: hand over to Find (a topic, or how a view changed over time). Index the missing units: use the `hylo-index-knowledge` skill.

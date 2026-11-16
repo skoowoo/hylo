@@ -1,3 +1,4 @@
+import clipboard from '../../../internal/server/view/assets/clipboard.js';
 import { WidgetType, EditorView } from '@codemirror/view';
 import { openImageViewer } from './image-viewer.js';
 import { imageNodeAt } from './image-nodes.js';
@@ -292,8 +293,7 @@ export class CodeHeaderWidget extends WidgetType {
     // Keep the caret where it is — clicking chrome shouldn't open the block for editing.
     btn.addEventListener('mousedown', (e) => e.preventDefault());
     btn.addEventListener('click', () => {
-      if (!navigator.clipboard) return;
-      navigator.clipboard.writeText(this.code).then(() => {
+      clipboard.writeText(this.code).then(() => {
         btn.replaceChildren(lineIconNode('check'));
         btn.classList.add('is-done');
         setTimeout(() => {

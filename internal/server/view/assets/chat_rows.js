@@ -811,9 +811,9 @@
     var shownState = null, shownSource = null, msg = null;
     copy.addEventListener('click', function () {
       var text = answerText(msg);
-      if (!text || !navigator.clipboard) return;
+      if (!text) return;
       var id = msg.id;
-      navigator.clipboard.writeText(text).then(function () {
+      window.__hyloClipboard.writeText(text).then(function () {
         rememberCopy(id);
         setCopyIcon(copy, true);
       }).catch(function () { /* clipboard denied */ });

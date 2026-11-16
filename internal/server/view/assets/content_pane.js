@@ -984,7 +984,7 @@
 
   async function __hyloEditorCopyText(text) {
     try {
-      await navigator.clipboard.writeText(text);
+      await window.__hyloClipboard.writeText(text);
       return true;
     } catch (e) {
       if (window.showError) window.showError((e && e.message) || 'Could not copy to clipboard.', 'Copy error');

@@ -444,7 +444,7 @@ function homeShortsMixin() {
     },
     async copyShort(card) {
       try {
-        await navigator.clipboard.writeText((await __hyloShortGet(card.dataset.id)).content);
+        await window.__hyloClipboard.writeText((await __hyloShortGet(card.dataset.id)).content);
         this.showToast('Copied', 'ok');
       } catch (err) {
         window.showError('Could not copy: ' + err.message, 'Copy failed');
