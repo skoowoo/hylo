@@ -373,10 +373,15 @@ export const livePreviewTheme = EditorView.theme({
   '.cm-lp-image-selected img, .cm-lp-image-broken.cm-lp-image-selected': {
     boxShadow: '0 0 0 2px var(--accent-text, #5e6ad2)',
   },
-  '.cm-lp-image-zoom': {
+  '.cm-lp-image-actions': {
     position: 'absolute',
-    top: '8px',
-    right: '8px',
+    top: 'var(--space-xs, 8px)',
+    right: 'var(--space-xs, 8px)',
+    display: 'inline-flex',
+    gap: 'var(--space-xxs, 4px)',
+    opacity: '0',
+  },
+  '.cm-lp-image-action': {
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -387,12 +392,11 @@ export const livePreviewTheme = EditorView.theme({
     borderRadius: 'var(--r-sm, 6px)',
     background: 'rgba(0,0,0,0.45)',
     color: '#fff',
-    cursor: 'zoom-in',
-    // Shown without a fade: an opacity transition redraws it a pixel off.
-    opacity: '0',
+    cursor: 'pointer',
   },
-  '.cm-lp-wikiimage:hover .cm-lp-image-zoom': { opacity: '1' },
-  '.cm-lp-image-zoom .line-icon': { width: '14px', height: '14px', display: 'block' },
+  '.cm-lp-wikiimage:hover .cm-lp-image-actions, .cm-lp-image-actions:focus-within': { opacity: '1' },
+  '.cm-lp-image-zoom': { cursor: 'zoom-in' },
+  '.cm-lp-image-action .line-icon': { width: '14px', height: '14px', display: 'block' },
   '.cm-lp-image-broken': {
     display: 'inline-flex',
     alignItems: 'center',

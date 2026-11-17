@@ -55,6 +55,7 @@ export function openImageViewer(src, alt) {
   }
   // mousedown, not click: the editor below must not see the press either.
   overlay.addEventListener('mousedown', (e) => {
+    if (e.button !== 0) return;
     e.preventDefault();
     close();
   });

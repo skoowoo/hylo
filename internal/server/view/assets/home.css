@@ -55,8 +55,7 @@
     /* Everything right of the sidebar: #home-list-pane → .home-pane-resizer
        → .content-pane. Holds the list and editor cards over the shell's
        sidebar fill: flush with the sidebar on the left, inset on the other
-       three sides. A query container so the editor sheet can size itself off
-       this box (100cqw) rather than off the pane that is animating around it.
+       three sides. A query container for the split's target width.
        flex-end: maximized, the pane is one gap wider than this box, and the
        overflow (its leading gap) falls off the left edge. */
     .home-main {
@@ -69,13 +68,10 @@
     }
     /* The split is one real width transition on .content-pane; the list
        takes what is left, so the divider, the list's reflow and the editor
-       all move on the same frame by construction. The editor's own content
-       never resizes mid-motion (see .content-pane-panel). */
+       all move on the same frame by construction. */
     /* The pane's width includes the gap before its card, so the gap moves with
        the same transition. Ratio splits box + gap, so 0.5 gives equal cards.
-       Whole pixels, so nothing in the pane sits on a fractional x. cqw, not %,
-       so it rounds exactly as .content-pane-panel does (% resolves in finer
-       layout units and can land 1px wider). */
+       Round the target width to whole pixels. */
     .home-shell.content-pane-open .content-pane { width: round(down, (100cqw + var(--split-gap)) * var(--split-ratio-inv), 1px); }
     .home-shell.is-resizing .content-pane { transition: none; }
     .home-shell.is-resizing.is-split-snapping .content-pane { transition: width var(--motion-slow) var(--ease-out); }

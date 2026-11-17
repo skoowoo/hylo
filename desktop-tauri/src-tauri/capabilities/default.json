@@ -8,6 +8,7 @@
     "core:webview:allow-internal-toggle-devtools",
     "dialog:default",
     "notification:default",
+    "clipboard-manager:allow-write-image",
     "allow-check-server",
     "allow-stop-hylo-server",
     "allow-get-server-process-status",

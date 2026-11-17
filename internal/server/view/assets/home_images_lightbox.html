@@ -45,6 +45,7 @@
                       @click="lbOpenShortDay()" x-text="lbData.short.date"></button>
               <span class="lb-short-time" x-text="lbData.short.time"></span>
               <span class="lb-sidebar-spacer"></span>
+              <button type="button" class="icon-btn-ghost icon-btn-ghost--sm" data-copy-image :data-copy-image="lbImage() ? lbImage().src : ''" title="Copy image" aria-label="Copy image" x-show="lbImage()">{{icon "copy"}}</button>
               <button type="button" class="icon-btn-ghost icon-btn-ghost--sm" title="Edit" aria-label="Edit"
                       @click="lbEditShort()">{{icon "pencil"}}</button>
               <button type="button" class="icon-btn-ghost icon-btn-ghost--sm" title="Show in daily note" aria-label="Show in daily note"
@@ -61,6 +62,7 @@
         <div class="lb-sidebar-inner">
         <div class="lb-sidebar-head">
           <span class="lb-sidebar-title" x-text="lbData ? lbData.name : ''"></span>
+          <button type="button" class="icon-btn-ghost icon-btn-ghost--sm" data-copy-image :data-copy-image="lbImage() ? lbImage().src : ''" title="Copy image" aria-label="Copy image">{{icon "copy"}}</button>
           <button type="button" class="lb-delete-btn" title="Delete image"
                   x-show="lbData && lbData.dir != null"
                   @click="deleteLightboxImage()">

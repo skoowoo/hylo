@@ -15,6 +15,11 @@
   window.hyloDesktop = {
     platform: platform,
     shell: "tauri",
+    clipboard: {
+      writeImage: function (image) {
+        return invoke("plugin:clipboard-manager|write_image", { image: image });
+      },
+    },
     stopServer: function (opts) {
       return invoke("stop_hylo_server", { opts: opts || {} });
     },

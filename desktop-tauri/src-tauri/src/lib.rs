@@ -37,6 +37,7 @@ pub fn run() {
             }
         }))
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_notification::init())
         // Its link script cancels every target=_blank click for an IPC call that remote
         // pages may not make; links take the webview's own path to allow_url instead.

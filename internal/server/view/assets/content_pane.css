@@ -10,13 +10,9 @@
       transition: width var(--pane-motion);
       contain: layout paint style;
     }
-    /* Always laid out at the width the pane has at rest, open or not, and
-       pinned to the divider: opening and closing slide it in and out whole,
-       and CodeMirror never sees an intermediate width. The pane's leading
-       gap (home.css) sits before it. */
+    /* The card follows the pane's live width, including during transitions. */
     .content-pane-panel {
-      position: absolute; top: 0; bottom: 0; left: var(--split-gap);
-      width: calc(round(down, (100cqw + var(--split-gap)) * var(--split-ratio-inv), 1px) - var(--split-gap));
+      position: absolute; top: 0; bottom: 0; left: var(--split-gap); right: 0;
       background: var(--bg);
       border-radius: var(--r-md);
       display: flex; flex-direction: column; overflow: hidden;

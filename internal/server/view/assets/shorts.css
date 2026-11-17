@@ -201,6 +201,10 @@
       cursor: pointer;
     }
     .shorts-img-cell img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .shorts-img-actions {
+      position: absolute; top: var(--space-xs); right: var(--space-xs); z-index: 1;
+      display: flex; background: var(--bg); border-radius: var(--r-sm);
+    }
     .shorts-img-cell::after {
       content: '';
       position: absolute;

@@ -20,6 +20,9 @@
       {{range .Images}}
       <div class="shorts-img-cell" style="--ar: {{.Aspect}}" data-img-src="{{.URL}}" data-img-name="{{.Name}}">
         <img src="{{.URL}}" alt="{{.Name}}" loading="lazy" decoding="async">
+        <div class="shorts-img-actions card-reveal">
+          <button type="button" class="icon-btn-ghost icon-btn-ghost--sm" data-copy-image="{{.URL}}" title="Copy image" aria-label="Copy image">{{icon "copy"}}</button>
+        </div>
       </div>
       {{end}}
       {{if .More}}<span class="shorts-img-more">+{{.More}}</span>{{end}}

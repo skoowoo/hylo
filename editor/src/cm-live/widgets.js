@@ -111,7 +111,7 @@ export class ImageWidget extends WidgetType {
 
     const zoom = document.createElement('button');
     zoom.type = 'button';
-    zoom.className = 'cm-lp-image-zoom';
+    zoom.className = 'cm-lp-image-action cm-lp-image-zoom';
     zoom.title = 'View image';
     zoom.setAttribute('aria-label', 'View image');
     zoom.append(lineIconNode('expand'));
@@ -120,12 +120,27 @@ export class ImageWidget extends WidgetType {
       e.stopPropagation();
       openImageViewer(this.src, this.label);
     });
-    wrap.append(img, zoom);
+    const copy = document.createElement('button');
+    copy.type = 'button';
+    copy.className = 'cm-lp-image-action cm-lp-image-copy';
+    copy.title = 'Copy image';
+    copy.setAttribute('aria-label', 'Copy image');
+    copy.append(lineIconNode('copy'));
+    copy.addEventListener('mousedown', (e) => { e.preventDefault(); e.stopPropagation(); });
+    copy.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      void clipboard.copyImage(this.src, copy);
+    });
+    const actions = document.createElement('span');
+    actions.className = 'cm-lp-image-actions';
+    actions.append(copy, zoom);
+    wrap.append(img, actions);
     // Atomic ranges keep mouse selections out of the source, so a double-click
     // is the way in. Caught on mousedown: WebKit never fires dblclick here.
     wrap.addEventListener('mousedown', (e) => {
       if (e.detail !== 2 || e.button !== 0 || !view.state.facet(EditorView.editable)) return;
-      if (e.target instanceof Element && e.target.closest('.cm-lp-image-zoom')) return;
+      if (e.target instanceof Element && e.target.closest('.cm-lp-image-actions')) return;
       e.preventDefault();
       const node = imageNodeAt(view.state, view.posAtDOM(wrap));
       if (!node) return;
