@@ -531,8 +531,13 @@ func (a *AgentAPI) executeChat(ctx context.Context, run *agent.Run, body chatBod
 			pr.Apps = append(pr.Apps, prompt.App{ID: b.ID, Name: b.Name, About: b.About, Skill: b.Skill})
 		}
 	}
-	if body.oneShot {
+	switch {
+	case body.oneShot:
 		pr.Kind = prompt.OneShot
+	case body.pulse:
+		pr.Kind = prompt.Round
+	case body.TriggerEvent != "":
+		pr.Kind = prompt.Wake
 	}
 	if body.Intro {
 		// The user is watching an empty editor; drafting fast matters more than depth.

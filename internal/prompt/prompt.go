@@ -14,11 +14,15 @@ import (
 type Kind int
 
 const (
-	// Chat is a turn in a bot's chat: the user talking, or the bot woken.
+	// Chat is a user-initiated turn.
 	Chat Kind = iota
 	// OneShot is an internal single-shot ask, like the setup hello: its
 	// message is self-contained and must not read the vault or use tools.
 	OneShot
+	// Round is an independent background inspection.
+	Round
+	// Wake delivers background work in the shared chat session.
+	Wake
 )
 
 // Run is everything the system prompt depends on. Callers gather it; sections

@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hardhacker/hylo/internal/desktop"
 	"github.com/hardhacker/hylo/internal/mate"
 	"github.com/hardhacker/hylo/internal/prompt"
 )
@@ -78,7 +77,7 @@ func (p *Pulse) digest(m *mate.Mate, last, since, now time.Time) (string, []live
 	section("Your chat lately", p.chatLines(m.ID, now), "No recent messages.")
 	section("Your fellow bots", p.botLines(m.ID), "None; you are the user's only bot.")
 	section("What you sent on your own lately", p.sentLines(m.ID, now), "Nothing in the last three days.")
-	section("Your recent rounds", p.roundLines(m.ID, now), "None yet.")
+	section("Your recent rounds (unverified summaries; check delivery separately)", p.roundLines(m.ID, now), "None yet.")
 	return strings.TrimSpace(b.String()), sv.nudges
 }
 
@@ -143,7 +142,7 @@ func (p *Pulse) chatLines(mateID string, now time.Time) []string {
 	}
 	var out []string
 	for _, l := range lines {
-		if l.Text == "" || now.Sub(l.At) > chatWithin {
+		if l.Text == "" && l.Status == "" || now.Sub(l.At) > chatWithin {
 			continue
 		}
 		who := "user"
@@ -155,47 +154,31 @@ func (p *Pulse) chatLines(mateID string, now time.Time) []string {
 		case l.App != "":
 			who = "user, from " + appName(l.App)
 		}
-		out = append(out, fmt.Sprintf("- %s, %s: %s", who, l.At.Format("Mon 15:04"), excerpt(l.Text)))
+		if l.Status != "" {
+			who += " (" + l.Status + ")"
+		}
+		text := excerpt(l.Text)
+		if text == "" {
+			text = "[no output]"
+		}
+		out = append(out, fmt.Sprintf("- %s, %s: %s", who, l.At.Format("Mon 15:04"), text))
 	}
 	return out
 }
 
-// whereLines says where the user is now, whether a message would reach their
-// phone, and where their day at the computer went.
+// whereLines supplies reach without making app usage a content lead.
 func (p *Pulse) whereLines(mateID string, now time.Time) []string {
 	st := p.desk.Now(now)
 	var out []string
 	switch {
 	case !st.Known:
 	case st.Present:
-		out = append(out, fmt.Sprintf("- Now: in %s for %s.", st.App, span(now.Sub(st.AppSince))))
-		if !st.BackAt.IsZero() && now.Sub(st.BackAt) <= 2*time.Hour && st.AwayFor >= desktop.ReturnAfter {
-			out = append(out, fmt.Sprintf("- Back at %s after %s away.", st.BackAt.Format("15:04"), span(st.AwayFor)))
-		}
+		out = append(out, "- At the computer.")
 	default:
-		out = append(out, "- Away since "+st.AwaySince.Format("15:04")+": locked, idle, or the computer asleep.")
+		out = append(out, "- Away from the computer: locked, idle, or not reporting.")
 	}
 	if l := p.reach(mateID, st, now).line(now); l != "" {
 		out = append(out, l)
-	}
-	if !st.Known {
-		return out
-	}
-	midnight := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
-	if ss, err := p.desk.Sessions(midnight, now); err == nil && len(ss) > 0 {
-		apps := desktop.Totals(ss)
-		var parts []string
-		for _, a := range apps[:min(len(apps), 5)] {
-			parts = append(parts, a.App+" "+span(a.Time))
-		}
-		out = append(out, "- Today: "+strings.Join(parts, ", ")+".")
-	}
-	if ss, err := p.desk.Sessions(now.Add(-2*time.Hour), now); err == nil && len(ss) > 0 {
-		var parts []string
-		for _, s := range desktop.Timeline(ss, 8) {
-			parts = append(parts, fmt.Sprintf("%s %s–%s", s.App, s.Start.Format("15:04"), s.End.Format("15:04")))
-		}
-		out = append(out, "- Lately: "+strings.Join(parts, ", ")+".")
 	}
 	return out
 }
@@ -244,12 +227,12 @@ func (p *Pulse) sentLines(mateID string, now time.Time) []string {
 				from = fmt.Sprintf("trigger %q", w.TriggerName)
 			}
 		}
-		took := "not answered"
+		took := "no later user message"
 		switch {
 		case w.Replied:
-			took = "answered"
+			took = "user later wrote in this chat; not necessarily a reply"
 		case w.ReplyPending:
-			took = "no answer yet"
+			took = "recent; no later user message"
 		}
 		out = append(out, fmt.Sprintf("- %s, from %s (%s): %s", w.At.Format("Mon 15:04"), from, took, excerpt(w.Text)))
 	}

@@ -28,6 +28,10 @@ func TestSectionsApplyByRun(t *testing.T) {
 		{Run{Main: true, MCP: true, Apps: []App{{ID: "x"}}}, "global,vault,mcp,choices,embed,capabilities,apps"},
 		{Run{MCP: true, Apps: []App{{ID: "x"}}}, "global,vault,mcp,choices,embed,apps"},
 		{Run{Apps: []App{{ID: "x"}}}, "global,vault,choices,embed"},
+		{Run{Kind: Round, Main: true, MCP: true, Agenda: true, Apps: []App{{ID: "x"}}}, "global,vault,mcp,agenda,apps"},
+		{Run{Kind: Round, Bot: "inspect", Intro: &Intro{}}, "global,vault,bot"},
+		{Run{Kind: Wake, Main: true, MCP: true, Agenda: true}, "global,vault,mcp,choices,embed,capabilities,agenda"},
+		{Run{Kind: Wake, MCP: true, Intro: &Intro{}}, "global,vault,mcp,choices,embed"},
 	}
 	for _, c := range cases {
 		if got := ids(c.run); got != c.want {

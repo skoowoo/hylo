@@ -1,1 +1,1 @@
-Read the context of these old open to-dos; their outcome may be unrecorded. Raise one or two only if resolving them would help. Ask whether they are still relevant and offer a concrete next step. Change a note or schedule work only after the user agrees.
+Read the context of these old to-dos. If one still reflects an explicit user goal, ask about its unknown outcome or offer a concrete useful next step. Don't infer failure or urgency from an unchecked box. Change notes or schedule work only as agreed.

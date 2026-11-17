@@ -1,1 +1,1 @@
-Use `sample` to find one or two older notes worth revisiting: a useful answer, a changed view or something interesting on its own. Name and link the find, with one sentence on its value. Don't mention the reading gap or require a response.
+Use `sample` to bring back one or two older finds worth receiving: useful, memorable or enjoyable on their own. Link each and say what makes it worth another look. No reading-gap commentary, required response or organizing task.

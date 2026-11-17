@@ -34,7 +34,7 @@ flowchart LR
 - `Bot`：bot 存在 DB 里的 system prompt（调用方可覆盖）。
 - `Main`：是不是主 bot。
 - `MCP`：这个 agent 是否注入了 Hylo MCP。
-- `Kind`：`oneShot` → OneShot，其余 → Chat（trigger 唤醒的轮次也是 Chat，任务外包一层 `prompt.WakeRequest`）。
+- `Kind`：用户消息是 Chat；独立巡查是 Round；trigger 或 Pulse 主动交付是 Wake；内部单次请求是 OneShot。
 - `Intro`：onboarding 后的第一次聊天。
 - `global` 这一层固定是 `text/system/global.md`，没有配置项。
 
@@ -64,13 +64,13 @@ agent CLI 没有独立的 system prompt 参数，所以指令只随第一轮发�
 
 | # | Section | 文本 | 生效条件 | 可覆盖 |
 | --- | --- | --- | --- | --- |
-| 1 | `global` | `text/system/global.md`：身份，外加一句语气 | `Kind != OneShot` | ❌ |
+| 1 | `global` | `text/system/global.md`：身份、表达与事实边界 | `Kind != OneShot` | ❌ |
 | 2 | `vault` | `text/system/vault.md`：知识库路径、`[[ ]]` 链接规则、何时读哪些记忆文件 | `Kind != OneShot` | ❌ |
 | 3 | `bot` | `Run.Bot`：主 bot 用 `text/system/bot_hylo.md`，其他 bot 由用户或 hylo-bots 写 | 非空即生效 | — |
 | 4 | `mcp` | `text/system/mcp.md`：怎么用 Hylo 工具，按需局部读取（`extract_*`） | `MCP && Kind != OneShot` | ❌ |
-| 5 | `choices` | `text/system/choices.md`：`choices` 按钮卡格式 | `Kind == Chat` | ❌ |
-| 6 | `capabilities` | `text/system/capabilities.md`：内容层（方法、`sources` 卡、去向）+ 自动化阶梯 L0–L3 | `Chat && Main && MCP && Intro == nil` | ❌ |
-| 7 | `intro` | `text/setup/intro.md` 模板：启动 hylo-setup | `Intro != nil` | ❌ |
+| 5 | `choices` | `text/system/choices.md`：`choices` 按钮卡格式 | `Kind == Chat || Kind == Wake` | ❌ |
+| 6 | `capabilities` | `text/system/capabilities.md`：内容层（方法、`sources` 卡、去向）+ 自动化阶梯 L0–L3 | `(Chat || Wake) && Main && MCP && Intro == nil` | ❌ |
+| 7 | `intro` | `text/setup/intro.md` 模板：启动 hylo-setup | `Chat && Intro != nil` | ❌ |
 
 `global` 是固定的身份说明，并要求像人说话，不像产品。`vault` 单独一层，放 skill 和工具依赖的约定（链接写法、`_knowledge/_indexes/`、`_memory/`）。
 
@@ -81,7 +81,11 @@ agent CLI 没有独立的 system prompt 参数，所以指令只随第一轮发�
 | 主 bot 聊天 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
 | 其他 bot 聊天 | ✅ | ✅ | ✅ | ✅ | ✅ | | |
 | setup 首聊（主 bot） | ✅ | ✅ | ✅ | ✅ | ✅ | | ✅ |
+| 主 bot 主动交付（Wake） | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
+| 独立巡查（Round） | ✅ | ✅ | ✅ | ✅ | | | |
 | OneShot | | | 有则 ✅ | | | | |
+
+Round 不加载 choices、embed 和 capabilities。Wake 与用户消息共享原生会话，保留后续用户请求需要的规则；capabilities 明确只作用于用户发起的请求，不能把巡查发现和未回答的建议当成新任务授权。
 
 由此推出两点：
 
@@ -218,7 +222,7 @@ flowchart LR
 | `proposal` | hylo-bots `references/cards.md` | 自动化计划，接受即授权执行 | 摘要 + 可展开的细节 + 内嵌 choices |
 | `receipt` | hylo-bots `references/cards.md` | 执行回执；`ids` 记下做了哪些改动 | 撤销按钮发送撤销文本，由 hylo-bots `workflows/undo.md` 按 `ids` 从后往前回滚 |
 
-卡片只在 Hylo 聊天里渲染。Trigger 运行没有 `choices` section；从微信 / Discord / Telegram 来的一轮虽然是聊天，也一律用纯文本。
+卡片只在 Hylo 聊天里渲染。Trigger 的 Wake 运行有 `choices` section，独立 Round 没有；从微信 / Discord / Telegram 来的一轮虽然是聊天，也一律用纯文本。
 
 ---
 

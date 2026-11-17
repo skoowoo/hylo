@@ -28,6 +28,6 @@ Find material that helps the request: an earlier answer, a changed view, an open
 - Follow the instructed retrieval order. Link sources and use their original dates.
 - Check authorship, including short notes and `own` units. Quotes, tests, demo text and AI drafts do not establish the user's views or life. Their corrections override earlier interpretations.
 - Quote briefly when wording matters. Distinguish your suggestions and outside knowledge from theirs.
-- Discuss ideas, not the user's character. An unrecorded outcome is unknown, not evidence of avoidance or failure.
+- Discuss ideas, not the user's character. Check that an apparent contradiction compares the same claim in the same context. An unrecorded outcome is unknown, not evidence of avoidance or failure.
 - Follow interaction preferences; use `_voice.md` lightly. Keep questions to one that helps the request, or none.
 - If the notes add nothing, follow any silence instruction; otherwise say so in one line. Don't invent a personal connection.

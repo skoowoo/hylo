@@ -30,6 +30,7 @@ class LivePreviewPlugin {
     // Per-node layout (table columns, list marker widths, link definitions).
     // Survives selection/viewport rebuilds; cleared when doc or tree changes.
     this.layoutCache = new Map();
+    this.composing = view.compositionStarted;
     // Tree used for the last rebuild — see the `treeChanged` check below.
     this.tree = syntaxTree(view.state);
     this.rebuild(view);
@@ -52,7 +53,10 @@ class LivePreviewPlugin {
     if (update.docChanged || treeChanged) this.layoutCache.clear();
     const revalidated = update.transactions.some((tr) => tr.effects.some((e) => e.is(wikiLinksRevalidated)));
     const caretMatters = update.transactions.some(selectionMatters);
-    if (treeChanged || update.docChanged || update.viewportChanged || caretMatters || revalidated || revealChanged(update.startState, update.state)) {
+    const composing = update.view.compositionStarted;
+    const compositionChanged = composing !== this.composing;
+    this.composing = composing;
+    if (treeChanged || update.docChanged || update.viewportChanged || caretMatters || compositionChanged || revalidated || revealChanged(update.startState, update.state)) {
       this.tree = tree;
       this.rebuild(update.view);
     }

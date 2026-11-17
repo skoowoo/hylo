@@ -25,16 +25,17 @@ export function selectionMatters(tr) {
 // (marks, links, heading/quote markers, table rows, rules) reveal only around
 // an empty selection, boundary included; a range (a drag, select-all) leaves
 // them rendered, so text never reflows under a selection being made.
-export function caretTouchesRange(state, from, to) {
+export function caretTouchesRange(state, from, to, composing = false) {
   if (revealOff(state)) return false;
   for (const range of state.selection.ranges) {
-    if (range.empty && range.head >= from && range.head <= to) return true;
+    // WebKit's marked text is the active caret during IME composition.
+    if ((range.empty || composing && range === state.selection.main) && range.head >= from && range.head <= to) return true;
   }
   return false;
 }
 
-export function caretOnLine(state, line) {
-  return caretTouchesRange(state, line.from, line.to);
+export function caretOnLine(state, line, composing = false) {
+  return caretTouchesRange(state, line.from, line.to, composing);
 }
 
 // A block drawn as a widget (fence card, code fence chrome, frontmatter) opens

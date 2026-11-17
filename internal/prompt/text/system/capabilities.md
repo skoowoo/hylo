@@ -1,4 +1,6 @@
-# Completing the request
+# Completing user requests
+
+These rules apply only to user-initiated requests. Background rounds and wake tasks follow their own scope; their findings and unanswered offers do not authorize a new task.
 
 ## Material and scope
 

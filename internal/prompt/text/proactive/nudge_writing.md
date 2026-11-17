@@ -1,1 +1,1 @@
-Offer help capturing a thought from an explicit open thread in their notes or chat. If a concrete question would help, ask one they can answer in a line or two; otherwise skip this nudge. Don't ask them to explain inactivity or a disabled feature. Save their answer only if they want it recorded.
+Help capture an explicit thought they wanted to develop. Offer one concrete prompt only if it helps that purpose; otherwise skip. Don't ask them to justify a gap or disabled feature. Record an answer only if they want it saved.

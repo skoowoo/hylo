@@ -97,7 +97,7 @@ function decorateHeading(level) {
     // Fold trailing space after "#"s — not part of HeaderMark.
     const extra =
       mark.to < line.to && view.state.doc.sliceString(mark.to, mark.to + 1) === ' ' ? 1 : 0;
-    if (caretOnLine(view.state, line)) {
+    if (caretOnLine(view.state, line, view.compositionStarted)) {
       // Caret on the line reveals the "#"s, muted so they read as syntax. At
       // the line start they hang in the margin; nested ("> # x") they stay inline.
       if (mark.from === line.from) {
@@ -121,7 +121,7 @@ function decorateSetextHeading(level) {
     const mark = node.node.getChild('HeaderMark');
     if (!mark) return;
     const markLine = doc.lineAt(mark.from);
-    if (caretOnLine(view.state, markLine)) return;
+    if (caretOnLine(view.state, markLine, view.compositionStarted)) return;
     const firstNo = doc.lineAt(node.from).number;
     pushHeadingLines(doc, level, firstNo, markLine.number - 1, markLine.number + 1, decos);
     decos.push(Decoration.line({ class: 'cm-lp-hidden-line' }).range(markLine.from));
@@ -197,7 +197,7 @@ const QUOTE_STEP_REM = 1.5;
 function decorateQuoteMark(node, view, decos) {
   const doc = view.state.doc;
   const markLine = doc.lineAt(node.from);
-  if (caretOnLine(view.state, markLine)) {
+  if (caretOnLine(view.state, markLine, view.compositionStarted)) {
     // One hanging box for the whole "> > " prefix, placed by its first mark,
     // so the revealed markers sit in the quote's own padding.
     const prefix = node.from === markLine.from && QUOTE_PREFIX_RE.exec(markLine.text);
@@ -478,7 +478,7 @@ export function isHairlineLine(state, n) {
 function decorateHorizontalRule(node, view, decos) {
   const line = view.state.doc.lineAt(node.from);
   decos.push(Decoration.line({ class: 'cm-lp-hr' }).range(line.from));
-  if (caretOnLine(view.state, line)) return;
+  if (caretOnLine(view.state, line, view.compositionStarted)) return;
   decos.push(Decoration.replace({ widget: new HorizontalRuleWidget() }).range(node.from, node.to));
 }
 

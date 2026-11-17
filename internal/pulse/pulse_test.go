@@ -360,15 +360,46 @@ func TestPhoneInHand(t *testing.T) {
 
 func TestDigestShowsTheUserAtTheComputer(t *testing.T) {
 	r := newRig(t)
-	now := at(12, 0) // clear of midnight, which splits "Today"
+	now := at(12, 0)
 	xcode := desktop.Sample{App: "Xcode"}
 	for i := 0; i < 5; i++ {
 		r.desk.Report(xcode, now.Add(-time.Duration(4-i)*30*time.Second))
 	}
 	d, _ := r.digest(r.bot, time.Time{}, time.Time{}, now)
-	for _, want := range []string{"## Where the user is", "- Now: in Xcode for 2m.", "- Today: Xcode 2m.", "- Lately: Xcode "} {
+	for _, want := range []string{"## Where the user is", "- At the computer."} {
 		if !strings.Contains(d, want) {
 			t.Errorf("digest lacks %q:\n%s", want, d)
+		}
+	}
+	if strings.Contains(d, "Xcode") || strings.Contains(d, "- Today:") || strings.Contains(d, "- Lately:") {
+		t.Fatalf("app usage became a default content lead:\n%s", d)
+	}
+	if st := r.desk.Now(now); st.App != "Xcode" || !st.Present {
+		t.Fatalf("desktop tracking should still be available: %+v", st)
+	}
+}
+
+func TestDigestPreservesCanceledWorkAndDeclines(t *testing.T) {
+	r := newRig(t)
+	now := time.Now()
+	conv, err := r.store.StartConversation(r.bot.ID, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, m := range []mate.Message{
+		{Role: "user", Content: "Write a note"},
+		{Role: "assistant", Status: "canceled"},
+		{Role: "user", Content: "Don't continue this"},
+	} {
+		m.MateID, m.ConversationID = r.bot.ID, conv.ID
+		if _, err := r.store.InsertMessage(m); err != nil {
+			t.Fatal(err)
+		}
+	}
+	d, _ := r.digest(r.bot, time.Time{}, time.Time{}, now.Add(time.Second))
+	for _, want := range []string{"you (canceled)", "[no output]", "Don't continue this"} {
+		if !strings.Contains(d, want) {
+			t.Errorf("digest lost task state %q:\n%s", want, d)
 		}
 	}
 }

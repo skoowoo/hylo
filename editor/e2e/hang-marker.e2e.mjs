@@ -60,6 +60,43 @@ const probe = (page) =>
     });
   })));
 
+for (const prefix of ['# ', '## ', '### ', '#### ', '##### ', '###### ', '> ']) {
+  test(`${prefix.trim()} marker survives composition but hides for ordinary selection`, async (t) => {
+    const page = await openBlankLine(t);
+    if (!page) return;
+    try {
+      const result = await page.evaluate(async (prefix) => {
+        const tick = () => new Promise((resolve) => requestAnimationFrame(resolve));
+        const v = window.view;
+        const text = prefix + '标题中文';
+        v.dispatch({ changes: { from: 0, to: v.state.doc.length, insert: text }, selection: { anchor: text.length } });
+        cm.forceParsing(v, text.length, 200);
+        await tick();
+        const marker = v.contentDOM.querySelector('.cm-lp-hang-mark');
+        const sameMarker = () => marker && marker === v.contentDOM.querySelector('.cm-lp-hang-mark');
+        v.contentDOM.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }));
+        v.dispatch({ selection: { anchor: prefix.length + 2, head: text.length } });
+        await tick();
+        const composing = sameMarker();
+        v.dispatch({ changes: { from: prefix.length + 2, to: text.length, insert: '输入' }, selection: { anchor: prefix.length + 2, head: text.length } });
+        await tick();
+        const updated = sameMarker();
+        v.contentDOM.dispatchEvent(new CompositionEvent('compositionend', { bubbles: true }));
+        v.dispatch({ selection: { anchor: text.length } });
+        await tick();
+        const committed = sameMarker();
+        v.dispatch({ selection: { anchor: prefix.length + 2, head: text.length } });
+        await tick();
+        const ordinaryHidden = !v.contentDOM.querySelector('.cm-lp-hang-mark');
+        return { composing, updated, committed, ordinaryHidden };
+      }, prefix);
+      assert.deepEqual(result, { composing: true, updated: true, committed: true, ordinaryHidden: true });
+    } finally {
+      await page.close();
+    }
+  });
+}
+
 for (const [name, syntax] of [['heading', '## '], ['quote', '> ']]) {
   test(`${name} marker stays put while typing and stepping into it`, async (t) => {
     const page = await openBlankLine(t);
