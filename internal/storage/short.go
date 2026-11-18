@@ -79,6 +79,23 @@ func parseShortDay(raw []byte, p Path) []shortSegment {
 	return segs
 }
 
+// ParseShortDay splits a daily file into its entries and the hand-written
+// text outside any entry.
+func ParseShortDay(raw []byte, p Path) (entries []ShortEntry, rest string) {
+	var loose []string
+	for _, s := range parseShortDay(raw, p) {
+		if s.ID != "" {
+			entries = append(entries, s.ShortEntry)
+		} else {
+			loose = append(loose, string(raw[s.from:s.to]))
+		}
+	}
+	return entries, strings.Join(loose, "\n\n")
+}
+
+// ShortStamp is an entry's heading time, which locates it in its daily file.
+func ShortStamp(t time.Time) string { return t.Format(shortStampLayout) }
+
 func shortHash(content string) string {
 	sum := sha256.Sum256([]byte(content))
 	return hex.EncodeToString(sum[:6])
@@ -99,7 +116,7 @@ func ShortPathFromID(id string) (Path, error) {
 }
 
 func shortChunk(t time.Time, content string) string {
-	return shortHeadingPrefix + t.Format(shortStampLayout) + "\n\n" + content
+	return shortHeadingPrefix + ShortStamp(t) + "\n\n" + content
 }
 
 // shortSanitize blanks thematic-break lines so content can't split its entry.

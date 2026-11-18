@@ -451,14 +451,18 @@ function homeShortsMixin() {
       }
     },
     // Opens the daily file; atEntry also scrolls to this entry's heading.
-    async openShortDay(card, atEntry) {
-      var path = card.dataset.path;
-      var pane = window.__hyloContentPane;
-      if (!path || !pane) return;
-      __hyloEditor.pendingHeading = atEntry ? 'Short Note: ' + card.dataset.stamp : null;
-      await pane.openNoteInContentPane(path, path.split('/').pop().replace(/\.md$/, ''), false, false);
-      // Consumed by the open, or it bailed; either way it mustn't leak into the next one.
-      __hyloEditor.pendingHeading = null;
+    openShortDay(card, atEntry) {
+      return window.openShortEntry(card.dataset.path, atEntry ? card.dataset.stamp : '');
     },
   };
 }
+
+// Opens a daily short file and optionally scrolls to the entry with stamp.
+window.openShortEntry = async function (path, stamp) {
+  var pane = window.__hyloContentPane;
+  if (!path || !pane) return;
+  __hyloEditor.pendingHeading = stamp ? 'Short Note: ' + stamp : null;
+  await pane.openNoteInContentPane(path, path.split('/').pop().replace(/\.md$/, ''), false, false);
+  // Consumed by the open, or it bailed; either way it mustn't leak into the next one.
+  __hyloEditor.pendingHeading = null;
+};

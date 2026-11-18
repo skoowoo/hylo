@@ -179,7 +179,7 @@ func (vh *ViewHandler) shortGroups(entries []storage.ShortEntry) []shortsStreamG
 			ID:     e.ID,
 			Hash:   e.Hash,
 			Path:   e.Path,
-			Stamp:  e.CreatedAt.Format("2006-01-02 15:04:05"),
+			Stamp:  storage.ShortStamp(e.CreatedAt),
 			Time:   e.CreatedAt.Format("15:04"),
 			Tags:   strings.Join(e.Tags, " "),
 			HTML:   template.HTML(rendered), //nolint:gosec // server-rendered markdown

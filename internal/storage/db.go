@@ -665,6 +665,12 @@ func dbCount(db *sql.DB) (int, error) {
 	return n, err
 }
 
+func dbCountIndexed(db *sql.DB) (int, error) {
+	var n int
+	err := db.QueryRow(`SELECT COUNT(*) FROM notes WHERE indexed = 1`).Scan(&n)
+	return n, err
+}
+
 func dbCountByKind(db *sql.DB, onlyKind, excludeKind string) (int, error) {
 	var n int
 	var err error

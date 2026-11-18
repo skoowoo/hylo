@@ -91,7 +91,11 @@ func printSearchTable(out notes.SearchResult) error {
 		if len(e.HitLines) > 0 {
 			lines = fmt.Sprintf("%d", len(e.HitLines))
 		}
-		rows[i] = []string{e.Name, e.Dir, e.Kind, e.UpdatedAt, fmt.Sprintf("%.3f", e.Score), lines}
+		name := e.Name
+		if e.ShortID != "" {
+			name = e.ShortID
+		}
+		rows[i] = []string{name, e.Dir, e.Kind, e.UpdatedAt, fmt.Sprintf("%.3f", e.Score), lines}
 	}
 	PrintTable(cols, rows)
 	return nil

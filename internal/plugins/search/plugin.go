@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+	"time"
 
 	"github.com/hardhacker/hylo/internal/config"
 	"github.com/hardhacker/hylo/internal/plugin"
@@ -141,13 +142,7 @@ func (p *Plugin) Search(query string, opts SearchOptions) ([]SearchResult, error
 	if p.indexer == nil {
 		return nil, fmt.Errorf("search index not ready")
 	}
-	return p.indexer.Search(query, opts, func(path string) ([]byte, error) {
-		sp, ok := storage.ParsePath(path)
-		if !ok {
-			return nil, fmt.Errorf("invalid path: %q", path)
-		}
-		return p.vault.ReadNote(sp)
-	})
+	return p.indexer.Search(query, opts, p.readDoc)
 }
 
 // ── event handling ────────────────────────────────────────────────────────────
@@ -204,17 +199,60 @@ func (p *Plugin) indexFile(pathStr string) {
 		p.logger.Warn("search: could not stat note for indexing", "path", pathStr, "err", err)
 		return
 	}
-	tags := util.ExtractTags(content).All()
-	p.indexer.Upsert(pathStr, note.Name, string(content), tags, note.UpdatedAt, string(note.Kind))
+	docs := fileDocs(sp, content, note.Kind, note.UpdatedAt)
+	p.indexer.UpsertFile(pathStr, note.Name, string(note.Kind), docs)
 	if err := p.vault.MarkNoteIndexed(sp); err != nil {
 		p.logger.Warn("search: could not mark note indexed", "path", pathStr, "err", err)
 	}
 	p.logger.Debug("search: indexed",
 		"name", note.Name,
-		"tags", len(tags),
+		"docs", len(docs),
 		"content_len", len(content),
 		"path", pathStr,
 	)
+}
+
+// fileDocs splits a note into its searchable units: each short entry of a
+// daily file (plus any text or frontmatter tags outside them), or else the whole note.
+func fileDocs(p storage.Path, content []byte, kind storage.Kind, updatedAt time.Time) []FileDoc {
+	if kind != storage.KindShort {
+		return []FileDoc{{Content: string(content), Tags: util.ExtractTags(content).All(), UpdatedAt: updatedAt}}
+	}
+	entries, rest := storage.ParseShortDay(content, p)
+	fmTags := util.ExtractTags(content[:util.FrontmatterEnd(content)]).Frontmatter
+	docs := make([]FileDoc, 0, len(entries)+1)
+	for _, e := range entries {
+		docs = append(docs, FileDoc{ShortID: e.ID, Content: e.Content, Tags: e.Tags, UpdatedAt: e.CreatedAt})
+	}
+	if strings.TrimSpace(rest) != "" || len(fmTags) > 0 {
+		tags := util.NoteTags{Frontmatter: fmTags, Inline: util.ExtractTags([]byte(rest)).Inline}.All()
+		docs = append(docs, FileDoc{Content: rest, Tags: tags, UpdatedAt: updatedAt})
+	}
+	return docs
+}
+
+// readDoc returns the text a document was indexed from.
+func (p *Plugin) readDoc(path, kind, shortID string) ([]byte, error) {
+	if shortID != "" {
+		e, err := p.vault.GetShort(shortID)
+		if err != nil {
+			return nil, err
+		}
+		return []byte(e.Content), nil
+	}
+	sp, ok := storage.ParsePath(path)
+	if !ok {
+		return nil, fmt.Errorf("invalid path: %q", path)
+	}
+	raw, err := p.vault.ReadNote(sp)
+	if err != nil {
+		return nil, err
+	}
+	if storage.Kind(kind) == storage.KindShort {
+		_, rest := storage.ParseShortDay(raw, sp)
+		return []byte(rest), nil
+	}
+	return raw, nil
 }
 
 // ── startup backfill ──────────────────────────────────────────────────────────

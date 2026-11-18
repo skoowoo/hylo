@@ -58,31 +58,96 @@ func NewBleveIndexer(vaultRoot string, useJieba bool) (*BleveIndexer, error) {
 	return &BleveIndexer{idx: idx, useJieba: useJieba}, nil
 }
 
-// Upsert indexes or re-indexes a single markdown file.
+// FileDoc is one searchable unit of a file: the whole note, or one short entry.
+type FileDoc struct {
+	ShortID   string
+	Content   string
+	Tags      []string
+	UpdatedAt time.Time
+}
+
+// Upsert indexes or re-indexes a markdown file as a single document.
 // kind is one of "raw", "knowledge", "index", or "short".
 func (b *BleveIndexer) Upsert(path, name, content string, tags []string, updatedAt time.Time, kind string) {
-	doc := indexDoc{
-		Path:      path,
-		Name:      name,
-		NameRaw:   name,
-		Content:   content,
-		Tags:      tags,
-		UpdatedAt: updatedAt,
-		Kind:      kind,
+	b.UpsertFile(path, name, kind, []FileDoc{{Content: content, Tags: tags, UpdatedAt: updatedAt}})
+}
+
+// UpsertFile replaces every document of the file with docs in one batch, so
+// an entry removed from the file can't linger in the index.
+func (b *BleveIndexer) UpsertFile(path, name, kind string, docs []FileDoc) {
+	batch := b.idx.NewBatch()
+	if err := b.deleteFileDocs(batch, path); err != nil {
+		slog.Error("search index: upsert failed", "path", path, "err", err)
+		return
 	}
-	if b.useJieba {
-		doc.ContentZh = cjkContent(content) // only populated when CJK chars are present
+	for _, d := range docs {
+		docName := name
+		if d.ShortID != "" {
+			docName = ""
+		}
+		doc := indexDoc{
+			Path:      path,
+			Name:      docName,
+			NameRaw:   docName,
+			Content:   d.Content,
+			Tags:      d.Tags,
+			UpdatedAt: d.UpdatedAt,
+			Kind:      kind,
+			ShortID:   d.ShortID,
+		}
+		if b.useJieba {
+			doc.ContentZh = cjkContent(d.Content) // only populated when CJK chars are present
+		}
+		if err := batch.Index(docID(path, d.ShortID), doc); err != nil {
+			slog.Error("search index: upsert failed", "path", path, "err", err)
+			return
+		}
 	}
-	if err := b.idx.Index(path, doc); err != nil {
+	if err := b.idx.Batch(batch); err != nil {
 		slog.Error("search index: upsert failed", "path", path, "err", err)
 	}
 }
 
-// Delete removes a single document from the index.
+// Delete removes every document of the file from the index.
 func (b *BleveIndexer) Delete(path string) {
-	if err := b.idx.Delete(path); err != nil {
+	batch := b.idx.NewBatch()
+	err := b.deleteFileDocs(batch, path)
+	if err == nil {
+		err = b.idx.Batch(batch)
+	}
+	if err != nil {
 		slog.Error("search index: delete failed", "path", path, "err", err)
 	}
+}
+
+func docID(path, shortID string) string {
+	if shortID == "" {
+		return path
+	}
+	return path + "#" + shortID
+}
+
+// maxFileDocs bounds how many documents one file (a day of shorts) can hold.
+const maxFileDocs = 10000
+
+func (b *BleveIndexer) deleteFileDocs(batch *bleve.Batch, path string) error {
+	batch.Delete(path)
+	q := bleve.NewTermQuery(strings.ToLower(path))
+	q.SetField("path")
+	req := bleve.NewSearchRequestOptions(q, maxFileDocs, 0, false)
+	req.Fields = []string{"path"}
+	req.Score = bleve.ScoreNone
+	res, err := b.idx.Search(req)
+	if err != nil {
+		return err
+	}
+	for _, h := range res.Hits {
+		// The path field is lowercased; don't take a case-variant file's docs.
+		if h.Fields["path"] == path {
+			batch.Delete(h.ID)
+		}
+	}
+	return nil
 }
 
 // DocCount returns the number of documents currently in the search index.
@@ -187,14 +252,17 @@ type SearchResult struct {
 	// NameMatch is true when the hit was produced by a name or name_raw field match
 	// (as opposed to a content-only match). Used by callers to surface filename hits first.
 	NameMatch bool `json:"name_match"`
-	// Lines contains the 1-indexed line numbers where content term hits were found.
+	// ShortID names the short entry the hit is; empty for whole-file hits.
+	ShortID string `json:"short_id,omitempty"`
+	// Lines contains the 1-indexed line numbers where content term hits were found,
+	// relative to the hit's own text (the entry, for a short hit).
 	// Only populated for content-field hits; nil for name-only matches.
 	Lines []int `json:"lines,omitempty"`
 }
 
 // Search executes a full-text or filename search and returns ranked results.
-// readFn is called to resolve byte offsets to line numbers for content matches.
-func (b *BleveIndexer) Search(queryStr string, opts SearchOptions, readFn func(string) ([]byte, error)) ([]SearchResult, error) {
+// readFn returns a hit's indexed text, to resolve byte offsets to line numbers.
+func (b *BleveIndexer) Search(queryStr string, opts SearchOptions, readFn func(path, kind, shortID string) ([]byte, error)) ([]SearchResult, error) {
 	limit := opts.Limit
 	if limit <= 0 {
 		limit = 20
@@ -235,7 +303,7 @@ func (b *BleveIndexer) Search(queryStr string, opts SearchOptions, readFn func(s
 
 	req := bleve.NewSearchRequest(q)
 	req.Size = limit
-	req.Fields = []string{"name", "updated_at", "path", "tags", "kind"}
+	req.Fields = []string{"name", "updated_at", "path", "tags", "kind", "short_id"}
 	req.IncludeLocations = true
 
 	result, err := b.idx.Search(req)
@@ -258,7 +326,7 @@ func (b *BleveIndexer) Search(queryStr string, opts SearchOptions, readFn func(s
 			Score:     hit.Score,
 			NameMatch: len(hit.Locations["name"]) > 0 || len(hit.Locations["name_raw"]) > 0,
 		}
-		if v, ok := hit.Fields["name"].(string); ok {
+		if v, ok := hit.Fields["name"].(string); ok && v != "" {
 			sr.Name = v
 		} else {
 			sr.Name = base
@@ -266,13 +334,16 @@ func (b *BleveIndexer) Search(queryStr string, opts SearchOptions, readFn func(s
 		if v, ok := hit.Fields["kind"].(string); ok {
 			sr.Kind = v
 		}
+		if v, ok := hit.Fields["short_id"].(string); ok {
+			sr.ShortID = v
+		}
 		if v, ok := hit.Fields["updated_at"].(string); ok {
 			if t, err := time.Parse(time.RFC3339, v); err == nil {
 				sr.UpdatedAt = t
 			}
 		}
 		if contentLocs, ok := hit.Locations["content"]; ok && len(contentLocs) > 0 {
-			if content, readErr := readFn(docPath); readErr == nil {
+			if content, readErr := readFn(docPath, sr.Kind, sr.ShortID); readErr == nil {
 				sr.Lines = byteLocsToLines(content, contentLocs)
 			}
 		}
@@ -292,7 +363,8 @@ type indexDoc struct {
 	ContentZh string    `json:"content_zh"`     // same text, jieba analyzer for Chinese segmentation
 	Tags      []string  `json:"tags,omitempty"` // util.ExtractTags; keyword analyzer per tag
 	UpdatedAt time.Time `json:"updated_at"`
-	Kind      string    `json:"kind"` // "raw", "knowledge", "index", or "short"
+	Kind      string    `json:"kind"`               // "raw", "knowledge", "index", or "short"
+	ShortID   string    `json:"short_id,omitempty"` // set on a short entry's document
 }
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -387,6 +459,10 @@ func buildIndexMapping(useJieba bool) mapping.IndexMapping {
 	kindMapping.Analyzer = nameKeywordAnalyzer
 	doc.AddFieldMappingsAt("kind", kindMapping)
 
+	shortIDMapping := bleve.NewTextFieldMapping()
+	shortIDMapping.Analyzer = nameKeywordAnalyzer
+	doc.AddFieldMappingsAt("short_id", shortIDMapping)
+
 	im.DefaultMapping = doc
 	return im
 }
@@ -479,14 +555,6 @@ func countNewlines(content []byte, offset uint64) int {
 		offset = uint64(len(content))
 	}
 	return bytes.Count(content[:offset], []byte("\n"))
-}
-
-func baseName(p string) string {
-	idx := strings.LastIndex(p, "/")
-	if idx < 0 {
-		return p
-	}
-	return p[idx+1:]
 }
 
 // containsCJK reports whether s contains at least one CJK character.

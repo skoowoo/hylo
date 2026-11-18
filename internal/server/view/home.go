@@ -454,9 +454,13 @@ func (vh *ViewHandler) renderHomeTagsSection(r *http.Request) (template.HTML, er
 			return "", err
 		}
 		paths := make([]storage.Path, 0, len(results))
+		seenPaths := make(map[storage.Path]struct{}, len(results))
 		for _, res := range results {
 			if p, ok := storage.ParsePath(storage.JoinPath(res.Dir, res.Name)); ok {
-				paths = append(paths, p)
+				if _, dup := seenPaths[p]; !dup {
+					seenPaths[p] = struct{}{}
+					paths = append(paths, p)
+				}
 			}
 		}
 		if len(paths) > 0 {

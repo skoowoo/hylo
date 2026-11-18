@@ -26,7 +26,10 @@ func (vh *ViewHandler) NoteFragment(w http.ResponseWriter, r *http.Request) {
 	}
 	p := r.URL.Query().Get("path")
 	name := r.URL.Query().Get("name")
+	shortID := r.URL.Query().Get("short")
 	switch {
+	case shortID != "":
+		vh.fragmentByShort(w, shortID)
 	case p != "" && name != "":
 		http.Error(w, `specify either "path" or "name", not both`, http.StatusBadRequest)
 	case p != "":
@@ -36,6 +39,39 @@ func (vh *ViewHandler) NoteFragment(w http.ResponseWriter, r *http.Request) {
 	default:
 		http.Error(w, `missing required parameter: "path" or "name"`, http.StatusBadRequest)
 	}
+}
+
+func (vh *ViewHandler) fragmentByShort(w http.ResponseWriter, shortID string) {
+	e, err := vh.vault.GetShort(shortID)
+	if err != nil {
+		if errors.Is(err, storage.ErrNotFound) {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	text, imageNames := util.ExtractShortImages([]byte(e.Content))
+	rendered, err := util.MarkdownToHTMLFragmentTags(text)
+	if err != nil {
+		rendered = []byte(template.HTMLEscapeString(string(text)))
+	}
+	images := vh.resolveShortImages(imageNames)
+	data := noteFragData{
+		Dir:       "Short",
+		UpdatedAt: formatShortSearchTime(e.CreatedAt),
+		Content:   template.HTML(rendered), //nolint:gosec // fragment is server-generated markdown HTML
+		Images:    images,
+		Thumbs:    min(max(len(images)-1, 1), shortGridImages-1),
+		More:      max(len(images)-shortGridImages, 0),
+	}
+	var buf bytes.Buffer
+	if err := views.ExecuteTemplate(&buf, "note_fragment.html", data); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	_, _ = w.Write(buf.Bytes())
 }
 
 func (vh *ViewHandler) fragmentByPath(w http.ResponseWriter, pathStr string) {
@@ -72,6 +108,9 @@ type noteFragData struct {
 	UpdatedAt  string
 	Content    template.HTML
 	Truncated  bool
+	Images     []shortImage
+	Thumbs     int
+	More       int
 }
 
 // previewBytes caps how much of a note the preview reads and renders; the

@@ -5,10 +5,20 @@
     {{- if .UpdatedAt}}<span class="frag-time">{{.UpdatedAt}}</span>{{end -}}
   </p>
   {{- end}}
-  <h1 class="frag-title" id="frag-cover-title">{{.CoverTitle}}</h1>
+  {{- if .CoverTitle}}<h1 class="frag-title" id="frag-cover-title">{{.CoverTitle}}</h1>{{end}}
 </header>
 
-<article class="prose frag-article">{{.Content}}</article>
+{{- if .Content}}<article class="prose frag-article">{{.Content}}</article>{{end}}
+{{- if .Images}}
+<div class="shorts-img-grid{{if eq (len .Images) 1}} shorts-img-grid--one{{end}}" style="--thumbs: {{.Thumbs}}">
+  {{range .Images}}
+  <div class="shorts-img-cell" style="--ar: {{.Aspect}}">
+    <img src="{{.URL}}" alt="{{.Name}}" loading="lazy" decoding="async">
+  </div>
+  {{end}}
+  {{if .More}}<span class="shorts-img-more">+{{.More}}</span>{{end}}
+</div>
+{{- end}}
 {{- if .Truncated}}
 <p class="frag-more">Preview ends here · <kbd class="kbd">↵</kbd> opens the full note</p>
 {{- end}}

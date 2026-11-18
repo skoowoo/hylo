@@ -157,7 +157,7 @@ func newRouter(
 	// System routes
 	mux.HandleFunc("POST /healthz", h.HealthCheck)
 	mux.HandleFunc("POST /version", h.Version)
-	mux.HandleFunc("POST /api/status", handler.NewStatus(vault, searchPlugin).Status)
+	mux.HandleFunc("POST /api/status", handler.NewStatus(vault).Status)
 
 	mux.HandleFunc("GET /api/config", cfgHTTP.Get)
 	mux.HandleFunc("GET /api/config/schema", cfgHTTP.Schema)

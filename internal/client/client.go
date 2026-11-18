@@ -481,6 +481,7 @@ type SearchResult struct {
 	Kind      string    `json:"kind"`
 	UpdatedAt time.Time `json:"updated_at"`
 	Score     float64   `json:"score"`
+	ShortID   string    `json:"short_id,omitempty"`
 	Lines     []int     `json:"lines,omitempty"`
 }
 

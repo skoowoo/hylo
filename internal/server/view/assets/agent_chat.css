@@ -1199,22 +1199,23 @@
       border: none;
       border-radius: var(--r-full);
       cursor: pointer;
-      background: var(--accent);
-      color: var(--accent-fg);
-      transition: background var(--motion-fast) ease, transform var(--motion-fast) ease;
+      background: var(--fg);
+      color: var(--bg);
+      transition: background-color var(--motion-fast) ease, color var(--motion-fast) ease, transform var(--motion-fast) ease;
     }
 
     .chat-send-circle:hover:not(:disabled) {
-      background: var(--accent-hov);
+      background: color-mix(in oklch, var(--fg) 85%, var(--bg));
     }
 
     .chat-send-circle:active:not(:disabled) {
-      background: var(--accent-hov);
+      background: color-mix(in oklch, var(--fg) 75%, var(--bg));
       transform: scale(0.9);
     }
 
     .chat-send-circle:disabled {
-      opacity: 0.22;
+      background: var(--btn-bg);
+      color: var(--muted-soft);
       cursor: not-allowed;
     }
 
@@ -1238,16 +1239,17 @@
       border: none;
       border-radius: var(--r-full);
       cursor: pointer;
-      background: var(--accent);
-      color: var(--accent-fg);
+      background: var(--fg);
+      color: var(--bg);
+      transition: background-color var(--motion-fast) ease;
     }
 
     .chat-stop-circle:hover {
-      opacity: 0.85;
+      background: color-mix(in oklch, var(--fg) 85%, var(--bg));
     }
 
     .chat-stop-circle:active:not(:disabled) {
-      opacity: 0.7;
+      background: color-mix(in oklch, var(--fg) 75%, var(--bg));
     }
 
     .chat-stop-circle:disabled {

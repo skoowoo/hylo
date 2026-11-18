@@ -18,6 +18,11 @@ window.handleSearchResultSelection = function (r) {
     // Not in the currently-loaded graph — fall through to open in the content pane.
   }
 
+  if (r.stamp && typeof window.openShortEntry === 'function') {
+    void window.openShortEntry(path, r.stamp);
+    return true;
+  }
+
   if (window.__hyloContentPane) {
     void window.__hyloContentPane.openNoteInContentPane(path, r.name || 'Note',
       r.isKnowledge, false, r.isIndex, r.canCompile);

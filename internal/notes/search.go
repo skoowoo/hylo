@@ -22,6 +22,7 @@ type SearchEntry struct {
 	Kind      string  `json:"kind"`
 	UpdatedAt string  `json:"updated_at"`
 	Score     float64 `json:"score"`
+	ShortID   string  `json:"short_id,omitempty"` // the matched entry, for short_get
 	HitLines  []int   `json:"hit_lines,omitempty"`
 }
 
@@ -63,6 +64,7 @@ func Search(c *client.Client, q SearchQuery) (SearchResult, error) {
 			Kind:      hit.Kind,
 			UpdatedAt: util.FormatTime(hit.UpdatedAt),
 			Score:     math.Round(hit.Score*1000) / 1000,
+			ShortID:   hit.ShortID,
 			HitLines:  hit.Lines,
 		})
 		if len(out.Results) >= limit {

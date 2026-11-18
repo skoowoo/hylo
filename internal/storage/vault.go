@@ -1120,6 +1120,13 @@ func (g *Vault) CountNotes() (int, error) {
 	return dbCount(g.db)
 }
 
+// CountIndexedNotes returns the number of notes marked indexed in the metadata database.
+func (g *Vault) CountIndexedNotes() (int, error) {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+	return dbCountIndexed(g.db)
+}
+
 // CountKnowledgeNotes returns the total number of compiled knowledge notes.
 func (g *Vault) CountKnowledgeNotes() (int, error) {
 	g.mu.RLock()

@@ -15,24 +15,19 @@ type StatusResponse struct {
 // NoteCounter is satisfied by storage.Vault.
 type NoteCounter interface {
 	CountNotes() (int, error)
+	CountIndexedNotes() (int, error)
 	CountKnowledgeNotes() (int, error)
 	CountShortDays() (int, error)
 }
 
-// IndexCounter is satisfied by search.Plugin.
-type IndexCounter interface {
-	DocCount() (uint64, error)
-}
-
 // StatusHandler handles POST /api/status.
 type StatusHandler struct {
-	notes   NoteCounter
-	indexed IndexCounter
+	notes NoteCounter
 }
 
 // NewStatus returns a StatusHandler.
-func NewStatus(notes NoteCounter, indexed IndexCounter) *StatusHandler {
-	return &StatusHandler{notes: notes, indexed: indexed}
+func NewStatus(notes NoteCounter) *StatusHandler {
+	return &StatusHandler{notes: notes}
 }
 
 // Status handles POST /api/status.
@@ -42,7 +37,7 @@ func (h *StatusHandler) Status(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "status: count notes: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	indexed, err := h.indexed.DocCount()
+	indexed, err := h.notes.CountIndexedNotes()
 	if err != nil {
 		http.Error(w, "status: count indexed: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -59,7 +54,7 @@ func (h *StatusHandler) Status(w http.ResponseWriter, r *http.Request) {
 	}
 	respondJSON(w, http.StatusOK, StatusResponse{
 		Notes:          notes,
-		Indexed:        indexed,
+		Indexed:        uint64(indexed),
 		KnowledgeNotes: knowledgeNotes,
 		ShortDays:      shortDays,
 	})

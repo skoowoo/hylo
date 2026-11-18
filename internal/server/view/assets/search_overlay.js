@@ -110,6 +110,10 @@
       sectionLabel(i) {
         const r = this.results[i], prev = this.results[i - 1];
         if (!r || (prev && prev.section === r.section)) return '';
+        if (r.section === 'Shorts') {
+          const n = this.results.filter(x => x.section === 'Shorts').length;
+          return 'Shorts · ' + n;
+        }
         if (r.section !== 'Notes') return r.section;
         const n = this.results.filter(x => x.section === 'Notes').length;
         return (this.mode.kind ? this.mode.label : 'Notes') + ' · ' + n;
@@ -134,6 +138,7 @@
       // Type, then time: what tells two same-named notes apart.
       accessory(r) {
         if (r.type === 'bot') return r.unread > 0 ? r.unread + ' new' : '';
+        if (r.kind === 'short' && r.shortId) return r.updated || '';
         return [KIND_LABEL[r.kind], r.updated].filter(Boolean).join(' · ');
       },
       init() {
@@ -208,8 +213,24 @@
           .then(items => {
             if (ctrl !== this._searchCtrl) return;
             this._searchCtrl = null;
-            items.forEach(n => { n.section = 'Notes'; });
-            this.results = (this.withBots ? botItems(this.query) : []).concat(items);
+            let ordered;
+            if (this.mode.kind) {
+              items.forEach(n => { n.section = 'Notes'; });
+              ordered = items;
+            } else {
+              const notes = [], shorts = [];
+              items.forEach(n => {
+                if (n.kind === 'short' && n.shortId) {
+                  n.section = 'Shorts';
+                  shorts.push(n);
+                } else {
+                  n.section = 'Notes';
+                  notes.push(n);
+                }
+              });
+              ordered = notes.concat(shorts);
+            }
+            this.results = (this.withBots ? botItems(this.query) : []).concat(ordered);
             this.listing = 'search';
             this.active = 0;
             if (this.$refs.list) this.$refs.list.scrollTop = 0;
@@ -383,26 +404,29 @@
         const r = this.results[this.active];
         if (!r) { this._dropPreview(); return; }
         // A bot's card is drawn from its row; there is no note to fetch.
-        if (r.type === 'bot' || r.path === this.previewPath) return;
-        const path = r.path;
-        const load = () => this._fragment(path).then(html => {
+        const key = r.key || r.path;
+        if (r.type === 'bot' || key === this.previewPath) return;
+        const load = () => this._fragment(r).then(html => {
           const cur = this.results[this.active];
-          if (!this.showPreview || !cur || cur.path !== path) return;
-          this.previewPath = path;
+          if (!this.showPreview || !cur || (cur.key || cur.path) !== key) return;
+          this.previewPath = key;
           this.previewHtml = html;
           this.$nextTick(() => { if (this.$refs.preview) this.$refs.preview.scrollTop = 0; });
         }, () => {});
-        if (this._fragments.has(path)) load();
+        if (this._fragments.has(key)) load();
         else this._previewTimer = setTimeout(load, PREVIEW_DELAY);
       },
       // Cached per open; a note edited meanwhile shows fresh on the next open.
-      _fragment(path) {
-        let p = this._fragments.get(path);
+      _fragment(r) {
+        const key = r.key || r.path;
+        let p = this._fragments.get(key);
         if (!p) {
-          p = fetch('/notes/fragment?path=' + encodeURIComponent(path), { headers: { 'HX-Request': 'true' } })
-            .then(r => r.ok ? r.text() : Promise.reject());
-          p.catch(() => this._fragments.delete(path));
-          this._fragments.set(path, p);
+          let url = '/notes/fragment?path=' + encodeURIComponent(r.path);
+          if (r.shortId) url += '&short=' + encodeURIComponent(r.shortId);
+          p = fetch(url, { headers: { 'HX-Request': 'true' } })
+            .then(res => res.ok ? res.text() : Promise.reject());
+          p.catch(() => this._fragments.delete(key));
+          this._fragments.set(key, p);
         }
         return p;
       },
