@@ -45,17 +45,6 @@ func filterDirs(dirs []string) []string {
 	return out
 }
 
-func filterAbsDirs(dirs []string) []string {
-	var out []string
-	for _, d := range dirs {
-		d = strings.TrimSpace(d)
-		if d != "" && filepath.IsAbs(d) {
-			out = append(out, d)
-		}
-	}
-	return out
-}
-
 func buildClaude(def *AgentDef, c BuildArgsContext) []string {
 	caps := c.Caps
 	// Stdin is one stream-json user frame on every turn, images or not.
@@ -227,9 +216,6 @@ func buildPi(_ *AgentDef, c BuildArgsContext) []string {
 	}
 	if c.Reasoning != "" && c.Reasoning != "default" {
 		args = append(args, "--thinking", c.Reasoning)
-	}
-	for _, d := range filterAbsDirs(c.ExtraAllowedDirs) {
-		args = append(args, "--append-system-prompt", d)
 	}
 	return args
 }

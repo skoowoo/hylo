@@ -89,14 +89,16 @@ func System(r Run) string {
 	return strings.Join(texts, divider)
 }
 
-// Message is what the agent CLI receives as its prompt. Agents take no
-// separate system prompt, so the first turn carries it inline; a resumed
-// session already has it. cwd is the filesystem path the agent runs in and
-// dir the same directory as a vault path, which MCP tools take.
+// Message carries instructions inline for agents without native instruction injection.
 func Message(system, request, cwd, dir string, resume bool) string {
 	if resume {
 		return request
 	}
+	return Instructions(system, cwd, dir) + "# User request\n\n" + request
+}
+
+// Instructions includes both filesystem and vault paths, which use different roots.
+func Instructions(system, cwd, dir string) string {
 	var sb strings.Builder
 	if t := strings.TrimSpace(system); t != "" {
 		sb.WriteString("# Instructions\n\n")
@@ -112,7 +114,5 @@ func Message(system, request, cwd, dir string, resume bool) string {
 		root := strings.TrimSuffix(cwd, filepath.FromSlash(dir))
 		sb.WriteString(" (vault path " + dir + "; the vault root is " + root + ")\n\n")
 	}
-	sb.WriteString("# User request\n\n")
-	sb.WriteString(request)
 	return sb.String()
 }

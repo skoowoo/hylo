@@ -648,6 +648,16 @@ func (a *AgentAPI) executeChat(ctx context.Context, run *agent.Run, body chatBod
 	}
 
 	sessionID, firstSession, resumeTurn := a.resolveAgentSession(body.ConversationID, def, cwd)
+	processStarted := false
+	if firstSession && a.store != nil && body.ConversationID != "" {
+		defer func() {
+			if !processStarted {
+				if err := a.store.ClearConversationAgentSession(body.ConversationID); err != nil {
+					a.logger.Warn("chat: clear unstarted agent session", slog.String("err", err.Error()))
+				}
+			}
+		}()
+	}
 	up := a.uploadRoot()
 	safeImages := filterImagePaths(body.ImagePaths, up)
 	request := channelRequest(body.app, agent.TurnText(def.ID, body.Message, safeImages))
@@ -655,7 +665,14 @@ func (a *AgentAPI) executeChat(ctx context.Context, run *agent.Run, body chatBod
 	if wake && a.store != nil && body.TriggerEvent != string(mate.MateEventPulse) {
 		request = prompt.WakeRequest(a.store.WakeReason(body.TriggerID, mate.MateEventType(body.TriggerEvent)), request)
 	}
-	composed := prompt.Message(prompt.System(pr), request, cwd, dir, resumeTurn)
+	system := prompt.System(pr)
+	composed := request
+	instructions := ""
+	if agent.SupportsInstructionAppend(def.ID) {
+		instructions = prompt.Instructions(system, cwd, dir)
+	} else {
+		composed = prompt.Message(system, request, cwd, dir, resumeTurn)
+	}
 	if e := agent.CheckPromptArgvBudget(def, composed); e != nil {
 		a.logger.Warn("agent aborted",
 			slog.String("runId", run.ID),
@@ -728,6 +745,37 @@ func (a *AgentAPI) executeChat(ctx context.Context, run *agent.Run, body chatBod
 		}
 	}
 	argv, env = a.injectMCP(def.ID, run.ID, cwd, argv, env)
+	if instructions != "" {
+		prepCtx, stop := context.WithCancel(ctx)
+		a.queued.Store(run.ID, stop)
+		if _, canceled := a.canceled.Load(run.ID); canceled {
+			stop()
+		}
+		inj, err := agent.PrepareInstructions(prepCtx, def.ID, bin, cwd, instructions, env)
+		a.queued.Delete(run.ID)
+		stop()
+		defer inj.Close()
+		if _, canceled := a.canceled.LoadAndDelete(run.ID); canceled {
+			a.hub.Finish(run, "canceled", map[string]any{})
+			if assistantMsgID != "" && a.store != nil {
+				_ = a.store.UpdateMessageDone(assistantMsgID, "", "", "canceled")
+			}
+			return mate.RunResult{}
+		}
+		if err != nil {
+			a.logger.Warn("instruction injection failed", slog.String("agentId", def.ID), slog.String("err", err.Error()))
+			a.hub.Emit(run, "error", map[string]any{"code": "INSTRUCTION_INJECTION_FAILED", "message": "Could not configure agent instructions: " + err.Error()})
+			a.hub.Finish(run, "failed", map[string]any{})
+			if assistantMsgID != "" && a.store != nil {
+				_ = a.store.UpdateMessageDone(assistantMsgID, "", "", "failed")
+			}
+			return mate.RunResult{Success: false}
+		}
+		argv = append(argv, inj.Args...)
+		for k, v := range inj.Env {
+			env = mergeEnvKey(env, k, v)
+		}
+	}
 	if e := agent.CheckWindowsCmdShimCommandLineBudget(def, bin, argv); e != nil {
 		a.logger.Warn("agent aborted",
 			slog.String("runId", run.ID),
@@ -759,7 +807,7 @@ func (a *AgentAPI) executeChat(ctx context.Context, run *agent.Run, body chatBod
 		"streamFormat": def.StreamFormat, "cwd": cwd,
 		"model": safeModel, "reasoning": safeReasoning,
 	})
-	spawnCmd := exec.Command(bin, argv...)
+	spawnCmd := exec.Command(bin, agent.RedactInstructionArgs(argv)...)
 	logSpawn := []any{
 		slog.String("runId", run.ID),
 		slog.String("agentId", def.ID),
@@ -793,7 +841,11 @@ func (a *AgentAPI) executeChat(ctx context.Context, run *agent.Run, body chatBod
 	}
 
 	cp, err := agent.ExecChat(ctx, def, bin, argv, env, cwd, composed, safeModel, sessionID, firstSession, safeImages, up, emit, func(started *agent.ChatProcess) {
+		processStarted = true
 		a.active.Store(run.ID, started)
+		if _, canceled := a.canceled.Load(run.ID); canceled {
+			_ = started.Cmd.Process.Kill()
+		}
 	})
 	defer a.active.Delete(run.ID)
 

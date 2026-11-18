@@ -98,7 +98,7 @@ func looksLikeWindowsPath(p string) bool {
 
 // CheckWindowsCmdShimCommandLineBudget mirrors agents.ts (argv + .cmd shim wrap).
 func CheckWindowsCmdShimCommandLineBudget(def *AgentDef, resolvedBin string, args []string) *PromptTooLargeError {
-	if def == nil || def.MaxPromptArgBytes <= 0 {
+	if def == nil {
 		return nil
 	}
 	if resolvedBin == "" {
@@ -135,7 +135,7 @@ func CheckWindowsCmdShimCommandLineBudget(def *AgentDef, resolvedBin string, arg
 
 // CheckWindowsDirectExeCommandLineBudget mirrors agents.ts for direct .exe spawns.
 func CheckWindowsDirectExeCommandLineBudget(def *AgentDef, resolvedBin string, args []string) *PromptTooLargeError {
-	if def == nil || def.MaxPromptArgBytes <= 0 {
+	if def == nil {
 		return nil
 	}
 	if resolvedBin == "" || !looksLikeWindowsPath(resolvedBin) {

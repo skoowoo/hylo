@@ -140,7 +140,16 @@ function sample() {
   const traceFrame = (row) => {
     const trace = row && row.querySelector('.seg-trace');
     if (!trace) return null;
-    return { h: trace.getBoundingClientRect().height, head: trace.querySelector('.seg-trace-head').getBoundingClientRect().height, text: trace.querySelector('.seg-trace-head').textContent };
+    const head = trace.querySelector('.seg-trace-head');
+    const dots = head.querySelector('.working-dots');
+    const dot = getComputedStyle(dots.firstElementChild);
+    return {
+      h: trace.getBoundingClientRect().height, head: head.getBoundingClientRect().height,
+      text: head.textContent, animation: getComputedStyle(head.querySelector('.seg-trace-label')).animationName,
+      order: [...head.children].map((n) => n.getAttribute('class') || n.tagName),
+      dots: { count: dots.children.length, visible: getComputedStyle(dots).display !== 'none',
+        animation: dot.animationName, duration: dot.animationDuration, width: dot.width, color: dot.color },
+    };
   };
   const tick = () => {
     const users = thread.querySelectorAll('.msg-row-user');
@@ -305,7 +314,7 @@ test('leaving and rejoining the bottom moves no row by even a fraction of a pixe
   }
 });
 
-test('a live trace is one line that names its newest step, and opens in full', async (t) => {
+test('a trace stays quiet through every step and opens in full', async (t) => {
   if (launchError) return t.skip('WebKit unavailable');
   const page = await browser.newPage({ viewport: { width: 760, height: 720 } });
   try {
@@ -314,7 +323,19 @@ test('a live trace is one line that names its newest step, and opens in full', a
     assert.ok(live.length, 'the trace showed while live');
     live.forEach((f) => assert.ok(Math.abs(f.trace.h - f.trace.head) < 0.5 && Math.abs(f.trace.h - live[0].trace.h) < 0.5, `the live trace was ${f.trace.h.toFixed(1)}px, not one line`));
     const said = new Set(live.map((f) => f.trace.text));
-    ['Thinking', 'Readingoctober', 'Editingchat-redesign', 'Searching ×10step 9'].forEach((s) => assert.ok(said.has(s), `the line never said "${s}": ${[...said].join(' | ')}`));
+    assert.deepEqual([...said], ['Working'], 'internal steps never surface in the collapsed line');
+    assert.equal(await page.locator('.msg-row-assistant').last().locator('.seg-trace-head').textContent(), 'Worked');
+    for (const f of live) {
+      assert.deepEqual(f.trace.order, ['working-dots', 'seg-trace-label', 'svg']);
+      assert.equal(f.trace.animation, 'none', 'only the dots animate');
+      assert.equal(f.trace.dots.count, 3);
+      assert.equal(f.trace.dots.visible, true);
+      assert.equal(f.trace.dots.animation, 'working-blink');
+      assert.equal(f.trace.dots.duration, '1.4s');
+      assert.equal(f.trace.dots.width, '5px');
+    }
+    const head = page.locator('.msg-row-assistant').last().locator('.seg-trace-head');
+    assert.equal(await head.locator('.working-dots').isVisible(), false, 'settled work has no active dots');
     // A stuck thread pins itself back to the bottom, so the head is clicked in place.
     const open = await page.evaluate(async () => {
       const row = [...document.querySelectorAll('.msg-row-assistant')].pop();

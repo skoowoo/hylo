@@ -269,46 +269,6 @@
     node.style.animationDelay = '-' + (Date.now() % period) + 'ms';
   }
 
-  function traceSummary(segs, live) {
-    var think = 0, thinking = false, hasThink = false, order = [], counts = {};
-    for (var i = 0; i < segs.length; i++) {
-      var sg = segs[i];
-      if (sg.type === 'thinking') {
-        hasThink = true;
-        if (sg.endedAt && sg.startedAt) think += sg.endedAt - sg.startedAt;
-        else if (live) thinking = true;
-      } else if (sg.type === 'tool_use') {
-        var v = toolVerb(sg.name, false);
-        if (!(v in counts)) { counts[v] = 0; order.push(v); }
-        counts[v] += sg.count || 1;
-      }
-    }
-    var parts = [];
-    if (thinking) parts.push('Thinking');
-    else if (hasThink) { var d = fmtDur(think); parts.push(d ? 'Thought ' + d : 'Thought'); }
-    for (var k = 0; k < order.length; k++) parts.push(order[k] + (counts[order[k]] > 1 ? ' ×' + counts[order[k]] : ''));
-    return parts.join(' · ') || (live ? 'Working' : 'Worked');
-  }
-
-  // What the run is doing right now: its newest step, as one line.
-  function traceNow(segs) {
-    for (var i = segs.length - 1; i >= 0; i--) {
-      var sg = segs[i];
-      if (sg.type === 'thinking') return { label: 'Thinking', detail: '' };
-      if (sg.type === 'tool_use') {
-        var calls = sg.calls || [], notes = sg.notes || [];
-        var last = calls[calls.length - 1];
-        var pending = (sg.results || []).length < sg.count;
-        return {
-          label: toolVerb(sg.name, pending) + (sg.count > 1 ? ' ×' + sg.count : ''),
-          detail: notes.length ? noteTitle(notes[notes.length - 1].path) : (last && last.arg) || '',
-        };
-      }
-      if (sg.type === 'status' && sg.label) return { label: sg.label, detail: '' };
-    }
-    return { label: 'Working', detail: '' };
-  }
-
   // ── Steps: one long-lived component per segment ─────────────────────
   // A folding body: its grid row animates between 0fr and 1fr, so opening or
   // closing slides the content below instead of dropping it. The clip between
@@ -517,17 +477,16 @@
   }
 
   // ── Trace: the run's steps behind one line, open only when the reader asks ──
-  // Live, the line names the newest step; while the bot writes or once the run
-  // settles, it sums the run up. Its height never changes with what it says.
+  // Keep internal steps behind a stable, quiet label.
   function Trace(msg) {
     var wrap = el('div', 'seg-trace');
     var head = el('button', 'seg-trace-head');
     head.type = 'button';
-    head.appendChild(svg(CHEVRON));
+    var activity = blinkDots();
+    head.appendChild(activity);
     var label = el('span', 'seg-trace-label');
-    var detail = el('span', 'seg-trace-detail');
     head.appendChild(label);
-    head.appendChild(detail);
+    head.appendChild(svg(CHEVRON));
     var rail = el('div', 'seg-trace-rail');
     var shell = fold(rail, 'chat-fold seg-trace-shell');
     wrap.appendChild(head);
@@ -547,17 +506,13 @@
     return {
       node: wrap,
       rail: rail,
-      update: function (segs, running, writing) {
+      update: function (running) {
         if (running !== live) {
           live = running;
           wrap.classList.toggle('is-live', live);
-          if (live) phase(label, 1800);
+          show(activity, live);
         }
-        var now = running && !writing ? traceNow(segs) : null;
-        setText(label, now ? now.label : traceSummary(segs, running));
-        setText(detail, now ? now.detail : '');
-        detail.title = detail.textContent;
-        show(detail, !!detail.textContent);
+        setText(label, running ? 'Working' : 'Worked');
         paint();
       },
     };
@@ -716,14 +671,18 @@
   // ── Rows ────────────────────────────────────────────────────────────
   var TRACE_TYPES = { thinking: 1, tool_use: 1, tool_result: 1, status: 1 };
 
+  function botColorKey(msg, snap) {
+    for (var i = 0; i < snap.mates.length; i++) {
+      if (snap.mates[i].id === msg.agentBotId) return snap.mates[i].name;
+    }
+    return msg.agentBotId || '';
+  }
+
   function header(msg, snap) {
     var h = el('div', 'msg-agent-header');
     var name = snap.mateName(msg);
     var avatar = el('div', 'avatar avatar--md msg-agent-avatar');
-    var mate = null;
-    for (var i = 0; i < snap.mates.length; i++) if (snap.mates[i].id === msg.agentBotId) { mate = snap.mates[i]; break; }
-    var colorKey = mate ? mate.name : (msg.agentBotId || '');
-    if (root.agentBotAvatarSVG) avatar.innerHTML = root.agentBotAvatarSVG(colorKey, snap.mates);
+    if (root.agentBotAvatarSVG) avatar.innerHTML = root.agentBotAvatarSVG(botColorKey(msg, snap), snap.mates);
     h.appendChild(avatar);
     var nameEl = el('div', 'msg-agent-name');
     nameEl.textContent = name;
@@ -748,12 +707,21 @@
     return banner;
   }
 
+  function blinkDots() {
+    var d = el('span', 'working-dots');
+    d.setAttribute('aria-hidden', 'true');
+    for (var i = 0; i < 3; i++) {
+      var dot = el('span');
+      dot.style.animationDelay = '-' + ((Date.now() - i * 180 + 1400) % 1400) + 'ms';
+      d.appendChild(dot);
+    }
+    return d;
+  }
+
   function dots(text) {
     var label = el('span', 'msg-thinking-label');
+    label.appendChild(blinkDots());
     label.appendChild(document.createTextNode(text));
-    var d = el('span', 'thinking-dots');
-    d.appendChild(el('span')); d.appendChild(el('span')); d.appendChild(el('span'));
-    label.appendChild(d);
     return label;
   }
 
@@ -827,7 +795,7 @@
         var running = m.status === 'running';
         // A status alone shows nothing of its own, so this slot stands in for it.
         var shown = (m.segments || []).some(function (sg) { return sg.type !== 'status'; });
-        var st = running && snap.stoppingId === m.id ? 'Stopping' : (running && !shown ? 'Thinking' : '');
+        var st = running && snap.stoppingId === m.id ? 'Stopping' : (running && !shown ? 'Working' : '');
         if (st !== shownState) {
           shownState = st;
           stateEl.replaceChildren(st ? dots(st) : '');
@@ -900,6 +868,7 @@
       current = m;
       curSnap = s;
       var running = m.status === 'running';
+      wrap.style.setProperty('--chat-bot-color', root.agentBotColor ? root.agentBotColor(botColorKey(m, s), s.mates) : 'var(--accent-text)');
       var segs = m.segments || [];
       var ctx = { running: running, live: built };
       var keys = stepKeys(segs);
@@ -913,7 +882,7 @@
       headSig = sig;
 
       // Steps fold into the trace; texts stay in order below it, each its own block.
-      var lead = [], texts = [], rest = [], used = Object.create(null), stepCount = 0, traceSegs = [];
+      var lead = [], texts = [], rest = [], used = Object.create(null), stepCount = 0;
       for (var i = 0; i < segs.length; i++) {
         var sg = segs[i], type = sg.type;
         if (type === 'note_access' || !steps[type]) continue;
@@ -923,17 +892,14 @@
         if (type === 'text') { if ((sg.content || '').trim()) texts.push(c.node); }
         else if (TRACE_TYPES[type]) {
           lead.push(c.node);
-          traceSegs.push(sg);
           if (type !== 'status') stepCount++;
         } else rest.push(c.node);
       }
 
-      // A status is only ever the trace line's words, never a block of its own.
       var top = [];
       if (stepCount) {
         if (!trace) trace = Trace(m);
-        var tail = segs[segs.length - 1];
-        trace.update(traceSegs, running, !!tail && tail.type === 'text' && !!tail.content.trim());
+        trace.update(running);
         arrange(trace.rail, lead);
         top.push(trace.node);
       } else trace = null;

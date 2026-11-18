@@ -141,11 +141,9 @@ func addHeader(srv map[string]any, k, v string) {
 }
 
 func opencodeConfig(ep MCPEndpoint, baseEnv []string) (string, error) {
-	cfg := map[string]any{}
-	if raw := envToMap(baseEnv)["OPENCODE_CONFIG_CONTENT"]; raw != "" {
-		if err := json.Unmarshal([]byte(raw), &cfg); err != nil {
-			return "", fmt.Errorf("existing OPENCODE_CONFIG_CONTENT is not valid JSON: %w", err)
-		}
+	cfg, err := readOpenCodeConfig(baseEnv)
+	if err != nil {
+		return "", err
 	}
 	srv := map[string]any{"type": "remote", "url": ep.URL}
 	if ep.APIKey != "" {
@@ -159,6 +157,19 @@ func opencodeConfig(ep MCPEndpoint, baseEnv []string) (string, error) {
 	cfg["mcp"] = mcp
 	b, err := json.Marshal(cfg)
 	return string(b), err
+}
+
+func readOpenCodeConfig(baseEnv []string) (map[string]any, error) {
+	cfg := map[string]any{}
+	if raw := envToMap(baseEnv)["OPENCODE_CONFIG_CONTENT"]; raw != "" {
+		if err := json.Unmarshal([]byte(raw), &cfg); err != nil {
+			return nil, fmt.Errorf("existing OPENCODE_CONFIG_CONTENT is not valid JSON: %w", err)
+		}
+	}
+	if cfg == nil {
+		return nil, fmt.Errorf("OPENCODE_CONFIG_CONTENT must be an object")
+	}
+	return cfg, nil
 }
 
 // mergeMCPFile sets mcpServers.hylo in path, leaving every other entry untouched.

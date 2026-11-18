@@ -4,7 +4,7 @@ Hylo 交给 agent 的指令分三层，各管一件事：
 
 | 层 | 何时进入上下文 | 负责 | 源码 |
 | --- | --- | --- | --- |
-| **System prompt** | 每次运行的第一轮，按条件拼装 | 身份、vault 约定、该把请求交给谁 | `internal/prompt/` |
+| **System prompt** | 每轮按条件拼装；原生追加给支持的 CLI，其他 CLI 随首轮发送 | 身份、vault 约定、该把请求交给谁 | `internal/prompt/` |
 | **Skill** | agent 按 description 匹配到某项工作时才加载 | 这项工作怎么做 | `skills/`（内置，嵌进程序），`~/.hylo/skills`（运行时） |
 | **MCP 工具** | 一直在工具列表里 | 真正读写 vault、管理 bot 和 skill | `internal/mcp/`（CLI 一一对应，见 `internal/cli/`） |
 
@@ -23,8 +23,13 @@ flowchart LR
     end
     C & T & O --> R["prompt.Run<br/>{Kind, Bot, Main, MCP, Intro}"]
     R --> S["prompt.System(r)<br/>按顺序过滤 sections，用分隔线连接"]
-    S --> M["prompt.Message(system, request, cwd, dir, resume)"]
-    M --> A[agent CLI]
+    S --> N["prompt.Instructions(system, cwd, dir)"]
+    N --> I["agent.PrepareInstructions<br/>Pi / Claude / Codex / OpenCode"]
+    I --> A[agent CLI]
+    R --> U[本轮用户请求 / 唤醒任务]
+    U --> A
+    S --> M["其他 CLI：prompt.Message<br/>首轮内联，续聊仅请求"]
+    M --> A
     A -. 按 cwd 发现 .-> SK[".agents/skills<br/>.claude/skills"]
     A -. 调用 .-> MCP[Hylo MCP 工具]
 ```
@@ -38,7 +43,22 @@ flowchart LR
 - `Intro`：onboarding 后的第一次聊天。
 - `global` 这一层固定是 `text/system/global.md`，没有配置项。
 
-`prompt.Message` 产出 agent 真正收到的第一条消息：
+Pi、Claude Code、Codex 和 OpenCode 将常驻指令与本轮请求分开。`prompt.Instructions` 生成 sections 和工作目录说明，`agent.PrepareInstructions` 负责原生注入：
+
+| CLI | 注入方式 | 生命周期 |
+| --- | --- | --- |
+| Pi | `--append-system-prompt <file>` | 每轮启动时追加，保留默认 prompt |
+| Claude Code | `--append-system-prompt-file <file> --system-prompt-snapshot off` | 续聊重新生成 system prompt |
+| Codex | `-c developer_instructions=...` | 用 `app-server` 的 `config/read` 读取有效配置，将已有 developer 指令与 Hylo 指令合并；不替换模型基础指令 |
+| OpenCode | `OPENCODE_CONFIG_CONTENT.instructions` 中追加文件路径 | 与已有 instructions、MCP 和其他配置合并 |
+
+文件按运行创建，目录权限为 `0700`、文件为 `0600`，子进程退出后清理，不改用户的指令文件。Codex 配置读取最多等待 10 秒，不启动模型请求；让 Codex 自己解析配置层和项目可信状态。注入失败会明确结束该轮，避免无指令执行。Codex 的指令参数在启动日志里脱敏。
+
+Pi 的显式 `--append-system-prompt` 会替代 `APPEND_SYSTEM.md` 的自动发现，因此当前由 Hylo 接管 append 层，不自动合并项目或全局的 `APPEND_SYSTEM.md`；Pi 默认 system prompt、独立的 `SYSTEM.md` 选择、上下文文件和 skills 加载仍由 Pi 处理。此方案依赖每轮启动 CLI；长运行进程不能仅靠修改文件更新指令。
+
+RPC / stdin 只发送本轮请求，包括渠道说明和 trigger 的唤醒信息。每轮重新计算 sections，因此 bot、apps 和 intro 等配置变化可在续聊中更新；不需要重发历史消息。已有会话中旧的首条内联指令仍在历史里，迁移不清空会话。
+
+Cursor 和 Copilot 继续使用 `prompt.Message`，其首条消息仍为：
 
 ```
 # Instructions
@@ -54,7 +74,7 @@ Your working directory: <cwd> (the vault root | vault path /_bots/_xxx)
 <用户消息，或 trigger 唤醒时的 WakeRequest（text/trigger/wake.md：谁唤醒的、回复会作为 bot 主动发的消息、可回 [silent]，再加 trigger prompt）>
 ```
 
-agent CLI 没有独立的 system prompt 参数，所以指令只随第一轮发送；**续聊（resume）只发用户消息**。改了 section 文本，已有会话不会生效，要新开会话才能验证。
+这两个 CLI 的 **续聊（resume）只发用户消息**；修改 section 文本后，要新开会话才能验证。
 
 ---
 
