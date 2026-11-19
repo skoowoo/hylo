@@ -74,9 +74,11 @@ type homeSectionData struct {
 	// seg control — see selectKnowledgeIndex/setListView in home.js.
 	ShowGraphOption bool
 	View            string // "list" (default) | "grid" | "graph"
-	// Activity only: the activity map above the list, and the day it is narrowed to.
-	Activity *activityMap
-	Filter   *activityFilter
+	// Activity only: the activity map above the list, the day it is narrowed to,
+	// and (when no single day is picked) the current month's notes grouped by day.
+	Activity       *activityMap
+	ActivityGroups []activityDayGroup
+	Filter         *activityFilter
 	// Pinned only: every row is pinned, so the pin badge says nothing there.
 	HidePin bool
 }
@@ -214,11 +216,14 @@ func (vh *ViewHandler) homeSectionData(r *http.Request, itemsOnly bool) (homeSec
 			}
 		}
 	case "activity":
-		var day time.Time
 		if vh.mates != nil {
-			day, _ = time.ParseInLocation(time.DateOnly, r.URL.Query().Get("day"), time.Local)
-		}
-		if day.IsZero() {
+			day, _ := time.ParseInLocation(time.DateOnly, r.URL.Query().Get("day"), time.Local)
+			if !itemsOnly {
+				if err := vh.activitySection(&data, day); err != nil {
+					return data, err
+				}
+			}
+		} else {
 			notes, err := vh.vault.ListRecentNotes(time.Now().AddDate(0, 0, -7))
 			if err != nil {
 				return data, err
@@ -227,13 +232,8 @@ func (vh *ViewHandler) homeSectionData(r *http.Request, itemsOnly bool) (homeSec
 			data.Items = vh.noteItemsFromNotes(notes)
 			data.Title = "Activity"
 			data.Empty = emptyState{Icon: "recent", Title: "Nothing this week", Desc: "Notes you edit over the last 7 days show up here."}
+			data.Count = len(data.Items)
 		}
-		if vh.mates != nil && !itemsOnly {
-			if err := vh.activitySection(&data, day); err != nil {
-				return data, err
-			}
-		}
-		data.Count = len(data.Items)
 	default: // "pinned"
 		pinned, err := vh.vault.ListPinnedNotes()
 		if err != nil {

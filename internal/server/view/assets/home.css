@@ -427,6 +427,17 @@
     }
     .act-share-pct { text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
     .act-none { margin: 0; padding: 3px 0; color: var(--muted); }
+    .act-day-head {
+      grid-column: 1 / -1; flex-shrink: 0;
+      margin: var(--space-lg) 0 var(--space-xs);
+      font-size: var(--text-xs); font-weight: var(--fw-medium); line-height: 1;
+      color: var(--muted);
+      user-select: none;
+    }
+    .act-map + .act-day-head { margin-top: 0; }
+    .home-list-body.is-grid .act-map { margin-bottom: var(--space-xs); }
+    .home-list-body.is-grid .act-day-head { margin: var(--space-sm) 0 0; }
+    .home-list-body.is-grid .act-map + .act-day-head { margin-top: 0; }
     /* Under the map, in the body: the section-wide spot falls inside the map on short panes. */
     .act-map ~ .empty-state--page { position: static; grid-column: 1 / -1; padding: var(--space-xxl) 1rem 0; }
 
@@ -567,13 +578,13 @@
     .home-list-body.is-grid .note-card-cover::after {
       background-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.66));
     }
-    .home-list-body.is-grid .has-cover :is(.note-card-title, .note-card-preview, .note-card-dir, .note-card-time) {
+    .home-list-body.is-grid .has-cover :is(.note-card-title, .note-card-preview, .note-card-dir, .note-card-time, .note-card-touch-user) {
       text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
     }
     .home-list-body.is-grid .has-cover .note-card-title,
     .home-list-body.is-grid .has-cover .note-badge,
     .home-list-body.is-grid .has-cover .card-more { color: #fff; }
-    .home-list-body.is-grid .has-cover :is(.note-card-preview, .note-card-dir, .note-card-time) { color: rgba(255, 255, 255, 0.78); }
+    .home-list-body.is-grid .has-cover :is(.note-card-preview, .note-card-dir, .note-card-time, .note-card-touch-user) { color: rgba(255, 255, 255, 0.78); }
     .home-list-body.is-grid .has-cover .card-more:hover,
     .home-list-body.is-grid .has-cover .card-more[aria-expanded="true"] { background: rgba(255, 255, 255, 0.16); }
     .home-list-body.is-grid .has-cover .note-badge--todo-track { stroke: rgba(255, 255, 255, 0.4); }

@@ -238,3 +238,80 @@ func TestActivityDayNotesJSONListsWhoTouchedEachNote(t *testing.T) {
 		t.Fatalf("bad date = %d", code)
 	}
 }
+
+func TestActivityDefaultListsCurrentMonthGroupedByDay(t *testing.T) {
+	v, err := storage.New(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range []storage.Path{"/today.md", "/earlier.md", "/lastmonth.md", "/untouched.md"} {
+		if err := v.WriteNote(p, []byte("x"), ""); err != nil {
+			t.Fatal(err)
+		}
+	}
+	ms, err := mate.Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = ms.Close() })
+
+	today := localMidnight(time.Now())
+	monthStart := time.Date(today.Year(), today.Month(), 1, 0, 0, 0, 0, time.Local)
+	prevMonth := monthStart.AddDate(0, 0, -1)
+
+	if err := ms.RecordUserVisit("/today.md", mate.NoteAccessWrite, today.Add(11*time.Hour)); err != nil {
+		t.Fatal(err)
+	}
+	if err := ms.RecordUserVisit("/lastmonth.md", mate.NoteAccessWrite, prevMonth.Add(10*time.Hour)); err != nil {
+		t.Fatal(err)
+	}
+	hasEarlier := today.After(monthStart)
+	var earlier time.Time
+	if hasEarlier {
+		earlier = today.AddDate(0, 0, -1)
+		if err := ms.RecordUserVisit("/earlier.md", mate.NoteAccessRead, earlier.Add(9*time.Hour)); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	vh := NewView(v, nil, nil)
+	vh.SetMates(ms)
+	html, err := vh.renderHomeSectionHTML(httptest.NewRequest("GET", "/home/section?type=activity", nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := string(html)
+	if !strings.Contains(out, `<h3 class="act-day-head" data-day="`+today.Format(time.DateOnly)+`">Today</h3>`) {
+		t.Errorf("missing Today group heading in %s", out)
+	}
+	if !strings.Contains(out, `data-note-path="/today.md"`) || !strings.Contains(out, `>Edited<`) {
+		t.Error("missing today's touched note")
+	}
+	if strings.Contains(out, `data-note-path="/untouched.md"`) {
+		t.Error("untouched note should not appear in activity list")
+	}
+	if strings.Contains(out, `data-note-path="/lastmonth.md"`) {
+		t.Error("previous month's activity should not appear in default month list")
+	}
+	if hasEarlier {
+		if !strings.Contains(out, `<h3 class="act-day-head" data-day="`+earlier.Format(time.DateOnly)+`">Yesterday</h3>`) {
+			t.Error("missing Yesterday group heading")
+		}
+		if !strings.Contains(out, `data-note-path="/earlier.md"`) || !strings.Contains(out, `>Viewed<`) {
+			t.Error("missing earlier note in current month")
+		}
+		if strings.Index(out, `data-note-path="/today.md"`) > strings.Index(out, `data-note-path="/earlier.md"`) {
+			t.Error("groups should be ordered newest day first")
+		}
+	}
+
+	// Without mates, Activity falls back to recently edited notes over the last 7 days.
+	vhNoMates := NewView(v, nil, nil)
+	fallback, err := vhNoMates.renderHomeSectionHTML(httptest.NewRequest("GET", "/home/section?type=activity", nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(fallback), `data-note-path="/untouched.md"`) {
+		t.Error("fallback without mates should list recently edited notes")
+	}
+}

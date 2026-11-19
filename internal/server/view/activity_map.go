@@ -51,6 +51,13 @@ type activityFilter struct {
 	Label, ClearURL string
 }
 
+// activityDayGroup is one day's heading and notes in the default Activity list.
+type activityDayGroup struct {
+	Date  string // YYYY-MM-DD
+	Label string
+	Items []noteItem
+}
+
 func activityDayURL(day time.Time) string {
 	return "/home/section?type=activity&day=" + url.QueryEscape(day.Format(time.DateOnly))
 }
@@ -396,8 +403,8 @@ func (vh *ViewHandler) botNames() map[string]string {
 	return names
 }
 
-// activitySection adds the activity map to the section and, with a day picked, swaps
-// its list for the notes touched that day, most recent first.
+// activitySection adds the activity map to the section and fills the list from
+// note activity: either the picked day, or the current month grouped by day.
 func (vh *ViewHandler) activitySection(data *homeSectionData, day time.Time) error {
 	today := localMidnight(time.Now())
 	byDay, notes, from, err := vh.activityData(today)
@@ -407,25 +414,75 @@ func (vh *ViewHandler) activitySection(data *homeSectionData, day time.Time) err
 	names := vh.botNames()
 	am := vh.buildActivityMap(byDay, from, today, day, names)
 	data.Activity = &am
-	if day.IsZero() {
+
+	if !day.IsZero() {
+		items := vh.activityDayItems(byDay, notes, day, names)
+		label := day.Format("Jan 2")
+		data.Items = items
+		data.Count = len(items)
+		data.Title = label
+		data.Filter = &activityFilter{Label: label, ClearURL: "/home/section?type=activity"}
+		data.Empty = emptyState{Icon: "recent", Title: "Nothing on " + label}
 		return nil
 	}
+
+	monthStart := time.Date(today.Year(), today.Month(), 1, 0, 0, 0, 0, time.Local)
+	var days []time.Time
+	for d := range byDay {
+		if !d.Before(monthStart) && !d.After(today) {
+			days = append(days, d)
+		}
+	}
+	slices.SortFunc(days, func(a, b time.Time) int { return b.Compare(a) })
+
+	total := 0
+	groups := make([]activityDayGroup, 0, len(days))
+	for _, d := range days {
+		items := vh.activityDayItems(byDay, notes, d, names)
+		if len(items) == 0 {
+			continue
+		}
+		groups = append(groups, activityDayGroup{
+			Date:  d.Format(time.DateOnly),
+			Label: activityDayLabel(d, today),
+			Items: items,
+		})
+		total += len(items)
+	}
+	data.ActivityGroups = groups
+	data.Count = total
+	data.Title = "Activity"
+	data.Empty = emptyState{Icon: "recent", Title: "No activity in " + today.Format("January")}
+	return nil
+}
+
+func (vh *ViewHandler) activityDayItems(byDay map[time.Time]map[string]*mate.NoteDay, notes map[string]storage.Note, day time.Time, names map[string]string) []noteItem {
 	touched := mate.NotesOn(byDay, day)
+	if len(touched) == 0 {
+		return nil
+	}
 	ordered := make([]storage.Note, 0, len(touched))
-	var touches []*noteTouch
+	touches := make([]*noteTouch, 0, len(touched))
 	for _, t := range touched {
 		ordered = append(ordered, notes[t.Path])
 		touches = append(touches, noteTouchFrom(t, names))
 	}
-	data.Items = vh.noteItemsFromNotes(ordered)
-	for i := range data.Items {
-		data.Items[i].Touch = touches[i]
+	items := vh.noteItemsFromNotes(ordered)
+	for i := range items {
+		items[i].Touch = touches[i]
 	}
-	label := day.Format("Jan 2")
-	data.Title = label
-	data.Filter = &activityFilter{Label: label, ClearURL: "/home/section?type=activity"}
-	data.Empty = emptyState{Icon: "recent", Title: "Nothing on " + label}
-	return nil
+	return items
+}
+
+func activityDayLabel(day, today time.Time) string {
+	switch {
+	case day.Equal(today):
+		return "Today"
+	case day.Equal(today.AddDate(0, 0, -1)):
+		return "Yesterday"
+	default:
+		return day.Format("Mon, Jan 2")
+	}
 }
 
 // noteTouch is what a day's list shows on a note: who touched it and when.

@@ -1,4 +1,4 @@
-{{define "rows"}}{{range .Items}}
+{{define "note-card"}}
 <div class="list-card list-card--clickable home-list-card note-card{{if .Cover}} has-cover{{end}}" @click="__hyloOpenNote($event.currentTarget)"
      draggable="true"
      data-note-path="{{.Path}}" data-note-title="{{label .}}"
@@ -24,9 +24,14 @@
       <span class="note-card-time">{{.Time}}</span>
     </span>{{else}}<span class="note-card-time">{{.UpdatedAt}}</span>{{end}}
   </div>
-</div>
-{{end}}{{if .NextURL}}
+</div>{{end}}
+
+{{define "rows"}}{{range .Items}}{{template "note-card" .}}{{end}}{{if .NextURL}}
 <div class="home-load-sentinel" hx-get="{{.NextURL}}" hx-trigger="intersect once" hx-swap="outerHTML"></div>
+{{end}}{{end}}
+
+{{define "activity-groups"}}{{range .ActivityGroups}}
+<h3 class="act-day-head" data-day="{{.Date}}">{{.Label}}</h3>{{range .Items}}{{template "note-card" .}}{{end}}
 {{end}}{{end}}
 
 {{define "empty-state"}}<div class="empty-state empty-state--page">
