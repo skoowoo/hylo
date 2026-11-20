@@ -83,13 +83,16 @@
                      :title="tab.path || 'Untitled'"
                      x-press="selectTab(i)"
                      @mousedown.middle.prevent @auxclick="$event.button === 1 && contentPaneCloseTab(i)">
-                  <span class="home-side-child-lead">
+                  <span class="home-side-child-lead" :class="'home-side-tab-kind--' + tabKind(tab)">
                     <span class="note-draft-icon" x-show="!tab.path">{{icon "draft"}}</span>
-                    <span class="home-side-child-icon" x-show="tab.path && !(agentWriting && i === activeTab)">{{icon "note"}}</span>
-                    <svg class="ssi-pending" x-show="agentWriting && i === activeTab" width="8" height="8" viewBox="0 0 8 8" fill="currentColor"><circle cx="4" cy="4" r="3.5"/></svg>
+                    <span class="home-side-child-icon" x-show="tab.path && tabKind(tab) === 'note'">{{icon "note"}}</span>
+                    <span class="home-side-child-icon" x-show="tabKind(tab) === 'shorts'">{{icon "shorts"}}</span>
+                    <span class="home-side-child-icon" x-show="tabKind(tab) === 'knowledge'">{{icon "knowledge"}}</span>
+                    <span class="home-side-child-icon" x-show="tabKind(tab) === 'memory'">{{icon "memory"}}</span>
                   </span>
                   <span class="home-side-child-name" x-text="tab.title"></span>
                   <span class="home-side-tab-hint" x-show="tabHint(tab)" x-text="tabHint(tab)"></span>
+                  <svg class="home-side-tab-pending" x-show="agentWriting && i === activeTab" width="8" height="8" viewBox="0 0 8 8" fill="currentColor" aria-label="Writing"><circle cx="4" cy="4" r="3.5"/></svg>
                   <button type="button" class="home-side-tab-close" title="Close tab" tabindex="-1"
                           @pointerdown.stop @click.stop="contentPaneCloseTab(i)">
                     {{icon "close"}}

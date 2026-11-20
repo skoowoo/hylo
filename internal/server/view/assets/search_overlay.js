@@ -19,8 +19,8 @@
 
   // A kind mode's filter, applied to a tab the way the server classifies notes.
   function tabKind(t) {
-    if (t.isKnowledge) return 'knowledge';
-    if (t.isIndex) return 'index';
+    if (t.isIndex || /^\/_knowledge\/_indexes\//.test(t.path)) return 'index';
+    if (t.isKnowledge || /^\/_knowledge\//.test(t.path)) return 'knowledge';
     return /^\/_shorts\//.test(t.path) ? 'short' : 'raw';
   }
 

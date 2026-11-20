@@ -9,8 +9,9 @@ import (
 // SampleQuery is a random walk through the vault. Zero Each and OlderThan
 // take the defaults (2 of each kind, reaching back 90 days).
 type SampleQuery struct {
-	Each      int
-	OlderThan int
+	Each         int
+	OlderThan    int
+	ExcludePaths []string
 }
 
 // SampleItem is one drawn note, knowledge unit, or short entry.
@@ -26,7 +27,7 @@ type SampleItem struct {
 }
 
 func Sample(c *client.Client, q SampleQuery) ([]SampleItem, error) {
-	got, err := c.Sample(q.Each, q.OlderThan)
+	got, err := c.Sample(q.Each, q.OlderThan, q.ExcludePaths...)
 	if err != nil {
 		return nil, err
 	}

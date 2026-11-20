@@ -3,6 +3,7 @@
      draggable="true"
      data-note-path="{{.Path}}" data-note-title="{{label .}}"
      data-note-is-knowledge="{{.IsKnowledge}}" data-note-is-index="{{.IsIndex}}"
+     data-note-is-short="{{.IsShort}}" data-note-is-memory="{{.IsMemory}}"
      data-note-can-compile="{{.CanCompile}}" data-note-pinned="{{.Pinned}}">
   {{if .Cover}}<div class="note-card-cover" aria-hidden="true"><img src="{{coverURL .Cover}}" alt="" draggable="false" loading="lazy" decoding="async"></div>{{end}}
   <div class="note-card-head">

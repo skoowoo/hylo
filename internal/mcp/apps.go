@@ -46,7 +46,7 @@ func registerAppsTools(s *sdk.Server, c *client.Client) {
 			return appsToolsOut{Tools: tools}, err
 		})
 
-	addTool(s, "apps_call", "Run a tool of a connected app on the user's own account there. Some tools spend the user's credits there; use those only when the task needs them.", additive,
+	addTool(s, "apps_call", "Run a connected app's tool, using its schema from apps_tools. Available tools may access personal data or platform content. Some spend the user's credits; use those only when needed for the task.", additive,
 		func(ctx context.Context, in appsCallReq) (*apps.CallResult, error) {
 			var args json.RawMessage
 			if in.Args != nil {

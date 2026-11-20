@@ -230,12 +230,28 @@
     .home-side-tab:not(.is-active):hover { color: var(--fg); }
     .home-side-tab.is-active:not(:hover) { background: transparent; }
     .home-side-tab .note-draft-icon { width: 14px; height: 14px; }
-    .home-side-tab .ssi-pending { color: var(--accent-text); }
+    /* Resting icons pull toward --muted so notes and typed tabs share one lightness band. */
+    .home-side-tab .home-side-tab-kind--note      { --tab-kind-color: color-mix(in srgb, var(--accent-text) 24%, var(--muted)); }
+    .home-side-tab .home-side-tab-kind--shorts    { --tab-kind-color: var(--p3); }
+    .home-side-tab .home-side-tab-kind--knowledge { --tab-kind-color: var(--p0); }
+    .home-side-tab .home-side-tab-kind--memory    { --tab-kind-color: var(--p2); }
+    .home-side-tab .home-side-child-icon {
+      color: color-mix(in srgb, var(--tab-kind-color) 68%, var(--muted));
+      transition: color var(--motion-fast) ease;
+    }
+    .home-side-tab .home-side-tab-kind--note .home-side-child-icon { color: var(--tab-kind-color); }
+    .home-side-tab:hover .home-side-child-icon,
+    .home-side-tab.is-active .home-side-child-icon { color: var(--tab-kind-color); }
+    .home-side-tab:hover .home-side-tab-kind--note .home-side-child-icon,
+    .home-side-tab.is-active .home-side-tab-kind--note .home-side-child-icon {
+      color: color-mix(in srgb, var(--accent-text) 34%, var(--fg));
+    }
     .home-side-tab-hint {
       flex-shrink: 1; min-width: 0; max-width: 40%;
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
       font-size: var(--text-xs); font-weight: 400; color: var(--muted-soft);
     }
+    .home-side-tab-pending { flex: none; color: var(--accent-text); }
     .home-side-tab-close {
       flex-shrink: 0; width: 18px; height: 18px; margin-right: -4px;
       display: flex; align-items: center; justify-content: center;

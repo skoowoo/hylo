@@ -196,9 +196,13 @@ function homeImagesMixin() {
         if (!Array.isArray(matches) || matches.length === 0) return;
         var n = matches[0];
         var notePath = n.dir === '/' ? '/' + n.name : n.dir + '/' + n.name;
+        var isK = n.kind === 'knowledge';
+        var isI = n.kind === 'index';
+        var isS = n.kind === 'short';
         await new Promise(function (r) { setTimeout(r, 180); });
         if (window.__hyloContentPane) {
-          void window.__hyloContentPane.openNoteInContentPane(notePath, noteName, false, !!n.pinned);
+          void window.__hyloContentPane.openNoteInContentPane(notePath, noteName, isK, !!n.pinned, isI,
+            !isK && !isI && !n.compile_count, isS);
         }
       } catch (e) { /* ignore */ }
     }

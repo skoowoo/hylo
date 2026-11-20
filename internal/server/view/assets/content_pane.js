@@ -9,6 +9,22 @@
   var CONTENT_PANE_MAX_TABS = 10;
   // Local reads land well inside this; it only caps a slow server.
   var CONTENT_PANE_OPEN_WAIT_MS = 120;
+
+  function __hyloIsKnowledgePath(path) {
+    return (path || '').indexOf('/_knowledge/') === 0;
+  }
+
+  function __hyloIsIndexPath(path) {
+    return (path || '').indexOf('/_knowledge/_indexes/') === 0;
+  }
+
+  function __hyloTabKind(path, isKnowledge, isIndex, isShort, isMemory) {
+    var p = path || '';
+    if (isKnowledge || isIndex || __hyloIsKnowledgePath(p)) return 'knowledge';
+    if (isShort || p.indexOf('/_shorts/') === 0) return 'shorts';
+    if (isMemory || p.indexOf('/_memory/') === 0) return 'memory';
+    return 'note';
+  }
   // Oldest evictable tab index, or -1. Skips the active tab and any
   // unmaterialized tab that still has real content (_pendingContent) — an
   // empty one is free to evict, or it'd sit protected forever and push out
@@ -27,7 +43,7 @@
     var pane = window.__hyloContentPane;
     if (pane) void pane.openNoteInContentPane(d.notePath, d.noteTitle || 'Note',
       d.noteIsKnowledge === 'true', d.notePinned === 'true', d.noteIsIndex === 'true',
-      d.noteCanCompile === 'true');
+      d.noteCanCompile === 'true', d.noteIsShort === 'true', d.noteIsMemory === 'true');
   }
 
   // Note actions by path, shared by the editor and every note card; open tabs
@@ -209,7 +225,9 @@
             // __hyloEditorMaterializeTab already gave it a real path
             // before this next persist call fires.
             tabs: this.tabs.filter(function(t){ return !!t.path; }).map(function(t){
-              return {id:t.id, title:t.title, path:t.path, isKnowledge:!!t.isKnowledge, pinned:!!t.pinned, isIndex:!!t.isIndex, canCompile:!!t.canCompile};
+              var isIndex = !!t.isIndex || __hyloIsIndexPath(t.path);
+              var isKnowledge = !!t.isKnowledge || (__hyloIsKnowledgePath(t.path) && !isIndex);
+              return {id:t.id, title:t.title, path:t.path, isKnowledge:isKnowledge, pinned:!!t.pinned, isIndex:isIndex, canCompile:!isKnowledge && !isIndex && !!t.canCompile, kind:__hyloTabKind(t.path, isKnowledge, isIndex, t.kind === 'shorts', t.kind === 'memory')};
             }),
             // By id: drafts are left out above, so an index would point at the wrong tab.
             activeId: this.tabs[this.activeTab] ? this.tabs[this.activeTab].id : null,
@@ -245,7 +263,9 @@
             var path = t.path || '';
             if (!path && t.fragmentUrl) { try { path = new URL(t.fragmentUrl, location.origin).searchParams.get('path') || ''; } catch(_){} }
             if (!path && t.pageUrl)     { try { path = new URL(t.pageUrl,     location.origin).searchParams.get('path') || ''; } catch(_){} }
-            return {id:t.id, title:t.title||'Note', path:path, isKnowledge:!!t.isKnowledge, pinned:!!t.pinned, isIndex:!!t.isIndex, canCompile:!!t.canCompile};
+            var isIndex = !!t.isIndex || __hyloIsIndexPath(path);
+            var isKnowledge = !!t.isKnowledge || (__hyloIsKnowledgePath(path) && !isIndex);
+            return {id:t.id, title:t.title||'Note', path:path, isKnowledge:isKnowledge, pinned:!!t.pinned, isIndex:isIndex, canCompile:!isKnowledge && !isIndex && !!t.canCompile, kind:__hyloTabKind(path, isKnowledge, isIndex, t.kind === 'shorts', t.kind === 'memory')};
           }).filter(function(t){ return !!t.path; });
           var merged = this.tabs;
           drafts.forEach(function(d){ merged.splice(Math.min(d.at, merged.length), 0, d.tab); });
@@ -365,12 +385,16 @@
       },
 
       // Open an existing note in the pane.
-      async openNoteInContentPane(path, title, isKnowledge, pinned, isIndex, canCompile) {
+      tabKind(tab) {
+        return tab.kind || __hyloTabKind(tab.path || '', tab.isKnowledge, tab.isIndex);
+      },
+
+      async openNoteInContentPane(path, title, isKnowledge, pinned, isIndex, canCompile, isShort, isMemory) {
         if (!path || this.agentWriting) return;
         this.cancelRenameActiveNote(); // opening any note (even re-opening the active one) always discards an in-progress rename on whatever tab was showing
         var prevTab = this.tabs[this.activeTab];
         if (this.contentPaneOpen && prevTab) __hyloEditorSaveTabState(prevTab.id);
-        this.upsertTab(path, title, isKnowledge, pinned, isIndex, canCompile);
+        this.upsertTab(path, title, isKnowledge, pinned, isIndex, canCompile, isShort, isMemory);
         __hyloEditorResetCompileBtn();
         // Already loaded with unsaved edits — don't clobber with a server fetch;
         // a heading asked for is still where it goes.
@@ -400,7 +424,7 @@
         else { clearTimeout(s.saveTimer); s.saveTimer = null; }
         __hyloEditorSaveStatus('');
 
-        var newTab = {id:__hyloEditorNewTabId(), title:'Untitled', path:'', isKnowledge:false, pinned:false};
+        var newTab = {id:__hyloEditorNewTabId(), title:'Untitled', path:'', isKnowledge:false, pinned:false, kind:'note'};
         this._sideReflow();
         this.tabs.push(newTab);
         var idx = this.tabs.length - 1;
@@ -420,18 +444,22 @@
         await this._openWith(__hyloEditorApplyState({ inSource: false }, newTab.id));
       },
 
-      upsertTab(path, title, isKnowledge, pinned, isIndex, canCompile) {
+      upsertTab(path, title, isKnowledge, pinned, isIndex, canCompile, isShort, isMemory) {
         var idx = -1;
         for (var i = 0; i < this.tabs.length; i++) { if (this.tabs[i].path === path) { idx=i; break; } }
+        var resolvedIndex = !!isIndex || __hyloIsIndexPath(path);
+        var resolvedKnowledge = !!isKnowledge || (__hyloIsKnowledgePath(path) && !resolvedIndex);
         if (idx >= 0) {
           this.tabs[idx].title = title || this.tabs[idx].title;
-          if (isKnowledge !== undefined) this.tabs[idx].isKnowledge = !!isKnowledge;
+          if (isKnowledge !== undefined || resolvedKnowledge) this.tabs[idx].isKnowledge = resolvedKnowledge;
           if (pinned !== undefined) this.tabs[idx].pinned = !!pinned;
-          if (isIndex !== undefined) this.tabs[idx].isIndex = !!isIndex;
-          if (canCompile !== undefined) this.tabs[idx].canCompile = !!canCompile;
+          if (isIndex !== undefined || resolvedIndex) this.tabs[idx].isIndex = resolvedIndex;
+          if (resolvedKnowledge || resolvedIndex) this.tabs[idx].canCompile = false;
+          else if (canCompile !== undefined) this.tabs[idx].canCompile = !!canCompile;
+          this.tabs[idx].kind = __hyloTabKind(path, this.tabs[idx].isKnowledge, this.tabs[idx].isIndex, isShort, isMemory);
         } else {
           this._sideReflow();
-          this.tabs.push({id:__hyloEditorNewTabId(), title:title||'Note', path:path, isKnowledge:!!isKnowledge, pinned:!!pinned, isIndex:!!isIndex, canCompile:!!canCompile});
+          this.tabs.push({id:__hyloEditorNewTabId(), title:title||'Note', path:path, isKnowledge:resolvedKnowledge, pinned:!!pinned, isIndex:resolvedIndex, canCompile:!resolvedKnowledge && !resolvedIndex && !!canCompile, kind:__hyloTabKind(path, resolvedKnowledge, resolvedIndex, isShort, isMemory)});
           idx = this.tabs.length - 1;
           if (this.tabs.length > CONTENT_PANE_MAX_TABS) {
             var oldestIdx = __hyloOldestEvictableTabIdx(this.tabs, this.activeTab);
@@ -781,6 +809,10 @@
         if (!tab) return;
         tab.path = newPath;
         tab.title = __hyloStripMdExt(newPath.split('/').pop()) || newPath;
+        tab.isIndex = __hyloIsIndexPath(newPath);
+        tab.isKnowledge = __hyloIsKnowledgePath(newPath) && !tab.isIndex;
+        if (tab.isKnowledge || tab.isIndex) tab.canCompile = false;
+        tab.kind = __hyloTabKind(newPath, tab.isKnowledge, tab.isIndex);
         if (__hyloEditor.currentPath === oldPath) __hyloEditor.currentPath = newPath;
       },
     };

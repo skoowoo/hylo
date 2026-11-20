@@ -15,14 +15,15 @@ import (
 //	older_than  — days back the draw must reach; 0 means 90, negative keeps the whole history
 func (gh *VaultHandler) Sample(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Each      int `json:"each"`
-		OlderThan int `json:"older_than"`
+		Each         int      `json:"each"`
+		OlderThan    int      `json:"older_than"`
+		ExcludePaths []string `json:"exclude_paths"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil && !errors.Is(err, io.EOF) {
 		http.Error(w, "invalid JSON body: "+err.Error(), http.StatusBadRequest)
 		return
 	}
-	items, err := gh.vault.Sample(storage.SampleOptions{Each: req.Each, OlderThan: req.OlderThan})
+	items, err := gh.vault.Sample(storage.SampleOptions{Each: req.Each, OlderThan: req.OlderThan, ExcludePaths: req.ExcludePaths})
 	if err != nil {
 		writeVaultError(w, err)
 		return

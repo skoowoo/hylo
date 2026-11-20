@@ -22,6 +22,8 @@ type noteItem struct {
 	CursorNs    int64      // Unix nanoseconds for pagination cursor
 	IsKnowledge bool       // true for knowledge notes; drives data-knowledge on the read button
 	IsIndex     bool       // true for index notes (origin = "plugin:index")
+	IsShort     bool       // true for a short daily aggregation note
+	IsMemory    bool       // true for a note stored by the memory subsystem
 	Pinned      bool       // true when the note is pinned by the user
 	CanCompile  bool       // true when this note is eligible to be compiled (raw, compile_count==0)
 	IsCompiled  bool       // true when raw note has been compiled at least once (compile_count>0, not knowledge/index)
@@ -36,6 +38,7 @@ type noteItem struct {
 func noteToItem(n storage.Note) noteItem {
 	isKnowledge := n.Kind == storage.KindKnowledge
 	isIndex := n.Kind == storage.KindIndex
+	isShort := n.Kind == storage.KindShort
 	q := url.Values{}
 	q.Set("path", n.PathString())
 	return noteItem{
@@ -50,6 +53,8 @@ func noteToItem(n storage.Note) noteItem {
 		Pinned:      n.Pinned,
 		IsKnowledge: isKnowledge,
 		IsIndex:     isIndex,
+		IsShort:     isShort,
+		IsMemory:    n.Dir == storage.MemoryDir || strings.HasPrefix(n.Dir, storage.MemoryDir+"/"),
 		CanCompile:  !isKnowledge && !isIndex && n.CompileCount == 0,
 		IsCompiled:  !isKnowledge && !isIndex && n.CompileCount > 0,
 		URL:         "/notes?" + q.Encode(),

@@ -1,1 +1,1 @@
-Help capture an explicit thought they wanted to develop. Offer one concrete prompt only if it helps that purpose; otherwise skip. Don't ask them to justify a gap or disabled feature. Record an answer only if they want it saved.
+An idea the user wanted to develop may still matter. A gap in writing does not establish a wish to resume or save anything.

@@ -349,10 +349,11 @@
       var note = data.matches[0];
       var notePath = note.dir === '/' ? '/' + note.name : note.dir + '/' + note.name;
       var noteTitle = note.title || note.name.replace(/\.md$/, '');
-      var _isK = note.origin === 'plugin:compile';
-      var _isI = note.origin === 'plugin:index';
+      var _isK = note.kind === 'knowledge';
+      var _isI = note.kind === 'index';
+      var _isS = note.kind === 'short';
       await pane.openNoteInContentPane(notePath, noteTitle, _isK, !!note.pinned, _isI,
-        !_isK && !_isI && !note.compile_count);
+        !_isK && !_isI && !note.compile_count, _isS);
     } catch(_) {}
   }
 

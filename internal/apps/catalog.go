@@ -4,7 +4,7 @@ package apps
 var Catalog = []App{
 	{
 		ID: "podwise", Name: "Podwise", Kind: KindMCP,
-		About:  "Podcasts: what you listened to, episode summaries, transcripts and your clips.",
+		About:  "Podcasts: discovery and search, followed shows and episodes, summaries, transcripts and your clips.",
 		URL:    "https://mcp.podwise.ai/mcp",
 		Check:  "get_me",
 		KeyURL: "https://app.podwise.ai/dashboard/settings?section=developer",
@@ -15,7 +15,7 @@ var Catalog = []App{
 	},
 	{
 		ID: "weread", Name: "WeChat Reading", Kind: KindSkill,
-		About:  "Reading: your shelf, progress, highlights, notes and reading time.",
+		About:  "Books: search, recommendations, public reviews and popular highlights, plus your shelf, personal notes and reading activity.",
 		Repo:   "Tencent/WeChatReading",
 		Skill:  "weread-skills",
 		Env:    "WEREAD_API_KEY",

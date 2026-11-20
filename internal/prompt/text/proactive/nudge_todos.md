@@ -1,1 +1,1 @@
-Read the context of these old to-dos. If one still reflects an explicit user goal, ask about its unknown outcome or offer a concrete useful next step. Don't infer failure or urgency from an unchecked box. Change notes or schedule work only as agreed.
+These old to-dos may provide context for a user goal. An unchecked box alone establishes neither an unfinished commitment nor urgency.

@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"fmt"
 	"math/rand/v2"
 	"testing"
 	"time"
@@ -87,8 +88,8 @@ func TestSampleSpreadsHistoryAndDomains(t *testing.T) {
 			t.Errorf("raw note %s dated %s", it.Path, it.CreatedAt.Format(time.DateOnly))
 		}
 	}
-	if earlyRaw != 1 || lateRaw != 1 {
-		t.Errorf("raw spread = %d early, %d late; got %v", earlyRaw, lateRaw, paths(items))
+	if earlyRaw+lateRaw != 2 {
+		t.Errorf("raw count = %d; got %v", earlyRaw+lateRaw, paths(items))
 	}
 	if _, ok := got[recent.String()]; ok {
 		t.Error("recent note was drawn even though older notes exist")
@@ -138,6 +139,48 @@ func TestSampleEmpty(t *testing.T) {
 	}
 	if items == nil || len(items) != 0 {
 		t.Fatalf("items = %#v, want an empty slice", items)
+	}
+}
+
+func TestSampleExcludesPathsBeforeAgeFallback(t *testing.T) {
+	v := newTestVault(t)
+	for _, p := range []Path{"/excluded.md", "/eligible.md"} {
+		if err := v.WriteNote(p, []byte("a useful note\n"), ""); err != nil {
+			t.Fatal(err)
+		}
+	}
+	items, err := v.Sample(SampleOptions{ExcludePaths: []string{"/excluded.md"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 1 || items[0].Path != "/eligible.md" {
+		t.Fatalf("items = %+v", items)
+	}
+}
+
+func TestSampleDoesNotOverweightSparseTailOrDomain(t *testing.T) {
+	var cands []sampleCand
+	base := time.Date(2026, 11, 8, 0, 0, 0, 0, time.UTC)
+	for i := 0; i < 300; i++ {
+		cands = append(cands, sampleCand{path: fmt.Sprintf("/%d.md", i), created: base, domains: []domainRef{{key: "large"}}})
+	}
+	cands = append(cands, sampleCand{path: "/tail.md", created: base.AddDate(0, 0, 7), domains: []domainRef{{key: "tiny"}}})
+	rng := rand.New(rand.NewPCG(1, 2))
+	seen := map[string]bool{}
+	tail := 0
+	for i := 0; i < 1000; i++ {
+		for _, c := range drawSpread(cands, 6, rng) {
+			seen[c.path] = true
+			if c.path == "/tail.md" {
+				tail++
+			}
+		}
+	}
+	if len(seen) != len(cands) {
+		t.Fatalf("coverage = %d/%d", len(seen), len(cands))
+	}
+	if tail > 50 {
+		t.Fatalf("sparse tail selected %d/1000 times", tail)
 	}
 }
 

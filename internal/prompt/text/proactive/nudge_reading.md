@@ -1,1 +1,1 @@
-Use `sample` to bring back one or two older finds worth receiving: useful, memorable or enjoyable on their own. Link each and say what makes it worth another look. No reading-gap commentary, required response or organizing task.
+Older notes are another source of discoveries. Their value comes from what they offer now, not how long they have gone unread.

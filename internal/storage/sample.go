@@ -39,7 +39,8 @@ type SampleOptions struct {
 	// OlderThan is how many days back a draw must reach. 0 means 90.
 	// A negative value keeps the whole history. A stratum with nothing
 	// that old is drawn from all of it.
-	OlderThan int
+	OlderThan    int
+	ExcludePaths []string
 	// Now is the clock. Zero means time.Now.
 	Now time.Time
 	// Rand makes the draw repeatable in tests.
@@ -64,8 +65,8 @@ type domainRef struct {
 //
 // Each call returns up to Each items from each of three strata: ordinary
 // notes, knowledge units, and short entries. System folders and index files
-// are left out. Within a stratum the draw is spread across when things were
-// written, and knowledge units are spread across domains. A unit is dated by
+// are left out. Within a stratum the draw balances candidate counts across
+// history, including tied import dates. A unit is dated by
 // its earliest source note, so a fresh compile of an old note still counts as old.
 func (g *Vault) Sample(opts SampleOptions) ([]SampleItem, error) {
 	each, before, rng := sampleBounds(opts)
@@ -75,6 +76,14 @@ func (g *Vault) Sample(opts SampleOptions) ([]SampleItem, error) {
 	if err != nil {
 		return nil, err
 	}
+	excluded := make(map[string]bool, len(opts.ExcludePaths))
+	for _, path := range opts.ExcludePaths {
+		excluded[path] = true
+	}
+	filter := func(cands []sampleCand) []sampleCand {
+		return slices.DeleteFunc(cands, func(c sampleCand) bool { return excluded[c.path] })
+	}
+	raw, know, days = filter(raw), filter(know), filter(days)
 	raw = preferOld(raw, before)
 	know = preferOld(know, before)
 	days = preferOld(days, before)
@@ -339,14 +348,14 @@ func (g *Vault) oneShort(dayPath string, rng *rand.Rand) (SampleItem, bool) {
 	}, true
 }
 
-// drawSpread picks up to each candidates, one from each slice of the
-// written-time span, preferring a knowledge domain not yet drawn.
+// Equal-population bands keep a sparse recent tail from monopolizing a slot.
 func drawSpread(in []sampleCand, each int, rng *rand.Rand) []sampleCand {
 	if len(in) == 0 || each < 1 {
 		return nil
 	}
 	cands := slices.Clone(in)
-	slices.SortFunc(cands, func(a, b sampleCand) int { return a.created.Compare(b.created) })
+	rng.Shuffle(len(cands), func(i, j int) { cands[i], cands[j] = cands[j], cands[i] })
+	slices.SortStableFunc(cands, func(a, b sampleCand) int { return a.created.Compare(b.created) })
 	if each > len(cands) {
 		each = len(cands)
 	}
@@ -355,9 +364,9 @@ func drawSpread(in []sampleCand, each int, rng *rand.Rand) []sampleCand {
 	usedDomain := map[string]bool{}
 	var out []sampleCand
 	for _, band := range bands {
-		c, ok := pickCand(band, usedPath, usedDomain, rng)
+		c, ok := pickCand(band, usedPath, rng)
 		if !ok {
-			c, ok = pickCand(cands, usedPath, usedDomain, rng)
+			c, ok = pickCand(cands, usedPath, rng)
 		}
 		if !ok {
 			continue
@@ -377,58 +386,25 @@ func drawSpread(in []sampleCand, each int, rng *rand.Rand) []sampleCand {
 
 func timeBands(cands []sampleCand, each int) [][]sampleCand {
 	bands := make([][]sampleCand, each)
-	lo, hi := cands[0].created, cands[len(cands)-1].created
-	span := hi.Sub(lo)
-	if span <= 0 {
-		for i := range bands {
-			bands[i] = cands
-		}
-		return bands
-	}
-	for _, c := range cands {
-		i := int(float64(each) * (float64(c.created.Sub(lo)) / float64(span)))
-		if i >= each {
-			i = each - 1
-		}
-		if i < 0 {
-			i = 0
-		}
-		bands[i] = append(bands[i], c)
+	for i := range bands {
+		bands[i] = cands[i*len(cands)/each : (i+1)*len(cands)/each]
 	}
 	return bands
 }
 
-func pickCand(pool []sampleCand, usedPath, usedDomain map[string]bool, rng *rand.Rand) (sampleCand, bool) {
-	var open, fresh []sampleCand
+func pickCand(pool []sampleCand, usedPath map[string]bool, rng *rand.Rand) (sampleCand, bool) {
+	var open []sampleCand
 	for _, c := range pool {
 		if usedPath[c.path] {
 			continue
 		}
 		open = append(open, c)
-		if domainFresh(c, usedDomain) {
-			fresh = append(fresh, c)
-		}
 	}
 	choices := open
-	if len(fresh) > 0 {
-		choices = fresh
-	}
 	if len(choices) == 0 {
 		return sampleCand{}, false
 	}
 	return choices[rng.IntN(len(choices))], true
-}
-
-func domainFresh(c sampleCand, used map[string]bool) bool {
-	if len(c.domains) == 0 {
-		return !used[""]
-	}
-	for _, d := range c.domains {
-		if !used[d.key] {
-			return true
-		}
-	}
-	return false
 }
 
 func chooseDomain(c sampleCand, used map[string]bool, rng *rand.Rand) domainRef {

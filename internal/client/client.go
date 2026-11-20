@@ -165,10 +165,11 @@ func (c *Client) listNotes(body map[string]any, label string, opts storage.ListO
 
 // Sample draws a random walk through the vault. each and olderThan use the
 // server defaults when left at 0.
-func (c *Client) Sample(each, olderThan int) ([]storage.SampleItem, error) {
+func (c *Client) Sample(each, olderThan int, excludePaths ...string) ([]storage.SampleItem, error) {
 	resp, err := c.postJSON(c.baseURL+"/api/vault/sample", map[string]any{
-		"each":       each,
-		"older_than": olderThan,
+		"each":          each,
+		"older_than":    olderThan,
+		"exclude_paths": excludePaths,
 	})
 	if err != nil {
 		return nil, wrapConnErr(err)
