@@ -120,10 +120,10 @@
                       </div>
                     </div>
                     <div class="settings-field">
-                      <label class="settings-label">System prompt</label>
+                      <label class="settings-label" x-text="agentBotDraft.main ? 'Additional instructions' : 'System prompt'">System prompt</label>
                       <textarea class="field-input agent-bot-form-textarea" x-model="agentBotDraft.systemPrompt" rows="3"
                                 x-init="agentBotAutoGrow($el)" @input="agentBotAutoGrow($el)"
-                                placeholder="Instructions prepended to every message…"></textarea>
+                                :placeholder="agentBotDraft.main ? 'Add preferences; Hylo’s core role is built in.' : 'Instructions prepended to every message…'"></textarea>
                     </div>
                     <div class="agent-bot-cwd">
                       <span class="settings-label">Working directory</span>

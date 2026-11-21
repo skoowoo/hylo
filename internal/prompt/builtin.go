@@ -5,9 +5,14 @@ import (
 	"strings"
 )
 
-// HyloBot sits under the global prompt, which already covers the knowledge
-// base, memory and wiki links; this one gives the main bot its job.
+// HyloBot is the main bot's built-in role, independent of its stored preferences.
 var HyloBot = load("system/bot_hylo")
+
+// SupersededMain removes stored defaults now supplied by the main section.
+var SupersededMain = map[string]string{
+	HyloBot:                    "",
+	load("legacy/bot_hylo_v1"): "",
+}
 
 // SilentReply is what a woken bot answers when it has nothing worth sending;
 // the turn then leaves the chat.

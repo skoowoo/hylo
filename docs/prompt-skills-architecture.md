@@ -36,8 +36,8 @@ flowchart LR
 
 `executeChat`（`internal/server/handler/agent_api.go`）收集 `Run`：
 
-- `Bot`：bot 存在 DB 里的 system prompt（调用方可覆盖）。
-- `Main`：是不是主 bot。
+- `Bot`：数据库中的指令；主 bot 用作附加偏好，其他 bot 用作岗位说明。调用方只能覆盖这一层。
+- `Main`：是不是主 bot；决定是否注入产品维护的主 bot 基础职责。
 - `MCP`：这个 agent 是否注入了 Hylo MCP。
 - `Kind`：用户消息是 Chat；独立巡查是 Round；trigger 或 Pulse 主动交付是 Wake；内部单次请求是 OneShot。
 - `Intro`：onboarding 后的第一次聊天。
@@ -80,37 +80,43 @@ Your working directory: <cwd> (the vault root | vault path /_bots/_xxx)
 
 ## 2. System prompt 的 sections
 
-定义在 `internal/prompt/sections.go`，从最通用到最具体依次排列。新增一层就是加一个条目。
+定义在 `internal/prompt/sections.go`。全局约定、主 bot 基础职责、用户配置和本轮任务分别管理，避免用一段可编辑人格承担全部产品行为。
 
-| # | Section | 文本 | 生效条件 | 可覆盖 |
-| --- | --- | --- | --- | --- |
-| 1 | `global` | `text/system/global.md`：身份、表达与事实边界 | `Kind != OneShot` | ❌ |
-| 2 | `vault` | `text/system/vault.md`：知识库路径、`[[ ]]` 链接规则、何时读哪些记忆文件 | `Kind != OneShot` | ❌ |
-| 3 | `bot` | `Run.Bot`：主 bot 用 `text/system/bot_hylo.md`，其他 bot 由用户或 hylo-bots 写 | 非空即生效 | — |
-| 4 | `mcp` | `text/system/mcp.md`：怎么用 Hylo 工具，按需局部读取（`extract_*`） | `MCP && Kind != OneShot` | ❌ |
-| 5 | `choices` | `text/system/choices.md`：`choices` 按钮卡格式 | `Kind == Chat || Kind == Wake` | ❌ |
-| 6 | `capabilities` | `text/system/capabilities.md`：内容层（方法、`sources` 卡、去向）+ 自动化阶梯 L0–L3 | `(Chat || Wake) && Main && MCP && Intro == nil` | ❌ |
-| 7 | `intro` | `text/setup/intro.md` 模板：启动 hylo-setup | `Chat && Intro != nil` | ❌ |
+| 顺序 | Section | 负责 | 生效条件 |
+| --- | --- | --- | --- |
+| 1 | `global` | 共用表达、事实与任务边界，不指定 bot 名字和岗位 | 非 OneShot |
+| 2 | `vault` | 知识库入口、归属、wiki 链接、共享 `/_memory/` 位置、卡片适用条件 | 非 OneShot |
+| 3 | `main` | `system/bot_hylo.md`，主 bot 的学习伙伴定位和记录、记忆职责 | `Main && Kind != OneShot` |
+| 4 | `bot` | 主 bot 的附加偏好，或其他 bot 的岗位指令 | 有非空配置；主 bot 的已知默认副本不重复注入 |
+| 5 | `mcp` | Hylo MCP 工具发现与局部读取 | MCP 可用且非 OneShot |
+| 6 | `choices` | 选项卡格式；是否提问由当前任务决定 | Chat 或 Wake |
+| 7 | `embed` | 链接卡格式 | Chat 或 Wake |
+| 8 | `capabilities` | 主 bot 的请求处理与自动化提案 | Chat 或 Wake，且 Main、MCP、非 Intro |
+| 9 | `agenda` | 已请求或接受的后续事项 | Main、MCP、主动巡查开启，且非 OneShot |
+| 10 | `apps` | 当前 bot 的已连接 app 能力及入口 | 非 OneShot；MCP app 要求 MCP，skill app 不要求 |
+| 11 | `intro` | 首次引导任务 | Chat 且有 Intro |
 
-`global` 是固定的身份说明，并要求像人说话，不像产品。`vault` 单独一层，放 skill 和工具依赖的约定（链接写法、`_knowledge/_indexes/`、`_memory/`）。
+`main` 由 `Run.Main` 决定，不受 `Run.Bot` 是否为空、是否被调用方覆盖影响。主 bot 的用户指令明确作为基础职责和本轮范围内的附加偏好。其他 bot 不接收主 bot 的身份、保存路由和自动化职责。
+
+`apps` 只说明可访问的能力，不授予新任务。自主探索的范围和目的由 Pulse 本轮任务说明；专用 bot 按自己的岗位与任务使用 app。
 
 ### 各类运行实际拿到哪些 sections
 
-| 运行 | global | vault | bot | mcp | choices | capabilities | intro |
-| --- | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
-| 主 bot 聊天 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
-| 其他 bot 聊天 | ✅ | ✅ | ✅ | ✅ | ✅ | | |
-| setup 首聊（主 bot） | ✅ | ✅ | ✅ | ✅ | ✅ | | ✅ |
-| 主 bot 主动交付（Wake） | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
-| 独立巡查（Round） | ✅ | ✅ | ✅ | ✅ | | | |
-| OneShot | | | 有则 ✅ | | | | |
+下表假定 MCP 可用；agenda 和 apps 按实际配置注入。
 
-Round 不加载 choices、embed 和 capabilities。Wake 与用户消息共享原生会话，保留后续用户请求需要的规则；capabilities 明确只作用于用户发起的请求，不能把巡查发现和未回答的建议当成新任务授权。
+| 运行 | global / vault | main | bot | mcp | choices / embed | capabilities | agenda | apps | intro |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 主 bot 聊天 | 是 | 是 | 附加偏好 | 是 | 是 | 是 | 按配置 | 按配置 | 否 |
+| 其他 bot 聊天 | 是 | 否 | 岗位 | 是 | 是 | 否 | 否 | 按配置 | 否 |
+| 主 bot 首聊 | 是 | 是 | 附加偏好 | 是 | 是 | 否 | 按配置 | 按配置 | 是 |
+| 主 bot Wake | 是 | 是 | 附加偏好 | 是 | 是 | 是 | 按配置 | 按配置 | 否 |
+| 其他 bot Wake | 是 | 否 | 岗位 | 是 | 是 | 否 | 否 | 按配置 | 否 |
+| 主 bot Round | 是 | 是 | 附加偏好 | 是 | 否 | 否 | 按配置 | 按配置 | 否 |
+| OneShot | 否 | 否 | 显式提供时 | 否 | 否 | 否 | 否 | 否 | 否 |
 
-由此推出两点：
+Round 在独立会话探索，输出沉默或候选简报；Pulse Wake 在共享聊天内复核并交付。普通 trigger 使用 `trigger/wake.md` 包装本轮任务。capabilities 即使出现在 Wake 中，也明确只对用户发起的请求生效，不能将后台发现或未回答的建议当作新授权。
 
-- **Trigger 唤醒的轮次就是 bot 聊天里的一轮**（主动消息），用的是同一个会话和同一套 sections，结果不再进收件箱。微信 / Discord / Telegram 的消息也是 bot 聊天里的一轮，有 `choices`，但 app 里画不出卡片：这一轮的请求开头会注明来源并要求纯文本，skill 里凡是要出卡片的地方也要写明“在微信 / Discord / Telegram 里改用纯文本”（hylo-bots `references/cards.md` 已经这样写）。
-- **只有主 bot 会主动提议升级**：主 bot 是用户唯一的总入口，其他 bot 专职做一件事，不需要路由能力。
+卡片定义不强制当前轮使用卡片。任务要求纯文本、手机通知或微信 / Discord / Telegram 渠道时，用普通文字与链接；普通 trigger 不允许结尾提问时，choices 格式不构成提问理由。
 
 ---
 
@@ -120,7 +126,8 @@ Round 不加载 choices、embed 和 capabilities。Wake 与用户消息共享原
 flowchart TB
     subgraph Main["主 bot（Main = true）"]
         direction TB
-        MP["prompt: system/bot_hylo.md（内置）"]
+        MP["main: system/bot_hylo.md（固定基础职责）"]
+        PREF["bot: 数据库中的附加偏好（可为空）"]
         MC["cwd: / （vault 根）"]
         MS["skills: 9 个 DefaultSkills 常开 + 用户启用的"]
         MT["内置 triggers（setup_api.go 的 hyloBot）"]
@@ -134,7 +141,11 @@ flowchart TB
     end
 ```
 
-主 bot 的内置 triggers：每条 trigger prompt 就是这次运行的“用户请求”。
+主 bot 的固定职责每轮从代码注入，新建主 bot 的 `system_prompt` 留空。设置中此字段显示为 Additional instructions；其他 bot 仍显示 System prompt。
+
+启动时，`prompt.SupersededMain` 配合 `ReplaceMainPrompt` 清空匹配已知默认文本的主 bot 副本，只忽略首尾空白，不改用户自定义内容。组装时也识别这些副本，避免迁移尚未完成时重复注入。普通 bot 不参与该迁移。 历史主 bot 文本保存在 `text/legacy/`，代码只保留迁移映射，不将历史文本注入当前指令。
+
+主 bot 的内置 triggers：每条 trigger prompt 是该轮已配置的任务，不代表用户此时发起了新请求。
 
 微信、Discord、Telegram 不是 trigger。每个 bot 在自己的 Channels 里接一个联系人，消息进入该 bot 当前的 chat，和桌面是同一场对话。微信和 Telegram 的回复在发出时转成纯文本。
 
@@ -242,7 +253,7 @@ flowchart LR
 | `proposal` | hylo-bots `references/cards.md` | 自动化计划，接受即授权执行 | 摘要 + 可展开的细节 + 内嵌 choices |
 | `receipt` | hylo-bots `references/cards.md` | 执行回执；`ids` 记下做了哪些改动 | 撤销按钮发送撤销文本，由 hylo-bots `workflows/undo.md` 按 `ids` 从后往前回滚 |
 
-卡片只在 Hylo 聊天里渲染。Trigger 的 Wake 运行有 `choices` section，独立 Round 没有；从微信 / Discord / Telegram 来的一轮虽然是聊天，也一律用纯文本。
+卡片只在 Hylo 聊天里渲染。Trigger 的 Wake 有格式说明，独立 Round 没有。当前任务和渠道决定是否允许卡片；纯文本交付不输出 choices、sources 或 embed fence。
 
 ---
 
@@ -277,14 +288,14 @@ sequenceDiagram
 
 | 约定 | 唯一归属 |
 | --- | --- |
-| `[[ ]]` 链接、知识库路径、怎么读记忆 | `text/system/vault.md` |
+| `[[ ]]` 链接、知识库路径、共享记忆位置 | `text/system/vault.md` |
 | 怎么写记忆（含何时加 `pinned`） | hylo-memory 的 “Record one fact” |
 | 局部读取（`extract_*`） | `text/system/mcp.md` |
 | `choices` 卡格式 | `text/system/choices.md` |
 | `sources` 卡格式、升级阶梯 L0–L3 | `text/system/capabilities.md` |
 | `proposal` / `receipt` 卡格式 | hylo-bots `references/cards.md` |
 | 用 skill 还是直接写 prompt | hylo-bots `references/skills.md` |
-| 检索顺序、`perspective` 的含义 | `system/vault.md` |
+| 检索入口、`perspective` 的含义 | `system/vault.md` |
 | 笔记存哪 | hylo-notes |
 | Markdown 方言 | hylo-editor `references/formats.md` |
 | 工具参数 | MCP 工具 schema（`internal/mcp/`） |
@@ -296,4 +307,4 @@ sequenceDiagram
 - **Trigger prompt 靠 skill 名字耦合**：`trigger/compile.md`、`trigger/recall_*.md` 直接写 skill 名。`TestHyloBotTriggersAreValid` 检查主 bot 的 prompt 里出现的 `hylo-*` 都是内置 skill；内置 skill 改名时，在 `skills.Retired` 登记旧名，启动时会改写数据库里各 bot 和 trigger 存的 prompt 副本。
 - **“找不到工具就搜 deferred tools”在每个 skill 里重复一遍**：在 vault 目录里直接启动 Claude Code 时没有 Hylo 的 system prompt，只能靠这句话找到工具。这是有意保留的；改 MCP server 名时要和 `system/mcp.md` 一起改。
 - **“存哪”只在 hylo-notes 定义**：`system/bot_hylo.md` 只说“交给 hylo-notes，不问存哪”；hylo-writing 只保留一句“自己挑顶层文件夹”。改存放规则时改 hylo-notes 的表。
-- **section 文本只随第一轮发送**：改 prompt 后要新开会话验证，见第 1 节。
+- **指令刷新因 CLI 而异**：Pi / Claude / Codex / OpenCode 每轮刷新；Cursor / Copilot 续聊仍使用首轮指令，修改后需新会话，见第 1 节。

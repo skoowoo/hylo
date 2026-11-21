@@ -38,13 +38,12 @@ func hyloBot(agentID, model string) (*mate.Mate, []mate.MateTrigger) {
 	webClips := on("Compiler", mate.MateEventNoteCreated, prompt.TriggerCompile)
 	webClips.PathPrefixes = []string{"/Web Clips/"}
 	m := &mate.Mate{
-		Name:         hyloBotName,
-		Description:  hyloBotDescription,
-		AgentID:      agentID,
-		Model:        model,
-		Main:         true,
-		SystemPrompt: prompt.HyloBot,
-		Enabled:      true,
+		Name:        hyloBotName,
+		Description: hyloBotDescription,
+		AgentID:     agentID,
+		Model:       model,
+		Main:        true,
+		Enabled:     true,
 	}
 	return m, []mate.MateTrigger{
 		on("Compiler", mate.MateEventCompileRequested, prompt.TriggerCompile),

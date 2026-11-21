@@ -4,6 +4,8 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/hardhacker/hylo/internal/prompt"
 )
 
 func TestScheduledTriggerPersistence(t *testing.T) {
@@ -163,5 +165,45 @@ func TestReplacePromptLeavesEditsAlone(t *testing.T) {
 	triggers, _ := store.ListTriggers(m.ID)
 	if triggers[0].Prompt != "new text" || triggers[1].Prompt != "old text, edited" {
 		t.Errorf("prompts: %q, %q", triggers[0].Prompt, triggers[1].Prompt)
+	}
+}
+
+func TestReplaceMainPromptPreservesCustomBots(t *testing.T) {
+	for old, repl := range prompt.SupersededMain {
+		for _, tc := range []struct {
+			name, text, want string
+			main             bool
+		}{
+			{"default", old, repl, true},
+			{"outer whitespace", old + "\n\n", repl, true},
+			{"custom", old + "\nUse my preferred style.", old + "\nUse my preferred style.", true},
+			{"other bot", old, old, false},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				store, err := Open(filepath.Join(t.TempDir(), "vault"))
+				if err != nil {
+					t.Fatal(err)
+				}
+				t.Cleanup(func() { _ = store.Close() })
+				m := &Mate{Name: "Hylo", Main: tc.main, SystemPrompt: tc.text, Enabled: true}
+				if err := store.CreateMate(m); err != nil {
+					t.Fatal(err)
+				}
+				if err := store.ReplaceMainPrompt(old, repl); err != nil {
+					t.Fatal(err)
+				}
+				got, err := store.GetMate(m.ID)
+				if err != nil || got.SystemPrompt != tc.want {
+					t.Fatalf("bot = %+v, err = %v", got, err)
+				}
+				if err := store.ReplaceMainPrompt(old, repl); err != nil {
+					t.Fatal(err)
+				}
+				again, err := store.GetMate(m.ID)
+				if err != nil || again.SystemPrompt != tc.want || !again.UpdatedAt.Equal(got.UpdatedAt) {
+					t.Fatalf("second migration changed bot: %+v, err = %v", again, err)
+				}
+			})
+		}
 	}
 }

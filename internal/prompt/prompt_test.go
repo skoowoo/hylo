@@ -22,21 +22,63 @@ func TestSectionsApplyByRun(t *testing.T) {
 		{Run{Bot: " ", MCP: true}, "global,vault,mcp,choices,embed"},
 		{Run{Bot: "be brief", MCP: true, Intro: &Intro{}}, "global,vault,bot,mcp,choices,embed,intro"},
 		{Run{Kind: OneShot, MCP: true}, ""},
-		{Run{Main: true, MCP: true}, "global,vault,mcp,choices,embed,capabilities"},
-		{Run{Main: true}, "global,vault,choices,embed"},
-		{Run{Main: true, MCP: true, Intro: &Intro{}}, "global,vault,mcp,choices,embed,intro"},
-		{Run{Main: true, MCP: true, Apps: []App{{ID: "x"}}}, "global,vault,mcp,choices,embed,capabilities,apps"},
+		{Run{Kind: OneShot, Main: true, Bot: HyloBot, MCP: true}, ""},
+		{Run{Main: true, MCP: true}, "global,vault,main,mcp,choices,embed,capabilities"},
+		{Run{Main: true}, "global,vault,main,choices,embed"},
+		{Run{Main: true, MCP: true, Intro: &Intro{}}, "global,vault,main,mcp,choices,embed,intro"},
+		{Run{Main: true, MCP: true, Apps: []App{{ID: "x"}}}, "global,vault,main,mcp,choices,embed,capabilities,apps"},
 		{Run{MCP: true, Apps: []App{{ID: "x"}}}, "global,vault,mcp,choices,embed,apps"},
 		{Run{Apps: []App{{ID: "x"}}}, "global,vault,choices,embed"},
-		{Run{Kind: Round, Main: true, MCP: true, Agenda: true, Apps: []App{{ID: "x"}}}, "global,vault,mcp,agenda,apps"},
+		{Run{Apps: []App{{ID: "weread", Skill: "weread-skills"}}}, "global,vault,choices,embed,apps"},
+		{Run{Kind: Round, Main: true, MCP: true, Agenda: true, Apps: []App{{ID: "x"}}}, "global,vault,main,mcp,agenda,apps"},
 		{Run{Kind: Round, Bot: "inspect", Intro: &Intro{}}, "global,vault,bot"},
-		{Run{Kind: Wake, Main: true, MCP: true, Agenda: true}, "global,vault,mcp,choices,embed,capabilities,agenda"},
+		{Run{Kind: Wake, Main: true, MCP: true, Agenda: true}, "global,vault,main,mcp,choices,embed,capabilities,agenda"},
 		{Run{Kind: Wake, MCP: true, Intro: &Intro{}}, "global,vault,mcp,choices,embed"},
 	}
 	for _, c := range cases {
 		if got := ids(c.run); got != c.want {
 			t.Errorf("%+v: %s, want %s", c.run, got, c.want)
 		}
+	}
+}
+
+func TestMainRoleSurvivesPreferencesAndLegacyDefaults(t *testing.T) {
+	legacy := []string{"", HyloBot, "Use a concise tone."}
+	for text := range SupersededMain {
+		legacy = append(legacy, text+"\n\n")
+	}
+	for _, kind := range []Kind{Chat, Round, Wake} {
+		for _, text := range legacy {
+			r := Run{Main: true, Kind: kind, Bot: text}
+			got := System(r)
+			if n := strings.Count(got, HyloBot); n != 1 {
+				t.Fatalf("kind %d: main role appeared %d times", kind, n)
+			}
+			if text == "Use a concise tone." && !strings.Contains(got, text) {
+				t.Fatal("custom preferences were lost")
+			}
+			if text != "" && text != "Use a concise tone." {
+				for _, part := range Parts(r) {
+					if part.ID == SectionBot {
+						t.Fatal("stored default was included as additional preferences")
+					}
+				}
+			}
+		}
+	}
+	got := System(Run{Bot: "You bring the user today's news."})
+	if strings.Contains(got, HyloBot) || !strings.Contains(got, "You bring the user today's news.") {
+		t.Fatal("specialist bot inherited the main role or lost its own")
+	}
+}
+
+func TestSkillAppDoesNotRequireMCP(t *testing.T) {
+	got := System(Run{Apps: []App{
+		{ID: "podwise", Name: "Podwise"},
+		{ID: "weread", Name: "WeChat Reading", Skill: "weread-skills"},
+	}})
+	if !strings.Contains(got, "Use its skill `weread-skills`") || strings.Contains(got, "Podwise") {
+		t.Fatal(got)
 	}
 }
 

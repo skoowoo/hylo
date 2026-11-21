@@ -35,7 +35,7 @@ Give them a Recall bot that brings their own notes back to them, as messages in 
        - **Look back**: schedule `daily 15:00`.
 
           ```
-          Use the hylo-recall skill for a random look back through my notes, knowledge and short notes.
+          Use the hylo-recall skill to bring back a few worthwhile passages I may have forgotten from across my whole history, avoiding recent repeats. Let the original words lead, with source links and only brief introductions.
           ```
      - Run one scheduled trigger once now, so they see what it brings: Look back if they picked it and have notes older than 90 days (`list {"end": "<the date 90 days ago>", "limit": 1}`), else Weekly review if they picked it and wrote or changed notes in the past week (`list {"latest": 7, "limit": 1}`), else none.
 

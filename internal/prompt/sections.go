@@ -6,6 +6,7 @@ import "strings"
 const (
 	SectionGlobal       = "global"
 	SectionVault        = "vault"
+	SectionMain         = "main"
 	SectionBot          = "bot"
 	SectionMCP          = "mcp"
 	SectionChoices      = "choices"
@@ -36,7 +37,8 @@ var sections = []Section{
 	{ID: SectionGlobal, Applies: notOneShot, Text: func(Run) string { return GlobalDefault }},
 	// Conventions skills and tools rely on: link syntax, where knowledge and memory live.
 	{ID: SectionVault, Applies: notOneShot, Text: func(Run) string { return vaultText }},
-	{ID: SectionBot, Text: func(r Run) string { return r.Bot }},
+	{ID: SectionMain, Applies: func(r Run) bool { return r.Main && notOneShot(r) }, Text: func(Run) string { return HyloBot }},
+	{ID: SectionBot, Text: botText},
 	{ID: SectionMCP, Applies: func(r Run) bool { return r.MCP && r.Kind != OneShot }, Text: func(Run) string { return mcpText }},
 	// Only Hylo's chat turns a choices block into buttons; elsewhere it shows as raw text.
 	{ID: SectionChoices, Applies: inConversation, Text: func(Run) string { return choicesText }},
@@ -46,9 +48,32 @@ var sections = []Section{
 	{ID: SectionCapabilities, Applies: func(r Run) bool { return inConversation(r) && r.Main && r.MCP && r.Intro == nil }, Text: func(Run) string { return capabilitiesText }},
 	// Promises for later only hold while rounds run to wake the bot for them.
 	{ID: SectionAgenda, Applies: func(r Run) bool { return r.Agenda && r.Main && r.MCP && r.Kind != OneShot }, Text: func(Run) string { return agendaText }},
-	// App tools go through Hylo's MCP; Apps holds only what this bot has on.
-	{ID: SectionApps, Applies: func(r Run) bool { return len(r.Apps) > 0 && r.MCP && r.Kind != OneShot }, Text: func(r Run) string { return execute(appsTmpl, r.Apps) }},
+	{ID: SectionApps, Applies: notOneShot, Text: appsText},
 	{ID: SectionIntro, Applies: func(r Run) bool { return r.Kind == Chat && r.Intro != nil }, Text: func(r Run) string { return r.Intro.text() }},
+}
+
+func botText(r Run) string {
+	if !r.Main {
+		return r.Bot
+	}
+	t := strings.TrimSpace(r.Bot)
+	if _, builtIn := SupersededMain[t]; builtIn || t == "" {
+		return ""
+	}
+	return "Additional preferences for the main bot, within its core role and this turn's scope:\n\n" + t
+}
+
+func appsText(r Run) string {
+	var available []App
+	for _, a := range r.Apps {
+		if r.MCP || a.Skill != "" {
+			available = append(available, a)
+		}
+	}
+	if len(available) == 0 {
+		return ""
+	}
+	return execute(appsTmpl, available)
 }
 
 func notOneShot(r Run) bool { return r.Kind != OneShot }

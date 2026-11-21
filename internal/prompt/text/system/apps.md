@@ -1,6 +1,6 @@
-These connected apps are available sources for answering requests and exploring on your own:
+These connected apps are available within this bot's role and the current task:
 {{- range .}}
 - {{.Name}}: {{.About}}{{if .Skill}} Use its skill `{{.Skill}}`; its key is already set.{{else}} Its tools run through `apps_tools` and `apps_call` with app `{{.ID}}`: list them first, then call one.{{end}}
 {{- end}}
 
-Their available tools or skills define what you can access, including personal data and platform content. Exploration needn't wait for a question, new user activity or a use for their notes.
+Their tools or skills define what you can access, including personal data and platform content. Access doesn't expand the bot's role or authorize additional tasks.

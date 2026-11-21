@@ -333,6 +333,19 @@ func (s *Store) ReplacePrompt(old, repl string) error {
 	return err
 }
 
+// ReplaceMainPrompt preserves custom prompts, ignoring only outer whitespace.
+func (s *Store) ReplaceMainPrompt(old, repl string) error {
+	m, err := s.MainBot()
+	if err != nil || m == nil {
+		return err
+	}
+	if strings.TrimSpace(m.SystemPrompt) != strings.TrimSpace(old) || m.SystemPrompt == repl {
+		return nil
+	}
+	m.SystemPrompt = repl
+	return s.UpdateMateIf(m, m.UpdatedAt)
+}
+
 // RenameSkill rewrites bot and trigger prompts that name the skill old to name
 // repl instead; they hold their own copies of the text, so a renamed built-in
 // would otherwise go missing from them. Only the whole name is replaced, so

@@ -13,6 +13,7 @@ import (
 
 	"github.com/hardhacker/hylo/internal/agent"
 	"github.com/hardhacker/hylo/internal/mate"
+	"github.com/hardhacker/hylo/internal/prompt"
 	"github.com/pelletier/go-toml/v2"
 )
 
@@ -66,7 +67,11 @@ func TestNativeInstructionsRefreshOnResume(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = store.Close() })
 	a.store, a.hub = store, agent.NewHub()
-	conv, err := store.CreateConversation("bot")
+	bot := &mate.Mate{Name: "Hylo", Main: true, AgentID: "codex", Enabled: true}
+	if err := store.CreateMate(bot); err != nil {
+		t.Fatal(err)
+	}
+	conv, err := store.CreateConversation(bot.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -80,7 +85,7 @@ func TestNativeInstructionsRefreshOnResume(t *testing.T) {
 	for i, rules := range []string{"first bot rules", "updated bot rules"} {
 		run := a.hub.CreateRun(nil)
 		a.executeChat(t.Context(), run, chatBody{
-			AgentID: "codex", ConversationID: conv.ID, Message: "user request", SystemPrompt: rules,
+			MateID: bot.ID, AgentID: "codex", ConversationID: conv.ID, Message: "user request", SystemPrompt: rules,
 			AgentCliEnv: map[string]string{"CODEX_BIN": bin, "HYLO_TEST_NATIVE_CAPTURE": capture},
 		})
 		if status := run.StatusJSON()["status"]; status != "succeeded" {
@@ -110,6 +115,9 @@ func TestNativeInstructionsRefreshOnResume(t *testing.T) {
 				t.Fatal(err)
 			}
 			text := cfg["developer_instructions"]
+			if strings.Count(text, prompt.HyloBot) != 1 {
+				t.Fatalf("caller preferences replaced or duplicated the main role: %q", text)
+			}
 			if !strings.HasPrefix(text, "existing rules\n\n") || !strings.Contains(text, rules) || !strings.Contains(text, "the vault root") || strings.Contains(text, "# User request") {
 				t.Fatalf("incorrect native instructions: %q", text)
 			}

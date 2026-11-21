@@ -29,7 +29,7 @@ const (
 // stay pure functions of it.
 type Run struct {
 	Kind Kind
-	// Bot is the bot's own system prompt.
+	// Bot is a specialist's role, or the main bot's additional preferences.
 	Bot string
 	// Main is set for the main bot, the user's one entry point.
 	Main bool

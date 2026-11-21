@@ -35,7 +35,7 @@ func TestSetupBotOnlyForAnEmptyVault(t *testing.T) {
 	if code != http.StatusCreated || id == "" {
 		t.Fatalf("first setup: %d %q", code, id)
 	}
-	if bot, _ := store.GetMate(id); bot.Model != "sonnet" || !bot.Main || bot.Cwd != "/" {
+	if bot, _ := store.GetMate(id); bot.Model != "sonnet" || !bot.Main || bot.Cwd != "/" || bot.SystemPrompt != "" {
 		t.Fatalf("bot %+v", bot)
 	}
 	triggers, _ := store.ListTriggers(id)
@@ -63,7 +63,7 @@ func TestHyloBotTriggersAreValid(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Prompts call skills by name; a renamed built-in would leave them pointing nowhere.
-	texts := []string{bot.SystemPrompt}
+	texts := []string{prompt.HyloBot, bot.SystemPrompt}
 	for _, tr := range triggers {
 		texts = append(texts, tr.Prompt)
 	}

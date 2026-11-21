@@ -118,6 +118,11 @@ func New(cfg *config.Config, cfgFileLoaded string, logger *slog.Logger, vault *s
 		mateStore = ms
 		appsMgr = openApps(vault.Root(), ms, proxy, feed, logger)
 		skillsMgr.SetReserved(apps.SkillOwner)
+		for old, repl := range prompt.SupersededMain {
+			if err := ms.ReplaceMainPrompt(old, repl); err != nil {
+				logger.Warn("mate: replace superseded main bot prompt", "err", err)
+			}
+		}
 		for old, repl := range prompt.Superseded {
 			if err := ms.ReplacePrompt(old, repl); err != nil {
 				logger.Warn("mate: replace superseded trigger prompt", "err", err)

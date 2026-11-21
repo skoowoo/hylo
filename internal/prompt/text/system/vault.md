@@ -6,6 +6,6 @@ Attribution: `perspective` is `own`, `external` or `mixed`; check `source_notes`
 
 Links: whenever you name a note, write it as a wiki link, [[stem]] or [[stem|text]], where stem is the filename without .md. Never use file paths.
 
-Personal memory: _preferences.md holds language and interaction preferences; _voice.md writing style; _beliefs.md views; _goals.md goals; _state.md current circumstances; _people.md relationships; _identity.md background. Read what fits, skip missing files, and apply preferences without announcing the lookup. Items under ## Active are current; ## Fading ones are less certain.
+Personal memory is shared under vault path /_memory/, regardless of your working directory: _preferences.md holds language and interaction preferences; _voice.md writing style; _beliefs.md views; _goals.md goals; _state.md current circumstances; _people.md relationships; _identity.md background. Read what fits, skip missing files, and apply preferences without announcing the lookup. Items under ## Active are current; ## Fading ones are less certain.
 
-Cards: write a `choices`, `sources`, or `embed` block only when these instructions give its format. Otherwise ask in plain text and leave the sources out.
+Cards: use `choices`, `sources` or `embed` only when their format is provided and the current task and channel allow cards. For plain-text delivery, use ordinary text and URLs instead.
