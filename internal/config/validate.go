@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"net/url"
 	"strings"
 	"time"
 
@@ -43,6 +44,28 @@ func Validate(cfg *Config) error {
 	tlsWant := cfg.Server.CertFile != "" || cfg.Server.KeyFile != ""
 	if tlsWant && (cfg.Server.CertFile == "" || cfg.Server.KeyFile == "") {
 		add("server.tls", "set both cert_file and key_file to enable TLS, or leave both empty")
+	}
+	if cfg.Relay.Enabled {
+		rawURL := strings.TrimSpace(cfg.Relay.URL)
+		u, err := url.Parse(rawURL)
+		schemeOK := err == nil && u.Host != "" &&
+			(u.Scheme == "https" || u.Scheme == "wss" ||
+				((u.Scheme == "http" || u.Scheme == "ws") && IsLoopbackHost(u.Hostname())))
+		if rawURL == "" || !schemeOK {
+			add("relay.url", "must be an https:// or wss:// URL (http:// or ws:// allowed on loopback)")
+		}
+		if strings.TrimSpace(cfg.Relay.ServerID) == "" {
+			add("relay.server_id", "required when relay is enabled")
+		}
+		if strings.TrimSpace(cfg.Relay.ConnectorToken) == "" {
+			add("relay.connector_token", "required when relay is enabled")
+		}
+		if strings.TrimSpace(cfg.Relay.AccessToken) == "" {
+			add("relay.access_token", "required when relay is enabled")
+		}
+		if !cfg.Server.TCPEnabled() {
+			add("relay", "requires server.port to be enabled")
+		}
 	}
 
 	g := cfg.Plugins.GitSync

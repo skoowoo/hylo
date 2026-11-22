@@ -18,6 +18,7 @@ import (
 	"github.com/hardhacker/hylo/internal/apps"
 	"github.com/hardhacker/hylo/internal/channels"
 	"github.com/hardhacker/hylo/internal/config"
+	"github.com/hardhacker/hylo/internal/connector"
 	"github.com/hardhacker/hylo/internal/desktop"
 	"github.com/hardhacker/hylo/internal/live"
 	"github.com/hardhacker/hylo/internal/mate"
@@ -43,14 +44,15 @@ var ErrRestart = errors.New("restart requested")
 
 // Server manages a TCP listener for HTTP.
 type Server struct {
-	handler   http.Handler
-	logger    *slog.Logger
-	cfg       *config.Config
-	vault     *storage.Vault
-	pluginMgr *plugin.Manager
-	agent     *handler.AgentAPI
-	endRuns   context.CancelFunc
-	restart   chan struct{}
+	handler        http.Handler
+	logger         *slog.Logger
+	cfg            *config.Config
+	vault          *storage.Vault
+	pluginMgr      *plugin.Manager
+	agent          *handler.AgentAPI
+	endRuns        context.CancelFunc
+	restart        chan struct{}
+	relayConnector *connector.Connector
 }
 
 // New creates a Server from the given config, logger, and Vault.
@@ -69,6 +71,15 @@ func New(cfg *config.Config, cfgFileLoaded string, logger *slog.Logger, vault *s
 	skillsMgr.SetOnChange(feed.Notify(live.TopicSkills))
 
 	mgr := plugin.NewManager(logger)
+	var relayConnector *connector.Connector
+	if cfg.Relay.Active() {
+		// The connector always dials loopback, even if the HTTP server is bound
+		// on all interfaces, so Relay can never select a local target.
+		target := net.JoinHostPort("127.0.0.1", strconv.Itoa(cfg.Server.Port))
+		relayConnector = connector.New(cfg.Relay, target, logger)
+		mgr.Register(relayConnector)
+		logger.Info("relay connector registered", "server_id", cfg.Relay.ServerID)
+	}
 	mgr.Register(live.NewPlugin(feed))
 
 	// The search plugin is always active: it drives all full-text index updates
@@ -198,15 +209,16 @@ func New(cfg *config.Config, cfgFileLoaded string, logger *slog.Logger, vault *s
 	}
 
 	s := &Server{
-		logger:    logger,
-		cfg:       cfg,
-		vault:     vault,
-		pluginMgr: mgr,
-		agent:     ah,
-		endRuns:   endRuns,
-		restart:   make(chan struct{}, 1),
+		logger:         logger,
+		cfg:            cfg,
+		vault:          vault,
+		pluginMgr:      mgr,
+		agent:          ah,
+		endRuns:        endRuns,
+		restart:        make(chan struct{}, 1),
+		relayConnector: relayConnector,
 	}
-	s.handler = newRouter(logger, cfg, vault, cfgFileLoaded, gitPlugin, searchPlugin, compilePlugin, mateStore, mateRunner, skillsMgr, appsMgr, feed, cfg.Server.APIKey, channelHub, proxy, ah, rounds, desk, s.requestRestart)
+	s.handler = newRouter(logger, cfg, vault, cfgFileLoaded, gitPlugin, searchPlugin, compilePlugin, mateStore, mateRunner, skillsMgr, appsMgr, feed, cfg.Server.APIKey, channelHub, proxy, ah, rounds, desk, relayConnector, s.requestRestart)
 	return s
 }
 

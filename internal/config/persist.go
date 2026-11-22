@@ -61,6 +61,12 @@ func ConfigToMap(cfg *Config) (map[string]any, error) {
 	if err := json.Unmarshal(b, &m); err != nil {
 		return nil, err
 	}
+	// Keep unconfigured Relay settings out of rewritten legacy configs. Besides
+	// avoiding noise, this preserves vault migration's guarantee that secrets
+	// moved out of the global file are absent from its text.
+	if !cfg.Relay.Configured() {
+		delete(m, "relay")
+	}
 	return m, nil
 }
 
@@ -94,7 +100,13 @@ func WriteConfigToml(path string, merged map[string]any) error {
 	if err := os.MkdirAll(parent, 0o755); err != nil {
 		return fmt.Errorf("mkdir config dir: %w", err)
 	}
-	out, err := toml.Marshal(cfg)
+	persisted := persistedConfig{
+		Server: cfg.Server, Log: cfg.Log, Vault: cfg.Vault, Plugins: cfg.Plugins, Proactive: cfg.Proactive,
+	}
+	if cfg.Relay.Configured() {
+		persisted.Relay = &cfg.Relay
+	}
+	out, err := toml.Marshal(persisted)
 	if err != nil {
 		return fmt.Errorf("encode toml: %w", err)
 	}
@@ -103,6 +115,17 @@ func WriteConfigToml(path string, merged map[string]any) error {
 		return fmt.Errorf("write temp config: %w", err)
 	}
 	return os.Rename(tmp, path)
+}
+
+// persistedConfig preserves Config's established TOML shape while leaving a
+// disabled Relay section out of rewritten configs.
+type persistedConfig struct {
+	Server    ServerConfig    `toml:"server"`
+	Relay     *RelayConfig    `toml:"relay,omitempty"`
+	Log       LogConfig       `toml:"log"`
+	Vault     VaultConfig     `toml:"vault"`
+	Plugins   PluginsConfig   `toml:"-"`
+	Proactive ProactiveConfig `toml:"-"`
 }
 
 // NormalizeJSONDecodedMap converts json.Number leaf values after json.Unmarshal for cleaner TOML output.

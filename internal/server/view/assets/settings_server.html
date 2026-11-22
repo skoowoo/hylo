@@ -62,6 +62,16 @@
 
               <template x-if="openSection && !cfgLoading && !cfgError">
                 <div>
+                  <template x-if="openSection === 'relay'">
+                    <div class="relay-panel">
+                      <p class="settings-intro">This computer opens the tunnel. Save and restart after changing its Relay settings.</p>
+                      <div class="relay-state" :class="'is-' + relayStatus.state">
+                        <span class="srv-dot" :class="'is-' + relayStatus.state"></span>
+                        <div><span class="settings-label" x-text="relayStatusLabel"></span><span class="settings-desc" x-text="relayStatusDetail"></span></div>
+                        <button type="button" class="btn-outline btn--xs" @click="loadRelayStatus()" :disabled="relayStatusLoading" x-text="relayStatusLoading ? 'Checking…' : 'Check'" ></button>
+                      </div>
+                    </div>
+                  </template>
                   <div class="settings-list">
                     <template x-for="field in fieldsForSection(openSection)" :key="field.key">
 {{template "cfg-field"}}

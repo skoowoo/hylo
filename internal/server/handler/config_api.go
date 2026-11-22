@@ -86,6 +86,14 @@ func applySecretMask(m map[string]any, reveal bool) map[string]bool {
 			srv["api_key"] = nil
 		}
 	}
+	if relay, ok := m["relay"].(map[string]any); ok {
+		for _, key := range []string{"connector_token", "access_token"} {
+			if s, ok := relay[key].(string); ok && s != "" {
+				sec["relay."+key] = true
+				relay[key] = nil
+			}
+		}
+	}
 	for _, key := range secretKeys {
 		if maskSecret(m, key, reveal) {
 			sec[key] = true
@@ -221,7 +229,33 @@ func (c *ConfigHTTP) writeGlobal(writePath string, patch map[string]any) error {
 		return err
 	}
 	config.MergeJSONIntoTomlRoot(baseMap, patch)
+	if err := ensurePatchedRelayIdentity(baseMap); err != nil {
+		return err
+	}
 	return config.WriteConfigToml(writePath, baseMap)
+}
+
+func ensurePatchedRelayIdentity(root map[string]any) error {
+	raw, ok := root["relay"].(map[string]any)
+	if !ok {
+		return nil
+	}
+	b, err := json.Marshal(raw)
+	if err != nil {
+		return err
+	}
+	var rc config.RelayConfig
+	if err := json.Unmarshal(b, &rc); err != nil {
+		return err
+	}
+	changed, err := config.PopulateRelayIdentity(&rc)
+	if err != nil || !changed {
+		return err
+	}
+	raw["server_id"] = rc.ServerID
+	raw["connector_token"] = rc.ConnectorToken
+	raw["access_token"] = rc.AccessToken
+	return nil
 }
 
 func (c *ConfigHTTP) respondWriteError(w http.ResponseWriter, what string, err error) {

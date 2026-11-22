@@ -11,3 +11,4 @@ config.toml
 .deepseek
 .agents
 memory/
+relay-state.json

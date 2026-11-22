@@ -72,3 +72,37 @@ func TestEnsureAPIKey(t *testing.T) {
 		t.Fatal("must not overwrite an existing key")
 	}
 }
+
+func TestEnsureRelayIdentity(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.toml")
+
+	// Default config must stay disabled and never invent a Relay URL or identity.
+	disabled := &Config{Server: ServerConfig{Host: "127.0.0.1", Port: 54321}}
+	if _, made, err := EnsureRelayIdentity(disabled, path); err != nil || made || disabled.Relay.URL != "" || disabled.Relay.ServerID != "" {
+		t.Fatalf("disabled config should not generate relay identity: made=%v cfg=%+v err=%v", made, disabled.Relay, err)
+	}
+
+	// URL without enabled=true must also stay inactive.
+	urlOnly := &Config{
+		Server: ServerConfig{Host: "127.0.0.1", Port: 54321},
+		Relay:  RelayConfig{URL: "https://relay.example.com"},
+	}
+	if _, made, err := EnsureRelayIdentity(urlOnly, path); err != nil || made || urlOnly.Relay.ServerID != "" {
+		t.Fatalf("url without enabled must not generate identity: made=%v cfg=%+v err=%v", made, urlOnly.Relay, err)
+	}
+
+	// Enabled with URL generates and persists missing credentials once.
+	cfg := &Config{
+		Server: ServerConfig{Host: "127.0.0.1", Port: 54321},
+		Relay:  RelayConfig{Enabled: true, URL: "https://relay.example.com", JoinKey: "secret"},
+	}
+	_, made, err := EnsureRelayIdentity(cfg, path)
+	if err != nil || !made || cfg.Relay.ServerID == "" || cfg.Relay.ConnectorToken == "" || cfg.Relay.AccessToken == "" {
+		t.Fatalf("identity: made=%v cfg=%+v err=%v", made, cfg.Relay, err)
+	}
+	old := cfg.Relay
+	_, made, err = EnsureRelayIdentity(cfg, path)
+	if err != nil || made || cfg.Relay != old {
+		t.Fatalf("identity changed: made=%v cfg=%+v err=%v", made, cfg.Relay, err)
+	}
+}

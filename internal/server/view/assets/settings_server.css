@@ -17,3 +17,8 @@
     }
     .cfg-input-group { display: flex; gap: 0.375rem; align-items: center; width: 100%; }
     .cfg-number { width: 110px; }
+    .relay-panel { margin-bottom: var(--space-lg); }
+    .relay-state { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--space-md); padding: var(--space-sm) 0; border-bottom: var(--bd-w) solid var(--line-hair); }
+    .relay-state .srv-dot.is-online { background: var(--s-ok); }
+    .relay-state .srv-dot.is-offline { background: var(--s-err); }
+    .relay-state .srv-dot.is-connecting { background: var(--s-warn); }

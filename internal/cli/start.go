@@ -56,7 +56,7 @@ to the pid file (see --pid-file). The file is removed when the server exits.`,
 	serverCmd.Flags().StringVar(&servePIDFile, "pid-file", defaultServerPIDFile(),
 		"path to write this process ID after the server starts listening (use empty string to skip)")
 
-	cmd.AddCommand(serverCmd)
+	cmd.AddCommand(serverCmd, newStartRelayCmd())
 
 	return cmd
 }
@@ -67,9 +67,6 @@ func runServe(_ *cobra.Command, _ []string) error {
 	cfg, cfgFileUsed, err := config.Load("")
 	if err != nil {
 		return fmt.Errorf("load config: %w", err)
-	}
-	if _, err := config.ParseProxy(cfg.Server.Proxy); err != nil {
-		return fmt.Errorf("server.proxy: %w", err)
 	}
 	if cfgFileUsed != "" {
 		if abs, aerr := filepath.Abs(cfgFileUsed); aerr == nil {
@@ -83,6 +80,17 @@ func runServe(_ *cobra.Command, _ []string) error {
 		return err
 	} else if generated {
 		log.Info("api key generated", "config", path, "hint", "run `hylo auth show` to view it")
+	}
+	if path, generated, err := config.EnsureRelayIdentity(cfg, cfgFileUsed); err != nil {
+		return fmt.Errorf("prepare relay identity: %w", err)
+	} else if generated {
+		log.Info("relay identity created", "config", path)
+	}
+	if err := config.Validate(cfg); err != nil {
+		return fmt.Errorf("validate config: %w", err)
+	}
+	if _, err := config.ParseProxy(cfg.Server.Proxy); err != nil {
+		return fmt.Errorf("server.proxy: %w", err)
 	}
 	if cfg.Server.IsRemote() && !cfg.Server.TLSEnabled() {
 		log.Warn("listening on a non-loopback address without TLS; put a TLS reverse proxy in front (see docs/remote-deployment.md)")

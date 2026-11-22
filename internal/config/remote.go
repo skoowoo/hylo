@@ -104,3 +104,66 @@ func EnsureAPIKey(cfg *Config, loadedPath string) (path string, generated bool, 
 	cfg.Server.APIKey = key
 	return path, true, nil
 }
+
+// PopulateRelayIdentity fills missing internal Relay credentials in memory when
+// Relay is enabled with a URL. It never invents a default Relay URL.
+func PopulateRelayIdentity(r *RelayConfig) (bool, error) {
+	if !r.Active() {
+		return false, nil
+	}
+	changed := false
+	if strings.TrimSpace(r.ServerID) == "" {
+		v, err := relaySecret("srv_")
+		if err != nil {
+			return false, err
+		}
+		r.ServerID = v
+		changed = true
+	}
+	if strings.TrimSpace(r.ConnectorToken) == "" {
+		v, err := relaySecret("rlyc_")
+		if err != nil {
+			return false, err
+		}
+		r.ConnectorToken = v
+		changed = true
+	}
+	if strings.TrimSpace(r.AccessToken) == "" {
+		v, err := relaySecret("rlya_")
+		if err != nil {
+			return false, err
+		}
+		r.AccessToken = v
+		changed = true
+	}
+	return changed, nil
+}
+
+// EnsureRelayIdentity generates and persists missing private Relay credentials
+// only when Relay is explicitly enabled with a URL.
+func EnsureRelayIdentity(cfg *Config, loadedPath string) (string, bool, error) {
+	changed, err := PopulateRelayIdentity(&cfg.Relay)
+	if err != nil || !changed {
+		return "", false, err
+	}
+	path, err := ResolveConfigWritePath(loadedPath)
+	if err != nil {
+		return "", false, err
+	}
+	m, err := ConfigToMap(cfg)
+	if err != nil {
+		return "", false, err
+	}
+	if err := WriteConfigToml(path, m); err != nil {
+		return "", false, err
+	}
+	return path, true, nil
+}
+
+func relaySecret(prefix string) (string, error) {
+	b := make([]byte, 32)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	return prefix + hex.EncodeToString(b), nil
+}

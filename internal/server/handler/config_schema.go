@@ -45,6 +45,16 @@ func buildConfigSchema() []SchemaField {
 			Description: "HTTP or HTTPS proxy for Discord, Telegram, link previews, remote images, WeChat, and git. Example: http://127.0.0.1:7890. Leave empty to connect directly. Restart to apply.",
 			Default:     ""},
 
+		{Key: "relay.enabled", Type: "bool", Section: "relay", Label: "Enable relay",
+			Description: "Open an outbound tunnel to your Relay server for mobile access.",
+			Default:     false},
+		{Key: "relay.url", Type: "string", Section: "relay", Label: "Relay URL",
+			Description: "Public address of your Hylo Relay (https:// or wss://; loopback http:// allowed for local development).",
+			Default:     ""},
+		{Key: "relay.join_key", Type: "string", Section: "relay", Label: "Join key",
+			Description: "Access key required by your Relay server when registering this computer.",
+			Sensitive:   true, Default: ""},
+
 		{Key: "vault.path", Type: "string", Section: "vault", Label: "Vault root",
 			Description: "Filesystem root directory for markdown notes (~ allowed).",
 			Default:     config.DefaultVaultPath},

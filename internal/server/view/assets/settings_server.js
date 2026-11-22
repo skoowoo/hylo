@@ -21,6 +21,8 @@
       patch: {},
       revealed: {},
       openSection: '',
+      relayStatus: { enabled: false, state: 'off', error: '' },
+      relayStatusLoading: false,
 
       get sectionGroups() {
         const excluded = new Set(['log', 'server']);
@@ -57,6 +59,7 @@
           'vault': 'Vault',
           'plugins.search': 'Search', 'plugins.git_sync': 'Git Sync',
           'proactive': 'Proactive',
+          'relay': 'Remote access',
         };
         return m[s] || s;
       },
@@ -68,6 +71,7 @@
           'plugins.search': 'Indexing and search quality.',
           'plugins.git_sync': 'Commits and pushes.',
           'proactive': 'The main bot\'s own rounds.',
+          'relay': 'Connect a phone through your public Relay.',
         };
         return m[s] || '';
       },
@@ -76,6 +80,23 @@
 
       openSectionDetail(s) {
         this.openSection = s;
+        if (s === 'relay') this.loadRelayStatus();
+      },
+
+      get relayStatusLabel() {
+        return ({ off: 'Remote access is off', connecting: 'Connecting to Relay', online: 'Relay connected', offline: 'Relay unavailable', restart_required: 'Restart required' }[this.relayStatus.state] || 'Checking Relay');
+      },
+      get relayStatusDetail() {
+        if (this.relayStatus.state === 'off') return 'Enable relay and enter your Relay URL to open the outbound tunnel.';
+        if (this.relayStatus.error) return this.relayStatus.error;
+        if (this.relayStatus.state === 'restart_required') return 'Saved settings are ready. Restart Hylo to open the tunnel.';
+        return this.relayStatus.state === 'online' ? 'This computer is ready for remote connections.' : 'The connector will retry automatically.';
+      },
+      async loadRelayStatus() {
+        this.relayStatusLoading = true;
+        try { const r = await fetch('/api/relay/status'); if (!r.ok) throw new Error('HTTP ' + r.status); this.relayStatus = await r.json(); }
+        catch (e) { this.relayStatus = { enabled: true, state: 'offline', error: e.message }; }
+        finally { this.relayStatusLoading = false; }
       },
 
       sectionHasDirty(s) { return this.fieldsForSection(s).some(f => this.isDirty(f.key)); },

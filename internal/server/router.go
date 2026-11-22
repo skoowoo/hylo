@@ -8,6 +8,7 @@ import (
 	"github.com/hardhacker/hylo/internal/channels"
 	"github.com/hardhacker/hylo/internal/client"
 	"github.com/hardhacker/hylo/internal/config"
+	"github.com/hardhacker/hylo/internal/connector"
 	"github.com/hardhacker/hylo/internal/desktop"
 	"github.com/hardhacker/hylo/internal/editorbus"
 	"github.com/hardhacker/hylo/internal/live"
@@ -45,11 +46,13 @@ func newRouter(
 	ah *handler.AgentAPI,
 	rounds *pulse.Pulse,
 	desk *desktop.Tracker,
+	relayConnector *connector.Connector,
 	restart func()) http.Handler {
 	mux := http.NewServeMux()
 
 	h := handler.New(logger, cfg)
 	cfgHTTP := handler.NewConfigHTTP(logger, cfg, cfgFileLoaded)
+	relayHTTP := handler.NewRelayHTTP(cfg, relayConnector)
 	gh := handler.NewVault(vault)
 	sh := search.NewHandler(searchPlugin)
 	vh := view.NewView(vault, searchPlugin, cfg)
@@ -161,6 +164,7 @@ func newRouter(
 
 	mux.HandleFunc("GET /api/config", cfgHTTP.Get)
 	mux.HandleFunc("GET /api/config/schema", cfgHTTP.Schema)
+	mux.HandleFunc("GET /api/relay/status", relayHTTP.Status)
 	mux.HandleFunc("PATCH /api/config", cfgHTTP.Patch)
 	mux.HandleFunc("POST /api/server/restart", handler.NewRestartHTTP(cfgFileLoaded, restart).Post)
 

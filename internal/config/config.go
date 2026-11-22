@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/spf13/viper"
 
@@ -13,10 +14,33 @@ import (
 // Config holds the full application configuration.
 type Config struct {
 	Server    ServerConfig    `mapstructure:"server" json:"server" toml:"server"`
+	Relay     RelayConfig     `mapstructure:"relay" json:"relay" toml:"relay"`
 	Log       LogConfig       `mapstructure:"log" json:"log" toml:"log"`
 	Vault     VaultConfig     `mapstructure:"vault" json:"vault" toml:"vault"`
 	Plugins   PluginsConfig   `mapstructure:"plugins" json:"plugins" toml:"-"`     // one vault's config
 	Proactive ProactiveConfig `mapstructure:"proactive" json:"proactive" toml:"-"` // one vault's config
+}
+
+// RelayConfig enables the outbound connector to a Hylo Relay. It is disabled
+// by default so an open-source local server never connects out unless configured.
+type RelayConfig struct {
+	Enabled        bool   `mapstructure:"enabled" json:"enabled" toml:"enabled"`
+	URL            string `mapstructure:"url" json:"url" toml:"url"`
+	JoinKey        string `mapstructure:"join_key" json:"join_key" toml:"join_key"`
+	ServerID       string `mapstructure:"server_id" json:"server_id" toml:"server_id"`
+	ConnectorToken string `mapstructure:"connector_token" json:"connector_token" toml:"connector_token"`
+	AccessToken    string `mapstructure:"access_token" json:"access_token" toml:"access_token"`
+}
+
+// Active reports whether this Hylo instance should start an outbound Relay connector.
+func (r RelayConfig) Active() bool { return r.Enabled && strings.TrimSpace(r.URL) != "" }
+
+// Configured reports whether any Relay setting should be preserved in config.toml.
+func (r RelayConfig) Configured() bool {
+	return r.Enabled ||
+		strings.TrimSpace(r.URL) != "" ||
+		strings.TrimSpace(r.JoinKey) != "" ||
+		strings.TrimSpace(r.ServerID) != ""
 }
 
 // PluginsConfig groups all optional plugin configurations.
@@ -313,6 +337,9 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("server.read_timeout", 1800)
 	v.SetDefault("server.write_timeout", 1800)
 	v.SetDefault("server.proxy", "")
+	v.SetDefault("relay.enabled", false)
+	v.SetDefault("relay.url", "")
+	v.SetDefault("relay.join_key", "")
 
 	v.SetDefault("log.level", "info")
 	v.SetDefault("log.format", "text")

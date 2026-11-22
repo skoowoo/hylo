@@ -133,6 +133,7 @@ var commandValueFlags = map[string]bool{
 	"--prompt": true, "--schedule": true, "--events": true, "--path-prefixes": true,
 	"--category": true, "--skill": true, "--bot-id": true, "--pid-file": true, "--images": true,
 	"--due": true, "--before": true, "--since": true, "--actor": true, "--args": true,
+	"--listen": true, "--state": true, "--join-key": true,
 }
 
 // CommandValueFlags reports whether flag (e.g. "-c", "--content") takes a value.
