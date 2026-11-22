@@ -35,7 +35,7 @@ type finding struct {
 	done  time.Time // when the user last did the thing: pacing starts over
 }
 
-var leads = []lead{shortsLead, notesLead, readsLead, returnLead, writingNudge, readingNudge, todosNudge}
+var leads = []lead{shortsLead, notesLead, readsLead, returnLead, writingNudge, readingNudge}
 
 // scene is the moment the leads look at, gathered once.
 type scene struct {

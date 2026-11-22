@@ -20,7 +20,6 @@ import (
 	"github.com/hardhacker/hylo/internal/mate"
 	"github.com/hardhacker/hylo/internal/plugin"
 	"github.com/hardhacker/hylo/internal/prompt"
-	"github.com/hardhacker/hylo/internal/storage"
 )
 
 // RoundFunc runs a round's request in a session of its own and returns how it ended.
@@ -39,7 +38,6 @@ type Pulse struct {
 	wake     mate.WakeFunc
 	idle     func(mateID string) bool
 	pushable func(mateID string) []string
-	tasks    func(from, to time.Time) ([]storage.Task, error)
 
 	now  func() time.Time
 	roll func() float64
@@ -78,8 +76,6 @@ type Deps struct {
 	Idle func(mateID string) bool
 	// Pushable lists the bot's connected apps that can reach the user's phone; may be nil.
 	Pushable func(mateID string) []string
-	// Tasks lists open tasks in notes last changed in [from, to); may be nil.
-	Tasks func(from, to time.Time) ([]storage.Task, error)
 	// ChangesFile keeps the vault's recent changes across restarts; empty keeps them in memory.
 	ChangesFile string
 }
@@ -92,7 +88,7 @@ func New(d Deps, cfg mate.ProactiveConfig, logger *slog.Logger) (*Pulse, error) 
 	}
 	p := &Pulse{
 		store: d.Store, desk: d.Desk, cfg: cfg, hours: hours, gap: gap, logger: logger,
-		round: d.Round, wake: d.Wake, idle: d.Idle, pushable: d.Pushable, tasks: d.Tasks,
+		round: d.Round, wake: d.Wake, idle: d.Idle, pushable: d.Pushable,
 		now: time.Now, roll: rand.Float64, ctx: context.Background(), looked: map[string]looked{},
 	}
 	if err := p.changes.load(d.ChangesFile, p.now()); err != nil {

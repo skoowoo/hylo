@@ -14,7 +14,7 @@ import (
 // ── Conversations ─────────────────────────────────────────────────────────────
 
 // keepChats is how many of a bot's chats are kept; starting one past it drops the oldest.
-const keepChats = 10
+const keepChats = 20
 
 const convCols = `id, mate_id, type, agent_session_id, agent_session_agent_id, agent_session_cwd, created_at, updated_at`
 

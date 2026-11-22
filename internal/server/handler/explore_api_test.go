@@ -89,3 +89,37 @@ func TestBotChatGET(t *testing.T) {
 		t.Fatalf("unknown bot: %d", w.Code)
 	}
 }
+
+func TestBotChatGETHistory(t *testing.T) {
+	s, bot := exploreStore(t)
+	old, _ := s.StartConversation(bot.ID, "")
+	s.InsertMessage(mate.Message{ConversationID: old.ID, Role: "user", Content: "remember this"})
+	s.StartConversation(bot.ID, "")
+	for _, tc := range []struct {
+		since  string
+		status int
+		count  int
+	}{
+		{"2d", http.StatusOK, 1},
+		{"", http.StatusOK, 0},
+		{"lately", http.StatusBadRequest, 0},
+	} {
+		r := httptest.NewRequest(http.MethodGet, "/api/mates/"+bot.ID+"/chat?since="+tc.since, nil)
+		r.SetPathValue("id", bot.ID)
+		w := httptest.NewRecorder()
+		NewConversationAPI(s).BotChatGET(w, r)
+		if w.Code != tc.status {
+			t.Fatalf("since=%s: %d %s", tc.since, w.Code, w.Body)
+		}
+		if w.Code != http.StatusOK {
+			continue
+		}
+		var out struct{ Messages []mate.ChatLine }
+		if err := json.Unmarshal(w.Body.Bytes(), &out); err != nil {
+			t.Fatal(err)
+		}
+		if len(out.Messages) != tc.count {
+			t.Fatalf("since=%s: %+v", tc.since, out)
+		}
+	}
+}

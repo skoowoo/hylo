@@ -10,6 +10,7 @@ import (
 )
 
 type botChatReq struct {
+	Since  string `json:"since,omitempty" jsonschema:"when set, read all retained chats since a duration (2d) or local YYYY-MM-DD HH:MM, with complete user text and replies capped at 4000 characters; omit for current chat"`
 	BotID  string `json:"bot_id" jsonschema:"bot id, from bot_list"`
 	Before string `json:"before,omitempty" jsonschema:"message id: read the messages before it, to page back"`
 	Limit  int    `json:"limit,omitempty" jsonschema:"how many messages, default 10, at most 50"`
@@ -32,9 +33,9 @@ type activityOut struct {
 // registerExploreTools let a bot look at what the user's other bots said and
 // did, and at who read and wrote which notes.
 func registerExploreTools(s *sdk.Server, c *client.Client) {
-	addTool(s, "bot_chat", "Read a bot's current chat, newest messages last. Messages it sent on its own say what woke it; a reply the user hasn't seen yet is marked unread.", readOnly,
+	addTool(s, "bot_chat", "Read a bot's current chat, or all retained chats since a given time, newest messages last. History includes user messages and successful replies, with chatId and full user text. Bot replies are capped at 4000 characters with truncated=true when shortened; page back with before while keeping since fixed. Messages it sent on its own say what woke it; a reply the user hasn't seen yet is marked unread.", readOnly,
 		func(_ context.Context, in botChatReq) (client.BotChat, error) {
-			out, err := c.BotChat(in.BotID, in.Before, in.Limit)
+			out, err := c.BotChat(in.BotID, in.Before, in.Limit, in.Since)
 			if out.Messages == nil {
 				out.Messages = []mate.ChatLine{}
 			}

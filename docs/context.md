@@ -1,6 +1,6 @@
 # Context
 
-Hylo builds two kinds of context from your notes. Both are plain Markdown in your vault: you can read them, edit them, and every bot uses them.
+Hylo builds two kinds of context from your notes and conversations. Both are plain Markdown in your vault: you can read them, edit them, and every bot uses them.
 
 ![Knowledge graph](./assets/knowledge-graph.png)
 
@@ -19,7 +19,7 @@ Each run compiles the note with the `hylo-compile-note` skill, updates the knowl
 
 ## Personal memory
 
-Memory is kept in seven files under `/_memory/`: identity, preferences, goals, beliefs, people, current state, and voice (how you want your writing done). By default it reads your short notes (`/_shorts/`) and knowledge (`/_knowledge/`).
+Memory is kept in eight files under `/_memory/`: identity, preferences, goals, beliefs, people, current state, important events, and voice (how you want your writing done). By default it reads your short notes (`/_shorts/`), knowledge (`/_knowledge/`), and retained conversations with all bots. User statements provide personal evidence; bot replies only supply context. Decisions and milestones keep their event dates. Each bot retains up to 20 conversations; deleted conversations are not extracted.
 
 The Hylo bot updates it every day at 09:00. To scan more folders, edit that `scheduled` trigger's prompt:
 
@@ -27,10 +27,10 @@ The Hylo bot updates it every day at 09:00. To scan more folders, edit that `sch
 Please update my personal memory from my recent notes. Also scan /journal/.
 ```
 
-You can also ask any bot in chat, with a short introduction for the first run:
+You can also ask the main Hylo bot in chat, with a short introduction for the first run:
 
 ```
 Please update my personal memory. I'm [name], currently working on [project], …
 ```
 
-The first run scans the last 90 days; later runs scan the last 2 days. Memories that stop coming up fade out over time.
+The first run scans the last 90 days; later runs scan the last 2 days in a daily batch. Rescanning the same evidence does not increase reinforcement counts. Memories that stop coming up fade out over time.

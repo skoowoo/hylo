@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/hardhacker/hylo/internal/mate"
 )
@@ -112,7 +113,7 @@ func (c *ConversationAPI) ConversationDELETE(w http.ResponseWriter, r *http.Requ
 }
 
 // BotChatGET handles GET /api/mates/{id}/chat?limit=N&before=msgId: the bot's
-// current chat as another bot reads it, oldest first.
+// current chat, or retained history when since is set, oldest first.
 func (c *ConversationAPI) BotChatGET(w http.ResponseWriter, r *http.Request) {
 	limit := 10
 	if n, err := strconv.Atoi(r.URL.Query().Get("limit")); err == nil && n > 0 {
@@ -123,7 +124,19 @@ func (c *ConversationAPI) BotChatGET(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "no bot with that id", http.StatusNotFound)
 		return
 	}
-	chat, lines, more, err := c.store.BotChat(m.ID, r.URL.Query().Get("before"), limit)
+	var chat string
+	var lines []mate.ChatLine
+	var more bool
+	if raw := r.URL.Query().Get("since"); raw != "" {
+		from, parseErr := parseSince(raw, time.Now())
+		if parseErr != nil {
+			http.Error(w, parseErr.Error(), http.StatusBadRequest)
+			return
+		}
+		lines, more, err = c.store.BotChatHistory(m.ID, from, r.URL.Query().Get("before"), limit)
+	} else {
+		chat, lines, more, err = c.store.BotChat(m.ID, r.URL.Query().Get("before"), limit)
+	}
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

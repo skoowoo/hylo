@@ -145,11 +145,11 @@ func newBotCmd() *cobra.Command {
 		},
 	}
 
-	var chatBefore string
+	var chatBefore, chatSince string
 	var chatLimit int
 	chatCmd := &cobra.Command{
 		Use:          "chat <bot-id>",
-		Short:        "Read a bot's current chat, newest messages last",
+		Short:        "Read a bot's chat; use --since for retained history",
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -157,13 +157,14 @@ func newBotCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			chat, err := c.BotChat(args[0], chatBefore, chatLimit)
+			chat, err := c.BotChat(args[0], chatBefore, chatLimit, chatSince)
 			if err != nil {
 				return err
 			}
 			return printJSON(chat)
 		},
 	}
+	chatCmd.Flags().StringVar(&chatSince, "since", "", "read all retained chats since a duration (2d) or local YYYY-MM-DD HH:MM")
 	chatCmd.Flags().StringVar(&chatBefore, "before", "", "message id: read the messages before it")
 	chatCmd.Flags().IntVar(&chatLimit, "limit", 10, "how many messages, at most 50")
 

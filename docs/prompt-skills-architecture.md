@@ -100,6 +100,8 @@ Your working directory: <cwd> (the vault root | vault path /_bots/_xxx)
 
 `apps` 只说明可访问的能力，不授予新任务。自主探索的范围和目的由 Pulse 本轮任务说明；专用 bot 按自己的岗位与任务使用 app。
 
+Pulse 区分公开内容与用户账户数据：公开内容用于多元发现和推荐；订阅、收藏、未读等账户数据中的有意义新变化优先关注，并判断是否需要提醒。提醒说明变化与价值，不能把既有积压、数量或用户自己的已知操作反复包装成新消息。入口与探索方法仍由 agent 自主选择。
+
 ### 各类运行实际拿到哪些 sections
 
 下表假定 MCP 可用；agenda 和 apps 按实际配置注入。

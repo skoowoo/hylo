@@ -7,19 +7,28 @@ import (
 
 // ChatLine is one message of a bot's chat, as another bot reads it.
 type ChatLine struct {
-	ID       string    `json:"id"`
-	Role     string    `json:"role"`          // user | assistant
-	App      string    `json:"app,omitempty"` // the connected app a user message came from
-	Text     string    `json:"text"`
-	At       time.Time `json:"at"`
-	OnItsOwn bool      `json:"onItsOwn,omitempty"` // the bot sent it unasked
-	Source   string    `json:"source,omitempty"`   // what woke it: a trigger's name, or "rounds"
-	Unread   bool      `json:"unread,omitempty"`   // a finished reply the user hasn't seen yet
-	Status   string    `json:"status,omitempty"`   // set when the reply didn't succeed
+	ID        string    `json:"id"`
+	ChatID    string    `json:"chatId,omitempty"`
+	Role      string    `json:"role"`          // user | assistant
+	App       string    `json:"app,omitempty"` // the connected app a user message came from
+	Text      string    `json:"text"`
+	At        time.Time `json:"at"`
+	OnItsOwn  bool      `json:"onItsOwn,omitempty"` // the bot sent it unasked
+	Source    string    `json:"source,omitempty"`   // what woke it: a trigger's name, or "rounds"
+	Unread    bool      `json:"unread,omitempty"`   // a finished reply the user hasn't seen yet
+	Truncated bool      `json:"truncated,omitempty"`
+	Status    string    `json:"status,omitempty"` // set when the reply didn't succeed
 }
 
-// chatLineMax bounds one message's text: a long digest is still readable whole by note.
+// chatLineMax bounds context returned to another bot.
 const chatLineMax = 4000
+
+func (l *ChatLine) limitText() {
+	if r := []rune(l.Text); len(r) > chatLineMax {
+		l.Text = string(r[:chatLineMax]) + "…"
+		l.Truncated = true
+	}
+}
 
 // BotChat reads up to limit messages of the bot's current chat before
 // beforeID (the newest when empty), oldest first. Wake tasks are left out,
@@ -39,9 +48,7 @@ func (s *Store) BotChat(mateID, beforeID string, limit int) (chatID string, line
 	}
 	for _, m := range msgs {
 		l := ChatLine{ID: m.ID, Role: m.Role, App: m.App, Text: m.Content, At: m.CreatedAt}
-		if r := []rune(l.Text); len(r) > chatLineMax {
-			l.Text = string(r[:chatLineMax]) + "…"
-		}
+		l.limitText()
 		if m.Role == "assistant" {
 			if m.Status != "succeeded" {
 				l.Status = m.Status
@@ -60,4 +67,44 @@ func (s *Store) BotChat(mateID, beforeID string, limit int) (chatID string, line
 		lines = append(lines, l)
 	}
 	return chatID, lines, more, nil
+}
+
+// BotChatHistory reads retained chats, keeping user text whole and bounding replies.
+func (s *Store) BotChatHistory(mateID string, since time.Time, beforeID string, limit int) ([]ChatLine, bool, error) {
+	limit = max(1, min(limit, 50))
+	q := `SELECT ` + messageCols + ` FROM chat_messages
+		WHERE conversation_id IN (SELECT id FROM conversations WHERE mate_id = ?)
+		AND created_at >= ? AND (role = 'user' OR (role = 'assistant' AND status = 'succeeded'))`
+	args := []any{mateID, since.UnixMilli()}
+	if beforeID != "" {
+		q += ` AND (created_at, rowid) < (SELECT created_at, rowid FROM chat_messages
+			WHERE id = ? AND conversation_id IN (SELECT id FROM conversations WHERE mate_id = ?))`
+		args = append(args, beforeID, mateID)
+	}
+	q += ` ORDER BY created_at DESC, rowid DESC LIMIT ?`
+	args = append(args, limit+1)
+	rows, err := s.db.Query(q, args...)
+	if err != nil {
+		return nil, false, fmt.Errorf("mate: bot chat history: %w", err)
+	}
+	defer rows.Close()
+	msgs, err := scanMessages(rows)
+	if err != nil {
+		return nil, false, err
+	}
+	more := len(msgs) > limit
+	if more {
+		msgs = msgs[:limit]
+	}
+	lines := make([]ChatLine, 0, len(msgs))
+	for i := len(msgs) - 1; i >= 0; i-- {
+		m := msgs[i]
+		l := ChatLine{ID: m.ID, ChatID: m.ConversationID, Role: m.Role,
+			App: m.App, Text: m.Content, At: m.CreatedAt, OnItsOwn: m.TriggerEvent != "", Source: m.TriggerEvent}
+		if m.Role == "assistant" {
+			l.limitText()
+		}
+		lines = append(lines, l)
+	}
+	return lines, more, nil
 }

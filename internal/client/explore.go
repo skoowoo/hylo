@@ -9,7 +9,7 @@ import (
 	"github.com/hardhacker/hylo/internal/mate"
 )
 
-// BotChat is a bot's current chat as another bot reads it.
+// BotChat is a bot's chat messages as another bot reads them.
 type BotChat struct {
 	Bot      string          `json:"bot"`
 	ChatID   string          `json:"chatId"`
@@ -18,8 +18,11 @@ type BotChat struct {
 }
 
 // BotChat calls GET /api/mates/{id}/chat.
-func (c *Client) BotChat(botID, before string, limit int) (BotChat, error) {
+func (c *Client) BotChat(botID, before string, limit int, since string) (BotChat, error) {
 	q := url.Values{}
+	if since != "" {
+		q.Set("since", since)
+	}
 	if before != "" {
 		q.Set("before", before)
 	}

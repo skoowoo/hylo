@@ -8,7 +8,6 @@ import (
 
 	"github.com/hardhacker/hylo/internal/mate"
 	"github.com/hardhacker/hylo/internal/prompt"
-	"github.com/hardhacker/hylo/internal/storage"
 )
 
 func daysAgo(now time.Time, n int) time.Time {
@@ -145,31 +144,5 @@ func TestWritingNudgeIsRaisedOnce(t *testing.T) {
 	r.clock = r.clock.Add(24 * time.Hour)
 	if st := r.nudges()[0]; st.Live || !strings.HasPrefix(st.State, "raised ") {
 		t.Fatalf("raised again the next day: %+v", r.nudges())
-	}
-}
-
-func TestTodosNudgeSkipsRaisedOnes(t *testing.T) {
-	r := newRig(t)
-	stale := r.clock.AddDate(0, 0, -30)
-	r.tasks = func(from, to time.Time) ([]storage.Task, error) {
-		return []storage.Task{
-			{Path: "/trip.md", Line: 3, Text: "book the train", Updated: stale},
-			{Path: "/house.md", Line: 8, Text: "fix the tap", Updated: stale},
-		}, nil
-	}
-	d, live := r.digest(r.bot, time.Time{}, time.Time{}, r.clock)
-	if len(live) != 1 || live[0].name != "todos" || len(live[0].items) != 2 || !strings.Contains(d, "/trip.md, line 3") {
-		t.Fatalf("todos = %+v\n%s", live, d)
-	}
-	pr, _ := r.store.StartPulse(r.bot.ID, "x", r.clock.AddDate(0, 0, -10))
-	pr.Decision, pr.Nudged = mate.PulseSpeak, map[string][]string{"todos": {"/trip.md: book the train"}}
-	if err := r.store.EndPulse(pr); err != nil {
-		t.Fatal(err)
-	}
-	_ = r.store.SetPulseDelivery(pr.ID, "sent")
-	r.looked = map[string]looked{}
-	f := todosNudge.look(r.scene(r.bot, time.Time{}, r.clock))
-	if len(f.items) != 1 || f.items[0] != "/house.md: fix the tap" {
-		t.Fatalf("raised to-do came back: %v", f.items)
 	}
 }

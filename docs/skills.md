@@ -77,7 +77,7 @@ Update the knowledge index to include anything I'm missing
 
 ## hylo-memory — extract personal memory
 
-Extracts personal memory from your short notes and knowledge base into seven structured files under `/_memory/` — identity, preferences, goals, beliefs, people, current state, and voice (how you write, learned from your short notes, plus the writing rules you've stated and the formats of your recurring pieces). The first run scans the last 90 days; later runs scan incrementally. Memories that stop being reinforced fade out over time.
+Extracts personal memory from your short notes, knowledge base, and retained conversations with all bots into eight structured files under `/_memory/` — identity, preferences, goals, beliefs, people, current state, important events, and voice (how you write, learned from your short notes, plus the writing rules you've stated and the formats of your recurring pieces). The first run scans the last 90 days; later runs scan incrementally. Memories that stop being reinforced fade out over time.
 
 See [Context](./context.md#personal-memory) for how memory is kept up to date.
 

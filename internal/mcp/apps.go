@@ -37,7 +37,7 @@ func registerAppsTools(s *sdk.Server, c *client.Client) {
 			return appsListOut{Apps: list}, err
 		})
 
-	addTool(s, "apps_tools", "List a connected app's tools with their input schemas. You can use the apps the user turned on for you.", readOnly,
+	addTool(s, "apps_tools", "List a connected MCP app's tools with input schemas. Skill apps use their named skill, not apps_tools or apps_call. Available apps and their kind are in apps_list.", readOnly,
 		func(ctx context.Context, in appsToolsReq) (appsToolsOut, error) {
 			tools, err := c.AppTools(runFrom(ctx), in.App)
 			if tools == nil {
@@ -46,7 +46,7 @@ func registerAppsTools(s *sdk.Server, c *client.Client) {
 			return appsToolsOut{Tools: tools}, err
 		})
 
-	addTool(s, "apps_call", "Run a connected app's tool, using its schema from apps_tools. Available tools may access personal data or platform content. Some spend the user's credits; use those only when needed for the task.", additive,
+	addTool(s, "apps_call", "Run a connected MCP app's tool using its schema from apps_tools. Skill apps use their named skill instead. Tools may access personal data or platform content. Some spend the user's credits; use those only when needed for the task.", additive,
 		func(ctx context.Context, in appsCallReq) (*apps.CallResult, error) {
 			var args json.RawMessage
 			if in.Args != nil {

@@ -195,7 +195,7 @@ func New(cfg *config.Config, cfgFileLoaded string, logger *slog.Logger, vault *s
 		}
 		// Presence only serves rounds, so it is kept only while they run.
 		desk = desktop.New(mateStore, proactiveCfg.Enabled)
-		deps := pulse.Deps{Store: mateStore, Desk: desk, Round: ah.Pulse, Wake: ah.Wake, Idle: ah.ChatIdle, Tasks: vault.OpenTasks,
+		deps := pulse.Deps{Store: mateStore, Desk: desk, Round: ah.Pulse, Wake: ah.Wake, Idle: ah.ChatIdle,
 			ChangesFile: filepath.Join(vault.Root(), ".hylo", "pulse_changes.json")}
 		if channelHub != nil {
 			deps.Pushable = channelHub.Pushable

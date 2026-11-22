@@ -165,7 +165,7 @@ func (vh *ViewHandler) homeSectionData(r *http.Request, itemsOnly bool) (homeSec
 		var nextNs int64
 		data.Items, nextNs = vh.listDirNoteItems(dirPath, beforeNs, homeListPageSize)
 		data.Title = "Memory"
-		data.Empty = emptyState{Icon: "memory", Title: "No memories yet", Desc: "Hylo learns who you are from your notes and keeps it here."}
+		data.Empty = emptyState{Icon: "memory", Title: "No memories yet", Desc: "Hylo learns who you are from your notes and conversations and keeps it here."}
 		data.NextURL = homeSectionMoreURL("memory", "", nextNs)
 		if !itemsOnly {
 			data.Count = vh.dirNoteCount(dirPath)

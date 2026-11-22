@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/hardhacker/hylo/internal/mate"
-	"github.com/hardhacker/hylo/internal/storage"
 )
 
 // Nudges: things the bot raises on its own when the user has gone a while
@@ -134,59 +133,6 @@ func habit(name string, floor int, times func(*mate.Store, time.Time) ([]time.Ti
 var writingNudge = habit("writing", 2, (*mate.Store).WriteTimes, "wrote anything", "written anything")
 
 var readingNudge = habit("reading", 4, (*mate.Store).ReadTimes, "read a note", "read a note")
-
-// Open to-dos untouched for todoStale, up to todoGiveUp: older ones are
-// likely settled some other way.
-const (
-	todoStale  = 14 * 24 * time.Hour
-	todoGiveUp = 180 * 24 * time.Hour
-	todoShown  = 5
-	// todoRaised keeps a to-do the bot already raised out of later raises.
-	todoRaised = 90 * 24 * time.Hour
-)
-
-var todosNudge = lead{
-	name: "todos", every: time.Hour, nudge: true,
-	look: func(s *scene) finding {
-		if s.p.tasks == nil {
-			return finding{}
-		}
-		tasks, err := s.p.tasks(s.now.Add(-todoGiveUp), s.now.Add(-todoStale))
-		if err != nil {
-			s.p.logger.Warn("pulse: open tasks", "err", err)
-			return finding{}
-		}
-		raised := map[string]bool{}
-		if past, err := s.p.store.Nudges(s.m.ID, "todos", s.now.Add(-todoRaised)); err == nil {
-			for _, r := range past {
-				for _, it := range r.Items {
-					raised[it] = true
-				}
-			}
-		}
-		var f finding
-		left := 0
-		for _, t := range tasks {
-			key := todoKey(t)
-			if raised[key] {
-				continue
-			}
-			left++
-			if len(f.items) < todoShown {
-				f.items = append(f.items, key)
-				f.lines = append(f.lines, fmt.Sprintf("- %s, line %d (note last changed %s): %s", t.Path, t.Line, ago(s.now.Sub(t.Updated)), excerpt(t.Text)))
-			}
-		}
-		if left > len(f.items) {
-			f.lines = append(f.lines, fmt.Sprintf("- …%d more", left-len(f.items)))
-		}
-		f.due = left > 0
-		f.because = "there are " + count(left, "open to-do") + " untouched for weeks"
-		return f
-	},
-}
-
-func todoKey(t storage.Task) string { return t.Path + ": " + t.Text }
 
 func maxTime(a, b time.Time) time.Time {
 	if a.After(b) {
