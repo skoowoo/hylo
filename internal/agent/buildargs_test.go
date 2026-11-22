@@ -146,13 +146,15 @@ func TestBuildOpenCodeSessionArgs(t *testing.T) {
 	if def == nil {
 		t.Fatal("opencode def missing")
 	}
-	args := BuildInvocationArgs(def, BuildArgsContext{SessionID: "sess-9", Cwd: "/tmp"})
-	if !containsSeq(args, "-s", "sess-9") {
+	args := BuildInvocationArgs(def, BuildArgsContext{SessionID: "sess-9", Cwd: "/tmp", Model: "openai/gpt-5#high"})
+	if !containsSeq(args, "run", "--standalone", "--format", "json", "--auto", "--thinking") ||
+		!containsSeq(args, "--model", "openai/gpt-5#high") ||
+		!containsSeq(args, "-s", "sess-9") {
 		t.Fatalf("args = %v", args)
 	}
 	for _, a := range args {
-		if a == "-" {
-			t.Fatalf("session resume must not include stdin sentinel '-': %v", args)
+		if a == "-" || a == "--dir" || a == "--dangerously-skip-permissions" {
+			t.Fatalf("unexpected v1/invalid arg %q in %v", a, args)
 		}
 	}
 }

@@ -79,7 +79,7 @@ func TestPrepareMCPCodex(t *testing.T) {
 }
 
 func TestPrepareMCPOpenCodeMergesExistingConfig(t *testing.T) {
-	base := []string{`OPENCODE_CONFIG_CONTENT={"theme":"dark","mcp":{"other":{"type":"local","command":["x"]}}}`}
+	base := []string{`OPENCODE_CONFIG_CONTENT={"theme":"dark","mcp":{"servers":{"other":{"type":"local","command":["x"]}}}}`}
 	inj, err := PrepareMCP("opencode", testEP, t.TempDir(), base)
 	if err != nil {
 		t.Fatal(err)
@@ -89,16 +89,23 @@ func TestPrepareMCPOpenCodeMergesExistingConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 	mcp := cfg["mcp"].(map[string]any)
-	if cfg["theme"] != "dark" || mcp["other"] == nil {
+	servers := mcp["servers"].(map[string]any)
+	if cfg["theme"] != "dark" || servers["other"] == nil {
 		t.Errorf("existing config lost: %v", cfg)
 	}
-	hylo := mcp["hylo"].(map[string]any)
+	hylo := servers["hylo"].(map[string]any)
 	if hylo["type"] != "remote" || hylo["headers"].(map[string]any)["Authorization"] != "Bearer {env:HYLO_API_KEY}" {
 		t.Errorf("hylo entry: %v", hylo)
 	}
 
-	if _, err := PrepareMCP("opencode", testEP, t.TempDir(), []string{"OPENCODE_CONFIG_CONTENT=not json"}); err == nil {
-		t.Error("invalid existing config should error")
+	for _, bad := range []string{
+		"not json",
+		`{"mcp":"wrong"}`,
+		`{"mcp":{"servers":"wrong"}}`,
+	} {
+		if _, err := PrepareMCP("opencode", testEP, t.TempDir(), []string{"OPENCODE_CONFIG_CONTENT=" + bad}); err == nil {
+			t.Errorf("invalid existing config %q should error", bad)
+		}
 	}
 }
 

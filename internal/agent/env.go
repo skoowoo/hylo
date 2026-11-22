@@ -40,7 +40,7 @@ func IsKnownModel(def *AgentDef, modelID string) bool {
 	return false
 }
 
-var customModelRe = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._/:@-]*$`)
+var customModelRe = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._/:@#-]*$`)
 
 // SanitizeCustomModel mirrors agents.ts sanitizeCustomModel.
 func SanitizeCustomModel(id string) string {

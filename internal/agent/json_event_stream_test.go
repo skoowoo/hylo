@@ -156,3 +156,48 @@ func TestJSONEventStream_CodexFileChange(t *testing.T) {
 		t.Fatalf("expected 2 notes, got %+v", notes)
 	}
 }
+
+func TestJSONEventStream_OpenCodeV2Turn(t *testing.T) {
+	stream := `{"type":"step_start","sessionID":"ses_1","part":{"type":"step-start"}}
+{"type":"reasoning","sessionID":"ses_1","part":{"type":"reasoning","text":"Checking directory"}}
+{"type":"tool_use","sessionID":"ses_1","part":{"partID":"prt_1","type":"tool","id":"call_1","tool":"shell","state":{"status":"completed","input":{"command":"pwd"},"output":"/vault\n"}}}
+{"type":"tool_use","sessionID":"ses_1","part":{"partID":"prt_2","type":"tool","id":"call_2","tool":"read","state":{"status":"error","input":{"path":"/missing.md"},"error":"File not found: /missing.md"}}}
+{"type":"text","sessionID":"ses_1","part":{"type":"text","text":"Done."}}
+{"type":"step_finish","sessionID":"ses_1","part":{"type":"step-finish","cost":0.01,"tokens":{"input":10,"output":5}}}
+{"type":"error","sessionID":"ses_1","error":{"type":"provider.no-route","message":"Model unavailable: bad/model"}}
+`
+	var got []string
+	var sessionID string
+	j := NewJSONEventStream("opencode", func(m map[string]any) {
+		switch m["type"] {
+		case AgentEventSession:
+			sessionID = m["sessionId"].(string)
+		case "thinking_delta", "text_delta":
+			got = append(got, m["type"].(string)+":"+m["delta"].(string))
+		case "tool_use":
+			got = append(got, "use:"+m["id"].(string)+":"+m["name"].(string))
+		case "tool_result":
+			got = append(got, "result:"+m["toolUseId"].(string)+":"+m["content"].(string)+":"+map[bool]string{true: "err", false: "ok"}[m["isError"].(bool)])
+		case "error":
+			got = append(got, "error:"+m["message"].(string))
+		case "raw":
+			t.Fatalf("unparsed line: %v", m["line"])
+		}
+	})
+	j.Feed(stream)
+	if sessionID != "ses_1" {
+		t.Fatalf("sessionID = %q", sessionID)
+	}
+	want := []string{
+		"thinking_delta:Checking directory",
+		"use:call_1:shell",
+		"result:call_1:/vault\n:ok",
+		"use:call_2:read",
+		"result:call_2:File not found: /missing.md:err",
+		"text_delta:Done.",
+		"error:Model unavailable: bad/model",
+	}
+	if strings.Join(got, "|") != strings.Join(want, "|") {
+		t.Fatalf("got  %q\nwant %q", got, want)
+	}
+}

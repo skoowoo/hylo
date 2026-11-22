@@ -63,7 +63,7 @@ func TestInstructionFilesAreRunScoped(t *testing.T) {
 }
 
 func TestOpenCodeInstructionsPreserveMCPAndUserConfig(t *testing.T) {
-	base := []string{`OPENCODE_CONFIG_CONTENT={"instructions":["/user/rules.md"],"model":"test/model","mcp":{"other":{"type":"remote","url":"https://example.com"}}}`}
+	base := []string{`OPENCODE_CONFIG_CONTENT={"instructions":["/user/rules.md"],"model":"test/model","mcp":{"servers":{"other":{"type":"remote","url":"https://example.com"}}}}`}
 	mcp, err := PrepareMCP("opencode", MCPEndpoint{URL: "http://localhost/mcp"}, "", base)
 	if err != nil {
 		t.Fatal(err)
@@ -78,7 +78,7 @@ func TestOpenCodeInstructionsPreserveMCPAndUserConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 	files := cfg["instructions"].([]any)
-	servers := cfg["mcp"].(map[string]any)
+	servers := cfg["mcp"].(map[string]any)["servers"].(map[string]any)
 	if len(files) != 2 || files[0] != "/user/rules.md" || cfg["model"] != "test/model" || servers["hylo"] == nil || servers["other"] == nil {
 		t.Fatalf("merged config = %#v", cfg)
 	}

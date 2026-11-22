@@ -149,11 +149,24 @@ func opencodeConfig(ep MCPEndpoint, baseEnv []string) (string, error) {
 	if ep.APIKey != "" {
 		srv["headers"] = map[string]string{"Authorization": "Bearer {env:" + mcpKeyEnv + "}"}
 	}
-	mcp, _ := cfg["mcp"].(map[string]any)
-	if mcp == nil {
-		mcp = map[string]any{}
+	mcp := map[string]any{}
+	if v, ok := cfg["mcp"]; ok && v != nil {
+		m, valid := v.(map[string]any)
+		if !valid {
+			return "", fmt.Errorf("OPENCODE_CONFIG_CONTENT.mcp must be an object")
+		}
+		mcp = m
 	}
-	mcp[mcpServerName] = srv
+	servers := map[string]any{}
+	if v, ok := mcp["servers"]; ok && v != nil {
+		m, valid := v.(map[string]any)
+		if !valid {
+			return "", fmt.Errorf("OPENCODE_CONFIG_CONTENT.mcp.servers must be an object")
+		}
+		servers = m
+	}
+	servers[mcpServerName] = srv
+	mcp["servers"] = servers
 	cfg["mcp"] = mcp
 	b, err := json.Marshal(cfg)
 	return string(b), err

@@ -103,10 +103,9 @@ func buildCodex(_ *AgentDef, c BuildArgsContext) []string {
 }
 
 func buildOpenCode(_ *AgentDef, c BuildArgsContext) []string {
-	args := []string{"run", "--format", "json", "--dangerously-skip-permissions"}
-	if c.Cwd != "" {
-		args = append(args, "--dir", c.Cwd)
-	}
+	// --standalone runs a private server so per-run OPENCODE_CONFIG_CONTENT
+	// (MCP and instructions) is loaded instead of ignored by the background service.
+	args := []string{"run", "--standalone", "--format", "json", "--auto", "--thinking"}
 	if c.Model != "" && c.Model != "default" {
 		args = append(args, "--model", c.Model)
 	}
@@ -115,7 +114,7 @@ func buildOpenCode(_ *AgentDef, c BuildArgsContext) []string {
 	}
 	// -f/--file labels every attachment text/plain, so a picture arrives as
 	// garbage text. The path goes in the prompt and the read tool sniffs it.
-	// --dangerously-skip-permissions already approves that external-directory read.
+	// --auto already approves that external-directory read.
 	return args
 }
 

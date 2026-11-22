@@ -101,6 +101,11 @@ func (j *JSONEventStream) openCode(obj map[string]any, raw string) bool {
 	case "step_start":
 		j.on(map[string]any{"type": "status", "label": "running"})
 		return true
+	case "reasoning":
+		if txt, _ := part["text"].(string); txt != "" {
+			j.on(map[string]any{"type": "thinking_delta", "delta": txt})
+		}
+		return true
 	case "text":
 		txt, _ := part["text"].(string)
 		if txt != "" {
@@ -109,17 +114,19 @@ func (j *JSONEventStream) openCode(obj map[string]any, raw string) bool {
 		return true
 	case "tool_use":
 		tool, _ := part["tool"].(string)
-		callID, _ := part["callID"].(string)
+		callID, _ := part["id"].(string)
 		if tool != "" && callID != "" {
+			st, _ := part["state"].(map[string]any)
 			key := toString(obj["sessionID"]) + ":" + callID
 			if _, ok := j.openCodeTools[key]; !ok {
 				j.openCodeTools[key] = struct{}{}
-				st, _ := part["state"].(map[string]any)
 				j.on(map[string]any{"type": "tool_use", "id": callID, "name": tool, "input": st["input"]})
 			}
-			st, _ := part["state"].(map[string]any)
-			if st != nil && st["status"] == "completed" {
+			switch st["status"] {
+			case "completed":
 				j.on(map[string]any{"type": "tool_result", "toolUseId": callID, "content": stringifyContent(st["output"]), "isError": false})
+			case "error":
+				j.on(map[string]any{"type": "tool_result", "toolUseId": callID, "content": extractErr(st["error"], st["output"], "Tool error"), "isError": true})
 			}
 		}
 		return true
@@ -441,11 +448,25 @@ func toFloat(v any) float64 {
 
 func extractErr(parts ...any) string {
 	for _, p := range parts {
-		if s, ok := p.(string); ok && s != "" {
+		if s := extractErrMsg(p); s != "" {
 			return s
 		}
 	}
 	return "error"
+}
+
+func extractErrMsg(p any) string {
+	switch v := p.(type) {
+	case string:
+		return v
+	case map[string]any:
+		for _, k := range []string{"message", "error", "data"} {
+			if s := extractErrMsg(v[k]); s != "" {
+				return s
+			}
+		}
+	}
+	return ""
 }
 
 func stringifyContent(v any) string {
