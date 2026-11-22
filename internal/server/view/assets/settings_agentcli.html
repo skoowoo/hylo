@@ -1,44 +1,85 @@
-{{/* Agents tab: detected CLI agents and their models. The agents list is shared with Bots, so it lives in settings_modal.js. */}}
+{{/* Agents tab: install, update, and inspect local CLI agents. The agents list is shared with Bots, so it lives in settings_modal.js. */}}
           <div class="settings-page" x-show="tab === 'agents'">
            <div class="settings-body">
             <div class="settings-toolbar">
               <span class="settings-toolbar-note" x-show="!agentsLoading && agents.length">
-                <span x-text="agents.filter(a=>a.available).length + ' available · ' + agents.filter(a=>!a.available).length + ' not installed'"></span>
+                <span x-text="agentSummaryText()"></span>
                 <span x-show="agentsFromCache && agentsCachedAt"
                       x-text="' · checked ' + Math.round((Date.now() - agentsCachedAt) / 60000) + 'm ago'"></span>
               </span>
               <div class="settings-toolbar-end">
-{{template "toolbar-refresh" (dict "Loading" `agentsLoading` "Click" `loadAgents(true)` "Busy" `Detecting…`)}}
+{{template "toolbar-refresh" (dict "Loading" `agentsLoading` "Click" `loadAgents(true)` "Busy" `Checking…`)}}
               </div>
             </div>
-            <div class="settings-status" x-show="agentsLoading">Detecting agents…</div>
+            <div class="settings-status" x-show="agentsLoading">Checking agents…</div>
             <div class="settings-status settings-status--err" x-show="agentsError && !agentsLoading" x-text="'Error: ' + agentsError"></div>
             <div class="settings-list" x-show="!agentsLoading && !agentsError && agents.length">
               <template x-for="ag in sortedAgents" :key="ag.id">
-                <div class="settings-row settings-row--lead agent-row" :class="{'is-off': !ag.available}">
-                  <span class="dot" :class="ag.available ? 'dot--on' : 'dot--off'"></span>
+                <div class="settings-row settings-row--lead agent-row" :class="{'is-off': !ag.available && !isAgentJobRunning(ag.id)}">
+                  <span class="agent-mark" :title="ag.available ? 'Installed' : 'Not installed'">
+                    <span class="agent-logo" x-html="agentCliLogo(ag)"></span>
+                    <span class="dot agent-mark-dot" :class="ag.available ? 'dot--on' : 'dot--off'"></span>
+                  </span>
                   <div class="agent-row-text">
                     <span class="settings-row-label">
                       <span class="settings-label" x-text="ag.name"></span>
-                      <span class="settings-key" x-text="ag.id"></span>
+                      <span class="badge badge--sm agent-ver-update" x-show="ag.available && ag.updateAvailable"
+                            x-text="agentVersionPair(ag)"></span>
+                      <span class="settings-key" x-show="ag.available && !ag.updateAvailable && ag.version"
+                            x-text="agentFormatVersion(ag.version)"></span>
+                      <span class="settings-key" x-show="ag.available && ag.installSource && ag.installSource !== 'native'"
+                            x-text="ag.installSource"></span>
                     </span>
                     <span class="settings-desc agent-meta">
-                      <span class="agent-meta-path" :title="ag.path || ag.bin" x-text="ag.path || ag.bin || '—'"></span>
-                      <span x-show="ag.version" x-text="'v' + ag.version"></span>
-                      <span x-show="ag.streamFormat" x-text="ag.streamFormat"></span>
+                      <span class="agent-meta-path" x-show="ag.available" :title="ag.path || ag.bin" x-text="ag.path || ag.bin || '—'"></span>
+                      <span class="agent-meta-path" x-show="!ag.available && ag.installCmd" :title="ag.installCmd" x-text="ag.installCmd"></span>
                     </span>
-                    <div class="agent-models" x-show="ag.models && ag.models.length">
-                      <template x-for="m in agentDisplayModels(ag)" :key="m.id">
-                        <span class="badge badge--sm agent-model-pill" :title="(m.label && m.label !== m.id) ? m.id + ' — ' + m.label : m.id" x-text="m.id"></span>
-                      </template>
-                      <span class="settings-desc" x-show="ag.models && ag.models.length > 4" x-text="'+' + (ag.models.length - 4) + ' more'"></span>
-                    </div>
+                    <span class="settings-desc agent-hint" x-show="ag.available && !ag.canUpdate && ag.updateAvailable && ag.updateHint"
+                          x-text="ag.updateHint"></span>
                   </div>
                   <div class="settings-row-ctrl">
-                    <span class="settings-msg" x-show="!ag.available">Not installed</span>
-                    <button type="button" class="btn-ghost btn--xs" x-show="ag.available && ag.cliExample" :title="ag.cliExample"
-                            @click.stop="copyCliExample(ag)" x-text="agentCopied === ag.id ? 'Copied' : 'Copy command'"></button>
+                    <template x-if="isAgentJobRunning(ag.id)">
+                      <span class="agent-ctrl-group">
+                        <span class="settings-msg" x-text="agentJobs[ag.id].action === 'update' ? 'Updating…' : 'Installing…'"></span>
+                        <button type="button" class="btn-ghost btn--xs" @click.stop="cancelAgentJob(ag.id)">Cancel</button>
+                      </span>
+                    </template>
+                    <template x-if="!isAgentJobRunning(ag.id) && !ag.available">
+                      <span class="agent-ctrl-group">
+                        <button type="button" class="btn-outline btn--xs" x-show="ag.canInstall"
+                                @click.stop="runAgentAction(ag, 'install')">Install</button>
+                        <span class="settings-msg" x-show="!ag.canInstall">Not installed</span>
+                      </span>
+                    </template>
+                    <template x-if="!isAgentJobRunning(ag.id) && ag.available">
+                      <span class="agent-ctrl-group">
+                        <button type="button" class="btn-solid btn--xs" x-show="ag.canUpdate && ag.updateAvailable"
+                                @click.stop="runAgentAction(ag, 'update')">Update</button>
+                        <button type="button" class="btn-ghost btn--xs" x-show="ag.canUpdate && !ag.updateAvailable"
+                                @click.stop="runAgentAction(ag, 'update')">Update</button>
+                        <button type="button" class="btn-ghost btn--xs" x-show="!ag.canUpdate && ag.cliExample" :title="ag.cliExample"
+                                @click.stop="copyCliExample(ag)" x-text="agentCopied === ag.id ? 'Copied' : 'Copy command'"></button>
+                      </span>
+                    </template>
                   </div>
+                  <template x-if="agentJobs[ag.id] && agentJobs[ag.id].state !== 'running'">
+                    <div class="agent-job" :class="'is-' + agentJobs[ag.id].state">
+                      <div class="agent-job-head">
+                        <span class="agent-job-status" x-text="agentJobSummary(ag.id)"></span>
+                        <div class="agent-job-actions">
+                          <button type="button" class="settings-link agent-job-link" x-show="agentJobs[ag.id].output"
+                                  @click="toggleAgentJobLog(ag.id)"
+                                  x-text="agentJobs[ag.id].showOutput ? 'Hide details' : 'Details'"></button>
+                          <button type="button" class="settings-link agent-job-link" x-show="agentJobs[ag.id].state === 'failed'"
+                                  @click="runAgentAction(ag, agentJobs[ag.id].action)">Retry</button>
+                          <button type="button" class="settings-link agent-job-link"
+                                  @click="dismissAgentJob(ag.id)">Dismiss</button>
+                        </div>
+                      </div>
+                      <pre class="agent-job-log" x-show="agentJobs[ag.id].showOutput && agentJobs[ag.id].output"
+                           x-text="agentJobs[ag.id].output"></pre>
+                    </div>
+                  </template>
                 </div>
               </template>
             </div>

@@ -12,8 +12,10 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"github.com/hardhacker/hylo/internal/agent"
+	"github.com/hardhacker/hylo/internal/agent/installer"
 	"github.com/hardhacker/hylo/internal/apps"
 	"github.com/hardhacker/hylo/internal/config"
 	"github.com/hardhacker/hylo/internal/editorbus"
@@ -31,6 +33,7 @@ type AgentAPI struct {
 	hub        *agent.Hub
 	store      *mate.Store // nil when store is unavailable; handles both mate config and chat history
 	agentCache *agent.AgentCache
+	installer  *installer.Manager
 	active     sync.Map        // runID -> *agent.ChatProcess
 	canceled   sync.Map        // runID -> true; set by RunCancelPOST so executeChat can report "canceled" instead of "failed" for a user-initiated stop
 	pathRuns   sync.Map        // vault path -> runID; set by Wake for wakes about a note
@@ -41,7 +44,7 @@ type AgentAPI struct {
 	lanes      sync.Map        // mateID -> *chatLane; one chat run at a time, the user's first
 	queued     sync.Map        // runID -> context.CancelFunc; a run still waiting for its bot's chat
 	runBots    sync.Map        // runID -> mateID while a bot's run is going; its tool calls name the run
-	rounds     bool            // the main bot's own rounds run, so its agenda wakes it
+	rounds     atomic.Bool     // the main bot's own rounds run, so its agenda wakes it
 	apps       RunApps         // optional; the apps the user connected, each on for some bots
 	life       context.Context // detached runs end with it; nil leaves them to their own lifetime
 	runs       sync.WaitGroup
@@ -49,7 +52,15 @@ type AgentAPI struct {
 
 // NewAgentAPI constructs the agent HTTP surface.
 func NewAgentAPI(logger *slog.Logger, cfg *config.Config, vault *storage.Vault, hub *agent.Hub, store *mate.Store, cache *agent.AgentCache) *AgentAPI {
-	return &AgentAPI{logger: logger, cfg: cfg, vault: vault, hub: hub, store: store, agentCache: cache}
+	return &AgentAPI{
+		logger:     logger,
+		cfg:        cfg,
+		vault:      vault,
+		hub:        hub,
+		store:      store,
+		agentCache: cache,
+		installer:  installer.NewManager(),
+	}
 }
 
 // SetMateRunner wires in the mate runner so a trigger can be fired by hand.
@@ -84,7 +95,7 @@ type RunApps interface {
 func (a *AgentAPI) SetApps(x RunApps) { a.apps = x }
 
 // SetRounds says the main bot's own rounds are running (internal/pulse).
-func (a *AgentAPI) SetRounds(on bool) { a.rounds = on }
+func (a *AgentAPI) SetRounds(on bool) { a.rounds.Store(on) }
 
 // SetWakeEnd registers fn to hear of every wake whose turn is over.
 func (a *AgentAPI) SetWakeEnd(fn func(WakeEnd)) { a.onWake = fn }
@@ -158,6 +169,7 @@ func (a *AgentAPI) AgentsGET(w http.ResponseWriter, r *http.Request) {
 	res := a.agentCache.Get(r.Context(), force)
 	respondJSON(w, http.StatusOK, map[string]any{
 		"agents":    res.Agents,
+		"jobs":      a.installer.Snapshot(),
 		"fromCache": res.FromCache,
 		"stale":     res.Stale,
 		"fetchedAt": res.FetchedAt.UnixMilli(),
@@ -523,7 +535,7 @@ func (a *AgentAPI) executeChat(ctx context.Context, run *agent.Run, body chatBod
 		Bot:    body.SystemPrompt,
 		Main:   main,
 		MCP:    a.mcpURL(body.AgentID) != "",
-		Agenda: a.rounds,
+		Agenda: a.rounds.Load(),
 	}
 	appBot := apps.Bot{ID: body.MateID, Main: main, Dir: dir}
 	if body.MateID != "" && a.apps != nil {

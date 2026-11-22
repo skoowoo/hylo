@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS mates (
     main            INTEGER NOT NULL DEFAULT 0,
     system_prompt   TEXT    NOT NULL DEFAULT '',
     enabled         INTEGER NOT NULL DEFAULT 1,
+    proactive       TEXT    NOT NULL DEFAULT '',
     sort_order      INTEGER NOT NULL DEFAULT 0,
     created_at      INTEGER NOT NULL,
     updated_at      INTEGER NOT NULL
@@ -196,6 +197,7 @@ func Open(vaultRoot string) (*Store, error) {
 		{"conversations", "agent_session_cwd", "TEXT NOT NULL DEFAULT ''"},
 		{"mates", "main", "INTEGER NOT NULL DEFAULT 0"},
 		{"mates", "seen_at", "INTEGER NOT NULL DEFAULT 0"},
+		{"mates", "proactive", "TEXT NOT NULL DEFAULT ''"},
 		{"pulse_runs", "nudged", "TEXT NOT NULL DEFAULT ''"},
 	} {
 		if _, err := db.Exec(`ALTER TABLE ` + c.table + ` ADD COLUMN ` + c.col + ` ` + c.def); err != nil {

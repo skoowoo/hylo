@@ -132,6 +132,51 @@
                     </div>
                   </section>
 
+                  <section class="settings-form" role="tabpanel" x-show="botFormTab === 'proactive' && agentBotDraft.main">
+                    <p class="settings-intro">The main bot wakes on its own at irregular times, looks around, and messages you only when something is worth it. Changes take effect immediately on save.</p>
+                    <div class="settings-list">
+                      <div class="settings-row">
+                        <div>
+                          <span class="settings-label">Own rounds</span>
+                          <span class="settings-desc">Let the main bot wake up and check in on its own.</span>
+                        </div>
+                        <div class="settings-row-ctrl">
+                          <div class="seg">
+                            <button type="button" class="seg-btn" :class="{active: !agentBotProactive.enabled}" @click="agentBotProactive.enabled = false">Off</button>
+                            <button type="button" class="seg-btn" :class="{active: agentBotProactive.enabled}" @click="agentBotProactive.enabled = true">On</button>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="settings-row settings-row--input">
+                        <div>
+                          <span class="settings-label">Wakes per day</span>
+                          <span class="settings-desc">Most rounds end in silence; each one is an agent run.</span>
+                        </div>
+                        <div class="settings-row-ctrl">
+                          <input type="number" class="field-input field-input--mono cfg-number" min="0" x-model.number="agentBotProactive.wakes_per_day">
+                        </div>
+                      </div>
+                      <div class="settings-row settings-row--input">
+                        <div>
+                          <span class="settings-label">Active hours</span>
+                          <span class="settings-desc">Local time window, e.g. <code>08:00-24:00</code>. The end may pass midnight.</span>
+                        </div>
+                        <div class="settings-row-ctrl">
+                          <input type="text" class="field-input field-input--mono" x-model="agentBotProactive.active_hours" placeholder="08:00-24:00" spellcheck="false">
+                        </div>
+                      </div>
+                      <div class="settings-row settings-row--input">
+                        <div>
+                          <span class="settings-label">Minimum gap</span>
+                          <span class="settings-desc">Least time between two rounds (Go duration, e.g. <code>20m</code>).</span>
+                        </div>
+                        <div class="settings-row-ctrl">
+                          <input type="text" class="field-input field-input--mono" x-model="agentBotProactive.min_gap" placeholder="20m" spellcheck="false">
+                        </div>
+                      </div>
+                    </div>
+                  </section>
+
                   <section class="settings-form" role="tabpanel" x-show="botFormTab === 'skills'">
                     <p class="settings-intro">Choose which skills this bot can use.</p>
                     <div class="settings-field">

@@ -148,16 +148,6 @@ func TestWritingNudgeIsRaisedOnce(t *testing.T) {
 	}
 }
 
-func TestMutedNudge(t *testing.T) {
-	r := newRig(t)
-	r.quietWriter(t)
-	r.cfg.Mute = []string{"writing"}
-	r.odds = 0
-	if why, _ := r.weighs(t); strings.Contains(why, "written") || r.nudges()[0].State != "muted" {
-		t.Fatalf("muted nudge raised: %q %+v", why, r.nudges())
-	}
-}
-
 func TestTodosNudgeSkipsRaisedOnes(t *testing.T) {
 	r := newRig(t)
 	stale := r.clock.AddDate(0, 0, -30)

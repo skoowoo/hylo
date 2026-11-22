@@ -189,21 +189,23 @@ func New(cfg *config.Config, cfgFileLoaded string, logger *slog.Logger, vault *s
 	var desk *desktop.Tracker
 	var rounds *pulse.Pulse
 	if mateStore != nil {
+		proactiveCfg := mate.DefaultProactiveConfig()
+		if main, err := mateStore.MainBot(); err == nil && main != nil && main.Proactive != nil {
+			proactiveCfg = *main.Proactive
+		}
 		// Presence only serves rounds, so it is kept only while they run.
-		desk = desktop.New(mateStore, cfg.Proactive.Enabled && cfg.Proactive.Desktop)
-	}
-	if mateStore != nil && cfg.Proactive.Enabled {
+		desk = desktop.New(mateStore, proactiveCfg.Enabled)
 		deps := pulse.Deps{Store: mateStore, Desk: desk, Round: ah.Pulse, Wake: ah.Wake, Idle: ah.ChatIdle, Tasks: vault.OpenTasks,
 			ChangesFile: filepath.Join(vault.Root(), ".hylo", "pulse_changes.json")}
 		if channelHub != nil {
 			deps.Pushable = channelHub.Pushable
 		}
-		if p, err := pulse.New(deps, cfg.Proactive, logger); err != nil {
+		if p, err := pulse.New(deps, proactiveCfg, logger); err != nil {
 			logger.Warn("pulse: not started", "err", err)
 		} else {
 			mgr.Register(p)
 			rounds = p
-			ah.SetRounds(true)
+			ah.SetRounds(proactiveCfg.Enabled)
 			logger.Info("pulse plugin registered")
 		}
 	}

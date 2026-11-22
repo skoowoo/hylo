@@ -3,9 +3,14 @@ package agent
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"os"
 	"os/exec"
 	"strings"
+	"sync"
 	"time"
+
+	"github.com/hardhacker/hylo/internal/agent/installer"
 )
 
 // ProbeAgent runs resolution, version, help capability probe, and model fetch.
@@ -25,9 +30,17 @@ func ProbeAgent(ctx context.Context, def *AgentDef, configuredEnv map[string]str
 		CliExample:         CLIExample(def),
 	}
 
+	inst := installer.Get(def.ID)
+	if inst != nil {
+		base.InstallCmd = inst.InstallCmd()
+	}
+
 	resolved := ResolveAgentExecutable(def, configuredEnv)
 	if resolved == "" {
 		base.Available = false
+		if inst != nil && inst.Supported() {
+			base.CanInstall = true
+		}
 		if len(base.Models) == 0 {
 			base.Models = []ModelOption{DefaultModelOption}
 		}
@@ -35,6 +48,19 @@ func ProbeAgent(ctx context.Context, def *AgentDef, configuredEnv map[string]str
 	}
 	base.Path = resolved
 	base.Available = true
+	if inst != nil {
+		home, _ := os.UserHomeDir()
+		if ov := os.Getenv("OD_AGENT_HOME"); ov != "" {
+			home = ov
+		}
+		src := installer.DetectInstallSource(inst, resolved, home)
+		base.InstallSource = string(src)
+		if inst.Supported() && src == installer.SourceNative {
+			base.CanUpdate = true
+		} else if src != installer.SourceNative {
+			base.UpdateHint = inst.ExternalUpdateHint(src, resolved)
+		}
+	}
 
 	envSlice := SpawnEnvForAgent(def.ID, ShellEnv(), configuredEnv)
 	if len(def.StaticEnv) > 0 {
@@ -54,7 +80,13 @@ func ProbeAgent(ctx context.Context, def *AgentDef, configuredEnv map[string]str
 		if err == nil {
 			lines := strings.Split(strings.TrimSpace(string(out)), "\n")
 			if len(lines) > 0 {
-				base.Version = strings.TrimSpace(lines[0])
+				v := strings.TrimSpace(lines[0])
+				if inst != nil {
+					if norm := inst.NormalizeVersion(v); norm != "" {
+						v = norm
+					}
+				}
+				base.Version = v
 			}
 		}
 	}
@@ -122,18 +154,55 @@ func fetchModelsForDef(ctx context.Context, def *AgentDef, resolved string, env 
 	return parsed, nil
 }
 
-// DetectAgents probes every built-in definition (GET /api/agents).
+// DetectAgents probes every built-in definition locally (no network update check).
 func DetectAgents(ctx context.Context, configuredByID map[string]map[string]string) []AgentInfo {
+	return DetectAgentsWithOptions(ctx, configuredByID, false)
+}
+
+// DetectAgentsWithOptions probes every built-in definition and, when checkUpdates
+// is true (explicit user Refresh), concurrently checks upstream latest versions.
+func DetectAgentsWithOptions(ctx context.Context, configuredByID map[string]map[string]string, checkUpdates bool) []AgentInfo {
 	if configuredByID == nil {
 		configuredByID = map[string]map[string]string{}
 	}
-	var out []AgentInfo
-	for _, d := range BuiltInAgents() {
+	defs := BuiltInAgents()
+	out := make([]AgentInfo, len(defs))
+	for i, d := range defs {
 		cfg := configuredByID[d.ID]
 		if cfg == nil {
 			cfg = map[string]string{}
 		}
-		out = append(out, ProbeAgent(ctx, d, cfg))
+		out[i] = ProbeAgent(ctx, d, cfg)
+	}
+	if checkUpdates {
+		checkLatestVersions(ctx, out)
 	}
 	return out
+}
+
+func checkLatestVersions(ctx context.Context, agents []AgentInfo) {
+	client := &http.Client{Timeout: 4 * time.Second}
+	var wg sync.WaitGroup
+	for i := range agents {
+		if !agents[i].Available {
+			continue
+		}
+		inst := installer.Get(agents[i].ID)
+		if inst == nil {
+			continue
+		}
+		wg.Add(1)
+		go func(idx int, inst installer.Installer) {
+			defer wg.Done()
+			cctx, cancel := context.WithTimeout(ctx, 4*time.Second)
+			defer cancel()
+			latest, err := inst.LatestVersion(cctx, client)
+			if err != nil || latest == "" {
+				return
+			}
+			agents[idx].LatestVersion = latest
+			agents[idx].UpdateAvailable = installer.IsNewer(agents[idx].Version, latest)
+		}(i, inst)
+	}
+	wg.Wait()
 }

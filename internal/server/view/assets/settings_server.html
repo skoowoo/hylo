@@ -1,20 +1,20 @@
-{{/* Server tab: the server being edited, its config section picker, and a section's fields. */}}
-          <div class="settings-page" x-show="tab === 'server'">
+{{/* Config-backed tabs (Server, Remote access, Vault): share one schema, patch draft, and save footer. */}}
+          <div class="settings-page" x-show="isConfigTab(tab)">
             <div class="settings-body" x-init="$store.servers.load()">
 
-              <div class="srv-notice" x-show="switchConfirm" x-cloak>
-                <span x-text="'Switching reloads the window. Discard ' + Object.keys(patch).length + ' unsaved change' + (Object.keys(patch).length !== 1 ? 's' : '') + '?'"></span>
-                <span class="srv-notice-actions">
-                  <button type="button" class="btn-solid btn--xs" @click="confirmSwitch()">Discard and switch</button>
-                  <button type="button" class="btn-outline btn--xs" @click="switchConfirm = ''">Cancel</button>
-                </span>
-              </div>
-              <div class="srv-notice" x-show="switching" x-cloak>Switching…</div>
-              <p class="settings-intro settings-msg--err" x-show="switchError" x-text="switchError"></p>
-
-              <template x-if="!openSection">
+              <template x-if="tab === 'server'">
                 <div>
-                  <div class="settings-list srv-head">
+                  <div class="srv-notice" x-show="switchConfirm" x-cloak>
+                    <span x-text="'Switching reloads the window. Discard ' + Object.keys(patch).length + ' unsaved change' + (Object.keys(patch).length !== 1 ? 's' : '') + '?'"></span>
+                    <span class="srv-notice-actions">
+                      <button type="button" class="btn-solid btn--xs" @click="confirmSwitch()">Discard and switch</button>
+                      <button type="button" class="btn-outline btn--xs" @click="switchConfirm = ''">Cancel</button>
+                    </span>
+                  </div>
+                  <div class="srv-notice" x-show="switching" x-cloak>Switching…</div>
+                  <p class="settings-intro settings-msg--err" x-show="switchError" x-text="switchError"></p>
+
+                  <div class="settings-list">
                     <div class="settings-row settings-row--lead">
                       <span class="srv-dot" :class="'is-' + heroState"></span>
                       <div>
@@ -37,46 +37,64 @@
                                 x-text="serverStopping ? 'Stopping…' : (serverRunning ? 'Stop' : 'Stopped')"></button>
                       </div>
                     </div>
-                    <template x-for="section in (cfgLoading || cfgError ? [] : globalSections)" :key="section">{{template "cfg-section"}}
+                    <template x-for="field in (cfgLoading || cfgError ? [] : fieldsForSection('proxy'))" :key="field.key">
+{{template "cfg-field"}}
                     </template>
                   </div>
                   <p class="settings-intro settings-msg--err" x-show="serverStopError" x-text="serverStopError"></p>
-
-                  <template x-for="group in sectionGroups.filter(g => g.id !== 'global')" :key="group.id">
-                    <section class="settings-section" x-show="!cfgLoading && !cfgError">
-                      <h3 class="settings-section-title">
-                        <span x-text="group.label"></span>
-                        <small class="cfg-vault-path" x-show="group.id === 'vault' && vaultPath" :title="vaultPath" x-text="vaultPath"></small>
-                      </h3>
-                      <div class="settings-list">
-                        <template x-for="section in group.sections" :key="section">{{template "cfg-section"}}
-                        </template>
-                      </div>
-                    </section>
-                  </template>
                 </div>
               </template>
 
               <div class="settings-status" x-show="cfgLoading">Loading configuration…</div>
               <div class="settings-status settings-status--err" x-show="cfgError && !cfgLoading" x-text="'Error: ' + cfgError"></div>
 
-              <template x-if="openSection && !cfgLoading && !cfgError">
+              <template x-if="tab === 'relay' && !cfgLoading && !cfgError">
                 <div>
-                  <template x-if="openSection === 'relay'">
-                    <div class="relay-panel">
-                      <p class="settings-intro">This computer opens the tunnel. Save and restart after changing its Relay settings.</p>
-                      <div class="relay-state" :class="'is-' + relayStatus.state">
-                        <span class="srv-dot" :class="'is-' + relayStatus.state"></span>
-                        <div><span class="settings-label" x-text="relayStatusLabel"></span><span class="settings-desc" x-text="relayStatusDetail"></span></div>
-                        <button type="button" class="btn-outline btn--xs" @click="loadRelayStatus()" :disabled="relayStatusLoading" x-text="relayStatusLoading ? 'Checking…' : 'Check'" ></button>
-                      </div>
+                  <div class="relay-panel">
+                    <p class="settings-intro">This computer opens the tunnel. Save and restart after changing its Relay settings.</p>
+                    <div class="relay-state" :class="'is-' + relayStatus.state">
+                      <span class="srv-dot" :class="'is-' + relayStatus.state"></span>
+                      <div><span class="settings-label" x-text="relayStatusLabel"></span><span class="settings-desc" x-text="relayStatusDetail"></span></div>
+                      <button type="button" class="btn-outline btn--xs" @click="loadRelayStatus()" :disabled="relayStatusLoading" x-text="relayStatusLoading ? 'Checking…' : 'Check'"></button>
                     </div>
-                  </template>
+                  </div>
                   <div class="settings-list">
-                    <template x-for="field in fieldsForSection(openSection)" :key="field.key">
+                    <template x-for="field in fieldsForSection('relay')" :key="field.key">
 {{template "cfg-field"}}
                     </template>
                   </div>
+                </div>
+              </template>
+
+              <template x-if="tab === 'vault' && !cfgLoading && !cfgError">
+                <div>
+                  <section class="settings-section">
+                    <h3 class="settings-section-title">
+                      <span>Location</span>
+                      <small class="cfg-vault-path" x-show="vaultPath" :title="vaultPath" x-text="vaultPath"></small>
+                    </h3>
+                    <div class="settings-list">
+                      <template x-for="field in fieldsForSection('vault')" :key="field.key">
+{{template "cfg-field"}}
+                      </template>
+                    </div>
+                  </section>
+                  <section class="settings-section">
+                    <h3 class="settings-section-title"><span>Search</span></h3>
+                    <div class="settings-list">
+                      <template x-for="field in fieldsForSection('plugins.search')" :key="field.key">
+{{template "cfg-field"}}
+                      </template>
+                    </div>
+                  </section>
+                  <section class="settings-section">
+                    <h3 class="settings-section-title"><span>Git Sync</span></h3>
+                    <div class="settings-list">
+                      <template x-for="field in fieldsForSection('plugins.git_sync')" :key="field.key">
+{{template "cfg-field"}}
+                      </template>
+                    </div>
+                  </section>
                 </div>
               </template>
 
@@ -172,24 +190,3 @@
                         </div>
                       </div>
 {{end}}
-
-{{define "cfg-section"}}
-                          <div class="cfg-item">
-                            <template x-if="fieldsForSection(section).length === 1">
-                              <div x-data="{ get field() { return fieldsForSection(section)[0]; } }">
-{{template "cfg-field"}}
-                              </div>
-                            </template>
-                            <template x-if="fieldsForSection(section).length > 1">
-                              <button type="button" class="settings-row settings-row--nav" @click="openSectionDetail(section)">
-                                <div>
-                                  <span class="settings-row-label">
-                                    <span class="settings-label" x-text="sectionLabel(section)"></span>
-                                    <span class="dot dot--accent" x-show="sectionHasDirty(section)" title="Unsaved changes"></span>
-                                  </span>
-                                  <span class="settings-desc" x-text="sectionIntro(section)"></span>
-                                </div>
-                                {{icon "chevron-right" "settings-row-chev"}}
-                              </button>
-                            </template>
-                          </div>{{end}}

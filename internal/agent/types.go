@@ -6,11 +6,11 @@ package agent
 type StreamFormat string
 
 const (
-	StreamClaudeJSON    StreamFormat = "claude-stream-json"
-	StreamJSONEvent     StreamFormat = "json-event-stream"
-	StreamPiRPC         StreamFormat = "pi-rpc"
-	StreamCopilotJSON   StreamFormat = "copilot-stream-json"
-	StreamPlain         StreamFormat = "plain"
+	StreamClaudeJSON  StreamFormat = "claude-stream-json"
+	StreamJSONEvent   StreamFormat = "json-event-stream"
+	StreamPiRPC       StreamFormat = "pi-rpc"
+	StreamCopilotJSON StreamFormat = "copilot-stream-json"
+	StreamPlain       StreamFormat = "plain"
 )
 
 // ModelOption is one selectable model in GET /api/agents.
@@ -67,28 +67,35 @@ type AgentDef struct {
 	// persisted session id (or Pi RPC session) without replaying full
 	// message history in the host-composed prompt.
 	SupportsNativeSession bool `json:"supportsNativeSession,omitempty"`
-	build              func(*AgentDef, BuildArgsContext) []string
-	listModelsArgs     []string
-	listModelsTimeout  int // ms; 0 = default 5000
-	listModelsParse    func(stdout string) []ModelOption
-	fetchModels        func(resolvedBin string, env []string) ([]ModelOption, error)
+	build                 func(*AgentDef, BuildArgsContext) []string
+	listModelsArgs        []string
+	listModelsTimeout     int // ms; 0 = default 5000
+	listModelsParse       func(stdout string) []ModelOption
+	fetchModels           func(resolvedBin string, env []string) ([]ModelOption, error)
 }
 
 // AgentInfo is returned by GET /api/agents (JSON‑safe; no function fields).
 type AgentInfo struct {
-	ID               string            `json:"id"`
-	Name             string            `json:"name"`
-	Bin              string            `json:"bin"`
-	StreamFormat     StreamFormat      `json:"streamFormat"`
-	EventParser      string            `json:"eventParser,omitempty"`
-	Models           []ModelOption     `json:"models"`
-	Available        bool              `json:"available"`
-	Path             string            `json:"path,omitempty"`
-	Version          string            `json:"version,omitempty"`
-	PromptViaStdin   bool              `json:"promptViaStdin,omitempty"`
-	ReasoningOptions []ReasoningOption `json:"reasoningOptions,omitempty"`
-	MaxPromptArgBytes int              `json:"maxPromptArgBytes,omitempty"`
-	SupportsImagePaths    bool   `json:"supportsImagePaths,omitempty"`
-	SupportsNativeSession bool   `json:"supportsNativeSession,omitempty"`
-	CliExample            string `json:"cliExample,omitempty"`
+	ID                    string            `json:"id"`
+	Name                  string            `json:"name"`
+	Bin                   string            `json:"bin"`
+	StreamFormat          StreamFormat      `json:"streamFormat"`
+	EventParser           string            `json:"eventParser,omitempty"`
+	Models                []ModelOption     `json:"models"`
+	Available             bool              `json:"available"`
+	Path                  string            `json:"path,omitempty"`
+	Version               string            `json:"version,omitempty"`
+	PromptViaStdin        bool              `json:"promptViaStdin,omitempty"`
+	ReasoningOptions      []ReasoningOption `json:"reasoningOptions,omitempty"`
+	MaxPromptArgBytes     int               `json:"maxPromptArgBytes,omitempty"`
+	SupportsImagePaths    bool              `json:"supportsImagePaths,omitempty"`
+	SupportsNativeSession bool              `json:"supportsNativeSession,omitempty"`
+	CliExample            string            `json:"cliExample,omitempty"`
+	LatestVersion         string            `json:"latestVersion,omitempty"`
+	UpdateAvailable       bool              `json:"updateAvailable,omitempty"`
+	InstallSource         string            `json:"installSource,omitempty"`
+	CanInstall            bool              `json:"canInstall,omitempty"`
+	CanUpdate             bool              `json:"canUpdate,omitempty"`
+	InstallCmd            string            `json:"installCmd,omitempty"`
+	UpdateHint            string            `json:"updateHint,omitempty"`
 }

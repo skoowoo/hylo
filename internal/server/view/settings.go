@@ -21,12 +21,14 @@ var settingsGroups = []settingsGroup{
 	}},
 	{Label: "AI", Tabs: []settingsTab{
 		{ID: "agent-bots", Label: "Bots", Icon: "bot"},
-		{ID: "skills", Label: "Skills", Icon: "sparkles"},
 		{ID: "apps", Label: "Apps", Icon: "link"},
+		{ID: "skills", Label: "Skills", Icon: "sparkles"},
 		{ID: "agents", Label: "Agent CLIs", Icon: "cpu"},
 	}},
 	{Label: "System", Tabs: []settingsTab{
 		{ID: "server", Label: "Server", Icon: "server"},
+		{ID: "relay", Label: "Remote access", Icon: "external-link"},
+		{ID: "vault", Label: "Vault", Icon: "folder"},
 	}},
 }
 

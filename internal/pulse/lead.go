@@ -2,7 +2,6 @@ package pulse
 
 import (
 	"fmt"
-	"slices"
 	"strings"
 	"time"
 
@@ -144,11 +143,6 @@ func (p *Pulse) survey(s *scene) survey {
 			continue
 		}
 		st := NudgeState{Name: l.name}
-		if slices.Contains(p.cfg.Mute, l.name) {
-			st.State = "muted"
-			sv.states = append(sv.states, st)
-			continue
-		}
 		f := p.look(l, s)
 		switch {
 		case !f.due:

@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+
+	"github.com/hardhacker/hylo/internal/agent/installer"
 )
 
 // userToolchainDirs appends common user-level bin locations so agent binaries
@@ -26,6 +28,9 @@ func userToolchainDirs(home string) []string {
 		}
 		seen[p] = struct{}{}
 		out = append(out, p)
+	}
+	for _, d := range installer.AllBinDirs(home) {
+		add(d)
 	}
 	add(filepath.Join(home, ".local", "bin"))
 	add(filepath.Join(home, "bin"))

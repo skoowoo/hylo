@@ -17,9 +17,10 @@ type Mate struct {
 	Color        string        `json:"color"` // hex color, e.g. "#cc785c"
 	Cwd          string        `json:"cwd"`   // vault dir, set by CreateMate and fixed after
 	Main         bool          `json:"main"`  // the one bot at the vault root, made by onboarding; can't be deleted
-	SystemPrompt string        `json:"systemPrompt"`
-	Enabled      bool          `json:"enabled"`
-	CreatedAt    time.Time     `json:"createdAt"`
+	SystemPrompt string                  `json:"systemPrompt"`
+	Enabled      bool                    `json:"enabled"`
+	Proactive    *ProactiveConfig `json:"proactive,omitempty"`
+	CreatedAt    time.Time               `json:"createdAt"`
 	UpdatedAt    time.Time     `json:"updatedAt"`
 	Triggers     []MateTrigger `json:"triggers,omitempty"`
 	TriggerCount int           `json:"triggerCount,omitempty"` // populated in list views

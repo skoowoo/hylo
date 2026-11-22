@@ -11,10 +11,6 @@
       // The open detail view of the current tab, which titles the pane header and
       // gets its back button; null on a tab's own list.
       detailView() {
-        if (this.tab === 'server' && this.openSection) {
-          const group = this.sectionGroups.find(g => g.sections.includes(this.openSection));
-          return { title: this.sectionLabel(this.openSection), parent: group && group.id !== 'global' ? group.label : 'Server', back: () => { this.openSection = ''; } };
-        }
         if (this.tab === 'agent-bots' && this.agentBotFormMode) {
           const name = this.agentBotDraft.name.trim();
           return { title: name || (this.agentBotFormMode === 'create' ? 'New bot' : 'Untitled bot'), parent: 'Bots', back: () => this.closeAgentBotForm() };
@@ -77,7 +73,7 @@
       async requestClose() {
         if (this.tab === 'agent-bots' && this.agentBotFormMode && !(await this.closeAgentBotForm())) return;
         if (this.hasDirty) {
-          const ok = await window.showConfirm({ title: 'Discard changes?', message: 'You have unsaved server settings.', confirmLabel: 'Discard', danger: true });
+          const ok = await window.showConfirm({ title: 'Discard changes?', message: 'You have unsaved settings.', confirmLabel: 'Discard', danger: true });
           if (!ok) return;
           this.discardAll();
         }
@@ -85,7 +81,11 @@
       },
 
       loadTab(tab) {
-        if (tab === 'server') { this.loadServerStatus(); if (!this.hasDirty) this.loadConfig(); }
+        if (this.isConfigTab(tab)) {
+          if (tab === 'server') this.loadServerStatus();
+          if (tab === 'relay') this.loadRelayStatus();
+          if (!this.hasDirty) this.loadConfig();
+        }
         else if (tab === 'agent-bots') {
           this.loadAgentBots();
           if (!this.agentsLoaded) this.loadAgents();
@@ -110,6 +110,7 @@
             if (!r.ok) throw new Error('HTTP ' + r.status);
             const d = await r.json();
             this.agents = d.agents || [];
+            if (this.syncAgentJobs) this.syncAgentJobs(d.jobs || {});
             this.agentsFromCache = d.fromCache || false;
             this.agentsCachedAt = d.fetchedAt || 0;
             this.agentsLoaded = true;
@@ -121,7 +122,8 @@
       },
 
       get sortedAgents() {
-        return [...this.agents].sort((a, b) => (b.available ? 1 : 0) - (a.available ? 1 : 0));
+        const rank = (a) => a.available ? (a.updateAvailable ? 2 : 1) : 0;
+        return [...this.agents].sort((a, b) => rank(b) - rank(a));
       },
 
     };

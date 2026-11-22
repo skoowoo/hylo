@@ -62,7 +62,28 @@ func New(store *mate.Store, enabled bool) *Tracker {
 }
 
 // Enabled reports whether reports are kept.
-func (t *Tracker) Enabled() bool { return t != nil && t.enabled }
+func (t *Tracker) Enabled() bool {
+	if t == nil {
+		return false
+	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.enabled
+}
+
+// SetEnabled toggles presence tracking at runtime without restarting the server.
+func (t *Tracker) SetEnabled(enabled bool) {
+	if t == nil {
+		return
+	}
+	t.mu.Lock()
+	was := t.enabled
+	t.enabled = enabled
+	if enabled && !was && t.store != nil {
+		t.lastPresent, _ = t.store.LastDesktop()
+	}
+	t.mu.Unlock()
+}
 
 // Report takes a sample taken at now.
 func (t *Tracker) Report(s Sample, now time.Time) error {

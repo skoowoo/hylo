@@ -24,8 +24,9 @@ func (vh *ViewHandler) SetPulse(p *pulse.Pulse, j pulseJournal, desk *desktop.Tr
 
 // PulsePage renders the main bot's pacing, journal and agenda (/dev/pulse).
 func (vh *ViewHandler) PulsePage(w http.ResponseWriter, r *http.Request) {
-	data := map[string]any{"On": vh.pulse != nil, "Error": r.URL.Query().Get("error")}
-	if vh.pulse != nil && vh.journal != nil {
+	on := vh.pulse != nil && vh.pulse.Enabled()
+	data := map[string]any{"On": on, "Error": r.URL.Query().Get("error")}
+	if on && vh.journal != nil {
 		st, m := vh.pulse.Status()
 		data["Status"] = st
 		data["Chance"] = fmt.Sprintf("%.2f%%", st.Odds.Chance*100)
@@ -86,8 +87,8 @@ func (vh *ViewHandler) PulseClearDesktopPOST(w http.ResponseWriter, r *http.Requ
 }
 
 func (vh *ViewHandler) runPulse() error {
-	if vh.pulse == nil {
-		return errors.New("rounds are off; set proactive.enabled and restart")
+	if vh.pulse == nil || !vh.pulse.Enabled() {
+		return errors.New("rounds are off; enable Proactive in the main bot's settings")
 	}
 	return vh.pulse.RunNow()
 }

@@ -33,7 +33,7 @@ func newScreenTimeCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:          "screen-time",
 		Short:        "Show where your time at the computer went, by app",
-		Long:         "From the desktop app's presence reports (proactive.desktop): whether you're at the computer now, time per category and app, and the latest stretches.",
+		Long:         "From the desktop app's presence reports (kept while proactive rounds are enabled): whether you're at the computer now, time per category and app, and the latest stretches.",
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c, err := openClient()

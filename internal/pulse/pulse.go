@@ -16,7 +16,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hardhacker/hylo/internal/config"
 	"github.com/hardhacker/hylo/internal/desktop"
 	"github.com/hardhacker/hylo/internal/mate"
 	"github.com/hardhacker/hylo/internal/plugin"
@@ -30,8 +29,8 @@ type RoundFunc func(ctx context.Context, m *mate.Mate, request, model string) ma
 // Pulse paces the main bot's rounds. It implements plugin.Plugin for its lifetime.
 type Pulse struct {
 	store  *mate.Store
-	desk   *desktop.Tracker // nil without a store; reports nothing while proactive.desktop is off
-	cfg    config.ProactiveConfig
+	desk   *desktop.Tracker // nil without a store; reports nothing while proactive is off
+	cfg    mate.ProactiveConfig
 	hours  day
 	gap    time.Duration
 	logger *slog.Logger
@@ -86,29 +85,76 @@ type Deps struct {
 }
 
 // New makes a Pulse.
-func New(d Deps, cfg config.ProactiveConfig, logger *slog.Logger) (*Pulse, error) {
-	start, end, err := cfg.Hours()
+func New(d Deps, cfg mate.ProactiveConfig, logger *slog.Logger) (*Pulse, error) {
+	hours, gap, err := parseConfig(cfg)
 	if err != nil {
-		return nil, fmt.Errorf("proactive.active_hours: %w", err)
-	}
-	gap, err := cfg.Gap()
-	if err != nil {
-		return nil, fmt.Errorf("proactive.min_gap: %w", err)
+		return nil, fmt.Errorf("proactive.%w", err)
 	}
 	p := &Pulse{
-		store: d.Store, desk: d.Desk, cfg: cfg, hours: day{start, end}, gap: gap, logger: logger,
+		store: d.Store, desk: d.Desk, cfg: cfg, hours: hours, gap: gap, logger: logger,
 		round: d.Round, wake: d.Wake, idle: d.Idle, pushable: d.Pushable, tasks: d.Tasks,
 		now: time.Now, roll: rand.Float64, ctx: context.Background(), looked: map[string]looked{},
-	}
-	for _, name := range cfg.Mute {
-		if !slices.ContainsFunc(leads, func(l lead) bool { return l.nudge && l.name == name }) {
-			logger.Warn("pulse: proactive.mute names no nudge", "name", name)
-		}
 	}
 	if err := p.changes.load(d.ChangesFile, p.now()); err != nil {
 		logger.Warn("pulse: load changes", "err", err)
 	}
 	return p, nil
+}
+
+func parseConfig(cfg mate.ProactiveConfig) (day, time.Duration, error) {
+	if err := cfg.Validate(); err != nil {
+		return day{}, 0, err
+	}
+	var hours day
+	if cfg.ActiveHours != "" {
+		start, end, err := cfg.Hours()
+		if err != nil {
+			return day{}, 0, fmt.Errorf("active_hours: %w", err)
+		}
+		hours = day{start, end}
+	}
+	gap, err := cfg.Gap()
+	if err != nil {
+		return day{}, 0, fmt.Errorf("min_gap: %w", err)
+	}
+	return hours, gap, nil
+}
+
+// Enabled reports whether proactive rounds are currently switched on.
+func (p *Pulse) Enabled() bool {
+	if p == nil {
+		return false
+	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.cfg.Enabled
+}
+
+// Config returns a copy of the active proactive config.
+func (p *Pulse) Config() mate.ProactiveConfig {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.cfg
+}
+
+// ApplyConfig validates and swaps the active proactive config at runtime.
+func (p *Pulse) ApplyConfig(cfg mate.ProactiveConfig) error {
+	hours, gap, err := parseConfig(cfg)
+	if err != nil {
+		return err
+	}
+	p.mu.Lock()
+	p.cfg = cfg
+	p.hours = hours
+	p.gap = gap
+	p.mu.Unlock()
+	return nil
+}
+
+func (p *Pulse) snapshot() (mate.ProactiveConfig, day, time.Duration) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.cfg, p.hours, p.gap
 }
 
 func (p *Pulse) Name() string { return "pulse" }
@@ -167,12 +213,17 @@ func (p *Pulse) weigh() (m *mate.Mate, why string, due []mate.AgendaItem) {
 		p.last = odds
 		p.mu.Unlock()
 	}()
+	cfg, hours, minGap := p.snapshot()
+	if !cfg.Enabled {
+		odds.Skip = "off"
+		return nil, "", nil
+	}
 	m, err := p.mainBot()
 	if err != nil || m == nil {
 		odds.Skip = "no enabled main bot"
 		return nil, "", nil
 	}
-	from, to, awake := p.hours.window(now)
+	from, to, awake := hours.window(now)
 	switch {
 	case !awake:
 		odds.Skip = "asleep"
@@ -206,7 +257,7 @@ func (p *Pulse) weigh() (m *mate.Mate, why string, due []mate.AgendaItem) {
 		p.logger.Warn("pulse: count rounds", "err", err)
 		return nil, "", nil
 	}
-	if gap := now.Sub(last); gap < p.gap {
+	if gap := now.Sub(last); gap < minGap {
 		odds.Skip = fmt.Sprintf("last round %s ago", gap.Round(time.Minute))
 		return nil, "", nil
 	}
@@ -217,7 +268,7 @@ func (p *Pulse) weigh() (m *mate.Mate, why string, due []mate.AgendaItem) {
 	s := p.scene(m, settled, now)
 	sv := p.survey(s)
 	odds.Boost, odds.Signals = sv.boost, sv.why()
-	odds.Chance = chance(p.cfg.WakesPerDay-n, to.Sub(now), odds.Boost)
+	odds.Chance = chance(cfg.WakesPerDay-n, to.Sub(now), odds.Boost)
 	odds.Reach = s.reach.Where
 	if f, ok := reachOdds[s.reach.Where]; ok {
 		odds.Chance *= f
@@ -289,7 +340,7 @@ func (p *Pulse) run(ctx context.Context, m *mate.Mate, why string, due []mate.Ag
 
 	digest, nudges := p.digest(m, last, since, now)
 	rctx, cancel := context.WithTimeout(ctx, roundTimeout)
-	res := p.round(rctx, m, prompt.PulseRound(why, digest), p.cfg.Model)
+	res := p.round(rctx, m, prompt.PulseRound(why, digest), "")
 	timedOut := errors.Is(rctx.Err(), context.DeadlineExceeded)
 	cancel()
 	pr.EndedAt, pr.RunID, pr.Wrote = p.now(), res.RunID, res.Wrote
@@ -407,7 +458,6 @@ type Status struct {
 	Odds        Odds      `json:"odds"`
 	ActiveHours string    `json:"activeHours"`
 	MinGap      string    `json:"minGap"`
-	Model       string    `json:"model"`
 	// Nudges is where each nudge stands now.
 	Nudges []NudgeState `json:"nudges,omitempty"`
 }
@@ -416,15 +466,18 @@ type Status struct {
 func (p *Pulse) Status() (Status, *mate.Mate) {
 	now := p.now()
 	p.mu.Lock()
+	hours := p.hours
 	st := Status{Running: p.running, Odds: p.last, PerDay: p.cfg.WakesPerDay,
-		ActiveHours: p.cfg.ActiveHours, MinGap: p.gap.String(), Model: p.cfg.Model}
+		ActiveHours: p.cfg.ActiveHours, MinGap: p.gap.String()}
 	p.mu.Unlock()
 	m, _ := p.mainBot()
 	if m == nil {
 		return st, nil
 	}
 	st.Bot = m.Name
-	st.DayFrom, st.DayTo, st.Awake = p.hours.window(now)
+	if st.ActiveHours != "" {
+		st.DayFrom, st.DayTo, st.Awake = hours.window(now)
+	}
 	since := st.DayFrom
 	if !st.Awake {
 		since = now.Add(-24 * time.Hour)

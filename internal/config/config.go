@@ -16,9 +16,8 @@ type Config struct {
 	Server    ServerConfig    `mapstructure:"server" json:"server" toml:"server"`
 	Relay     RelayConfig     `mapstructure:"relay" json:"relay" toml:"relay"`
 	Log       LogConfig       `mapstructure:"log" json:"log" toml:"log"`
-	Vault     VaultConfig     `mapstructure:"vault" json:"vault" toml:"vault"`
-	Plugins   PluginsConfig   `mapstructure:"plugins" json:"plugins" toml:"-"`     // one vault's config
-	Proactive ProactiveConfig `mapstructure:"proactive" json:"proactive" toml:"-"` // one vault's config
+	Vault   VaultConfig   `mapstructure:"vault" json:"vault" toml:"vault"`
+	Plugins PluginsConfig `mapstructure:"plugins" json:"plugins" toml:"-"` // one vault's config
 }
 
 // RelayConfig enables the outbound connector to a Hylo Relay. It is disabled
@@ -145,25 +144,6 @@ type VaultConfig struct {
 	// Path is the root directory of the Vault.
 	// Supports ~ for the home directory.
 	Path string `mapstructure:"path" json:"path" toml:"path"`
-}
-
-// ProactiveConfig paces the main bot's own rounds (internal/pulse): it wakes
-// at irregular times, looks around, and only speaks when something is worth it.
-type ProactiveConfig struct {
-	Enabled bool `mapstructure:"enabled" json:"enabled" toml:"enabled"`
-	// WakesPerDay caps the rounds in one active day; most end in silence.
-	WakesPerDay int `mapstructure:"wakes_per_day" json:"wakes_per_day" toml:"wakes_per_day"`
-	// ActiveHours is when the bot is awake, "HH:MM-HH:MM" local time; the end may pass midnight.
-	ActiveHours string `mapstructure:"active_hours" json:"active_hours" toml:"active_hours"`
-	// MinGap is the least time between two rounds (Go duration).
-	MinGap string `mapstructure:"min_gap" json:"min_gap" toml:"min_gap"`
-	// Model runs the rounds; empty uses the bot's own model.
-	Model string `mapstructure:"model" json:"model" toml:"model"`
-	// Desktop keeps what the desktop app reports: whether the user is at the
-	// computer and which app is in front, by app name only.
-	Desktop bool `mapstructure:"desktop" json:"desktop" toml:"desktop"`
-	// Mute names nudges the bot never raises: writing, reading, todos.
-	Mute []string `mapstructure:"mute" json:"mute" toml:"mute"`
 }
 
 // TCPAddr returns the host:port string for the TCP listener.
@@ -357,12 +337,4 @@ func setDefaults(v *viper.Viper) {
 	// search plugin defaults (always active; configure behaviour here)
 	v.SetDefault("plugins.search.use_jieba", true)
 	v.SetDefault("plugins.search.exclude_prefixes", []string{storage.AssetsDir, storage.BotsDir, storage.KnowledgeDir + "/_indexes"})
-
-	v.SetDefault("proactive.enabled", true)
-	v.SetDefault("proactive.wakes_per_day", 24)
-	v.SetDefault("proactive.active_hours", "08:00-24:00")
-	v.SetDefault("proactive.min_gap", "20m")
-	v.SetDefault("proactive.model", "")
-	v.SetDefault("proactive.desktop", true)
-	v.SetDefault("proactive.mute", []string{})
 }

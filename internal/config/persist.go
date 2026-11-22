@@ -101,7 +101,7 @@ func WriteConfigToml(path string, merged map[string]any) error {
 		return fmt.Errorf("mkdir config dir: %w", err)
 	}
 	persisted := persistedConfig{
-		Server: cfg.Server, Log: cfg.Log, Vault: cfg.Vault, Plugins: cfg.Plugins, Proactive: cfg.Proactive,
+		Server: cfg.Server, Log: cfg.Log, Vault: cfg.Vault, Plugins: cfg.Plugins,
 	}
 	if cfg.Relay.Configured() {
 		persisted.Relay = &cfg.Relay
@@ -120,12 +120,11 @@ func WriteConfigToml(path string, merged map[string]any) error {
 // persistedConfig preserves Config's established TOML shape while leaving a
 // disabled Relay section out of rewritten configs.
 type persistedConfig struct {
-	Server    ServerConfig    `toml:"server"`
-	Relay     *RelayConfig    `toml:"relay,omitempty"`
-	Log       LogConfig       `toml:"log"`
-	Vault     VaultConfig     `toml:"vault"`
-	Plugins   PluginsConfig   `toml:"-"`
-	Proactive ProactiveConfig `toml:"-"`
+	Server  ServerConfig  `toml:"server"`
+	Relay   *RelayConfig  `toml:"relay,omitempty"`
+	Log     LogConfig     `toml:"log"`
+	Vault   VaultConfig   `toml:"vault"`
+	Plugins PluginsConfig `toml:"-"`
 }
 
 // NormalizeJSONDecodedMap converts json.Number leaf values after json.Unmarshal for cleaner TOML output.

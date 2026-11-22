@@ -1,14 +1,64 @@
     /* ── Agents tab ───────────────────────────────────────────── */
-    /* Several lines per agent, so the dot and the action sit on the name's line. */
-    .agent-row { align-items: start; }
-    .agent-row > .dot { margin-top: 7px; }
+    .agent-row { align-items: center; row-gap: var(--space-xs); }
+    .agent-mark { position: relative; width: 28px; height: 28px; flex-shrink: 0; }
+    .agent-logo {
+      display: grid; place-items: center; width: 28px; height: 28px; overflow: hidden;
+      border-radius: var(--r-sm); background: var(--surface-soft); color: var(--fg);
+      border: var(--bd-w) solid var(--line-hair);
+    }
+    .agent-logo img { width: 17px; height: 17px; display: block; }
+    .agent-logo img.is-full { width: 100%; height: 100%; }
+    .agent-logo-glyph {
+      width: 14px; height: 14px; background: currentColor;
+      -webkit-mask: var(--src) center / contain no-repeat; mask: var(--src) center / contain no-repeat;
+    }
+    .agent-logo-light { display: none; }
+    :root[data-theme="light"] .agent-logo-light { display: block; }
+    :root[data-theme="light"] .agent-logo-dark { display: none; }
+    @media (prefers-color-scheme: light) {
+      :root:not([data-theme="dark"]) .agent-logo-light { display: block; }
+      :root:not([data-theme="dark"]) .agent-logo-dark { display: none; }
+    }
+    .agent-logo-fallback { font-size: var(--text-xs); font-weight: var(--fw-semibold); color: var(--muted); }
+    .agent-mark-dot {
+      position: absolute; right: -2px; bottom: -2px;
+      box-shadow: 0 0 0 2px var(--bg);
+    }
     .agent-row-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
     .agent-row-text > .settings-desc { margin-top: 0; }
+    .agent-ver-update { color: var(--accent-text); background: var(--accent-soft); }
     .settings-desc.agent-meta {
       display: flex; gap: var(--space-sm); min-width: 0;
       font-family: var(--font-mono); font-size: var(--text-2xs); white-space: nowrap;
     }
-    .agent-meta > * { flex-shrink: 0; }
     .agent-meta-path { flex-shrink: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-    .agent-models { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-top: var(--space-xxs); }
-    .agent-model-pill { max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .agent-hint { color: var(--accent-text); }
+    .agent-ctrl-group { display: inline-flex; align-items: center; gap: var(--space-xs); }
+
+    /* Inline install/update progress & log panel */
+    .agent-job {
+      grid-column: 2 / -1; min-width: 0;
+      display: flex; flex-direction: column; gap: var(--space-xxs);
+      padding: var(--space-xs) var(--space-sm);
+      border-radius: var(--r-sm);
+      background: var(--surface-soft);
+      border: var(--bd-w) solid var(--line-hair);
+      font-size: var(--text-xs);
+    }
+    .agent-job.is-failed { border-color: var(--s-err); }
+    .agent-job-head { display: flex; align-items: center; gap: var(--space-sm); min-width: 0; }
+    .agent-job-status {
+      flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      color: var(--muted); font-family: var(--font-mono); font-size: var(--text-2xs);
+    }
+    .agent-job.is-failed .agent-job-status { color: var(--s-err); }
+    .agent-job.is-succeeded .agent-job-status { color: var(--s-ok); }
+    .agent-job-actions { display: inline-flex; align-items: center; gap: var(--space-sm); flex-shrink: 0; }
+    .agent-job-link { font-size: var(--text-2xs); }
+    .agent-job-log {
+      margin: 0; padding: var(--space-xs);
+      max-height: 140px; overflow: auto;
+      border-radius: var(--r-xs); background: var(--code-bg);
+      font-family: var(--font-mono); font-size: var(--text-2xs); line-height: 1.45;
+      color: var(--fg); white-space: pre-wrap; word-break: break-all;
+    }

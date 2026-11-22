@@ -7,7 +7,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing"
 )
 
-// migrateVaultScoped moves plugin and proactive settings off the global file,
+// migrateVaultScoped moves plugin settings off the global file,
 // where older installs kept them, onto this vault. Git sync's repository keys
 // move only when this vault's repository is the one they were syncing; every
 // other explicit key moves as-is. Either way the sections leave the global
@@ -27,11 +27,6 @@ func migrateVaultScoped(root, globalPath string, legacy GitSyncConfig) map[strin
 		dropGitIdentity(plugins)
 		if left := withoutExisting(plugins, sectionMap(vaultRaw, "plugins")); len(left) > 0 {
 			patch["plugins"] = left
-		}
-	}
-	if proactive, ok := cloneSection(global["proactive"]); ok {
-		if left := withoutExisting(proactive, sectionMap(vaultRaw, "proactive")); len(left) > 0 {
-			patch["proactive"] = left
 		}
 	}
 	if legacy.Branch == "" {

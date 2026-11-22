@@ -14,7 +14,7 @@ import (
 // vaultSections describe one vault rather than the install, so
 // <vault>/.hylo/config.toml holds them and the settings UI writes them there.
 // The global file cannot set them: a new vault must not inherit the last one's plugins.
-var vaultSections = []string{"plugins", "proactive"}
+var vaultSections = []string{"plugins"}
 
 // IsVaultKey reports whether the dotted key belongs in the vault's config.
 func IsVaultKey(key string) bool {
@@ -77,7 +77,6 @@ func resetVaultScoped(cfg *Config) error {
 		return err
 	}
 	cfg.Plugins = def.Plugins
-	cfg.Proactive = def.Proactive
 	return nil
 }
 

@@ -1,4 +1,4 @@
-package config
+package mate
 
 import "testing"
 
@@ -30,14 +30,13 @@ func TestProactiveHours(t *testing.T) {
 }
 
 func TestValidateProactive(t *testing.T) {
-	cfg := &Config{Proactive: ProactiveConfig{ActiveHours: "nope", MinGap: "soon"}}
-	if err := Validate(cfg); err == nil {
+	if err := (ProactiveConfig{ActiveHours: "nope", MinGap: "soon"}).Validate(); err == nil {
 		t.Fatal("want errors for bad hours and gap")
 	}
-	if err := Validate(&Config{Proactive: ProactiveConfig{Enabled: true, ActiveHours: "08:00-24:00"}}); err != nil {
-		t.Fatalf("turned on with the default hours: %v", err)
+	if err := DefaultProactiveConfig().Validate(); err != nil {
+		t.Fatalf("default proactive config invalid: %v", err)
 	}
-	if err := Validate(&Config{Proactive: ProactiveConfig{Enabled: true}}); err == nil {
+	if err := (ProactiveConfig{Enabled: true}).Validate(); err == nil {
 		t.Fatal("turned on with no hours, so rounds could never start")
 	}
 }

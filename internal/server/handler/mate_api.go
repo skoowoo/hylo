@@ -15,14 +15,20 @@ import (
 
 // MateAPI handles /api/mates endpoints.
 type MateAPI struct {
-	logger *slog.Logger
-	store  *mate.Store
-	skills *skills.Manager
+	logger      *slog.Logger
+	store       *mate.Store
+	skills      *skills.Manager
+	onProactive func(mate.ProactiveConfig) error
 }
 
 // NewMateAPI constructs the handler.
 func NewMateAPI(logger *slog.Logger, store *mate.Store, skillsMgr *skills.Manager) *MateAPI {
 	return &MateAPI{logger: logger, store: store, skills: skillsMgr}
+}
+
+// SetOnProactive wires the live reload hook called after saving the main bot's proactive settings.
+func (h *MateAPI) SetOnProactive(fn func(mate.ProactiveConfig) error) {
+	h.onProactive = fn
 }
 
 // MatesGET handles GET /api/mates.
@@ -120,6 +126,10 @@ func (h *MateAPI) MateGET(w http.ResponseWriter, r *http.Request) {
 		triggers = []mate.MateTrigger{}
 	}
 	m.Triggers = triggers
+	if m.Main && m.Proactive == nil {
+		def := mate.DefaultProactiveConfig()
+		m.Proactive = &def
+	}
 	respondJSON(w, http.StatusOK, map[string]any{"mate": m})
 }
 
@@ -133,14 +143,15 @@ func (h *MateAPI) MatePUT(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var body struct {
-		Name         string             `json:"name"`
-		Description  string             `json:"description"`
-		AgentID      string             `json:"agentId"`
-		Model        string             `json:"model"`
-		Color        string             `json:"color"`
-		SystemPrompt string             `json:"systemPrompt"`
-		Enabled      bool               `json:"enabled"`
-		Triggers     []mate.MateTrigger `json:"triggers"`
+		Name         string                  `json:"name"`
+		Description  string                  `json:"description"`
+		AgentID      string                  `json:"agentId"`
+		Model        string                  `json:"model"`
+		Color        string                  `json:"color"`
+		SystemPrompt string                  `json:"systemPrompt"`
+		Enabled      bool                    `json:"enabled"`
+		Triggers     []mate.MateTrigger      `json:"triggers"`
+		Proactive    *mate.ProactiveConfig `json:"proactive,omitempty"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		http.Error(w, "invalid json", http.StatusBadRequest)
@@ -158,6 +169,13 @@ func (h *MateAPI) MatePUT(w http.ResponseWriter, r *http.Request) {
 	if err := mate.ValidateTriggers(triggers); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
+	}
+	if existing.Main && body.Proactive != nil {
+		if err := body.Proactive.Validate(); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		existing.Proactive = body.Proactive
 	}
 
 	existing.Name = strings.TrimSpace(body.Name)
@@ -189,8 +207,12 @@ func (h *MateAPI) MatePUT(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	if existing.Main && body.Proactive != nil && h.onProactive != nil {
+		if err := h.onProactive(*body.Proactive); err != nil {
+			h.logger.Warn("apply proactive config failed", slog.String("err", err.Error()))
+		}
+	}
 	existing.Triggers = triggers
-
 	respondJSON(w, http.StatusOK, map[string]any{"mate": existing})
 }
 

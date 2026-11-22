@@ -1,14 +1,11 @@
-    /* ── Server config ────────────────────────────────────────── */
-    /* The server and its global sections in one list, then Vault; opening a section swaps the lists for its fields. */
-    .srv-head { margin-bottom: var(--space-xl); }
+    /* ── Config tabs (Server, Remote access, Vault) ───────────── */
+    .settings-nav-dot { margin-left: auto; }
     .srv-url { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .settings-section-title > span { flex-shrink: 0; }
     .settings-section-title .cfg-vault-path {
       min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
       font-family: var(--font-mono); font-size: var(--text-2xs);
     }
-    /* A one-field section is edited in the list itself; the rest open as a page. */
-    .settings-row ~ .cfg-item, .cfg-item + .cfg-item { border-top: var(--bd-w) solid var(--line-hair); }
 
     .cfg-label { display: flex; align-items: center; gap: 0.4rem; }
     .settings-row.is-dirty .cfg-label::before {

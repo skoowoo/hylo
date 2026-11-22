@@ -9,7 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hardhacker/hylo/internal/config"
 	"github.com/hardhacker/hylo/internal/desktop"
 	"github.com/hardhacker/hylo/internal/mate"
 	"github.com/hardhacker/hylo/internal/plugin"
@@ -43,7 +42,7 @@ func newRig(t *testing.T) *rig {
 		t.Fatal(err)
 	}
 	r := &rig{store: s, bot: bot, clock: at(10, 0), odds: 0.99}
-	cfg := config.ProactiveConfig{Enabled: true, WakesPerDay: 24, ActiveHours: "08:00-24:00", MinGap: "20m"}
+	cfg := mate.ProactiveConfig{Enabled: true, WakesPerDay: 24, ActiveHours: "08:00-24:00", MinGap: "20m"}
 	r.desk = desktop.New(s, true)
 	p, err := New(Deps{
 		Store: s, Desk: r.desk,
@@ -401,5 +400,25 @@ func TestDigestPreservesCanceledWorkAndDeclines(t *testing.T) {
 		if !strings.Contains(d, want) {
 			t.Errorf("digest lost task state %q:\n%s", want, d)
 		}
+	}
+}
+
+func TestDisabledProactiveAllowsEmptyHours(t *testing.T) {
+	r := newRig(t)
+	off := mate.ProactiveConfig{Enabled: false, ActiveHours: "", MinGap: ""}
+	if _, err := New(Deps{Store: r.store, Desk: r.desk, Idle: func(string) bool { return true }}, off, slog.Default()); err != nil {
+		t.Fatalf("New with disabled empty hours: %v", err)
+	}
+	if err := r.ApplyConfig(off); err != nil {
+		t.Fatalf("ApplyConfig with disabled empty hours: %v", err)
+	}
+	if r.Enabled() {
+		t.Fatal("want Enabled() == false")
+	}
+	if st, _ := r.Status(); st.Awake {
+		t.Fatalf("want Awake == false when ActiveHours is empty: %+v", st)
+	}
+	if err := r.ApplyConfig(mate.ProactiveConfig{Enabled: true, ActiveHours: ""}); err == nil {
+		t.Fatal("want error when enabling with empty ActiveHours")
 	}
 }

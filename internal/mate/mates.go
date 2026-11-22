@@ -2,6 +2,7 @@ package mate
 
 import (
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"regexp"
@@ -17,7 +18,7 @@ import (
 
 func (s *Store) ListMates() ([]Mate, error) {
 	rows, err := s.db.Query(
-		`SELECT m.id, m.name, m.description, m.agent_id, m.model, m.color, m.cwd, m.main, m.system_prompt, m.enabled, m.created_at, m.updated_at,
+		`SELECT m.id, m.name, m.description, m.agent_id, m.model, m.color, m.cwd, m.main, m.system_prompt, m.enabled, m.proactive, m.created_at, m.updated_at,
 		        (SELECT COUNT(*) FROM mate_triggers t WHERE t.mate_id = m.id) AS trigger_count,
 		        (SELECT COUNT(*) FROM mate_triggers t WHERE t.mate_id = m.id AND t.enabled) AS triggers_on,
 		        ` + unreadCount + ` AS unread,
@@ -73,11 +74,12 @@ func (s *Store) getMate(where string, args ...any) (*Mate, error) {
 	var m Mate
 	var createdMs, updatedMs int64
 	var enabled, main int
+	var proactiveRaw string
 	err := s.db.QueryRow(
-		`SELECT id, name, description, agent_id, model, color, cwd, main, system_prompt, enabled, created_at, updated_at
+		`SELECT id, name, description, agent_id, model, color, cwd, main, system_prompt, enabled, proactive, created_at, updated_at
          FROM mates `+where, args...,
 	).Scan(&m.ID, &m.Name, &m.Description, &m.AgentID, &m.Model, &m.Color, &m.Cwd, &main,
-		&m.SystemPrompt, &enabled, &createdMs, &updatedMs)
+		&m.SystemPrompt, &enabled, &proactiveRaw, &createdMs, &updatedMs)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -86,9 +88,32 @@ func (s *Store) getMate(where string, args ...any) (*Mate, error) {
 	}
 	m.Enabled = enabled != 0
 	m.Main = main != 0
+	m.Proactive = unmarshalProactive(proactiveRaw)
 	m.CreatedAt = time.UnixMilli(createdMs)
 	m.UpdatedAt = time.UnixMilli(updatedMs)
 	return &m, nil
+}
+
+func unmarshalProactive(raw string) *ProactiveConfig {
+	if raw == "" {
+		return nil
+	}
+	var p ProactiveConfig
+	if err := json.Unmarshal([]byte(raw), &p); err != nil {
+		return nil
+	}
+	return &p
+}
+
+func marshalProactive(p *ProactiveConfig) string {
+	if p == nil {
+		return ""
+	}
+	b, err := json.Marshal(p)
+	if err != nil {
+		return ""
+	}
+	return string(b)
 }
 
 var unsafeDirChars = regexp.MustCompile(`[\s\\/:*?"<>|]+`)
@@ -148,10 +173,10 @@ func (s *Store) CreateMate(m *Mate) error {
 	var maxOrder int64
 	tx.QueryRow(`SELECT COALESCE(MAX(sort_order), -1) FROM mates`).Scan(&maxOrder) //nolint:errcheck
 	if _, err := tx.Exec(
-		`INSERT INTO mates(id, name, description, agent_id, model, color, cwd, main, system_prompt, enabled, sort_order, created_at, updated_at)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+		`INSERT INTO mates(id, name, description, agent_id, model, color, cwd, main, system_prompt, enabled, proactive, sort_order, created_at, updated_at)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
 		m.ID, m.Name, m.Description, m.AgentID, m.Model, m.Color, m.Cwd, boolToInt(m.Main),
-		m.SystemPrompt, boolToInt(m.Enabled), maxOrder+1, now, now,
+		m.SystemPrompt, boolToInt(m.Enabled), marshalProactive(m.Proactive), maxOrder+1, now, now,
 	); err != nil {
 		return err
 	}
@@ -188,10 +213,10 @@ func (s *Store) UpdateMateIf(m *Mate, prev time.Time) error {
 func (s *Store) updateMate(m *Mate, prev *time.Time) error {
 	// Strictly increasing, so two writes in one millisecond still tell apart.
 	now := max(time.Now().UnixMilli(), m.UpdatedAt.UnixMilli()+1)
-	q := `UPDATE mates SET name=?, description=?, agent_id=?, model=?, color=?, system_prompt=?, enabled=?, updated_at=?
+	q := `UPDATE mates SET name=?, description=?, agent_id=?, model=?, color=?, system_prompt=?, enabled=?, proactive=?, updated_at=?
          WHERE id=?`
 	args := []any{m.Name, m.Description, m.AgentID, m.Model, m.Color,
-		m.SystemPrompt, boolToInt(m.Enabled), now, m.ID}
+		m.SystemPrompt, boolToInt(m.Enabled), marshalProactive(m.Proactive), now, m.ID}
 	if prev != nil {
 		q += ` AND updated_at=?`
 		args = append(args, prev.UnixMilli())
@@ -452,11 +477,12 @@ func scanMateRow(rows *sql.Rows, withTriggerCount bool) (Mate, error) {
 	var m Mate
 	var createdMs, updatedMs int64
 	var enabled, main int
+	var proactiveRaw string
 	var triggerCount, triggersOn, unread, running int
 	var lastActive int64
 	var cols = []any{
 		&m.ID, &m.Name, &m.Description, &m.AgentID, &m.Model, &m.Color, &m.Cwd, &main,
-		&m.SystemPrompt, &enabled, &createdMs, &updatedMs,
+		&m.SystemPrompt, &enabled, &proactiveRaw, &createdMs, &updatedMs,
 	}
 	if withTriggerCount {
 		cols = append(cols, &triggerCount, &triggersOn, &unread, &running, &lastActive)
@@ -466,6 +492,7 @@ func scanMateRow(rows *sql.Rows, withTriggerCount bool) (Mate, error) {
 	}
 	m.Enabled = enabled != 0
 	m.Main = main != 0
+	m.Proactive = unmarshalProactive(proactiveRaw)
 	m.CreatedAt = time.UnixMilli(createdMs)
 	m.UpdatedAt = time.UnixMilli(updatedMs)
 	if withTriggerCount {

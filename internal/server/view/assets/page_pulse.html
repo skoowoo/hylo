@@ -10,11 +10,11 @@
     <div>
       <h1 class="dev-title">Rounds</h1>
       {{if not .On}}
-      <p class="dev-meta">Off. Set <code>proactive.enabled = true</code> in the vault's <code>.hylo/config.toml</code> (or Settings › Server › Proactive) and restart.</p>
+      <p class="dev-meta">Off. Enable Proactive in Settings › Bots › Main bot › Proactive.</p>
       {{else if not .Status.Bot}}
       <p class="dev-meta">No enabled main bot.</p>
       {{else}}{{with .Status}}
-      <p class="dev-meta">{{.Bot}} · {{if .Awake}}awake until {{.DayTo.Format "15:04"}}{{else}}asleep{{end}} ({{.ActiveHours}}) · {{.Rounds}}/{{.PerDay}} rounds today · gap {{.MinGap}}{{if .Model}} · {{.Model}}{{end}}{{if not .LastRound.IsZero}} · last {{.LastRound.Format "15:04"}}{{end}}{{if .Running}} · <strong>running</strong>{{end}}</p>
+      <p class="dev-meta">{{.Bot}} · {{if .Awake}}awake until {{.DayTo.Format "15:04"}}{{else}}asleep{{end}} ({{.ActiveHours}}) · {{.Rounds}}/{{.PerDay}} rounds today · gap {{.MinGap}}{{if not .LastRound.IsZero}} · last {{.LastRound.Format "15:04"}}{{end}}{{if .Running}} · <strong>running</strong>{{end}}</p>
       {{end}}
       <p class="dev-meta">Latest minute{{if not .Status.Odds.At.IsZero}} ({{.Status.Odds.At.Format "15:04"}}){{end}}: {{if .Status.Odds.Skip}}{{.Status.Odds.Skip}}{{else}}{{.Chance}} chance, boost {{printf "%.2f" .Status.Odds.Boost}}{{with .Status.Odds.Reach}}, user: {{.}}{{end}}{{if .Status.Odds.Signals}}, {{.Status.Odds.Signals}}{{end}}{{end}}</p>
       {{with .Status.Nudges}}<p class="dev-meta">Nudges: {{range $i, $n := .}}{{if $i}}; {{end}}{{$n.Name}}{{if $n.Live}} (live){{end}}: {{$n.State}}{{end}}</p>{{end}}

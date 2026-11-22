@@ -82,6 +82,9 @@ func newRouter(
 
 	mux.Handle("GET /api/live", feed)
 	mux.HandleFunc("GET /api/agents", ah.AgentsGET)
+	mux.HandleFunc("POST /api/agents/{id}/install", ah.AgentInstallPOST)
+	mux.HandleFunc("POST /api/agents/{id}/update", ah.AgentUpdatePOST)
+	mux.HandleFunc("POST /api/agents/{id}/cancel", ah.AgentInstallCancelPOST)
 	mux.HandleFunc("POST /api/chat", ah.ChatPOST)
 	mux.HandleFunc("POST /api/chat/uploads", ah.ChatUploadPOST)
 	mux.HandleFunc("GET /api/chat/uploads/{id}", ah.ChatUploadGET)
@@ -104,6 +107,16 @@ func newRouter(
 
 		vh.SetMates(mateStore)
 		mh := handler.NewMateAPI(logger, mateStore, skillsMgr)
+		if rounds != nil {
+			mh.SetOnProactive(func(p mate.ProactiveConfig) error {
+				if err := rounds.ApplyConfig(p); err != nil {
+					return err
+				}
+				desk.SetEnabled(p.Enabled)
+				ah.SetRounds(p.Enabled)
+				return nil
+			})
+		}
 		mux.HandleFunc("GET /api/mate-events", mh.MateEventsGET)
 
 		mux.HandleFunc("GET /api/mates", mh.MatesGET)

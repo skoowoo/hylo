@@ -65,12 +65,12 @@ func (c *AgentCache) WarmUp() {
 
 // Get returns the agent list.
 //   - force=false: stale-while-revalidate — returns any cached value immediately,
-//     triggers a background refresh when the cache is stale.
+//     triggers a background refresh when the cache is stale (local probe only).
 //     Blocks only when there is no cache at all (first call ever).
-//   - force=true: always re-detects synchronously and updates the cache.
+//   - force=true: re-detects synchronously, checks upstream latest versions, and updates the cache.
 func (c *AgentCache) Get(ctx context.Context, force bool) AgentListResult {
 	if force {
-		agents := DetectAgents(ctx, c.configuredEnv)
+		agents := DetectAgentsWithOptions(ctx, c.configuredEnv, true)
 		c.mu.Lock()
 		c.agents = agents
 		c.fetchedAt = time.Now()
@@ -121,4 +121,32 @@ func (c *AgentCache) Get(ctx context.Context, force bool) AgentListResult {
 	}
 
 	return result
+}
+
+// RefreshOne re-probes a single agent (e.g. right after install/update) and
+// updates its entry in the cache so other tabs immediately see the new state.
+func (c *AgentCache) RefreshOne(ctx context.Context, agentID string) (AgentInfo, bool) {
+	def := GetAgentDef(agentID)
+	if def == nil {
+		return AgentInfo{}, false
+	}
+	cfg := c.configuredEnv[agentID]
+	if cfg == nil {
+		cfg = map[string]string{}
+	}
+	info := ProbeAgent(ctx, def, cfg)
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	replaced := false
+	for i := range c.agents {
+		if c.agents[i].ID == agentID {
+			c.agents[i] = info
+			replaced = true
+			break
+		}
+	}
+	if !replaced && len(c.agents) > 0 {
+		c.agents = append(c.agents, info)
+	}
+	return info, true
 }

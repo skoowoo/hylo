@@ -8,6 +8,7 @@
       agentBotEditId: '',
       // Full shape up front: the hidden form footer still evaluates name.trim().
       agentBotDraft: { name: '', description: '', agentId: '', model: '', cwd: '', main: false, systemPrompt: '', enabled: true },
+      agentBotProactive: { enabled: true, wakes_per_day: 24, active_hours: '08:00-24:00', min_gap: '20m' },
       agentBotTriggers: [],
       // Skill name → on, for the bot's working directory; applied on save.
       agentBotSkills: {},
@@ -327,6 +328,13 @@
             knownModels.length === 0 ||
             knownModels.some(function(x) { return x.id === savedModel; });
           this.agentBotDraft = { name: m.name, description: m.description || '', agentId: m.agentId, model: modelValid ? savedModel : '', cwd: m.cwd, main: m.main, systemPrompt: m.systemPrompt || '', enabled: m.enabled };
+          const p = m.proactive || {};
+          this.agentBotProactive = {
+            enabled: p.enabled !== undefined ? !!p.enabled : true,
+            wakes_per_day: p.wakes_per_day !== undefined ? Number(p.wakes_per_day) : 24,
+            active_hours: p.active_hours !== undefined ? p.active_hours : '08:00-24:00',
+            min_gap: p.min_gap !== undefined ? p.min_gap : '20m',
+          };
           this.agentBotTriggers = (m.triggers || []).map(function(t) {
             return Object.assign({}, t, {
               name: t.name || '',
@@ -359,7 +367,7 @@
       },
 
       agentBotSnapshot() {
-        return JSON.stringify([this.agentBotDraft, this.agentBotSkills, this.agentBotApps, this.agentBotTriggers.map(function(t) {
+        return JSON.stringify([this.agentBotDraft, this.agentBotDraft.main ? this.agentBotProactive : null, this.agentBotSkills, this.agentBotApps, this.agentBotTriggers.map(function(t) {
           const copy = Object.assign({}, t);
           delete copy._open;
           return copy;
@@ -382,13 +390,19 @@
         const on = (s) => this.agentBotSkills[s.name];
         const skills = this.extraSkills.filter(on).length +
           (this.agentBotDraft.main ? this.builtinSkills.length : this.botBuiltinSkills.filter(on).length);
-        return [
+        const tabs = [
           { id: 'general', label: 'General', count: 0 },
+        ];
+        if (this.agentBotDraft.main) {
+          tabs.push({ id: 'proactive', label: 'Proactive', count: 0 });
+        }
+        tabs.push(
           { id: 'skills', label: 'Skills', count: skills },
           { id: 'apps', label: 'Apps', count: this.connectedApps.filter((a) => this.agentBotApps[a.id]).length },
           { id: 'triggers', label: 'Triggers', count: this.agentBotTriggers.length },
           { id: 'channels', label: 'Channels', count: Object.values(this.botChannels).filter(Boolean).length, disabled: this.agentBotFormMode !== 'edit' },
-        ];
+        );
+        return tabs;
       },
 
       // What the bot runs on and what is switched on for it right now.
@@ -596,6 +610,11 @@
             delete copy._open;
             return copy;
           }) });
+          if (this.agentBotDraft.main) {
+            payload.proactive = Object.assign({}, this.agentBotProactive, {
+              wakes_per_day: Number(this.agentBotProactive.wakes_per_day) || 0,
+            });
+          }
           const url = this.agentBotFormMode === 'create' ? '/api/mates' : '/api/mates/' + this.agentBotEditId;
           const method = this.agentBotFormMode === 'create' ? 'POST' : 'PUT';
           const r = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });

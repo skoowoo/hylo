@@ -1,3 +1,9 @@
+  const CONFIG_TAB_SECTIONS = {
+    'server': ['proxy'],
+    'relay': ['relay'],
+    'vault': ['vault', 'plugins.search', 'plugins.git_sync'],
+  };
+
   function settingsServerTab() {
     return {
       switching: false,
@@ -20,68 +26,20 @@
       cfgRestartError: '',
       patch: {},
       revealed: {},
-      openSection: '',
       relayStatus: { enabled: false, state: 'off', error: '' },
       relayStatusLoading: false,
 
-      get sectionGroups() {
-        const excluded = new Set(['log', 'server']);
-        const order = [], seen = new Set();
-        for (const f of this.schema) {
-          if (!seen.has(f.section) && !excluded.has(f.section)) {
-            seen.add(f.section);
-            order.push(f.section);
-          }
-        }
-        const global = [], vault = [];
-        for (const s of order) {
-          const fields = this.fieldsForSection(s);
-          (fields.length && fields.every(f => f.vault) ? vault : global).push(s);
-        }
-        return [
-          { id: 'global', label: 'Global', sections: global },
-          { id: 'vault', label: 'This vault', sections: vault },
-        ].filter(g => g.sections.length);
+      isConfigTab(t) { return Object.prototype.hasOwnProperty.call(CONFIG_TAB_SECTIONS, t); },
+
+      configTabHasDirty(t) {
+        const secs = CONFIG_TAB_SECTIONS[t];
+        return !!secs && secs.some(s => this.sectionHasDirty(s));
       },
 
       // The vault in effect, not an unsaved edit of vault.path.
       get vaultPath() { return (this.values && this.values.vault && this.values.vault.path) || ''; },
 
-      // Global sections sit with the server itself, under no heading.
-      get globalSections() {
-        const g = this.sectionGroups.find(g => g.id === 'global');
-        return g ? g.sections : [];
-      },
-
-      sectionLabel(s) {
-        const m = {
-          'proxy': 'Proxy',
-          'vault': 'Vault',
-          'plugins.search': 'Search', 'plugins.git_sync': 'Git Sync',
-          'proactive': 'Proactive',
-          'relay': 'Remote access',
-        };
-        return m[s] || s;
-      },
-
-      sectionIntro(s) {
-        const m = {
-          'proxy': 'One proxy for Discord, Telegram, link previews, remote images, WeChat, and git.',
-          'vault': 'Paths, layout, and core vault behavior.',
-          'plugins.search': 'Indexing and search quality.',
-          'plugins.git_sync': 'Commits and pushes.',
-          'proactive': 'The main bot\'s own rounds.',
-          'relay': 'Connect a phone through your public Relay.',
-        };
-        return m[s] || '';
-      },
-
       fieldsForSection(s) { return this.schema.filter(f => f.section === s); },
-
-      openSectionDetail(s) {
-        this.openSection = s;
-        if (s === 'relay') this.loadRelayStatus();
-      },
 
       get relayStatusLabel() {
         return ({ off: 'Remote access is off', connecting: 'Connecting to Relay', online: 'Relay connected', offline: 'Relay unavailable', restart_required: 'Restart required' }[this.relayStatus.state] || 'Checking Relay');
@@ -218,7 +176,7 @@
       },
 
       async loadConfig() {
-        this.cfgLoading = true;
+        if (!this.schema.length) this.cfgLoading = true;
         this.cfgError = '';
         try {
           const [sr, vr] = await Promise.all([
