@@ -20,7 +20,8 @@ import (
 )
 
 const (
-	defaultPoolSize     = 4
+	defaultIdleTarget   = 4
+	defaultMaxConns     = 16
 	controlPingInterval = 20 * time.Second
 	controlReadTimeout  = 60 * time.Second
 	stableOnlineWindow  = 5 * time.Second
@@ -94,6 +95,10 @@ func (c *Connector) session(ctx context.Context) (time.Duration, error) {
 	if err != nil {
 		return 0, err
 	}
+	dataURL, err := endpoint(c.cfg.URL, relayproto.DataPath)
+	if err != nil {
+		return 0, err
+	}
 	ws, _, err := c.dialer.DialContext(ctx, controlURL, c.headers(""))
 	if err != nil {
 		return 0, fmt.Errorf("connect control: %w", err)
@@ -101,33 +106,84 @@ func (c *Connector) session(ctx context.Context) (time.Duration, error) {
 	defer ws.Close()
 
 	_ = ws.SetReadDeadline(time.Now().Add(15 * time.Second))
-	var ready struct{ Type, Session string }
+	var ready relayproto.ControlMessage
 	if err := ws.ReadJSON(&ready); err != nil {
 		return 0, fmt.Errorf("read control ready: %w", err)
 	}
-	if ready.Type != "ready" || ready.Session == "" {
+	if ready.Type != relayproto.MsgReady || ready.Session == "" {
 		return 0, fmt.Errorf("invalid control response")
 	}
 
+	maxConns := ready.MaxConnections
+	if maxConns <= 0 {
+		maxConns = defaultMaxConns
+	}
+	idleTarget := ready.IdleTarget
+	if idleTarget <= 0 {
+		idleTarget = defaultIdleTarget
+	}
+	if idleTarget > maxConns {
+		idleTarget = maxConns
+	}
+
 	connectedAt := time.Now()
-	c.log.Info("relay connector online", "server_id", c.cfg.ServerID)
+	c.log.Info("relay connector online", "server_id", c.cfg.ServerID, "idle_target", idleTarget, "max_connections", maxConns)
 	c.setStatus(Status{State: "online", ConnectedAt: connectedAt})
 
 	workersCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
+
+	// openCh buffers replenish requests so a slightly earlier Relay close
+	// still spawns a replacement once the local data goroutine releases sem.
+	sem := make(chan struct{}, maxConns)
+	openCh := make(chan struct{}, maxConns)
 	var wg sync.WaitGroup
-	for range defaultPoolSize {
-		wg.Add(1)
-		go func() { defer wg.Done(); c.worker(workersCtx, ready.Session) }()
+
+	enqueueOpen := func(n int) {
+		for range n {
+			select {
+			case openCh <- struct{}{}:
+			default:
+				return
+			}
+		}
 	}
-	err = c.watchControl(ctx, ws)
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for {
+			select {
+			case <-workersCtx.Done():
+				return
+			case <-openCh:
+			}
+			select {
+			case <-workersCtx.Done():
+				return
+			case sem <- struct{}{}:
+			}
+			wg.Add(1)
+			go func() {
+				defer func() {
+					<-sem
+					wg.Done()
+				}()
+				c.runDataConn(workersCtx, dataURL, ready.Session)
+			}()
+		}
+	}()
+
+	enqueueOpen(idleTarget)
+
+	err = c.watchControl(ctx, ws, enqueueOpen)
 	cancel()
 	_ = ws.Close()
 	wg.Wait()
 	return time.Since(connectedAt), err
 }
 
-func (c *Connector) watchControl(ctx context.Context, ws *websocket.Conn) error {
+func (c *Connector) watchControl(ctx context.Context, ws *websocket.Conn, onOpen func(int)) error {
 	_ = ws.SetReadDeadline(time.Now().Add(controlReadTimeout))
 	ws.SetPongHandler(func(string) error {
 		return ws.SetReadDeadline(time.Now().Add(controlReadTimeout))
@@ -137,11 +193,15 @@ func (c *Connector) watchControl(ctx context.Context, ws *websocket.Conn) error 
 	errs := make(chan error, 1)
 	go func() {
 		for {
-			if _, _, err := ws.NextReader(); err != nil {
+			var msg relayproto.ControlMessage
+			if err := ws.ReadJSON(&msg); err != nil {
 				errs <- err
 				return
 			}
 			_ = ws.SetReadDeadline(time.Now().Add(controlReadTimeout))
+			if msg.Type == relayproto.MsgOpenData && msg.Count > 0 {
+				onOpen(msg.Count)
+			}
 		}
 	}()
 	for {
@@ -158,19 +218,21 @@ func (c *Connector) watchControl(ctx context.Context, ws *websocket.Conn) error 
 	}
 }
 
-func (c *Connector) worker(ctx context.Context, session string) {
-	dataURL, err := endpoint(c.cfg.URL, relayproto.DataPath)
-	if err != nil {
-		c.log.Error("relay data URL", "err", err)
-		return
-	}
+// runDataConn opens one data tunnel and serves one request. If the idle tunnel
+// drops before receiving any request bytes, it retries to keep the idle pool
+// healthy; once a request is dispatched, Relay requests replacements via open_data.
+func (c *Connector) runDataConn(ctx context.Context, dataURL, session string) {
 	retry := 200 * time.Millisecond
 	firstBuf := make([]byte, 32*1024)
 
 	for ctx.Err() == nil {
-		ws, _, err := c.dialer.DialContext(ctx, dataURL, c.headers(session))
+		ws, resp, err := c.dialer.DialContext(ctx, dataURL, c.headers(session))
 		if err != nil {
 			if ctx.Err() != nil {
+				return
+			}
+			// Stop retrying if Relay explicitly rejected the session or pool is full.
+			if resp != nil && (resp.StatusCode == http.StatusConflict || resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode == http.StatusUnauthorized) {
 				return
 			}
 			c.log.Debug("relay data connection failed", "err", err, "retry_in", retry)
@@ -186,13 +248,19 @@ func (c *Connector) worker(ctx context.Context, session string) {
 			continue
 		}
 		retry = 200 * time.Millisecond
-		c.serveDataConn(ctx, ws, firstBuf)
+		if c.serveDataConn(ctx, ws, firstBuf) {
+			return
+		}
+		if !sleepCtx(ctx, retry) {
+			return
+		}
 	}
 }
 
 // serveDataConn waits until Relay actually dispatches a request onto this idle
-// data connection before dialing the local Hylo server.
-func (c *Connector) serveDataConn(ctx context.Context, ws *websocket.Conn, firstBuf []byte) {
+// data connection before dialing the local Hylo server. It returns true when a
+// request was dispatched on this connection.
+func (c *Connector) serveDataConn(ctx context.Context, ws *websocket.Conn, firstBuf []byte) bool {
 	stream := relayproto.NewWSConn(ws, "home", "relay")
 	stopClose := context.AfterFunc(ctx, func() { _ = stream.Close() })
 	defer func() {
@@ -202,20 +270,21 @@ func (c *Connector) serveDataConn(ctx context.Context, ws *websocket.Conn, first
 
 	n, err := stream.Read(firstBuf)
 	if err != nil || n == 0 {
-		return
+		return false
 	}
 
 	local, err := (&net.Dialer{Timeout: 5 * time.Second}).DialContext(ctx, "tcp", c.target)
 	if err != nil {
 		c.log.Warn("relay cannot reach local Hylo", "target", c.target, "err", err)
-		return
+		return true
 	}
 	defer local.Close()
 
 	if _, err := local.Write(firstBuf[:n]); err != nil {
-		return
+		return true
 	}
 	bridge(local, stream)
+	return true
 }
 
 func (c *Connector) headers(session string) http.Header {

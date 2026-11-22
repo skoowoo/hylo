@@ -50,9 +50,9 @@ func Validate(cfg *Config) error {
 		u, err := url.Parse(rawURL)
 		schemeOK := err == nil && u.Host != "" &&
 			(u.Scheme == "https" || u.Scheme == "wss" ||
-				((u.Scheme == "http" || u.Scheme == "ws") && IsLoopbackHost(u.Hostname())))
+				((u.Scheme == "http" || u.Scheme == "ws") && IsLocalNetworkHost(u.Hostname())))
 		if rawURL == "" || !schemeOK {
-			add("relay.url", "must be an https:// or wss:// URL (http:// or ws:// allowed on loopback)")
+			add("relay.url", "must be an https:// or wss:// URL (http:// or ws:// allowed on loopback or private LAN)")
 		}
 		if strings.TrimSpace(cfg.Relay.ServerID) == "" {
 			add("relay.server_id", "required when relay is enabled")

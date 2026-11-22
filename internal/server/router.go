@@ -178,6 +178,9 @@ func newRouter(
 	mux.HandleFunc("GET /api/config", cfgHTTP.Get)
 	mux.HandleFunc("GET /api/config/schema", cfgHTTP.Schema)
 	mux.HandleFunc("GET /api/relay/status", relayHTTP.Status)
+	mux.HandleFunc("POST /api/relay/pair", relayHTTP.PairCreate)
+	mux.HandleFunc("GET /api/relay/devices", relayHTTP.DevicesList)
+	mux.HandleFunc("DELETE /api/relay/devices/{id}", relayHTTP.DeviceRevoke)
 	mux.HandleFunc("PATCH /api/config", cfgHTTP.Patch)
 	mux.HandleFunc("POST /api/server/restart", handler.NewRestartHTTP(cfgFileLoaded, restart).Post)
 

@@ -51,12 +51,12 @@ curl \
   -H 'X-Hylo-Relay-Key: <access_token>' \
   https://relay.example.com/relay/v1/servers/<server_id>/status
 
-curl \
+curl -X POST \
   -H 'X-Hylo-Relay-Key: <access_token>' \
   -H 'X-Hylo-API-Key: <Hylo API key>' \
   https://relay.example.com/s/<server_id>/api/status
 ```
 
-第一个 header 由 Relay 校验，第二个 header 仍由家庭 Hylo 校验。Relay 会移除公网请求携带的转发身份头，避免 Connector 的 loopback 信任边界被伪造。
+第一个 header 由 Relay 校验，第二个 header 仍由家庭 Hylo 校验（客户端也可以使用 `Authorization: Bearer <Hylo API key>` 供 Hylo 校验，与 `X-Hylo-Relay-Key` 互不冲突）。Relay 会移除公网请求携带的转发身份头和逐跳头，避免 Connector 的 loopback 信任边界被伪造。
 
-Relay 不支持 HTTP CONNECT 或业务 WebSocket Upgrade。它支持 Hylo 现有的普通 HTTP 和 SSE；响应会立即刷新，避免 agent 事件在公网端累积。
+Relay 仅转发移动端业务白名单内的 API 路由（默认拦截 `/api/config`、`/api/server/restart`、`/mcp` 等高权限本地入口），不支持 HTTP CONNECT 或业务 WebSocket Upgrade。它支持 Hylo 现有的普通 HTTP 和 SSE；响应会立即刷新，避免 agent 事件在公网端累积。

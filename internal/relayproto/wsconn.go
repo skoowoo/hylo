@@ -16,12 +16,25 @@ const (
 	ControlPath = "/relay/v1/control"
 	DataPath    = "/relay/v1/data"
 
-	HeaderServer  = "X-Hylo-Relay-Server"
-	HeaderAccess  = "X-Hylo-Relay-Access"
-	HeaderSession = "X-Hylo-Relay-Session"
-	HeaderJoinKey = "X-Hylo-Relay-Join-Key"
-	HeaderKey     = "X-Hylo-Relay-Key"
+	HeaderServer    = "X-Hylo-Relay-Server"
+	HeaderAccess    = "X-Hylo-Relay-Access"
+	HeaderSession   = "X-Hylo-Relay-Session"
+	HeaderJoinKey   = "X-Hylo-Relay-Join-Key"
+	HeaderKey       = "X-Hylo-Relay-Key"
+	HeaderRequestID = "X-Relay-Request-Id"
+
+	MsgReady    = "ready"
+	MsgOpenData = "open_data"
 )
+
+// ControlMessage is exchanged over the WSS control channel as JSON.
+type ControlMessage struct {
+	Type           string `json:"type"`
+	Session        string `json:"session,omitempty"`
+	IdleTarget     int    `json:"idle_target,omitempty"`
+	MaxConnections int    `json:"max_connections,omitempty"`
+	Count          int    `json:"count,omitempty"`
+}
 
 // WSConn exposes WebSocket binary messages as a continuous net.Conn byte stream.
 // Message boundaries are invisible to callers.

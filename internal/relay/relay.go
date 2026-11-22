@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -27,43 +28,65 @@ var (
 	errPoolExhausted = errors.New("relay connection pool exhausted")
 )
 
+const (
+	defaultIdleTarget            = 4
+	defaultMaxConnections        = 16
+	defaultAcquireTimeout        = 10 * time.Second
+	defaultControlTimeout        = 60 * time.Second
+	defaultResponseHeaderTimeout = 30 * time.Second
+)
+
 // ServerCredentials are provisioned on the public Relay. AccessToken is the
 // separate public-edge credential; it is never accepted as a Connector token.
 type ServerCredentials struct {
-	ConnectorToken string
-	AccessToken    string
+	ConnectorToken string         `json:"ConnectorToken"`
+	AccessToken    string         `json:"AccessToken"`
+	Devices        []DeviceRecord `json:"Devices,omitempty"`
 }
 
 type Config struct {
-	Servers        map[string]ServerCredentials
-	StateFile      string
-	AutoRegister   bool
-	JoinKey        string
-	MaxConnections int
-	AcquireTimeout time.Duration
-	ControlTimeout time.Duration
-	Logger         *slog.Logger
+	Servers               map[string]ServerCredentials
+	StateFile             string
+	AutoRegister          bool
+	JoinKey               string
+	IdleTarget            int
+	MaxConnections        int
+	AcquireTimeout        time.Duration
+	ControlTimeout        time.Duration
+	ResponseHeaderTimeout time.Duration
+	AllowAllRoutes        bool
+	ExtraAllowedRoutes    []string
+	Logger                *slog.Logger
 }
 
 type Relay struct {
-	mu             sync.Mutex
-	servers        map[string]ServerCredentials
-	sessions       map[string]*session
-	max            int
-	wait           time.Duration
-	controlTimeout time.Duration
-	log            *slog.Logger
-	stateFile      string
-	autoRegister   bool
-	joinKey        string
-	upgrader       websocket.Upgrader
+	mu                    sync.Mutex
+	servers               map[string]ServerCredentials
+	sessions              map[string]*session
+	pairings              map[string]*pairInvite
+	activeDevices         map[string]map[string]context.CancelFunc
+	idleTarget            int
+	max                   int
+	wait                  time.Duration
+	controlTimeout        time.Duration
+	responseHeaderTimeout time.Duration
+	policy                *routePolicy
+	log                   *slog.Logger
+	stateFile             string
+	autoRegister          bool
+	joinKey               string
+	upgrader              websocket.Upgrader
 }
 
 type session struct {
-	id   string
-	idle chan net.Conn
-	done chan struct{}
-	once sync.Once
+	id         string
+	idleTarget int
+	max        int
+	idle       chan net.Conn
+	replenish  chan struct{}
+	done       chan struct{}
+	inFlight   atomic.Int64
+	once       sync.Once
 }
 
 func New(cfg Config) (*Relay, error) {
@@ -75,14 +98,23 @@ func New(cfg Config) (*Relay, error) {
 			return nil, errors.New("relay: every server needs an id, connector token, and access token")
 		}
 	}
-	if cfg.MaxConnections == 0 {
-		cfg.MaxConnections = 16
+	if cfg.MaxConnections <= 0 {
+		cfg.MaxConnections = defaultMaxConnections
 	}
-	if cfg.AcquireTimeout == 0 {
-		cfg.AcquireTimeout = 10 * time.Second
+	if cfg.IdleTarget <= 0 {
+		cfg.IdleTarget = defaultIdleTarget
 	}
-	if cfg.ControlTimeout == 0 {
-		cfg.ControlTimeout = 60 * time.Second
+	if cfg.IdleTarget > cfg.MaxConnections {
+		cfg.IdleTarget = cfg.MaxConnections
+	}
+	if cfg.AcquireTimeout <= 0 {
+		cfg.AcquireTimeout = defaultAcquireTimeout
+	}
+	if cfg.ControlTimeout <= 0 {
+		cfg.ControlTimeout = defaultControlTimeout
+	}
+	if cfg.ResponseHeaderTimeout <= 0 {
+		cfg.ResponseHeaderTimeout = defaultResponseHeaderTimeout
 	}
 	if cfg.Logger == nil {
 		cfg.Logger = slog.Default()
@@ -101,15 +133,20 @@ func New(cfg Config) (*Relay, error) {
 		}
 	}
 	return &Relay{
-		servers:        servers,
-		sessions:       make(map[string]*session),
-		max:            cfg.MaxConnections,
-		wait:           cfg.AcquireTimeout,
-		controlTimeout: cfg.ControlTimeout,
-		log:            cfg.Logger,
-		stateFile:      cfg.StateFile,
-		autoRegister:   cfg.AutoRegister,
-		joinKey:        strings.TrimSpace(cfg.JoinKey),
+		servers:               servers,
+		sessions:              make(map[string]*session),
+		pairings:              make(map[string]*pairInvite),
+		activeDevices:         make(map[string]map[string]context.CancelFunc),
+		idleTarget:            cfg.IdleTarget,
+		max:                   cfg.MaxConnections,
+		wait:                  cfg.AcquireTimeout,
+		controlTimeout:        cfg.ControlTimeout,
+		responseHeaderTimeout: cfg.ResponseHeaderTimeout,
+		policy:                newRoutePolicy(cfg.AllowAllRoutes, cfg.ExtraAllowedRoutes),
+		log:                   cfg.Logger,
+		stateFile:             cfg.StateFile,
+		autoRegister:          cfg.AutoRegister,
+		joinKey:               strings.TrimSpace(cfg.JoinKey),
 		// Control and data endpoints are Connector-only. A browser must never
 		// be able to turn its Origin into a tunnel session.
 		upgrader: websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return r.Header.Get("Origin") == "" }},
@@ -120,10 +157,26 @@ func (r *Relay) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc(relayproto.ControlPath, r.control)
 	mux.HandleFunc(relayproto.DataPath, r.data)
+	mux.HandleFunc("POST /relay/v1/pair/create", r.pairCreate)
+	mux.HandleFunc("POST /relay/v1/pair/redeem", r.pairRedeem)
+	mux.HandleFunc("GET /relay/v1/devices", r.listDevices)
+	mux.HandleFunc("DELETE /relay/v1/devices/{device_id}", r.revokeDevice)
+	mux.HandleFunc("DELETE /relay/v1/servers/{server_id}/self", r.revokeSelf)
 	mux.HandleFunc("GET /relay/v1/servers/{server_id}/status", r.serverStatus)
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) })
-	mux.HandleFunc("/s/", r.proxy)
-	return mux
+	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		if req.Method == http.MethodConnect {
+			writeRelayError(w, http.StatusNotImplemented, "unsupported_protocol", "HTTP CONNECT is not supported")
+			return
+		}
+		// Route /s/ before ServeMux so ServeMux cannot 307-redirect traversal or
+		// double-slash paths before parseProxyTarget rejects them.
+		if strings.HasPrefix(req.URL.Path, "/s/") {
+			r.proxy(w, req)
+			return
+		}
+		mux.ServeHTTP(w, req)
+	})
 }
 
 // Close terminates all active connector sessions.
@@ -142,8 +195,8 @@ func (r *Relay) Close() {
 
 func (r *Relay) serverStatus(w http.ResponseWriter, req *http.Request) {
 	id := req.PathValue("server_id")
-	if !r.accessAuth(req, id) {
-		http.Error(w, "unauthorized", http.StatusUnauthorized)
+	if _, status, code, msg := r.checkAccess(req, id); status != 0 {
+		writeRelayError(w, status, code, msg)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -156,7 +209,7 @@ func (r *Relay) serverStatus(w http.ResponseWriter, req *http.Request) {
 func (r *Relay) control(w http.ResponseWriter, req *http.Request) {
 	id, _, ok := r.connectorAuth(req, true)
 	if !ok {
-		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		writeRelayError(w, http.StatusUnauthorized, "relay_unauthorized", "invalid connector credentials")
 		return
 	}
 	c, err := r.upgrader.Upgrade(w, req, nil)
@@ -174,7 +227,14 @@ func (r *Relay) control(w http.ResponseWriter, req *http.Request) {
 		return c.SetReadDeadline(time.Now().Add(r.controlTimeout))
 	})
 
-	s := &session{id: randomID(), idle: make(chan net.Conn, r.max), done: make(chan struct{})}
+	s := &session{
+		id:         randomID(),
+		idleTarget: r.idleTarget,
+		max:        r.max,
+		idle:       make(chan net.Conn, r.max),
+		replenish:  make(chan struct{}, 1),
+		done:       make(chan struct{}),
+	}
 	r.mu.Lock()
 	old := r.sessions[id]
 	r.sessions[id] = s
@@ -184,28 +244,66 @@ func (r *Relay) control(w http.ResponseWriter, req *http.Request) {
 	}
 	defer r.remove(id, s)
 
-	if err := c.WriteJSON(map[string]string{"type": "ready", "session": s.id}); err != nil {
+	_ = c.SetWriteDeadline(time.Now().Add(5 * time.Second))
+	if err := c.WriteJSON(relayproto.ControlMessage{
+		Type:           relayproto.MsgReady,
+		Session:        s.id,
+		IdleTarget:     s.idleTarget,
+		MaxConnections: s.max,
+	}); err != nil {
 		return
 	}
 	r.log.Info("connector online", "server_id", id, "session", s.id)
-	for {
-		if _, _, err := c.NextReader(); err != nil {
-			break
+
+	readErr := make(chan error, 1)
+	go func() {
+		for {
+			if _, _, err := c.NextReader(); err != nil {
+				readErr <- err
+				return
+			}
+			_ = c.SetReadDeadline(time.Now().Add(r.controlTimeout))
 		}
-		_ = c.SetReadDeadline(time.Now().Add(r.controlTimeout))
+	}()
+
+	for {
+		select {
+		case <-readErr:
+			r.log.Info("connector offline", "server_id", id, "session", s.id)
+			return
+		case <-s.done:
+			r.log.Info("connector offline", "server_id", id, "session", s.id)
+			return
+		case <-s.replenish:
+			need := s.neededIdle()
+			if need <= 0 {
+				continue
+			}
+			_ = c.SetWriteDeadline(time.Now().Add(5 * time.Second))
+			if err := c.WriteJSON(relayproto.ControlMessage{
+				Type:  relayproto.MsgOpenData,
+				Count: need,
+			}); err != nil {
+				r.log.Info("connector offline", "server_id", id, "session", s.id)
+				return
+			}
+		}
 	}
-	r.log.Info("connector offline", "server_id", id, "session", s.id)
 }
 
 func (r *Relay) data(w http.ResponseWriter, req *http.Request) {
 	id, _, ok := r.connectorAuth(req, false)
 	if !ok {
-		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		writeRelayError(w, http.StatusUnauthorized, "relay_unauthorized", "invalid connector credentials")
 		return
 	}
 	s := r.get(id)
 	if s == nil || req.Header.Get(relayproto.HeaderSession) != s.id {
-		http.Error(w, "no active session", http.StatusConflict)
+		writeRelayError(w, http.StatusConflict, "no_active_session", "no active connector session")
+		return
+	}
+	if !s.hasCapacity() {
+		writeRelayError(w, http.StatusTooManyRequests, "relay_busy", "connection pool is full")
 		return
 	}
 	c, err := r.upgrader.Upgrade(w, req, nil)
@@ -213,43 +311,50 @@ func (r *Relay) data(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	stream := relayproto.NewWSConn(c, "relay", "connector")
-	select {
-	case s.idle <- stream:
-	case <-s.done:
+	if !s.enqueue(stream) {
 		_ = stream.Close()
 	}
 }
 
 func (r *Relay) proxy(w http.ResponseWriter, req *http.Request) {
-	parts := strings.Split(strings.TrimPrefix(req.URL.Path, "/s/"), "/")
-	if len(parts) < 2 || parts[0] == "" {
-		http.NotFound(w, req)
+	if isUnsupportedProtocol(req) {
+		writeRelayError(w, http.StatusNotImplemented, "unsupported_protocol", "protocol upgrade is not supported")
 		return
 	}
-	id := parts[0]
-	if !r.accessAuth(req, id) {
-		http.Error(w, "unauthorized", http.StatusUnauthorized)
+	id, targetPath, ok := parseProxyTarget(req.URL)
+	if !ok {
+		writeRelayError(w, http.StatusBadRequest, "invalid_path", "invalid target path")
+		return
+	}
+	deviceID, status, code, msg := r.checkAccess(req, id)
+	if status != 0 {
+		writeRelayError(w, status, code, msg)
+		return
+	}
+	if !r.policy.allowed(req.Method, targetPath) {
+		writeRelayError(w, http.StatusForbidden, "route_not_allowed", "route is not allowed through relay")
 		return
 	}
 	s := r.get(id)
 	if s == nil {
-		http.Error(w, "home offline", http.StatusServiceUnavailable)
+		writeRelayError(w, http.StatusServiceUnavailable, "home_offline", "home server is offline")
 		return
 	}
-	req2 := req.Clone(req.Context())
-	req2.URL.Path = "/" + strings.Join(parts[1:], "/")
+	proxyCtx, untrack := r.trackDeviceRequest(deviceID, req.Context())
+	defer untrack()
+
+	req2 := req.Clone(proxyCtx)
+	req2.URL.Path = targetPath
 	req2.URL.RawPath = ""
 	req2.URL.Scheme, req2.URL.Host = "http", "hylo"
 	req2.RequestURI = ""
-	req2.Header = req.Header.Clone()
-	req2.Header.Del(relayproto.HeaderKey)
-	// Connector reaches Hylo through loopback. Never let a public client forge
-	// headers that Hylo intentionally trusts from a loopback reverse proxy.
-	req2.Header.Del("X-Forwarded-For")
-	req2.Header.Del("X-Forwarded-Proto")
-	req2.Header.Del("Forwarded")
+	req2.Header = sanitizeProxyHeaders(req.Header)
 
-	transport := &http.Transport{DisableKeepAlives: true, DialContext: s.dial(r.wait)}
+	transport := &http.Transport{
+		DisableKeepAlives:     true,
+		DialContext:           s.dial(r.wait),
+		ResponseHeaderTimeout: r.responseHeaderTimeout,
+	}
 	defer transport.CloseIdleConnections()
 	resp, err := transport.RoundTrip(req2)
 	if err != nil {
@@ -257,11 +362,14 @@ func (r *Relay) proxy(w http.ResponseWriter, req *http.Request) {
 		case errors.Is(err, context.Canceled):
 			return
 		case errors.Is(err, errPoolExhausted):
-			http.Error(w, "relay busy", http.StatusTooManyRequests)
+			w.Header().Set("Retry-After", "1")
+			writeRelayError(w, http.StatusTooManyRequests, "relay_busy", "relay connection pool is busy")
 		case errors.Is(err, errSessionClosed):
-			http.Error(w, "home offline", http.StatusServiceUnavailable)
+			writeRelayError(w, http.StatusServiceUnavailable, "home_offline", "home server is offline")
+		case isTimeoutError(err):
+			writeRelayError(w, http.StatusGatewayTimeout, "home_timeout", "home server response timed out")
 		default:
-			http.Error(w, "home unavailable", http.StatusBadGateway)
+			writeRelayError(w, http.StatusBadGateway, "home_unreachable", "home server is unreachable")
 		}
 		return
 	}
@@ -292,11 +400,33 @@ func (r *Relay) connectorAuth(req *http.Request, allowRegister bool) (string, Se
 	return id, cred, ok && safeEqual(bearer(req), cred.ConnectorToken)
 }
 
-func (r *Relay) accessAuth(req *http.Request, id string) bool {
+// checkAccess distinguishes a missing Relay credential (401) from a credential
+// that is not authorized for the requested server (404), avoiding server ID enumeration.
+func (r *Relay) checkAccess(req *http.Request, id string) (string, int, string, string) {
+	key := req.Header.Get(relayproto.HeaderKey)
+	if key == "" {
+		return "", http.StatusUnauthorized, "relay_unauthorized", "missing relay key"
+	}
+	digest := tokenHash(key)
 	r.mu.Lock()
 	cred, ok := r.servers[id]
+	var matchedDevice string
+	if ok && !safeEqual(key, cred.AccessToken) {
+		for _, d := range cred.Devices {
+			if safeEqual(digest, d.TokenHash) {
+				matchedDevice = d.ID
+				break
+			}
+		}
+		if matchedDevice == "" {
+			ok = false
+		}
+	}
 	r.mu.Unlock()
-	return ok && safeEqual(req.Header.Get(relayproto.HeaderKey), cred.AccessToken)
+	if !ok {
+		return "", http.StatusNotFound, "server_not_found", "server not found"
+	}
+	return matchedDevice, 0, "", ""
 }
 
 func (r *Relay) persistLocked() error {
@@ -326,6 +456,53 @@ func (r *Relay) remove(id string, s *session) {
 	r.mu.Unlock()
 	s.close()
 }
+
+func (s *session) hasCapacity() bool {
+	return int(s.inFlight.Load())+len(s.idle) < s.max
+}
+
+func (s *session) neededIdle() int {
+	idle := len(s.idle)
+	availCap := s.max - int(s.inFlight.Load()) - idle
+	need := s.idleTarget - idle
+	if need > availCap {
+		need = availCap
+	}
+	if need < 0 {
+		return 0
+	}
+	return need
+}
+
+func (s *session) triggerReplenish() {
+	if s.neededIdle() <= 0 {
+		return
+	}
+	select {
+	case s.replenish <- struct{}{}:
+	default:
+	}
+}
+
+func (s *session) enqueue(c net.Conn) bool {
+	if !s.hasCapacity() {
+		return false
+	}
+	select {
+	case <-s.done:
+		return false
+	default:
+	}
+	select {
+	case s.idle <- c:
+		return true
+	case <-s.done:
+		return false
+	default:
+		return false
+	}
+}
+
 func (s *session) close() {
 	s.once.Do(func() {
 		close(s.done)
@@ -339,13 +516,22 @@ func (s *session) close() {
 		}
 	})
 }
+
 func (s *session) dial(wait time.Duration) func(context.Context, string, string) (net.Conn, error) {
 	return func(ctx context.Context, _, _ string) (net.Conn, error) {
 		timer := time.NewTimer(wait)
 		defer timer.Stop()
 		select {
 		case c := <-s.idle:
-			return c, nil
+			s.inFlight.Add(1)
+			s.triggerReplenish()
+			return &trackedConn{
+				Conn: c,
+				onClose: func() {
+					s.inFlight.Add(-1)
+					s.triggerReplenish()
+				},
+			}, nil
 		case <-s.done:
 			return nil, errSessionClosed
 		case <-ctx.Done():
@@ -355,15 +541,82 @@ func (s *session) dial(wait time.Duration) func(context.Context, string, string)
 		}
 	}
 }
+
+type trackedConn struct {
+	net.Conn
+	onClose func()
+	once    sync.Once
+}
+
+func (t *trackedConn) Close() error {
+	err := t.Conn.Close()
+	t.once.Do(t.onClose)
+	return err
+}
+
+func writeRelayError(w http.ResponseWriter, status int, code, message string) {
+	reqID := randomID()[:16]
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set(relayproto.HeaderRequestID, reqID)
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(map[string]string{
+		"error":      code,
+		"message":    message,
+		"request_id": reqID,
+	})
+}
+
+func sanitizeProxyHeaders(src http.Header) http.Header {
+	dst := src.Clone()
+	for _, connVal := range dst.Values("Connection") {
+		for _, field := range strings.Split(connVal, ",") {
+			if f := strings.TrimSpace(field); f != "" {
+				dst.Del(f)
+			}
+		}
+	}
+	for _, h := range []string{
+		relayproto.HeaderKey,
+		"Connection",
+		"Keep-Alive",
+		"Proxy-Authenticate",
+		"Proxy-Authorization",
+		"Te",
+		"Trailer",
+		"Transfer-Encoding",
+		"Upgrade",
+		// Connector reaches Hylo through loopback; never trust public forwarded headers.
+		"X-Forwarded-For",
+		"X-Forwarded-Proto",
+		"X-Forwarded-Host",
+		"X-Real-IP",
+		"Forwarded",
+	} {
+		dst.Del(h)
+	}
+	return dst
+}
+
+func isTimeoutError(err error) bool {
+	if errors.Is(err, context.DeadlineExceeded) {
+		return true
+	}
+	var netErr net.Error
+	return errors.As(err, &netErr) && netErr.Timeout()
+}
+
 func safeEqual(a, b string) bool {
 	return a != "" && len(a) == len(b) && subtle.ConstantTimeCompare([]byte(a), []byte(b)) == 1
 }
+
 func bearer(r *http.Request) string {
 	return strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
 }
+
 func copyHeader(dst, src http.Header) {
 	for k, vs := range src {
-		if k == "Connection" || k == "Upgrade" {
+		if k == "Connection" || k == "Upgrade" || k == "Keep-Alive" || k == "Transfer-Encoding" {
 			continue
 		}
 		for _, v := range vs {

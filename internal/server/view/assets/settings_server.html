@@ -50,19 +50,72 @@
 
               <template x-if="tab === 'relay' && !cfgLoading && !cfgError">
                 <div>
-                  <div class="relay-panel">
-                    <p class="settings-intro">This computer opens the tunnel. Save and restart after changing its Relay settings.</p>
-                    <div class="relay-state" :class="'is-' + relayStatus.state">
-                      <span class="srv-dot" :class="'is-' + relayStatus.state"></span>
-                      <div><span class="settings-label" x-text="relayStatusLabel"></span><span class="settings-desc" x-text="relayStatusDetail"></span></div>
-                      <button type="button" class="btn-outline btn--xs" @click="loadRelayStatus()" :disabled="relayStatusLoading" x-text="relayStatusLoading ? 'Checking…' : 'Check'"></button>
+                  <section class="settings-section" x-show="relayStatus.state === 'online'">
+                    <div class="settings-section-title relay-section-head">
+                      <span>Phones</span>
+                      <button type="button" class="btn-solid btn--xs"
+                              x-show="!relayPairQR"
+                              @click="startRelayPair()"
+                              :disabled="relayPairLoading"
+                              x-text="relayPairLoading ? 'Preparing…' : 'Connect phone'"></button>
                     </div>
-                  </div>
-                  <div class="settings-list">
-                    <template x-for="field in fieldsForSection('relay')" :key="field.key">
+
+                    <p class="settings-intro settings-msg--ok" x-show="relayPairNotice && relayDevices.length > 0" x-text="relayPairNotice"></p>
+                    <p class="settings-intro settings-msg--err" x-show="relayPairError" x-text="relayPairError"></p>
+                    <p class="settings-intro settings-msg--err" x-show="relayDevicesError" x-text="relayDevicesError"></p>
+
+                    <div class="relay-pair-card" x-show="relayPairQR" x-cloak>
+                      <div class="relay-pair-qr">
+                        <img :src="relayPairQR" alt="Phone pairing QR code">
+                      </div>
+                      <div class="relay-pair-body">
+                        <span class="settings-label">Scan with Hylo on iPhone</span>
+                        <span class="settings-desc">Open the Connect screen, switch to Relay, and tap Scan QR Code. This code works once.</span>
+                        <span class="relay-pair-countdown" :class="{'is-expired': relayPairExpired}" x-text="relayPairCountdown"></span>
+                        <div class="relay-pair-actions">
+                          <button type="button" class="btn-outline btn--xs" @click="startRelayPair()" :disabled="relayPairLoading" x-text="relayPairLoading ? 'Refreshing…' : 'Refresh'"></button>
+                          <button type="button" class="btn-outline btn--xs" @click="closeRelayPair()">Done</button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="relay-phone-grid" x-show="relayDevices.length > 0">
+                      <template x-for="dev in relayDevices" :key="dev.id">
+                        <div class="relay-phone-card">
+                          <div class="relay-phone-meta">
+                            <span class="settings-label relay-phone-name" x-text="dev.name || 'iPhone'"></span>
+                            <span class="settings-desc" x-text="formatDeviceDate(dev.created_at)"></span>
+                          </div>
+                          <div class="relay-phone-foot">
+                            <button type="button" class="btn-outline btn-outline--danger btn--xs"
+                                    @click="revokeRelayDevice(dev.id)"
+                                    :disabled="relayRevokingId === dev.id"
+                                    x-text="relayRevokingId === dev.id ? 'Revoking…' : 'Revoke'"></button>
+                          </div>
+                        </div>
+                      </template>
+                    </div>
+                    <p class="settings-desc relay-empty" x-show="relayDevices.length === 0 && !relayPairQR && !relayDevicesError">No phones paired yet.</p>
+                  </section>
+
+                  <section class="settings-section">
+                    <h3 class="settings-section-title"><span>Relay</span></h3>
+                    <div class="settings-list">
+                      <div class="settings-row settings-row--lead">
+                        <span class="srv-dot" :class="'is-' + relayStatus.state"></span>
+                        <div>
+                          <span class="settings-label" x-text="relayStatusLabel"></span>
+                          <span class="settings-desc" x-text="relayStatusDetail"></span>
+                        </div>
+                        <div class="settings-row-ctrl">
+                          <button type="button" class="btn-outline btn--xs" @click="loadRelayStatus()" :disabled="relayStatusLoading" x-text="relayStatusLoading ? 'Checking…' : 'Check'"></button>
+                        </div>
+                      </div>
+                      <template x-for="field in fieldsForSection('relay')" :key="field.key">
 {{template "cfg-field"}}
-                    </template>
-                  </div>
+                      </template>
+                    </div>
+                  </section>
                 </div>
               </template>
 

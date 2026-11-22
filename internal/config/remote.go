@@ -28,6 +28,17 @@ func IsLoopbackHost(host string) bool {
 	return ip != nil && ip.IsLoopback()
 }
 
+// IsLocalNetworkHost reports whether host is loopback, a private LAN IP
+// (RFC 1918 / RFC 4193), or a .local mDNS hostname.
+func IsLocalNetworkHost(host string) bool {
+	h := strings.ToLower(strings.Trim(strings.TrimSpace(host), "[]"))
+	if h == "localhost" || strings.HasSuffix(h, ".local") {
+		return true
+	}
+	ip := net.ParseIP(h)
+	return ip != nil && (ip.IsLoopback() || ip.IsPrivate())
+}
+
 // IsRemote reports whether the listener is reachable from other machines.
 func (s ServerConfig) IsRemote() bool {
 	return s.TCPEnabled() && !IsLoopbackHost(s.Host)

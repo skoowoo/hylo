@@ -49,7 +49,7 @@ func buildConfigSchema() []SchemaField {
 			Description: "Open an outbound tunnel to your Relay server for mobile access.",
 			Default:     false},
 		{Key: "relay.url", Type: "string", Section: "relay", Label: "Relay URL",
-			Description: "Public address of your Hylo Relay (https:// or wss://; loopback http:// allowed for local development).",
+			Description: "Public address of your Hylo Relay (https:// or wss://; http:// allowed on localhost or private LAN).",
 			Default:     ""},
 		{Key: "relay.join_key", Type: "string", Section: "relay", Label: "Join key",
 			Description: "Access key required by your Relay server when registering this computer.",

@@ -2,7 +2,7 @@
 
 状态：设计提案，尚未实现。
 
-实施状态：Relay、家庭 Connector 和普通 HTTP/SSE 隧道已开始实现；手机端、扫码配对、设备授权、内层 TLS 和多节点仍未实现。当前部署方法见 [relay-deployment.md](relay-deployment.md)。
+实施状态：Relay 服务端、家庭 Connector（含按需连接池与路由白名单）、桌面端二维码配对、每设备独立凭据与即时吊销，以及 iOS 扫码一键连接均已实现；内层端到端 TLS、后台推送和多节点仍未实现。当前部署方法见 [relay-deployment.md](relay-deployment.md)。
 
 ## 1. 目标与范围
 

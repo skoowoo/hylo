@@ -28,6 +28,18 @@
       revealed: {},
       relayStatus: { enabled: false, state: 'off', error: '' },
       relayStatusLoading: false,
+      relayPairQR: '',
+      relayPairExpiresAt: 0,
+      relayPairNow: 0,
+      relayPairLoading: false,
+      relayPairError: '',
+      relayPairNotice: '',
+      relayPairNoticeTimer: null,
+      relayPairTimer: null,
+      relayPairBaselineIds: [],
+      relayDevices: [],
+      relayDevicesError: '',
+      relayRevokingId: '',
 
       isConfigTab(t) { return Object.prototype.hasOwnProperty.call(CONFIG_TAB_SECTIONS, t); },
 
@@ -52,9 +64,138 @@
       },
       async loadRelayStatus() {
         this.relayStatusLoading = true;
-        try { const r = await fetch('/api/relay/status'); if (!r.ok) throw new Error('HTTP ' + r.status); this.relayStatus = await r.json(); }
-        catch (e) { this.relayStatus = { enabled: true, state: 'offline', error: e.message }; }
+        this.clearRelayPairNotice();
+        try {
+          const r = await fetch('/api/relay/status');
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          this.relayStatus = await r.json();
+          if (this.relayStatus.state === 'online') {
+            await this.loadRelayDevices();
+          } else {
+            this.relayDevices = [];
+            this.closeRelayPair();
+          }
+        } catch (e) { this.relayStatus = { enabled: true, state: 'offline', error: e.message }; }
         finally { this.relayStatusLoading = false; }
+      },
+
+      showRelayPairNotice(msg) {
+        this.clearRelayPairNotice();
+        this.relayPairNotice = msg;
+        this.relayPairNoticeTimer = setTimeout(() => {
+          this.relayPairNotice = '';
+          this.relayPairNoticeTimer = null;
+        }, 4000);
+      },
+
+      clearRelayPairNotice() {
+        if (this.relayPairNoticeTimer) {
+          clearTimeout(this.relayPairNoticeTimer);
+          this.relayPairNoticeTimer = null;
+        }
+        this.relayPairNotice = '';
+      },
+
+      get relayPairExpired() {
+        return !!this.relayPairExpiresAt && this.relayPairNow >= this.relayPairExpiresAt;
+      },
+
+      get relayPairCountdown() {
+        if (!this.relayPairExpiresAt) return '';
+        const left = Math.max(0, Math.ceil((this.relayPairExpiresAt - this.relayPairNow) / 1000));
+        if (left <= 0) return 'Code expired. Refresh to generate a new one.';
+        const m = Math.floor(left / 60);
+        const s = String(left % 60).padStart(2, '0');
+        return 'Expires in ' + m + ':' + s;
+      },
+
+      async startRelayPair() {
+        this.relayPairLoading = true;
+        this.relayPairError = '';
+        this.clearRelayPairNotice();
+        try {
+          await this.loadRelayDevices();
+          this.relayPairBaselineIds = this.relayDevices.map(d => d.id);
+          const r = await fetch('/api/relay/pair', { method: 'POST' });
+          const d = await r.json();
+          if (!r.ok) throw new Error(d.error || ('HTTP ' + r.status));
+          this.relayPairQR = d.qrcode_image || '';
+          this.relayPairExpiresAt = Date.parse(d.expires_at) || (Date.now() + 120000);
+          this.relayPairNow = Date.now();
+          this.startRelayPairTimer();
+        } catch (e) {
+          this.relayPairError = e.message;
+        } finally {
+          this.relayPairLoading = false;
+        }
+      },
+
+      startRelayPairTimer() {
+        if (this.relayPairTimer) clearInterval(this.relayPairTimer);
+        let tick = 0;
+        this.relayPairTimer = setInterval(async () => {
+          if (!this.relayPairQR || this.tab !== 'relay' || !Alpine.store('settingsModal').open) {
+            this.closeRelayPair();
+            return;
+          }
+          this.relayPairNow = Date.now();
+          tick++;
+          if (tick % 2 === 0 && !this.relayPairExpired) {
+            await this.loadRelayDevices();
+            const baseline = new Set(this.relayPairBaselineIds);
+            if (this.relayDevices.some(d => !baseline.has(d.id))) {
+              this.closeRelayPair();
+              this.showRelayPairNotice('Phone connected.');
+            }
+          }
+        }, 1000);
+      },
+
+      closeRelayPair() {
+        if (this.relayPairTimer) { clearInterval(this.relayPairTimer); this.relayPairTimer = null; }
+        this.relayPairQR = '';
+        this.relayPairExpiresAt = 0;
+        this.relayPairError = '';
+      },
+
+      async loadRelayDevices() {
+        this.relayDevicesError = '';
+        try {
+          const r = await fetch('/api/relay/devices');
+          const d = await r.json();
+          if (!r.ok) throw new Error(d.error || ('HTTP ' + r.status));
+          this.relayDevices = Array.isArray(d.devices) ? d.devices : [];
+          if (this.relayDevices.length === 0) this.clearRelayPairNotice();
+        } catch (e) {
+          this.relayDevicesError = e.message;
+        }
+      },
+
+      async revokeRelayDevice(id) {
+        if (!id || this.relayRevokingId) return;
+        this.relayRevokingId = id;
+        this.relayDevicesError = '';
+        this.clearRelayPairNotice();
+        try {
+          const r = await fetch('/api/relay/devices/' + encodeURIComponent(id), { method: 'DELETE' });
+          if (!r.ok && r.status !== 204) {
+            let msg = 'HTTP ' + r.status;
+            try { const d = await r.json(); if (d.error) msg = d.error; } catch {}
+            throw new Error(msg);
+          }
+          this.relayDevices = this.relayDevices.filter(d => d.id !== id);
+        } catch (e) {
+          this.relayDevicesError = e.message;
+        } finally {
+          this.relayRevokingId = '';
+        }
+      },
+
+      formatDeviceDate(iso) {
+        if (!iso) return 'Paired';
+        const d = new Date(iso);
+        if (Number.isNaN(d.getTime())) return 'Paired';
+        return 'Paired ' + d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
       },
 
       sectionHasDirty(s) { return this.fieldsForSection(s).some(f => this.isDirty(f.key)); },
