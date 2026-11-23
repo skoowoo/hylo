@@ -98,21 +98,18 @@
 
     /* ── Sidebar ──────────────────────────────────────────────── */
     /* No own background — .home-shell paints it now (above), so the aside
-       just shows that through. The rest still fills the old .lib-nav
-       rail's role (New/ContentPane/Search/Settings live in the top/bottom
-       rows below); it no longer scrolls as a whole, only the middle nav
-       list does, so those rows stay put as the note list grows. */
+       just shows that through. Search/New live in the top row and Settings
+       in the bottom row; only the middle nav list scrolls, so those rows
+       stay put as the note list grows. */
     .home-side {
       flex: 0 0 var(--home-side-w); max-width: var(--home-side-w);
       display: flex; flex-direction: column;
       min-height: 0; overflow: hidden;
       padding: 0;
     }
-    /* Top row holds Search + the reading-pane toggle, right-aligned — it
-       shares the window's true top edge with the macOS traffic lights
-       (same row, not stacked above/below them), so the lights just need
-       horizontal clearance on the left, the same way the old full-width
-       .lib-topbar reserved it. */
+    /* Top row holds New note + Search, right-aligned — shares the window's
+       top edge with the macOS traffic lights, which need horizontal clearance
+       on the left. */
     .home-side-top {
       flex-shrink: 0; height: var(--topbar-h);
       display: flex; align-items: center; justify-content: flex-end; gap: 4px;
@@ -130,11 +127,7 @@
       cursor: default;
     }
     html.macos .home-side-top button { -webkit-app-region: no-drag; }
-    /* The reading-pane toggle's open state: the same wash as a selected nav row. */
-    .home-side-bottom-btn.is-active { background: var(--nav-act); color: var(--fg); }
-    /* One size step up from .icon-btn-ghost's default 14px — Settings and
-       ContentPane are the only controls carrying this class, so they can
-       afford a touch more presence than a dense toolbar's icons would. */
+    /* One size step up from .icon-btn-ghost's default 14px for Settings. */
     .home-side-bottom-btn svg { width: 16px; height: 16px; }
     .home-side-nav {
       flex: 1; min-height: 0; overflow-y: auto;
@@ -296,6 +289,7 @@
 
     /* ── List pane ────────────────────────────────────────────── */
     .home-list-pane {
+      position: relative;
       flex: 1 1 0; min-width: 0;
       display: flex; flex-direction: column;
       min-height: 0; overflow: hidden;
@@ -305,6 +299,34 @@
       border-radius: var(--r-md);
       box-shadow: var(--sheet-shadow);
     }
+    .home-list-slot {
+      flex: 1; min-height: 0;
+      display: flex; flex-direction: column;
+      overflow: hidden;
+    }
+    /* Pinned outside #home-list-pane so section swaps never remount it.
+       right: 12px mirrors the editor toolbar's left padding across the split gap. */
+    .home-pane-toggle {
+      position: absolute;
+      top: calc((var(--toolbar-h) - var(--action-btn-sz)) / 2);
+      right: 12px;
+      z-index: 2;
+    }
+    .home-pane-toggle.is-active { color: var(--fg); }
+    .home-pane-toggle::before {
+      content: "";
+      position: absolute;
+      top: 50%; left: -9px;
+      width: 1px; height: 14px;
+      transform: translateY(-50%);
+      background: var(--line-hair);
+      pointer-events: none;
+      opacity: 0;
+    }
+    .home-list-pane:has(.home-list-head-spacer ~ :not([style*="display: none"]):not([style*="display:none"])) .home-pane-toggle::before {
+      opacity: 1;
+    }
+    html.macos .home-pane-toggle { -webkit-app-region: no-drag; }
     /* The shared header row for sections that need one (Favorites, a folder,
        Knowledge, Images, Agents, Shorts) — same height/padding/no-border
        everywhere instead of each inventing its own toolbar. It carries no
@@ -325,6 +347,9 @@
       flex-shrink: 0; display: flex; align-items: center; gap: 8px;
       min-height: var(--toolbar-h);
       padding: 8px 24px;
+    }
+    .home-list-pane .home-list-head {
+      padding-right: calc(12px + var(--action-btn-sz) + 17px);
     }
     /* macOS: this row sits at the true window top now (no more full-width
        .lib-topbar drag strip), so its own blank space (.home-list-head-spacer

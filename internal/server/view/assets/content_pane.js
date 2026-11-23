@@ -336,7 +336,7 @@
           this.$watch(function() { return self.contentPaneOpen + ':' + self.splitRatio; }, function() {
             if (self.isPaneResizing) return;
             var list = document.getElementById('home-list-pane');
-            var main = list && list.parentElement;
+            var main = list && list.closest('.home-main');
             var mainW = main ? main.clientWidth : 0;
             self._beginSplitMotion(list ? {
               listFrom: list.getBoundingClientRect().width,

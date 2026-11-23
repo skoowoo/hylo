@@ -5,19 +5,14 @@
        :style="'--split-ratio:' + layoutRatio + ';--split-ratio-inv:' + (1 - layoutRatio)">
     <aside class="home-side" id="home-side">
       <div class="home-side-top">
-        <button type="button" class="icon-btn-ghost"
-                :title="/Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent) ? 'Search (⌘K)' : 'Search (Ctrl+K)'"
-                @click="window.dispatchEvent(new CustomEvent('open-search'))">
-          {{icon "search"}}
-        </button>
         <button type="button" class="icon-btn-ghost" title="New note (Ctrl+N)"
                 onclick="window.__hyloContentPane && void window.__hyloContentPane.openNewInContentPane()">
           {{icon "new-note"}}
         </button>
-        <button type="button" class="icon-btn-ghost home-side-bottom-btn" :class="{'is-active': contentPaneOpen}"
-                :title="/Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent) ? 'Reading pane (⌘O)' : 'Reading pane (Ctrl+O)'"
-                @click="contentPaneOpen ? closeContentPane() : showContentPane()">
-          {{icon "reading-pane"}}
+        <button type="button" class="icon-btn-ghost"
+                :title="/Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent) ? 'Search (⌘K)' : 'Search (Ctrl+K)'"
+                @click="window.dispatchEvent(new CustomEvent('open-search'))">
+          {{icon "search"}}
         </button>
       </div>
 
@@ -228,9 +223,16 @@
     <!-- Common parent for everything right of the sidebar (mirrors .home-side);
          closed in home.go once content_pane.html's markup is spliced in. -->
     <div class="home-main">
-      <main class="home-list-pane" id="home-list-pane" hx-sync="this:replace">
-        {{.SectionHTML}}
-      </main>
+      <div class="home-list-pane">
+        <main class="home-list-slot" id="home-list-pane" hx-sync="this:replace">
+          {{.SectionHTML}}
+        </main>
+        <button type="button" class="icon-btn-ghost home-pane-toggle" :class="{'is-active': contentPaneOpen}"
+                :title="/Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent) ? 'Reading pane (⌘O)' : 'Reading pane (Ctrl+O)'"
+                @click="contentPaneOpen ? closeContentPane() : showContentPane()">
+          {{icon "reading-pane"}}
+        </button>
+      </div>
 
       <div class="home-pane-resizer" id="home-pane-resizer"
            @mousedown="startPaneResize($event)"
