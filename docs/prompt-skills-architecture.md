@@ -155,7 +155,7 @@ flowchart TB
 | --- | --- | --- | --- |
 | Compiler | `compile_requested` | `trigger/compile.md` | 点名 hylo-compile-note → hylo-index-knowledge → humanizer（有就用） |
 | Compiler | `note_created`，限 `/Web Clips/` | 同上 | 同上 |
-| Memory | `scheduled`，daily 09:00 | `trigger/memory.md` | 不点名，靠 description 匹配到 hylo-memory |
+| Memory | `scheduled`，daily 01:05 | `trigger/memory.md` | 不点名，靠 description 匹配到 hylo-memory |
 
 回顾不在主 bot 上：周回顾和随机回顾是定时消费，不是对话，交给独立的 Recall bot，由 hylo-setup 的 recall-bot 步骤创建（`/_bots/_recall`，启用内置 hylo-recall），两条 trigger 由用户多选。trigger prompt 就是 `trigger/recall_weekly.md` 和 `trigger/recall_random.md`，步骤文件逐字引用，`TestRecallBotStepQuotesTriggerPrompts` 防止两边走样。创建短记不再自动回顾。
 

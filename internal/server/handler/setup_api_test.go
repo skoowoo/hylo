@@ -43,8 +43,18 @@ func TestSetupBotOnlyForAnEmptyVault(t *testing.T) {
 	for _, tr := range triggers {
 		names = append(names, tr.Name)
 	}
-	if got := strings.Join(names, ","); got != "Compiler,Compiler,Memory" {
+	if got := strings.Join(names, ","); got != "Compiler,Compiler,Memory,Knowledge Curation" {
 		t.Fatalf("trigger names in order: %s", got)
+	}
+	memory := triggers[2]
+	if !memory.Enabled || memory.Schedule != "daily 01:05" || memory.Prompt != prompt.TriggerMemory ||
+		!slices.Equal(memory.EventTypes, []string{string(mate.MateEventScheduled)}) {
+		t.Fatalf("daily memory trigger: %+v", memory)
+	}
+	curation := triggers[3]
+	if !curation.Enabled || curation.Schedule != "weekly sun 01:15" || curation.Prompt != prompt.TriggerCurate ||
+		!slices.Equal(curation.EventTypes, []string{string(mate.MateEventScheduled)}) {
+		t.Fatalf("weekly curation trigger: %+v", curation)
 	}
 	convs, _ := store.ListConversations(id)
 	msgs, _ := store.ListMessages(convs[0].ID)

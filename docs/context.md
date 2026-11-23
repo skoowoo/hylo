@@ -21,7 +21,7 @@ Each run compiles the note with the `hylo-compile-note` skill, updates the knowl
 
 Memory is kept in eight files under `/_memory/`: identity, preferences, goals, beliefs, people, current state, important events, and voice (how you want your writing done). By default it reads your short notes (`/_shorts/`), knowledge (`/_knowledge/`), and retained conversations with all bots. User statements provide personal evidence; bot replies only supply context. Decisions and milestones keep their event dates. Each bot retains up to 20 conversations; deleted conversations are not extracted.
 
-The Hylo bot updates it every day at 09:00. To scan more folders, edit that `scheduled` trigger's prompt:
+The Hylo bot updates it every day at 01:05. To scan more folders, edit that `scheduled` trigger's prompt:
 
 ```
 Please update my personal memory from my recent notes. Also scan /journal/.

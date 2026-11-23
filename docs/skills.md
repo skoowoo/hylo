@@ -11,6 +11,7 @@ This guide covers what each built-in skill does and how to talk to it. To add sk
   - [hylo-notes — save and change notes](#hylo-notes--save-and-change-notes)
   - [hylo-editor — live writing in the editor](#hylo-editor--live-writing-in-the-editor)
   - [hylo-compile-note — compile a note into knowledge](#hylo-compile-note--compile-a-note-into-knowledge)
+  - [hylo-curate-knowledge — curate the knowledge base](#hylo-curate-knowledge--curate-the-knowledge-base)
   - [hylo-index-knowledge — build the knowledge index](#hylo-index-knowledge--build-the-knowledge-index)
   - [hylo-memory — extract personal memory](#hylo-memory--extract-personal-memory)
   - [hylo-recall — find, reflect, inspire, review, explore](#hylo-recall--find-reflect-inspire-review-explore)
@@ -49,7 +50,9 @@ Turn the "Plan" section into a mindmap.
 
 ## hylo-compile-note — compile a note into knowledge
 
-Turns a single raw note (a clip, a journal entry, a transcript) into one or more **knowledge units** — durable wiki-style pages for the people, concepts, companies, or ideas the note discusses. Existing units are updated rather than duplicated; only entities with real staying power become units, so throwaway details stay in the source note.
+Turns a single raw note (a clip, a journal entry, a transcript) into one or more **knowledge units** — durable wiki-style pages for the people, concepts, companies, or ideas the note discusses. A new unit needs a stable name, depth, reuse potential, and a distinctive reason to find it again: a mechanism, concrete case, counterexample, or your own experience. Generic definitions, broad introductions, and repeated points stay in the source note.
+
+Existing units are edited for substance: repetition does not add text, sources, or compilation counts; clearer explanations and stronger examples replace weaker ones. Preserve necessary qualifications, disagreements, and attribution. Aim for a main text readable in a few minutes, leaving full detail in the sources; length alone does not justify splitting. This workflow does not archive units or consolidate existing pages.
 
 **Use it for:** turning a web clip or long note into structured, reusable knowledge instead of leaving it buried in a single file.
 
@@ -59,6 +62,22 @@ Turns a single raw note (a clip, a journal entry, a transcript) into one or more
 Compile the note /clips/network-effects.md into knowledge
 Extract knowledge from this podcast transcript and update the knowledge base
 Run compile on /journal/2026-07-01.md
+```
+
+## hylo-curate-knowledge — curate the knowledge base
+
+The main Hylo bot trims repetitive units, merges duplicate pages about the same entity, and directly deletes units without independent collection value. Original notes are read-only. There is no archive, and age, short length or low usage alone do not justify deletion.
+
+By default, each run reviews one domain and fully reads at most 20 candidate units, completing up to 3 merge groups and 5 standalone deletions. Lightweight progress in the domain index lets later runs reach other units. Merges preserve distinctive content and sources first, repair references from other knowledge units and index rows, then delete obsolete units after verification. No substantive improvement means no body rewrite.
+
+Run manually, or use the enabled weekly Sunday 01:15 curation trigger included with newly created main Hylo bots (server local timezone). Existing bots can add a weekly `scheduled` trigger with the prompt `Use the hylo-curate-knowledge skill to curate my knowledge base.` Installing or updating the skill alone does not add schedules to existing bots; automatic runs with no meaningful changes stay silent. The existing index skill continues to add missing entries only.
+
+**Examples**
+
+```
+Curate my knowledge base.
+Trim the AI domain and merge duplicate knowledge units.
+Preview a curation plan without changing anything.
 ```
 
 ## hylo-index-knowledge — build the knowledge index

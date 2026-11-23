@@ -29,30 +29,31 @@ Read it in full. Record:
 
 List the units to create or update, without writing content yet.
 
-A unit is a wiki page for a **key entity** the note treats with substance: a person, company, book, concept, technique, place, event, product, method, anything. It qualifies only if all three hold; otherwise fold the content into another unit:
+A unit is a wiki page for a **key entity** the note treats with substance: a person, company, book, concept, technique, place, event, product, method, anything. It qualifies only if all four hold; otherwise leave it in the source note, or integrate it into an existing unit when it improves that unit:
 
 1. **A stable name**: a name the note itself uses, or an established term. Never a coined phrase, a claim ("X matters more than Y") or a topic; a claim goes into the unit of the entity it's about.
 2. **Depth to accumulate**: mechanisms, tensions, implications, not just a definition. One clear defining sentence, and more to say beyond it.
 3. **It will recur** across notes from different contexts and dates.
+4. **Worth finding again**: the source offers a distinctive mechanism, concrete case, useful counterexample or boundary, the author's experience or changed understanding, or an explanation they explicitly value. Name that contribution internally. A familiar entity, a definition, a generic overview or repetition alone does not qualify. A basic concept can still qualify when the source gives it this personal or explanatory value; do not invent the author's interest.
 
 Calibrate:
 
 - **Too broad**: the title is a domain ("AI Trends"). Find the specific entity the note advances.
 - **Too narrow**: a sub-point, data point, metric, dependent sub-argument or passing mention. Fold it in.
-- **Two units or one**: split when they have different cores that would grow independently; keep one as a sub-point when it's an example or implication of the other.
+- **Two units or one**: separate only when each has an independent core and passes all four criteria. Length alone is not a reason to split; keep an example or implication within its parent, or leave detail in the source.
 
-Before marking a unit `create`, `knowledge_search` its name, aliases and other-language names: indexes miss units in other domains or not yet indexed. A hit is an `update`.
+Before marking a unit `create`, `knowledge_search` its name, aliases and other-language names: indexes miss units in other domains or not yet indexed. A matching entity is an `update` candidate. Read that unit before deciding whether the note improves it: a new mechanism, boundary, better explanation or example can qualify; another source repeating the same content does not. Similar names alone do not establish the same entity.
 
 Manifest:
 
-| unit name | entity_type | operation |
-| --- | --- | --- |
-| <unit title> | <freeform> | create |
-| <unit title> | <freeform> | update |
+| unit name | entity_type | operation | contribution |
+| --- | --- | --- | --- |
+| <unit title> | <freeform> | create | <why this deserves its own page> |
+| <unit title> | <freeform> | update | <what becomes clearer, changes or can be removed> |
 
 `entity_type` is a short freeform label (`person`, `company`, `book`, `concept`, `event`, `technique`…). Before Step 4, read the file of every `update` unit at `/_knowledge/<unit-name>.md`.
 
-An empty manifest is a valid result: when the note adds nothing the units lack, or nothing qualifies, write nothing, say why in one line and stop. Never force a unit out of a thin note.
+Remove candidates with no meaningful content improvement from the manifest. An empty manifest is a valid result: when the note adds nothing the units lack, or nothing qualifies, write nothing, say why in one line and stop. Never force a unit out of a thin note.
 
 ## Step 4 — Compile
 
@@ -75,7 +76,7 @@ Anchor time to the source's **original date**, not the compile date: write "as o
 
 ## Unit format
 
-**Content.** Choose and name sections freely; let the entity dictate the structure. Ask what the author needs to know about it when they return later. A unit holds only what's most important: source notes are the permanent record, the unit is a living distillation.
+**Content.** Choose and name sections freely; let the entity dictate the structure. Ask what the author needs to know about it when they return later. A unit holds only what's most important: source notes are the permanent record, the unit is a living distillation. Aim for a compact main text readable in a few minutes, with only the background needed to understand its distinctive contribution. More sources need not mean more text. Compress repetition and send readers to the source for full detail; preserve essential mechanisms, attribution and qualifications rather than meeting a hard word limit.
 
 **Two required sections:**
 

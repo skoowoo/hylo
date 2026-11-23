@@ -21,9 +21,12 @@ Onboarding in the desktop app creates the main **Hylo** bot. If you skipped it, 
 | ------------------------------- | -------------------------------------------------- |
 | `compile_requested`             | Compiles a note when you ask for it in the app     |
 | `note_created` on `/Web Clips/` | Compiles new web clips automatically               |
-| `scheduled` daily 09:00         | Updates your [personal memory](./context.md#personal-memory) |
+| `scheduled` daily 01:05         | Updates your [personal memory](./context.md#personal-memory) |
+| `scheduled` weekly Sunday 01:15 | Curates knowledge: trims, merges and removes units, leaving original notes unchanged |
 
 The setup chat after onboarding also offers a **Recall** bot that brings your notes back to you: a review of your past week every Monday, a random walk through your history every afternoon, or both.
+
+Schedules use the server's local timezone. Weekly knowledge curation is added when a new main Hylo bot is created; existing bots can add it manually.
 
 Edit or remove any of these, or click **New Bot** to build your own.
 

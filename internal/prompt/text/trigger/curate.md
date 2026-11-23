@@ -1,0 +1,1 @@
+Use the hylo-curate-knowledge skill to curate one batch of my knowledge base: trim repetition, merge duplicate units and delete units without independent collection value. Keep original notes unchanged.

@@ -21,7 +21,7 @@ const (
 	hyloBotDescription = "Your personal AI agent. Connect WeChat, Discord or Telegram on this bot to chat there too."
 )
 
-// hyloBot compiles notes and keeps memory. Chat apps are connected on the bot
+// hyloBot compiles notes, curates knowledge and keeps memory. Chat apps connect on the bot
 // itself and join its chat. Reviews are a Recall bot's job, which hylo-setup offers.
 func hyloBot(agentID, model string) (*mate.Mate, []mate.MateTrigger) {
 	if model == "" {
@@ -48,7 +48,8 @@ func hyloBot(agentID, model string) (*mate.Mate, []mate.MateTrigger) {
 	return m, []mate.MateTrigger{
 		on("Compiler", mate.MateEventCompileRequested, prompt.TriggerCompile),
 		webClips,
-		scheduled("Memory", "daily 09:00", prompt.TriggerMemory),
+		scheduled("Memory", "daily 01:05", prompt.TriggerMemory),
+		scheduled("Knowledge Curation", "weekly sun 01:15", prompt.TriggerCurate),
 	}
 }
 

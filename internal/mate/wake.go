@@ -55,7 +55,7 @@ func (s *Store) TurnBot(mateID, triggerID string) (*Mate, error) {
 }
 
 // WakeReason names what woke a bot, for the agent to read, e.g.
-// `Your trigger "Memory" (daily 09:00)`. The task itself carries the note.
+// `Your trigger "Memory" (daily 01:05)`. The task itself carries the note.
 func (s *Store) WakeReason(triggerID string, event MateEventType) string {
 	what := EventLabel(event)
 	var name string

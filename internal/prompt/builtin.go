@@ -28,7 +28,7 @@ var wakeTmpl = parse("trigger/wake")
 
 // WakeRequest is what the agent reads for a wake: who started the turn, how
 // its reply reaches the user, and the task. reason names the source, e.g.
-// `Your trigger "Memory" (daily 09:00)`.
+// `Your trigger "Memory" (daily 01:05)`.
 func WakeRequest(reason, task string) string {
 	return execute(wakeTmpl, struct{ Reason, Task string }{reason, task})
 }
@@ -60,6 +60,7 @@ func Nudge(name string) string { return load("proactive/nudge_" + name) }
 // Trigger templates of the Hylo bot.
 var (
 	TriggerCompile = load("trigger/compile")
+	TriggerCurate  = load("trigger/curate")
 	TriggerMemory  = load("trigger/memory")
 )
 

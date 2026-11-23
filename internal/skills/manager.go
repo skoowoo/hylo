@@ -43,7 +43,7 @@ var DefaultSkills = func() []string {
 
 // MainOnly are built-ins that run Hylo itself (setup, bots, the knowledge base,
 // memory), so only the main bot may use them.
-var MainOnly = []string{"hylo-bots", "hylo-compile-note", "hylo-index-knowledge", "hylo-memory", "hylo-setup"}
+var MainOnly = []string{"hylo-bots", "hylo-compile-note", "hylo-curate-knowledge", "hylo-index-knowledge", "hylo-memory", "hylo-setup"}
 
 // Retired maps built-in skills no longer shipped to the one that replaced them
 // ("" when none), so their files, links and the prompts naming them move on.
