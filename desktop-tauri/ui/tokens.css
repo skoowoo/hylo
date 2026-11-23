@@ -138,6 +138,7 @@
       --float-bd:var(--line-edge);
       --float-shadow:var(--shadow-sm) var(--shadow-color);
       --float-shadow-lg:var(--shadow-lg) var(--shadow-color);
+      --sheet-shadow:0 1px 4px rgba(0,0,0,0.30);
       --bq-bd:rgba(var(--accent-rgb),0.55);
       --ul-mk:var(--prose-body); --ol-mk:var(--prose-body);
       --code-bg:oklch(var(--ink) / 0.055);
@@ -186,6 +187,7 @@
       --float-bd:transparent;
       --float-shadow:0 1px 3px oklch(var(--ink) / 0.08), 0 10px 32px oklch(var(--ink) / 0.14);
       --float-shadow-lg:0 2px 6px oklch(var(--ink) / 0.08), 0 24px 64px oklch(var(--ink) / 0.18);
+      --sheet-shadow:0 1px 4px oklch(var(--ink) / 0.08);
       --link:var(--fg);
       --link-ul:var(--accent); --link-ul-hov:var(--accent-hov);
       --h1:var(--fg); --h2:var(--fg); --h3:var(--fg); --h4:var(--fg); --h5:var(--prose-body); --h6:var(--muted);
@@ -229,6 +231,7 @@
       --float-bd:transparent;
       --float-shadow:0 1px 3px oklch(var(--ink) / 0.08), 0 10px 32px oklch(var(--ink) / 0.14);
       --float-shadow-lg:0 2px 6px oklch(var(--ink) / 0.08), 0 24px 64px oklch(var(--ink) / 0.18);
+      --sheet-shadow:0 1px 4px oklch(var(--ink) / 0.08);
       --link:var(--fg);
       --link-ul:var(--accent); --link-ul-hov:var(--accent-hov);
       --h1:var(--fg); --h2:var(--fg); --h3:var(--fg); --h4:var(--fg); --h5:var(--prose-body); --h6:var(--muted);

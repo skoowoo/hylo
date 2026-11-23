@@ -155,7 +155,8 @@ const appTokensDark = `
       /* Floating surfaces (menus, popovers, dialogs). Shadows vanish on dark, so the edge is a lit line. */
       --float-bd:var(--line-edge);
       --float-shadow:var(--shadow-sm) var(--shadow-color);
-      --float-shadow-lg:var(--shadow-lg) var(--shadow-color);`
+      --float-shadow-lg:var(--shadow-lg) var(--shadow-color);
+      --sheet-shadow:0 1px 4px rgba(0,0,0,0.30);`
 
 // Light adaptation — the same accent-hued greys.
 const appTokensLight = `
@@ -183,7 +184,8 @@ const appTokensLight = `
       /* On light the shadow alone draws the edge; a dark line over glass muddies with what's behind. */
       --float-bd:transparent;
       --float-shadow:0 1px 3px oklch(var(--ink) / 0.08), 0 10px 32px oklch(var(--ink) / 0.14);
-      --float-shadow-lg:0 2px 6px oklch(var(--ink) / 0.08), 0 24px 64px oklch(var(--ink) / 0.18);`
+      --float-shadow-lg:0 2px 6px oklch(var(--ink) / 0.08), 0 24px 64px oklch(var(--ink) / 0.18);
+      --sheet-shadow:0 1px 4px oklch(var(--ink) / 0.08);`
 
 // Drop into a <style> tag. Dark on :root; light via data-theme or OS preference.
 const appTokensCSS = `    :root {` + appTokensShared + appTokensDark + contentTokensShared + contentTokensDark + `

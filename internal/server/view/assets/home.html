@@ -1,7 +1,7 @@
   <div class="home-container">
   <!-- Sidebar + note list ─────────────────────────────────────────── -->
   <div class="home-shell"
-       :class="{'content-pane-open': layoutOpen, 'is-resizing': isPaneResizing}"
+       :class="{'content-pane-open': layoutOpen, 'is-resizing': isPaneResizing, 'is-pane-maximized': layoutOpen && layoutRatio === 0}"
        :style="'--split-ratio:' + layoutRatio + ';--split-ratio-inv:' + (1 - layoutRatio)">
     <aside class="home-side" id="home-side">
       <div class="home-side-top">

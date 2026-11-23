@@ -15,6 +15,7 @@
       position: absolute; top: 0; bottom: 0; left: var(--split-gap); right: 0;
       background: var(--bg);
       border-radius: var(--r-md);
+      box-shadow: var(--sheet-shadow);
       display: flex; flex-direction: column; overflow: hidden;
       /* Shared by every floating popover in here — more menu, bot menu,
          the find/replace card — so they all sit the same distance off

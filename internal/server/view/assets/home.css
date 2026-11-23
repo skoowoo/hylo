@@ -63,7 +63,6 @@
       display: flex; justify-content: flex-end;
       min-width: 0; min-height: 0;
       margin: var(--sheet-gap) var(--sheet-gap) var(--sheet-gap) 0;
-      overflow: hidden;
       container-type: inline-size;
     }
     /* The split is one real width transition on .content-pane; the list
@@ -72,7 +71,12 @@
     /* The pane's width includes the gap before its card, so the gap moves with
        the same transition. Ratio splits box + gap, so 0.5 gives equal cards.
        Round the target width to whole pixels. */
-    .home-shell.content-pane-open .content-pane { width: round(down, (100cqw + var(--split-gap)) * var(--split-ratio-inv), 1px); }
+    .home-shell.content-pane-open .content-pane {
+      width: round(down, (100cqw + var(--split-gap)) * var(--split-ratio-inv), 1px);
+      overflow: visible;
+      contain: layout style;
+    }
+    .home-shell.is-pane-maximized .home-list-pane { box-shadow: none; }
     .home-shell.is-resizing .content-pane { transition: none; }
     .home-shell.is-resizing.is-split-snapping .content-pane { transition: width var(--motion-slow) var(--ease-out); }
 
@@ -153,7 +157,7 @@
       flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
       min-width: 18px; height: 18px; padding: 0 5px; box-sizing: border-box;
       font-size: 10.5px; font-weight: var(--fw-semibold); line-height: 1;
-      color: var(--accent-text); background: var(--tint-strong);
+      color: var(--bg); background: var(--fg);
       border-radius: var(--r-full); /* a circle at one digit, a pill past it */
       font-variant-numeric: tabular-nums;
     }
@@ -210,11 +214,9 @@
     .home-side-child-name {
       flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
-    .home-side-child .home-side-count { background: transparent; padding: 0; color: var(--muted); }
-    .home-side-child.is-active .home-side-count { color: inherit; }
+    .home-side-child .home-side-count:not(.home-side-count--unread) { background: transparent; padding: 0; color: var(--muted); }
+    .home-side-child.is-active .home-side-count:not(.home-side-count--unread) { color: inherit; }
     .home-side-count--plain { background: transparent; padding: 0; color: var(--muted); font-weight: var(--fw-medium); }
-    /* What a bot sent on its own and the user hasn't read keeps the accent pill. */
-    .home-side-child .home-side-count--unread { background: var(--tint-strong); padding: 0 5px; color: var(--accent-text); }
 
     /* ── Open tabs ───────────────────────────────────────────── */
     /* Holds the first tab's slot, text on the child-title column (padding + lead + gap); a label, not a control. */
@@ -301,6 +303,7 @@
       contain: layout paint style;
       background: var(--bg);
       border-radius: var(--r-md);
+      box-shadow: var(--sheet-shadow);
     }
     /* The shared header row for sections that need one (Favorites, a folder,
        Knowledge, Images, Agents, Shorts) — same height/padding/no-border

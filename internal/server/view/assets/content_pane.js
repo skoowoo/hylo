@@ -188,6 +188,7 @@
           }
           shell.style.setProperty('--split-ratio', latestRatio);
           shell.style.setProperty('--split-ratio-inv', 1 - latestRatio);
+          shell.classList.toggle('is-pane-maximized', latestRatio === 0);
         }
         function onMove(ev) {
           var ratio = (ev.clientX - mainRect.left + gap / 2) / avail;
