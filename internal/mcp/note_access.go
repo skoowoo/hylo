@@ -65,7 +65,7 @@ type NoteAccess struct {
 // ToolName strips the prefix an agent CLI puts on one of hylo's MCP tools
 // (mcp__hylo__read, hylo_read, hylo-read); ok is false for any other tool.
 func ToolName(name string) (string, bool) {
-	for _, p := range []string{"mcp__hylo__", "hylo__", "hylo_", "hylo-", "hylo."} {
+	for _, p := range []string{"mcp__hylo__", "mcp_hylo_", "hylo__", "hylo_", "hylo-", "hylo."} {
 		if rest, found := strings.CutPrefix(name, p); found {
 			_, known := noteTools[rest]
 			return rest, known

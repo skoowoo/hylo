@@ -7,7 +7,7 @@ import (
 // supportsNativeSession lists agents whose CLI or wire protocol can resume
 // multi-turn context by session id without replaying host message history.
 // Mechanisms:
-//   - CLI flags: claude, codex, opencode, cursor-agent, copilot
+//   - CLI flags: claude, codex, opencode, cursor-agent, copilot, agy
 //   - Pi RPC --session-id (open or create): pi
 var supportsNativeSession = map[string]struct{}{
 	"claude":       {},
@@ -16,6 +16,7 @@ var supportsNativeSession = map[string]struct{}{
 	"cursor-agent": {},
 	"copilot":      {},
 	"pi":           {},
+	"agy":          {},
 }
 
 // All agent definitions (order matches Open Design AGENT_DEFS).
@@ -33,6 +34,14 @@ func definitions() []*AgentDef {
 		{ID: "default", Label: "Default"},
 		{ID: "off", Label: "Off"},
 		{ID: "minimal", Label: "Minimal"},
+		{ID: "low", Label: "Low"},
+		{ID: "medium", Label: "Medium"},
+		{ID: "high", Label: "High"},
+		{ID: "xhigh", Label: "XHigh"},
+		{ID: "max", Label: "Max"},
+	}
+	reasonAgy := []ReasoningOption{
+		{ID: "default", Label: "Default"},
 		{ID: "low", Label: "Low"},
 		{ID: "medium", Label: "Medium"},
 		{ID: "high", Label: "High"},
@@ -134,6 +143,23 @@ func definitions() []*AgentDef {
 			SupportsImagePaths: true,
 			build:              buildPi,
 		},
+		{
+			ID: "agy", Name: "Antigravity", Bin: "agy",
+			VersionArgs:     []string{"--version"},
+			listModelsArgs:  []string{"models"}, listModelsTimeout: 10000,
+			listModelsParse: parseAgyModels,
+			FallbackModels: []ModelOption{
+				DefaultModelOption,
+				{ID: "gemini-4-neon-medium", Label: "Gemini 4 Neon (Medium)"},
+				{ID: "gemini-4-neon-high", Label: "Gemini 4 Neon (High)"},
+				{ID: "gemini-3.8-flash-medium", Label: "Gemini 3.8 Flash (Medium)"},
+				{ID: "claude-sonnet-5-5-medium", Label: "Claude Sonnet 5.5 (Medium)"},
+				{ID: "claude-opus-5-5-medium", Label: "Claude Opus 5.5 (Medium)"},
+			},
+			ReasoningOptions: reasonAgy,
+			StreamFormat:     StreamJSONEvent, EventParser: "agy", PromptViaStdin: true,
+			build: buildAgy,
+		},
 	}
 	for _, d := range defs {
 		if _, ok := supportsNativeSession[d.ID]; ok {
@@ -191,6 +217,36 @@ func parseCursorModels(stdout string) []ModelOption {
 			continue
 		}
 		seen[id] = struct{}{}
+		out = append(out, ModelOption{ID: id, Label: label})
+	}
+	if len(out) <= 1 {
+		return nil
+	}
+	return out
+}
+
+func parseAgyModels(stdout string) []ModelOption {
+	lines := strings.Split(stdout, "\n")
+	seen := map[string]struct{}{}
+	out := []ModelOption{DefaultModelOption}
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		fields := strings.Fields(line)
+		if len(fields) == 0 {
+			continue
+		}
+		id := fields[0]
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		label := strings.TrimSpace(line[len(id):])
+		if label == "" {
+			label = id
+		}
 		out = append(out, ModelOption{ID: id, Label: label})
 	}
 	if len(out) <= 1 {

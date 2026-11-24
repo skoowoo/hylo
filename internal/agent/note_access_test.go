@@ -198,3 +198,15 @@ func TestNoteAccessTracker_SkimsAreNotReads(t *testing.T) {
 		}
 	}
 }
+
+func TestNoteAccessTracker_AgyTools(t *testing.T) {
+	tr := NewNoteAccessTracker("/vault", "/vault", nil)
+	tr.Feed(map[string]any{"type": "tool_use", "name": "view_file", "input": map[string]any{"AbsolutePath": "/vault/read.md"}})
+	tr.Feed(map[string]any{"type": "tool_use", "name": "write_to_file", "input": map[string]any{"TargetFile": "/vault/write.md"}})
+	tr.Feed(map[string]any{"type": "tool_use", "name": "run_command", "input": map[string]any{"CommandLine": "cat cmd.md"}})
+	assertPaths(t, tr.Entries(), []NoteAccess{
+		{Path: "/read.md", Action: NoteActionRead, Tool: "view_file"},
+		{Path: "/write.md", Action: NoteActionWrite, Tool: "write_to_file"},
+		{Path: "/cmd.md", Action: NoteActionRead, Tool: "run_command"},
+	})
+}

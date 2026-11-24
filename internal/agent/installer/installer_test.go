@@ -54,6 +54,7 @@ func TestDetectInstallSource(t *testing.T) {
 	}{
 		{"opencode", "/Users/alice/.opencode/bin/opencode", SourceNative},
 		{"claude", "/Users/alice/.local/bin/claude", SourceNative},
+		{"agy", "/Users/alice/.local/bin/agy", SourceNative},
 		{"codex", "/opt/homebrew/bin/codex", SourceHomebrew},
 		{"claude", "/usr/local/Cellar/claude/1.0/bin/claude", SourceHomebrew},
 		{"pi", "/Users/alice/.nvm/versions/node/v22.0.0/bin/pi", SourceNPM},

@@ -73,6 +73,13 @@ func (a *authenticator) wrap(next http.Handler) http.Handler {
 		case "/logout":
 			a.logout(w, r)
 			return
+		case "/mcp":
+			// Local agents reach /mcp directly over loopback; /mcp is blocked on
+			// Relay and guarded by CrossOriginProtection against browser CSRF.
+			if isDirectLoopback(r) {
+				next.ServeHTTP(w, r)
+				return
+			}
 		}
 
 		if a.authorized(r) {
@@ -193,4 +200,23 @@ func isHTTPS(r *http.Request) bool {
 	host, _, _ := net.SplitHostPort(r.RemoteAddr)
 	ip := net.ParseIP(host)
 	return ip != nil && ip.IsLoopback() && r.Header.Get("X-Forwarded-Proto") == "https"
+}
+
+// isDirectLoopback reports whether the request arrived directly from loopback
+// without reverse-proxy forwarding headers.
+func isDirectLoopback(r *http.Request) bool {
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		host = r.RemoteAddr
+	}
+	ip := net.ParseIP(host)
+	if ip == nil || !ip.IsLoopback() {
+		return false
+	}
+	for _, h := range []string{"X-Forwarded-For", "Forwarded", "X-Real-IP", "X-Forwarded-Host"} {
+		if r.Header.Get(h) != "" {
+			return false
+		}
+	}
+	return true
 }

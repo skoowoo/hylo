@@ -23,6 +23,7 @@ document.addEventListener('alpine:init', function () {
     { id: 'opencode', label: 'OpenCode' },
     { id: 'cursor-agent', label: 'Cursor' },
     { id: 'copilot', label: 'Copilot' },
+    { id: 'agy', label: 'Antigravity' },
   ].map(function (a) {
     a.logo = window.__hyloAgentLogo(a.id, 'agents/', { glyph: 'ob-glyph', dark: 'ob-on-dark', light: 'ob-on-light' });
     return a;

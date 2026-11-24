@@ -152,7 +152,7 @@ func knownCandidates(accs []NoteAccess) []noteCandidate {
 }
 
 var (
-	notePathKeyRe      = regexp.MustCompile(`(?i)^(file_?path|filepath|path|notebook_?path|target_?file|file)$`)
+	notePathKeyRe      = regexp.MustCompile(`(?i)^(file_?path|filepath|path|notebook_?path|target_?file|absolute_?path|file)$`)
 	notePathArrayKeyRe = regexp.MustCompile(`(?i)^(paths|files|file_paths)$`)
 	noteReadVerbRe     = regexp.MustCompile(`(?i)read|view|cat|get|glob|grep|search|fetch|list`)
 	noteSkimVerbRe     = regexp.MustCompile(`(?i)glob|grep|search|list|^ls$|find`)
@@ -236,7 +236,7 @@ func extractNoteCandidates(name string, input any, known KnownNotes) []noteCandi
 	// scanning the command string itself. Best-effort safety net, not a
 	// precise parse — unrecognized verbs are skipped rather than guessed.
 	if noteShellToolRe.MatchString(name) {
-		if cmd, ok := inputMap["command"].(string); ok {
+		if cmd := firstNonEmpty(toString(inputMap["command"]), toString(inputMap["CommandLine"])); cmd != "" {
 			return extractNotesFromShellCommand(cmd, known)
 		}
 	}

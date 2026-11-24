@@ -22,7 +22,7 @@ func (a *AgentAPI) injectMCP(agentID, runID, cwd string, argv, env []string) ([]
 	if url == "" {
 		return argv, env
 	}
-	inj, err := agent.PrepareMCP(agentID, agent.MCPEndpoint{URL: url, APIKey: a.cfg.Server.APIKey, RunID: runID}, cwd, env)
+	inj, err := agent.PrepareMCP(agentID, agent.MCPEndpoint{URL: url, RunID: runID}, cwd, env)
 	if err != nil {
 		a.logger.Warn("mcp injection skipped", slog.String("agentId", agentID), slog.String("err", err.Error()))
 		return argv, env

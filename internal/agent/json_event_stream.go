@@ -2,11 +2,12 @@ package agent
 
 import (
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"strings"
 )
 
-// JSONEventStream parses json-event-stream (Codex / OpenCode / cursor-agent).
+// JSONEventStream parses json-event-stream (Codex / OpenCode / cursor-agent / Agy).
 type JSONEventStream struct {
 	kind   string
 	buffer string
@@ -19,6 +20,7 @@ type JSONEventStream struct {
 	codexTools         map[string]struct{}
 	codexErrEmitted    bool
 	cursorToolsEmitted map[string]struct{}
+	agyToolsEmitted    map[string]struct{}
 }
 
 func NewJSONEventStream(kind string, on func(map[string]any)) *JSONEventStream {
@@ -28,6 +30,7 @@ func NewJSONEventStream(kind string, on func(map[string]any)) *JSONEventStream {
 		openCodeTools:      make(map[string]struct{}),
 		codexTools:         make(map[string]struct{}),
 		cursorToolsEmitted: make(map[string]struct{}),
+		agyToolsEmitted:    make(map[string]struct{}),
 	}
 }
 
@@ -86,6 +89,8 @@ func (j *JSONEventStream) dispatch(obj map[string]any, raw string) bool {
 		return j.cursor(obj)
 	case "codex":
 		return j.codex(obj)
+	case "agy":
+		return j.agy(obj)
 	default:
 		return false
 	}
@@ -433,6 +438,104 @@ func (j *JSONEventStream) codex(obj map[string]any) bool {
 		return true
 	}
 	return false
+}
+
+func (j *JSONEventStream) agy(obj map[string]any) bool {
+	if sid := toString(obj["conversation_id"]); sid != "" {
+		j.on(sessionAgentEvent(sid))
+	}
+	ev, _ := obj["event"].(string)
+	switch ev {
+	case "init":
+		initObj, _ := obj["init"].(map[string]any)
+		var model any
+		if initObj != nil {
+			model = initObj["model"]
+		}
+		j.on(map[string]any{"type": "status", "label": "initializing", "model": model})
+		return true
+	case "step_update":
+		su, _ := obj["step_update"].(map[string]any)
+		if su == nil {
+			return true
+		}
+		if sid := toString(su["conversation_id"]); sid != "" {
+			j.on(sessionAgentEvent(sid))
+		}
+		switch toString(su["step_type"]) {
+		case "agent_response":
+			if td := toString(su["thinking_delta"]); td != "" {
+				j.on(map[string]any{"type": "thinking_delta", "delta": td})
+			}
+			if td := toString(su["text_delta"]); td != "" {
+				j.on(map[string]any{"type": "text_delta", "delta": td})
+			}
+		case "tool":
+			j.agyToolStep(su)
+		}
+		return true
+	case "result":
+		res, _ := obj["result"].(map[string]any)
+		if res == nil {
+			return true
+		}
+		if sid := toString(res["conversation_id"]); sid != "" {
+			j.on(sessionAgentEvent(sid))
+		}
+		status := toString(res["status"])
+		if (status != "" && status != "SUCCESS") || toString(res["error"]) != "" {
+			j.on(map[string]any{"type": "error", "message": extractErr(res["error"], status, "Antigravity error")})
+		}
+		usageEv := map[string]any{"type": "usage", "usage": res["usage"]}
+		if dur := toFloat(res["duration_seconds"]); dur > 0 {
+			usageEv["durationMs"] = dur * 1000
+		}
+		j.on(usageEv)
+		return true
+	}
+	return false
+}
+
+func (j *JSONEventStream) agyToolStep(su map[string]any) {
+	info, _ := su["tool_info"].(map[string]any)
+	name := firstNonEmpty(toString(su["tool_name"]), toString(info["name"]))
+	if name == "" {
+		return
+	}
+	var input any
+	if info != nil {
+		input = info["parameters"]
+	}
+	if name == "call_mcp_tool" {
+		if params, ok := input.(map[string]any); ok {
+			srv := firstNonEmpty(toString(params["ServerName"]), toString(params["server_name"]))
+			tool := firstNonEmpty(toString(params["ToolName"]), toString(params["tool_name"]))
+			if srv != "" && tool != "" {
+				name = "mcp__" + srv + "__" + tool
+				if args, ok := params["Arguments"]; ok {
+					input = args
+				} else if args, ok := params["arguments"]; ok {
+					input = args
+				}
+			}
+		}
+	}
+	id := fmt.Sprintf("step-%.0f", toFloat(su["step_index"]))
+	if _, seen := j.agyToolsEmitted[id]; !seen {
+		j.agyToolsEmitted[id] = struct{}{}
+		j.on(map[string]any{"type": "tool_use", "id": id, "name": name, "input": input})
+	}
+	state := toString(su["state"])
+	if state == "DONE" || state == "ERROR" {
+		isErr := state == "ERROR" || (info != nil && info["error"] != nil)
+		var content string
+		if isErr && info != nil {
+			content = extractErr(info["error"], info["output"], "Tool error")
+		} else if info != nil {
+			content = stringifyToolResult(info["output"])
+		}
+		j.on(map[string]any{"type": "tool_result", "toolUseId": id, "content": content, "isError": isErr})
+	}
 }
 
 func toFloat(v any) float64 {

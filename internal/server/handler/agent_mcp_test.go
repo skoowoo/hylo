@@ -22,6 +22,7 @@ func TestMCPURLMatchesInjection(t *testing.T) {
 		want  bool
 	}{
 		{"claude", 54321, "claude", true},
+		{"agy", 54321, "agy", true},
 		{"unknown agent", 54321, "unknown", false},
 		{"tcp disabled", 0, "claude", false},
 	}
@@ -33,7 +34,7 @@ func TestMCPURLMatchesInjection(t *testing.T) {
 		}
 		// The prompt claims MCP exactly when argv/env are actually extended.
 		argv, _ := a.injectMCP(c.agent, "", t.TempDir(), nil, nil)
-		if (len(argv) > 0) != c.want && c.agent != "opencode" {
+		if (len(argv) > 0) != c.want && c.agent != "opencode" && c.agent != "agy" {
 			t.Errorf("%s: injected argv=%v inconsistent with mcpURL", c.name, argv)
 		}
 	}

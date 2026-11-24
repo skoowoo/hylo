@@ -10,6 +10,7 @@
     opencode: { full: 'opencode.svg' },
     'cursor-agent': { dark: 'cursor-dark.svg', light: 'cursor-light.svg' },
     copilot: { mask: 'copilot.svg' },
+    agy: { full: 'agy.png' },
   };
   window.__hyloAgentLogo = function (id, base, cls) {
     var l = LOGOS[id];

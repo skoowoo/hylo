@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"os/exec"
 	"strings"
@@ -172,6 +173,8 @@ func ExecChat(
 		if def.PromptViaStdin {
 			if holdStdin {
 				_, _ = stdin.Write(claudeUserLine(composed, safeImagePaths))
+			} else if def.ID == "agy" {
+				_, _ = stdin.Write(agyUserLine(composed))
 			} else {
 				_, _ = io.WriteString(stdin, composed)
 			}
@@ -197,6 +200,20 @@ type writerFunc struct{ f func([]byte) }
 func (w *writerFunc) Write(p []byte) (int, error) {
 	w.f(p)
 	return len(p), nil
+}
+
+func agyUserLine(prompt string) []byte {
+	frame := map[string]any{
+		"event": "user",
+		"message": map[string]any{
+			"content": prompt,
+		},
+	}
+	b, err := json.Marshal(frame)
+	if err != nil {
+		b = []byte(`{"event":"user","message":{"content":""}}`)
+	}
+	return append(b, '\n')
 }
 
 // dropExpectedNoise drops stderr lines that only echo what Hylo asked for: Pi warns

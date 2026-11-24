@@ -47,6 +47,7 @@ var registry = []Installer{
 	cursorInstaller{},
 	copilotInstaller{},
 	piInstaller{},
+	agyInstaller{},
 }
 
 func Get(agentID string) Installer {

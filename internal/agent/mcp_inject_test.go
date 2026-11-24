@@ -8,36 +8,7 @@ import (
 	"testing"
 )
 
-var testEP = MCPEndpoint{URL: "http://127.0.0.1:54321/mcp", APIKey: "secret"}
-
-func TestPrepareMCPNeverPutsKeyInArgvOrFiles(t *testing.T) {
-	for _, id := range []string{"claude", "codex", "opencode", "copilot", "cursor-agent", "pi"} {
-		dir := t.TempDir()
-		inj, err := PrepareMCP(id, testEP, dir, nil)
-		if err != nil {
-			t.Fatalf("%s: %v", id, err)
-		}
-		if inj.Env["HYLO_API_KEY"] != "secret" {
-			t.Errorf("%s: key not passed via env", id)
-		}
-		if strings.Contains(strings.Join(inj.Args, " "), "secret") {
-			t.Errorf("%s: key leaked into argv: %v", id, inj.Args)
-		}
-		_ = filepath.Walk(dir, func(p string, info os.FileInfo, _ error) error {
-			if info != nil && !info.IsDir() {
-				if b, _ := os.ReadFile(p); strings.Contains(string(b), "secret") {
-					t.Errorf("%s: key leaked into %s", id, p)
-				}
-			}
-			return nil
-		})
-		for k, v := range inj.Env {
-			if k != "HYLO_API_KEY" && strings.Contains(v, "secret") {
-				t.Errorf("%s: key leaked into env %s", id, k)
-			}
-		}
-	}
-}
+var testEP = MCPEndpoint{URL: "http://127.0.0.1:54321/mcp"}
 
 func TestPrepareMCPClaude(t *testing.T) {
 	inj, err := PrepareMCP("claude", testEP, t.TempDir(), nil)
@@ -54,27 +25,25 @@ func TestPrepareMCPClaude(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := cfg.MCPServers["hylo"]
-	if s["type"] != "http" || s["url"] != testEP.URL || s["headers"].(map[string]any)["Authorization"] != "Bearer ${HYLO_API_KEY}" {
+	if s["type"] != "http" || s["url"] != testEP.URL {
 		t.Errorf("server: %v", s)
 	}
 	// Claude drops the whole server if it sees any key beyond these.
 	for k := range s {
-		if k != "type" && k != "url" && k != "headers" {
+		if k != "type" && k != "url" {
 			t.Errorf("unexpected key %q in claude server config", k)
 		}
 	}
 }
 
 func TestPrepareMCPCodex(t *testing.T) {
-	inj, _ := PrepareMCP("codex", testEP, t.TempDir(), nil)
-	want := []string{"-c", `mcp_servers.hylo.url="http://127.0.0.1:54321/mcp"`, "-c", `mcp_servers.hylo.bearer_token_env_var="HYLO_API_KEY"`}
-	if strings.Join(inj.Args, "\x00") != strings.Join(want, "\x00") {
-		t.Errorf("args: %q", inj.Args)
+	inj, err := PrepareMCP("codex", testEP, t.TempDir(), nil)
+	if err != nil {
+		t.Fatal(err)
 	}
-
-	inj, _ = PrepareMCP("codex", MCPEndpoint{URL: testEP.URL}, t.TempDir(), nil)
-	if len(inj.Args) != 2 || len(inj.Env) != 0 {
-		t.Errorf("without key: args=%q env=%v", inj.Args, inj.Env)
+	want := []string{"-c", `mcp_servers.hylo.url="http://127.0.0.1:54321/mcp"`}
+	if strings.Join(inj.Args, "\x00") != strings.Join(want, "\x00") || len(inj.Env) != 0 {
+		t.Errorf("args=%q env=%v", inj.Args, inj.Env)
 	}
 }
 
@@ -94,7 +63,7 @@ func TestPrepareMCPOpenCodeMergesExistingConfig(t *testing.T) {
 		t.Errorf("existing config lost: %v", cfg)
 	}
 	hylo := servers["hylo"].(map[string]any)
-	if hylo["type"] != "remote" || hylo["headers"].(map[string]any)["Authorization"] != "Bearer {env:HYLO_API_KEY}" {
+	if hylo["type"] != "remote" || hylo["url"] != testEP.URL {
 		t.Errorf("hylo entry: %v", hylo)
 	}
 
@@ -118,10 +87,11 @@ func TestPrepareMCPCopilot(t *testing.T) {
 
 func TestPrepareMCPFileBasedAgents(t *testing.T) {
 	cases := []struct {
-		id, file, flag, auth string
+		id, file, flag, urlKey string
 	}{
-		{"cursor-agent", ".cursor/mcp.json", "--approve-mcps", "Bearer ${env:HYLO_API_KEY}"},
-		{"pi", ".pi/mcp.json", "-a", "Bearer ${HYLO_API_KEY}"},
+		{"cursor-agent", ".cursor/mcp.json", "--approve-mcps", "url"},
+		{"pi", ".pi/mcp.json", "-a", "url"},
+		{"agy", ".agents/mcp_config.json", "", "serverUrl"},
 	}
 	for _, c := range cases {
 		dir := t.TempDir()
@@ -138,7 +108,11 @@ func TestPrepareMCPFileBasedAgents(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(inj.Args) != 1 || inj.Args[0] != c.flag {
+		if c.flag == "" {
+			if len(inj.Args) != 0 {
+				t.Errorf("%s args: %q", c.id, inj.Args)
+			}
+		} else if len(inj.Args) != 1 || inj.Args[0] != c.flag {
 			t.Errorf("%s args: %q", c.id, inj.Args)
 		}
 		b, _ := os.ReadFile(path)
@@ -151,7 +125,7 @@ func TestPrepareMCPFileBasedAgents(t *testing.T) {
 			t.Errorf("%s: existing entries lost: %s", c.id, b)
 		}
 		h := servers["hylo"].(map[string]any)
-		if h["url"] != testEP.URL || h["headers"].(map[string]any)["Authorization"] != c.auth {
+		if h[c.urlKey] != testEP.URL {
 			t.Errorf("%s hylo entry: %v", c.id, h)
 		}
 
@@ -168,16 +142,21 @@ func TestPrepareMCPFileBasedAgents(t *testing.T) {
 }
 
 func TestPrepareMCPRefusesToClobberInvalidFile(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, ".cursor", "mcp.json")
-	_ = os.MkdirAll(filepath.Dir(path), 0o755)
-	_ = os.WriteFile(path, []byte("{not json"), 0o644)
+	for _, c := range []struct{ id, file string }{
+		{"cursor-agent", ".cursor/mcp.json"},
+		{"agy", ".agents/mcp_config.json"},
+	} {
+		dir := t.TempDir()
+		path := filepath.Join(dir, c.file)
+		_ = os.MkdirAll(filepath.Dir(path), 0o755)
+		_ = os.WriteFile(path, []byte("{not json"), 0o644)
 
-	if _, err := PrepareMCP("cursor-agent", testEP, dir, nil); err == nil {
-		t.Fatal("expected error")
-	}
-	if b, _ := os.ReadFile(path); string(b) != "{not json" {
-		t.Errorf("file was modified: %s", b)
+		if _, err := PrepareMCP(c.id, testEP, dir, nil); err == nil {
+			t.Fatalf("%s: expected error", c.id)
+		}
+		if b, _ := os.ReadFile(path); string(b) != "{not json" {
+			t.Errorf("%s: file was modified: %s", c.id, b)
+		}
 	}
 }
 
@@ -191,12 +170,20 @@ func TestPrepareMCPUnsupportedAgents(t *testing.T) {
 }
 
 func TestSupportsMCPMatchesPrepareMCP(t *testing.T) {
-	for _, id := range []string{"claude", "codex", "opencode", "copilot", "cursor-agent", "pi", "unknown"} {
-		inj, err := PrepareMCP(id, testEP, t.TempDir(), nil)
+	for _, id := range []string{"claude", "codex", "opencode", "copilot", "cursor-agent", "pi", "agy", "unknown"} {
+		dir := t.TempDir()
+		inj, err := PrepareMCP(id, testEP, dir, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
-		injected := len(inj.Args) > 0 || inj.Env["OPENCODE_CONFIG_CONTENT"] != ""
+		wroteFile := false
+		_ = filepath.Walk(dir, func(_ string, info os.FileInfo, _ error) error {
+			if info != nil && !info.IsDir() {
+				wroteFile = true
+			}
+			return nil
+		})
+		injected := len(inj.Args) > 0 || inj.Env["OPENCODE_CONFIG_CONTENT"] != "" || wroteFile
 		if injected != SupportsMCP(id) {
 			t.Errorf("%s: SupportsMCP=%v but injected=%v", id, SupportsMCP(id), injected)
 		}

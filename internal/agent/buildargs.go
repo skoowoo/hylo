@@ -179,7 +179,7 @@ func UserText(agentID, message string, images int) string {
 		return message
 	}
 	switch agentID {
-	case "codex", "copilot", "cursor-agent", "opencode":
+	case "codex", "copilot", "cursor-agent", "opencode", "agy":
 		if images == 1 {
 			return "Look at the attached image."
 		}
@@ -189,12 +189,12 @@ func UserText(agentID, message string, images int) string {
 	}
 }
 
-// TurnText is the user text written to the CLI. Cursor and OpenCode have no
+// TurnText is the user text written to the CLI. Cursor, OpenCode, and Agy have no
 // image attachment flag, so the absolute paths are part of this text and their
 // read tool opens the files. The stored chat message stays the user's caption.
 func TurnText(agentID, message string, paths []string) string {
 	text := UserText(agentID, message, len(paths))
-	if agentID != "cursor-agent" && agentID != "opencode" {
+	if agentID != "cursor-agent" && agentID != "opencode" && agentID != "agy" {
 		return text
 	}
 	var lines []string
@@ -202,6 +202,27 @@ func TurnText(agentID, message string, paths []string) string {
 		lines = append(lines, text)
 	}
 	return strings.Join(append(lines, paths...), "\n")
+}
+
+func buildAgy(_ *AgentDef, c BuildArgsContext) []string {
+	args := []string{
+		"--input-format", "stream-json",
+		"--output-format", "stream-json",
+		"--dangerously-skip-permissions",
+	}
+	if c.SessionID != "" {
+		args = append(args, "--conversation", c.SessionID)
+	}
+	if c.Model != "" && c.Model != "default" {
+		args = append(args, "--model", c.Model)
+	}
+	if c.Reasoning != "" && c.Reasoning != "default" {
+		args = append(args, "--effort", c.Reasoning)
+	}
+	for _, d := range filterDirs(c.ExtraAllowedDirs) {
+		args = append(args, "--add-dir", d)
+	}
+	return appendUploadDirs(args, c.ImagePaths)
 }
 
 func buildPi(_ *AgentDef, c BuildArgsContext) []string {
@@ -262,6 +283,9 @@ func CLIExample(def *AgentDef) string {
 	cmd := shellJoin(parts)
 	if def.StreamFormat == StreamClaudeJSON {
 		return `echo '{"type":"user","message":{"role":"user","content":"Hello"}}' | ` + cmd
+	}
+	if def.ID == "agy" {
+		return `echo '{"event":"user","message":{"content":"Hello"}}' | ` + cmd
 	}
 	if def.PromptViaStdin {
 		return `echo "Hello" | ` + cmd

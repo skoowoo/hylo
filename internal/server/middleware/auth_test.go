@@ -154,3 +154,35 @@ func TestSignInCallbackNeedsNoSession(t *testing.T) {
 		t.Fatal("apps API without a session")
 	}
 }
+
+func TestMCPDirectLoopbackSkipsAuth(t *testing.T) {
+	h := newAuthServer(t)
+
+	for _, addr := range []string{"127.0.0.1:5555", "[::1]:5555"} {
+		r := httptest.NewRequest("POST", "http://127.0.0.1:54321/mcp", nil)
+		r.RemoteAddr = addr
+		if got := do(h, r).Code; got != 200 {
+			t.Fatalf("direct loopback %s /mcp = %d, want 200", addr, got)
+		}
+	}
+
+	// Reverse-proxied or non-loopback /mcp requests must still authenticate.
+	for _, hdr := range []string{"X-Forwarded-For", "Forwarded", "X-Real-IP", "X-Forwarded-Host"} {
+		r := httptest.NewRequest("POST", "http://127.0.0.1:54321/mcp", nil)
+		r.RemoteAddr = "127.0.0.1:5555"
+		r.Header.Set(hdr, "203.0.113.1")
+		if got := do(h, r).Code; got != 401 {
+			t.Fatalf("proxied /mcp (%s) = %d, want 401", hdr, got)
+		}
+	}
+
+	r := httptest.NewRequest("POST", "http://10.0.0.2:54321/mcp", nil)
+	r.RemoteAddr = "10.0.0.2:5555"
+	if got := do(h, r).Code; got != 401 {
+		t.Fatalf("remote /mcp without key = %d, want 401", got)
+	}
+	r.Header.Set("Authorization", "Bearer secret")
+	if got := do(h, r).Code; got != 200 {
+		t.Fatalf("remote /mcp with key = %d, want 200", got)
+	}
+}

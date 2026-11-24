@@ -159,6 +159,41 @@ func TestBuildOpenCodeSessionArgs(t *testing.T) {
 	}
 }
 
+func TestBuildAgyArgs(t *testing.T) {
+	def := GetAgentDef("agy")
+	if def == nil {
+		t.Fatal("agy def missing")
+	}
+	paths := []string{"/vault/.hylo/uploads/a.png", "/vault/.hylo/uploads/b.png"}
+	args := BuildInvocationArgs(def, BuildArgsContext{
+		SessionID:        "conv-42",
+		Model:            "gemini-4-neon-high",
+		Reasoning:        "high",
+		ExtraAllowedDirs: []string{"/extra"},
+		ImagePaths:       paths,
+	})
+	if !containsSeq(args, "--input-format", "stream-json") ||
+		!containsSeq(args, "--output-format", "stream-json") ||
+		!containsSeq(args, "--dangerously-skip-permissions") ||
+		!containsSeq(args, "--conversation", "conv-42") ||
+		!containsSeq(args, "--model", "gemini-4-neon-high") ||
+		!containsSeq(args, "--effort", "high") ||
+		!containsSeq(args, "--add-dir", "/extra") ||
+		!containsSeq(args, "--add-dir", "/vault/.hylo/uploads") {
+		t.Fatalf("agy args = %v", args)
+	}
+	if got := UserText("agy", "", 1); got != "Look at the attached image." {
+		t.Fatalf("agy caption = %q", got)
+	}
+	if got := TurnText("agy", "look", paths[:1]); got != "look\n"+paths[0] {
+		t.Fatalf("agy turn text = %q", got)
+	}
+	ex := CLIExample(def)
+	if !strings.Contains(ex, `{"event":"user","message":{"content":"Hello"}}`) || !strings.Contains(ex, "agy --input-format stream-json") {
+		t.Fatalf("agy cli example = %q", ex)
+	}
+}
+
 func containsSeq(argv []string, seq ...string) bool {
 outer:
 	for i := 0; i+len(seq) <= len(argv); i++ {

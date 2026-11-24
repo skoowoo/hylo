@@ -201,3 +201,60 @@ func TestJSONEventStream_OpenCodeV2Turn(t *testing.T) {
 		t.Fatalf("got  %q\nwant %q", got, want)
 	}
 }
+
+func TestAgyEvents(t *testing.T) {
+	stream := strings.Join([]string{
+		`{"event":"init","conversation_id":"conv-1","init":{"cwd":"/vault","model":"gemini-4-neon-medium","permission_mode":"always-proceed"}}`,
+		`{"event":"step_update","step_update":{"conversation_id":"conv-1","step_index":0,"state":"DONE","step_type":"user_input"}}`,
+		`{"event":"step_update","step_update":{"conversation_id":"conv-1","step_index":1,"state":"ACTIVE","step_type":"tool","tool_name":"run_command","tool_info":{"name":"run_command","parameters":{"CommandLine":"echo hi"}}}}`,
+		`{"event":"step_update","step_update":{"conversation_id":"conv-1","step_index":1,"state":"DONE","step_type":"tool","tool_name":"run_command","tool_info":{"name":"run_command","parameters":{"CommandLine":"echo hi"},"output":"hi\n"}}}`,
+		`{"event":"step_update","step_update":{"conversation_id":"conv-1","step_index":2,"state":"DONE","step_type":"tool","tool_name":"view_file","tool_info":{"name":"view_file","parameters":{"AbsolutePath":"/missing.md"},"error":{"type":"not_found","message":"file missing"}}}}`,
+		`{"event":"step_update","step_update":{"conversation_id":"conv-1","step_index":3,"state":"ACTIVE","step_type":"tool","tool_name":"call_mcp_tool","tool_info":{"name":"call_mcp_tool","parameters":{"ServerName":"hylo","ToolName":"read","Arguments":{"path":"/a.md"}}}}}`,
+		`{"event":"step_update","step_update":{"conversation_id":"conv-1","step_index":3,"state":"DONE","step_type":"tool","tool_name":"call_mcp_tool","tool_info":{"name":"call_mcp_tool","parameters":{"ServerName":"hylo","ToolName":"read","Arguments":{"path":"/a.md"}},"output":"ok"}}}`,
+		`{"event":"step_update","step_update":{"conversation_id":"conv-1","step_index":4,"state":"ACTIVE","step_type":"agent_response","text_delta":"Hel"}}`,
+		`{"event":"step_update","step_update":{"conversation_id":"conv-1","step_index":4,"state":"DONE","step_type":"agent_response","text_delta":"lo"}}`,
+		`{"event":"result","result":{"conversation_id":"conv-1","status":"SUCCESS","response":"Hello","duration_seconds":1.5,"num_turns":1,"usage":{"input_tokens":10,"output_tokens":2}}}`,
+	}, "\n") + "\n"
+
+	var sessionID string
+	var got []string
+	j := NewJSONEventStream("agy", func(m map[string]any) {
+		switch m["type"] {
+		case AgentEventSession:
+			sessionID = m["sessionId"].(string)
+		case "status":
+			got = append(got, "status:"+m["label"].(string))
+		case "text_delta":
+			got = append(got, "text:"+m["delta"].(string))
+		case "tool_use":
+			got = append(got, "use:"+m["id"].(string)+":"+m["name"].(string))
+		case "tool_result":
+			got = append(got, "result:"+m["toolUseId"].(string)+":"+m["content"].(string)+":"+map[bool]string{true: "err", false: "ok"}[m["isError"].(bool)])
+		case "usage":
+			got = append(got, "usage")
+		case "error":
+			got = append(got, "error:"+m["message"].(string))
+		case "raw":
+			t.Fatalf("unparsed line: %v", m["line"])
+		}
+	})
+	j.Feed(stream)
+	if sessionID != "conv-1" {
+		t.Fatalf("sessionID = %q", sessionID)
+	}
+	want := []string{
+		"status:initializing",
+		"use:step-1:run_command",
+		"result:step-1:hi\n:ok",
+		"use:step-2:view_file",
+		"result:step-2:file missing:err",
+		"use:step-3:mcp__hylo__read",
+		"result:step-3:ok:ok",
+		"text:Hel",
+		"text:lo",
+		"usage",
+	}
+	if strings.Join(got, "|") != strings.Join(want, "|") {
+		t.Fatalf("got  %q\nwant %q", got, want)
+	}
+}
