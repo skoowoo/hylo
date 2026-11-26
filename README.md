@@ -1,5 +1,9 @@
 # Hylo
 
+<!-- yarkr:badges:start -->
+[![Indexed on Yarkr](https://api.yarkr.com/functions/v1/api/api/v1/badges/repos/skoowoo/hylo/version.svg)](https://yarkr.com/arks/skoowoo/hylo)
+<!-- yarkr:badges:end -->
+
 **Your notes. Your context. Your AI.**
 
 Hylo is a notes app with a Personal AI built in. You write; AI compiles your notes into context about you; your own AI uses that context to work for you. All your data stays on your own machine.
@@ -78,3 +82,37 @@ Hylo Server is one self-contained Go binary with SQLite and a full-text index bu
       ┌──────────────┬─────────┴────┬──────────────┐
   Markdown files   SQLite     Full-text index   Agent CLIs
 ```
+
+<!-- yarkr:install:start -->
+## Install with Yarkr
+
+This repo is indexed on [Yarkr](https://yarkr.com/arks/skoowoo/hylo) as the ark [skoowoo/hylo](https://yarkr.com/arks/skoowoo/hylo), so its skills install into Claude Code, Codex, Cursor and other agent harnesses with one command.
+
+### CLI
+
+Install the whole ark, which Yarkr keeps equal to this repo:
+
+```bash
+npx yarkr-cli sync skoowoo/hylo
+```
+
+Or add individual skills:
+
+```bash
+npx yarkr-cli add skill:skoowoo/hylo/hylo-bots
+npx yarkr-cli add skill:skoowoo/hylo/hylo-compile-note
+npx yarkr-cli add skill:skoowoo/hylo/hylo-curate-knowledge
+```
+
+No Node.js? `curl -fsSL https://yarkr.com/install.sh | sh` (macOS, Linux) or `irm https://yarkr.com/install.ps1 | iex` (Windows PowerShell) installs `yarkr` as a standalone binary; then type `yarkr` in place of `npx yarkr-cli`.
+
+### MCP
+
+Connect your agent to the ark over MCP:
+
+```bash
+npx yarkr-cli mcp add skoowoo/hylo
+```
+
+Or point any MCP client at `https://api.yarkr.com/functions/v1/api/mcp/o/skoowoo/hylo`.
+<!-- yarkr:install:end -->
